@@ -1,29 +1,9 @@
 #pragma once
 #include <span>
 #include <array>
+#include "ExpSmoother.hpp"
 
 namespace dsp {
-
-class AllpassFilter {
-public:
-    float Process(float in) {
-        auto v = latch_;
-        auto t = in - alpha_ * v;
-        latch_ = t;
-        last_ = v + alpha_ * t;
-        return last_;
-    }
-    void  SetAlpha(float a) { alpha_ = a; }
-    float GetLast() const { return last_; }
-    void  Reset() {
-        latch_ = 0.0f;
-        last_ = 0.0f;
-    }
-private:
-    float latch_{};
-    float alpha_{ 1.0f };
-    float last_{};
-};
 
 class BackLPC {
 public:
@@ -37,12 +17,18 @@ public:
     void SetSmooth(float smooth);
     void SetLPCOrder(int order);
     void SetApAlpha(float alpha);
+    void SetGainAttack(float ms);
+    void SetGainRelease(float ms);
+
+    int GetOrder() const { return lpc_order_; }
+    void CopyLatticeCoeffient(std::span<float> buffer);
 private:
+    ExpSmoother gain_smooth_;
+
     float sample_rate_{};
     float forget_{};
     float learn_{};
     float smooth_{};
-    float gain_latch_{};
     int lpc_order_{};
 
     std::array<float, kNumPoles> lattice_k_{};
@@ -54,8 +40,7 @@ private:
     std::array<float, kNumPoles> ebsum_{};
     std::array<float, kNumPoles> efsum_{};
     std::array<float, kNumPoles + 1> x_iir_{};
-    // std::array<float, kNumPoles + 1> l_iir{};
-    std::array<AllpassFilter, kNumPoles + 1> iir_latch_{};
+    std::array<float, kNumPoles + 1> l_iir{};
 };
 
 }

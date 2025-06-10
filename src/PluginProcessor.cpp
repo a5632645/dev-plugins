@@ -91,7 +91,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kForgetRate, 1},
             id::kForgetRate,
-            juce::NormalisableRange<float>{0.1f, 50.0f, 0.1f},
+            juce::NormalisableRange<float>{0.1f, 100.0f, 0.1f, 0.4f},
             5.0f
         );
         paramListeners_.Add(p, [this](float l) {
@@ -103,10 +103,35 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kLPCSmooth, 1},
             id::kLPCSmooth,
-            0.1f, 100.0f, 1.0f
+            juce::NormalisableRange<float>{0.1f, 100.0f, 0.1f, 0.4f},
+            0.1f
         );
         paramListeners_.Add(p, [this](float l) {
             lpc_.SetSmooth(l);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kLPCGainAttack, 1},
+            id::kLPCGainAttack,
+            juce::NormalisableRange<float>{1.0f, 500.0f, 1.0f, 0.4f},
+            10.0f
+        );
+        paramListeners_.Add(p, [this](float l) {
+            lpc_.SetGainAttack(l);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kLPCGainRelease, 1},
+            id::kLPCGainRelease,
+            juce::NormalisableRange<float>{1.0f, 500.0f, 1.0f, 0.4f},
+            10.0f
+        );
+        paramListeners_.Add(p, [this](float l) {
+            lpc_.SetGainRelease(l);
         });
         layout.add(std::move(p));
     }

@@ -42,9 +42,12 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     lpc_order_.BindParameter(apvts, id::kLPCOrder);
     lpc_order_.SetShortName("ORDER");
     addAndMakeVisible(lpc_order_);
-    lpc_bend_.BindParameter(apvts, id::kLPCBend);
-    lpc_bend_.SetShortName("BEND");
-    addAndMakeVisible(lpc_bend_);
+    lpc_attack_.BindParameter(apvts, id::kLPCGainAttack);
+    lpc_attack_.SetShortName("ATTACK");
+    addAndMakeVisible(lpc_attack_);
+    lpc_release_.BindParameter(apvts, id::kLPCGainRelease);
+    lpc_release_.SetShortName("RELEASE");
+    addAndMakeVisible(lpc_release_);
 
     setSize (500, 500);
     startTimerHz(30);
@@ -57,35 +60,57 @@ AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
 //==============================================================================
 void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
     g.fillAll(juce::Colours::grey);
-    auto b = getLocalBounds();
+    auto b = getLocalBounds().toFloat();
     b.removeFromTop(lpc_order_.getBottom());
 
     g.setColour(juce::Colours::black);
     g.fillRect(b);
     g.setColour(juce::Colours::white);
     g.drawRect(b);
-    
-    g.setColour(juce::Colours::green);
+
+    // lattice to tf
+    std::array<float, dsp::BackLPC::kNumPoles> lattice_buff;
+    processorRef.lpc_.CopyLatticeCoeffient(lattice_buff);
+    int order = processorRef.lpc_.GetOrder();
+    std::array<float, dsp::BackLPC::kNumPoles> transfer_function;
+    for (int i = 0; i < order; ++i) {
+        transfer_function[i] = lattice_buff[i];
+        for (int j = 0; j < i - 1; ++j) {
+            transfer_function[j] = transfer_function[j] - lattice_buff[i] * transfer_function[i - j];
+        }
+    }
+
+    constexpr float up = 30.0f;
+    constexpr float down = -60.0f;
+    // draw
     int w = getWidth();
-    float a = lpc_bend_.slider_.getValue();
-    auto conv_y = [b](float y) {
-        auto center = b.toFloat().getCentreY();
-        auto high = b.toFloat().getHeight() / 2.0f;
-        return center - y * high;
-    };
-    float beginx = 0.0f;
-    float beginy = conv_y(0.0f);
-    for (int i = 0; i < w; ++i) {
-        float omega = static_cast<float>(i) * std::numbers::pi_v<float> / static_cast<float>(w - 1);
-        auto z = std::polar(1.0f, -omega);
-        auto up = a + z;
-        auto down = 1.0f + a * z;
-        auto res = up / down;
-        auto phase = std::arg(res) / std::numbers::pi_v<float>;
-        auto y = conv_y(phase);
-        g.drawLine(beginx, beginy, i, y);
-        beginx = i;
-        beginy = y;
+    juce::Point<float> line_last{ b.getX(), b.getCentreY() };
+    g.setColour(juce::Colours::green);
+    float mul_val = std::pow(10.0f, 2.0f / w);
+    float mul_begin = 1.0f;
+    float omega_base = 180.0f * std::numbers::pi_v<float> / processorRef.getSampleRate();
+    for (int x = 0; x < w; ++x) {
+        // float omega = static_cast<float>(x) * std::numbers::pi_v<float> / static_cast<float>(w - 1);
+        float omega = omega_base * mul_begin;
+        mul_begin *= mul_val;
+        auto z_responce = std::complex{1.0f, 0.0f};
+        for (int i = 0; i < order; ++i) {
+            auto z = std::polar(1.0f, -omega * (i + 1));
+            z_responce -= transfer_function[i] * z;
+        }
+        z_responce = 1.0f / z_responce;
+        if (std::isnan(z_responce.real()) || std::isnan(z_responce.imag())) {
+            continue;
+        }
+
+        float gain = std::abs(z_responce);
+        float db_gain = 20.0f * std::log10(gain + 1e-8f);
+        if (db_gain < down) db_gain = down;
+        float y_nor = (db_gain - (down)) / (up - (down));
+        float y = b.getBottom() - y_nor * b.getHeight();
+        juce::Point line_end{ static_cast<float>(x + b.toFloat().getX()), y };
+        g.drawLine(juce::Line<float>{line_last, line_end}, 2.0f);
+        line_last = line_end;
     }
 }
 
@@ -111,7 +136,8 @@ void AudioPluginAudioProcessorEditor::resized() {
         lpc_foorget_.setBounds(top.removeFromLeft(50));
         lpc_smooth_.setBounds(top.removeFromLeft(50));
         lpc_order_.setBounds(top.removeFromLeft(50));
-        lpc_bend_.setBounds(top.removeFromLeft(50));
+        lpc_attack_.setBounds(top.removeFromLeft(50));
+        lpc_release_.setBounds(top.removeFromLeft(50));
     }
 }
 

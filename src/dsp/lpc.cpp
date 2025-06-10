@@ -5,6 +5,7 @@
 namespace dsp {
 void BackLPC::Init(float sample_rate) {
     sample_rate_ = sample_rate;
+    gain_smooth_.Init(sample_rate);
 }
 
 void BackLPC::Process(std::span<float> block, std::span<float> block2) {
@@ -43,23 +44,16 @@ float BackLPC::ProcessSingle(float x, float exci) {
     float recusial = ef_out_[lpc_order_];
     recusial = std::abs(recusial);
     float gain = std::sqrt(recusial + 1e-10f);
-    gain_latch_ = gain_latch_ * 0.99f + gain * 0.01f;
-    x_iir_[0] = exci * gain_latch_;
+    gain = gain_smooth_.Process(gain);
+    x_iir_[0] = exci * gain;
     // iir lattice
-    // for (int i = 0; i < lpc_order_; ++i) {
-    //     x_iir_[i + 1] = x_iir_[i] - iir_k_[lpc_order_ - i - 1] * l_iir[i + 1];
-    // }
-    // for (int i = 0; i < lpc_order_; ++i) {
-    //     l_iir[i] = l_iir[i + 1] + iir_k_[lpc_order_ - i - 1] * x_iir_[i + 1];
-    // }
-    // l_iir[lpc_order_] = x_iir_[lpc_order_];
     for (int i = 0; i < lpc_order_; ++i) {
-        x_iir_[i + 1] = x_iir_[i] - iir_k_[lpc_order_ - i - 1] * iir_latch_[i + 1].GetLast();
+        x_iir_[i + 1] = x_iir_[i] - iir_k_[lpc_order_ - i - 1] * l_iir[i + 1];
     }
     for (int i = 0; i < lpc_order_; ++i) {
-        iir_latch_[i].Process(iir_latch_[i + 1].GetLast() + iir_k_[lpc_order_ - i - 1] * x_iir_[i + 1]);
+        l_iir[i] = l_iir[i + 1] + iir_k_[lpc_order_ - i - 1] * x_iir_[i + 1];
     }
-    iir_latch_[lpc_order_].Process(x_iir_[lpc_order_]);
+    l_iir[lpc_order_] = x_iir_[lpc_order_];
     float out = x_iir_[lpc_order_];
     assert(!std::isinf(out) && !std::isnan(out));
     return out;
@@ -84,14 +78,20 @@ void BackLPC::SetLPCOrder(int order) {
     std::fill_n(ebsum_.begin(), order, 0.0f);
     std::fill_n(efsum_.begin(), order, 0.0f);
     std::fill_n(x_iir_.begin(), order + 1, 0.0f);
-    // std::fill_n(l_iir.begin(), order + 1, 0.0f);
-    for (int i = 0; i < order + 1; ++i) {
-        iir_latch_[i].Reset();
-    }
+    std::fill_n(l_iir.begin(), order + 1, 0.0f);
 }
 void BackLPC::SetApAlpha(float alpha) {
-    for (int i = 0; i < kNumPoles + 1; ++i) {
-        iir_latch_[i].SetAlpha(alpha);
-    }
+}
+
+void BackLPC::SetGainAttack(float ms) {
+    gain_smooth_.SetAttackTime(ms);
+}
+
+void BackLPC::SetGainRelease(float ms) {
+    gain_smooth_.SetReleaseTime(ms);
+}
+
+void BackLPC::CopyLatticeCoeffient(std::span<float> buffer) {
+    std::copy_n(iir_k_.begin(), lpc_order_, buffer.begin());
 }
 }

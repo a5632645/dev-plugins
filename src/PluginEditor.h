@@ -30,7 +30,8 @@ private:
     ui::VerticalSlider lpc_foorget_;
     ui::VerticalSlider lpc_smooth_;
     ui::VerticalSlider lpc_order_;
-    ui::VerticalSlider lpc_bend_;
+    ui::VerticalSlider lpc_attack_;
+    ui::VerticalSlider lpc_release_;
     juce::Label filter_{"", "filter"};
     juce::Label shifter_{"", "shifter"};
     juce::Label lpc_{"", "lpc"};
