@@ -14,7 +14,7 @@ cmake_minimum_required(VERSION 3.22)
 # `project()` command. `project()` sets up some helpful variables that describe source/binary
 # directories, and the current project version. This is a standard CMake command.
 
-project(AUDIO_PLUGIN_EXAMPLE VERSION 0.0.1)
+project(LPCVocoderRework VERSION 0.0.1)
 
 # If you've installed JUCE somehow (via a package manager, or directly using the CMake install
 # target), you'll need to tell this project that it depends on the installed copy of JUCE. If you've
@@ -54,7 +54,7 @@ juce_add_plugin(LPCVocoderRework
     PLUGIN_CODE Lpcv                            # A unique four-character plugin id with exactly one upper-case character
                                                 # GarageBand 10.3 requires the first letter to be upper-case, and the remaining letters to be lower-case
     FORMATS AU VST3 Standalone                  # The formats to build. Other valid formats are: AAX Unity VST AU AUv3
-    PRODUCT_NAME "LPC VOCODER REWORK 2")        # The name of the final executable, which can differ from the target name
+    PRODUCT_NAME "LPC VOCODER REWORK")        # The name of the final executable, which can differ from the target name
 
 # `juce_generate_juce_header` will create a JuceHeader.h for a given target, which will be generated
 # into your build tree. This should be included with `#include <JuceHeader.h>`. The include path for
@@ -78,13 +78,7 @@ target_sources(LPCVocoderRework
 )
 set_target_properties(LPCVocoderRework PROPERTIES CXX_STANDARD 20)
 
-# 检测 MSVC 编译器
-if(MSVC)
-    # 为 MSVC 添加 AVX2 支持
-    target_compile_options(LPCVocoderRework PRIVATE /arch:AVX2)
-endif()
-
-include_directories(.)
+target_include_directories(LPCVocoderRework PRIVATE .)
 
 
 # `target_compile_definitions` adds some preprocessor definitions to our target. In a Projucer
