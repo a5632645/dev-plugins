@@ -80,6 +80,9 @@ set_target_properties(LPCVocoderRework PROPERTIES CXX_STANDARD 20)
 
 target_include_directories(LPCVocoderRework PRIVATE .)
 
+add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
+add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+
 
 # `target_compile_definitions` adds some preprocessor definitions to our target. In a Projucer
 # project, these might be passed in the 'Preprocessor Definitions' field. JUCE modules also make use
