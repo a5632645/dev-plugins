@@ -69,16 +69,18 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
     g.drawRect(b);
 
     // lattice to tf
-    std::array<float, dsp::BackLPC::kNumPoles> lattice_buff;
-    processorRef.lpc_.CopyLatticeCoeffient(lattice_buff);
-    int order = processorRef.lpc_.GetOrder();
+    // std::array<float, dsp::BackLPC::kNumPoles> lattice_buff;
     std::array<float, dsp::BackLPC::kNumPoles> transfer_function;
-    for (int i = 0; i < order; ++i) {
-        transfer_function[i] = lattice_buff[i];
-        for (int j = 0; j < i - 1; ++j) {
-            transfer_function[j] = transfer_function[j] - lattice_buff[i] * transfer_function[i - j];
-        }
-    }
+    // processorRef.lpc_.CopyLatticeCoeffient(lattice_buff);
+    // int order = processorRef.lpc_.GetOrder();
+    // for (int i = 0; i < order; ++i) {
+    //     transfer_function[i] = lattice_buff[i];
+    //     for (int j = 0; j < i - 1; ++j) {
+    //         transfer_function[j] = transfer_function[j] - lattice_buff[i] * transfer_function[i - j];
+    //     }
+    // }
+    processorRef.rls_lpc_.CopyLatticeCoeffient(transfer_function);
+    int order = processorRef.rls_lpc_.GetOrder();
 
     constexpr float up = 30.0f;
     constexpr float down = -60.0f;
@@ -90,9 +92,9 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
     float mul_begin = 1.0f;
     float omega_base = 180.0f * std::numbers::pi_v<float> / processorRef.getSampleRate();
     for (int x = 0; x < w; ++x) {
-        // float omega = static_cast<float>(x) * std::numbers::pi_v<float> / static_cast<float>(w - 1);
-        float omega = omega_base * mul_begin;
-        mul_begin *= mul_val;
+        float omega = static_cast<float>(x) * std::numbers::pi_v<float> / static_cast<float>(w - 1);
+        // float omega = omega_base * mul_begin;
+        // mul_begin *= mul_val;
         auto z_responce = std::complex{1.0f, 0.0f};
         for (int i = 0; i < order; ++i) {
             auto z = std::polar(1.0f, -omega * (i + 1));

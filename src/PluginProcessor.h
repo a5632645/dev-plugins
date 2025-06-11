@@ -4,6 +4,7 @@
 #include "dsp/filter.hpp"
 #include "dsp/lpc.hpp"
 #include "dsp/pitch_shifter.hpp"
+#include "dsp/rls_lpc.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -112,6 +113,7 @@ public:
     dsp::Filter hpfilter_;
     dsp::PitchShifter shifter_;
     dsp::BackLPC lpc_;
+    dsp::RLSLPC rls_lpc_;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)

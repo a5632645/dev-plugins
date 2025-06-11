@@ -1,7 +1,6 @@
 #pragma once
 #include <span>
 #include <array>
-#include "AudioFFT/AudioFFT.h"
 
 namespace dsp {
 
