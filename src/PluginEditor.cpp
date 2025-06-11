@@ -82,8 +82,8 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
     processorRef.rls_lpc_.CopyLatticeCoeffient(transfer_function);
     int order = processorRef.rls_lpc_.GetOrder();
 
-    constexpr float up = 30.0f;
-    constexpr float down = -60.0f;
+    constexpr float up = 60.0f;
+    constexpr float down = -20.0f;
     // draw
     int w = getWidth();
     juce::Point<float> line_last{ b.getX(), b.getCentreY() };
@@ -92,9 +92,9 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
     float mul_begin = 1.0f;
     float omega_base = 180.0f * std::numbers::pi_v<float> / processorRef.getSampleRate();
     for (int x = 0; x < w; ++x) {
-        float omega = static_cast<float>(x) * std::numbers::pi_v<float> / static_cast<float>(w - 1);
-        // float omega = omega_base * mul_begin;
-        // mul_begin *= mul_val;
+        // float omega = static_cast<float>(x) * std::numbers::pi_v<float> / static_cast<float>(w - 1);
+        float omega = omega_base * mul_begin;
+        mul_begin *= mul_val;
         auto z_responce = std::complex{1.0f, 0.0f};
         for (int i = 0; i < order; ++i) {
             auto z = std::polar(1.0f, -omega * (i + 1));
