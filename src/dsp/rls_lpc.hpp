@@ -9,8 +9,8 @@ namespace dsp {
 class RLSLPC {
 public:
     static constexpr int kOrder = 35;
-    using vec = Eigen::Matrix<float, kOrder, 1>;
-    using mat = Eigen::Matrix<float, kOrder, kOrder>;
+    using vec = Eigen::Matrix<double, kOrder, 1>;
+    using mat = Eigen::Matrix<double, kOrder, kOrder>;
 
     void Init(float fs);
     void Process(std::span<float> block, std::span<float> block2);
@@ -20,7 +20,7 @@ public:
 private:
     int num_zero_ = kOrder;
 
-    float forget_ = 0.999f;
+    double forget_ = 0.999f;
     // std::array<std::array<float, kOrder>, kOrder> p_{};
     // std::array<float, kOrder> w_{};
     // std::array<float, kOrder> latch_{};
@@ -31,7 +31,7 @@ private:
 
     vec iir_w_;
     vec iir_latch_;
-    float smooth_gain_{};
+    double smooth_gain_{};
 };
 
 } // namespace dsp
