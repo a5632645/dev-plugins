@@ -1,6 +1,7 @@
 #include "rls_lpc.hpp"
 #include <cassert>
 #include <cmath>
+#include <cstdlib>
 
 namespace dsp {
 
@@ -9,21 +10,27 @@ void RLSLPC::Init(float fs) {
     //     p_[i][i] = 0.01f;
     // }
 
-    forget_ = std::exp(-1.0f / (fs * 10.0f / 1000.0f));
+    forget_ = std::exp(-1.0f / (fs * 20.0f / 1000.0f));
 
     p_.setIdentity();
     p_ *= 0.01f;
     w_.setZero();
     latch_.setZero();
+
+    iir_latch_.setZero();
+    iir_w_.setZero();
 }
 
 void RLSLPC::Process(std::span<float> block, std::span<float> block2) {
-    for (auto& s : block) {
-        s = ProcessSingle(s, s);
+    int size = static_cast<int>(block.size());
+    for (int i = 0; i < size; ++i) {
+        block[i] = ProcessSingle(block[i], block2[i]);
     }
 }
 
 float RLSLPC::ProcessSingle(float x, float exci) {
+    x += 0.001f * rand() / static_cast<float>(RAND_MAX);
+
     // prediate
     float pred = w_.transpose() * latch_;
     float lamda_inv = 1.0f / forget_;
@@ -48,7 +55,11 @@ float RLSLPC::ProcessSingle(float x, float exci) {
     latch_[0] = x;
 
     // iir processing
-    float yy = w_.transpose() * iir_latch_ + err;
+    float gain = std::sqrt(err * err + 1e-10f);
+    iir_w_ = iir_w_ * forget_ + w_ * (1.0f - forget_);
+    smooth_gain_ = smooth_gain_ * forget_ + gain * (1.0f - forget_);
+
+    float yy = iir_w_.transpose() * iir_latch_ + smooth_gain_ * exci;
         for (int i = kOrder - 1; i > 0; --i) {
         iir_latch_[i] = iir_latch_[i - 1];
     }
@@ -56,55 +67,7 @@ float RLSLPC::ProcessSingle(float x, float exci) {
 
     assert(!isnan(yy));
 
-    return pred;
-
-    // // kalman gain
-    // std::array<float, kOrder> k{};
-    // for (int i = 0; i < kOrder; ++i) {
-    //     for (int j = 0; j < kOrder; ++j) {
-    //         k[i] += p_[i][j] * latch_[j];
-    //     }
-    // }
-    // {
-    //     float kk = 0.0f;
-    //     for (int i = 0; i < kOrder; ++i) {
-    //         kk += k[i] * latch_[i];
-    //     }
-    //     for (int i = 0; i < kOrder; ++i) {
-    //         k[i] /= (kk + forget_);
-    //     }
-    // }
-
-    // // prediate
-    // float pred = 0.0f;
-    // for (int i = 0; i < kOrder; ++i) {
-    //     pred += w_[i] * latch_[i];
-    // }
-    // float err = x - pred;
-
-    // // update coeffient
-    // for (int i = 0; i < kOrder; ++i) {
-    //     w_[i] += err * k[i];
-    // }
-
-    // // update p
-    // if (num_zero_ == 0) {
-    //     std::array<std::array<float, kOrder>, kOrder> tmp{};
-    //     for (int i = 0; i < kOrder; ++i) {
-    //         for (int j = 0; j < kOrder; ++j) {
-    //             for (int kk = 0; kk < kOrder; ++kk) {
-    //                 tmp[i][j] += p_[j][kk] * k[i] * latch_[kk];
-    //             }
-    //         }
-    //     }
-    //     for (int i = 0; i < kOrder; ++i) {
-    //         for (int j = 0; j < kOrder; ++j) {
-    //             p_[i][j] = (p_[i][j] - tmp[i][j]) / forget_;
-    //         }
-    //     }
-    // }
-
-    // return x;
+    return yy;
 }
 
 void RLSLPC::CopyLatticeCoeffient(std::span<float> buffer) {

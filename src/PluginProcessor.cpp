@@ -287,9 +287,9 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     std::span left_block { buffer.getWritePointer(0), static_cast<size_t>(buffer.getNumSamples()) };
     std::span right_block { buffer.getWritePointer(1), static_cast<size_t>(buffer.getNumSamples()) };
     rls_lpc_.Process(left_block, right_block);
-    // hpfilter_.Process(left_block);
-    // filter_.Process(left_block);
-    // shifter_.Process(left_block);
+    hpfilter_.Process(left_block);
+    filter_.Process(left_block);
+    shifter_.Process(left_block);
     // lpc_.Process(left_block, right_block);
     std::copy(left_block.begin(), left_block.end(), right_block.begin());
 }
