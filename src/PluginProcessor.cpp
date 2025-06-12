@@ -91,11 +91,12 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kForgetRate, 1},
             id::kForgetRate,
-            juce::NormalisableRange<float>{0.1f, 100.0f, 0.1f, 0.4f},
-            5.0f
+            juce::NormalisableRange<float>{2.0f, 100.0f, 1.0f, 0.4f},
+            10.0f
         );
         paramListeners_.Add(p, [this](float l) {
             lpc_.SetForget(l);
+            rls_lpc_.SetForgetRate(l);
         });
         layout.add(std::move(p));
     }
@@ -108,6 +109,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float l) {
             lpc_.SetSmooth(l);
+            rls_lpc_.SetSmooth(l);
         });
         layout.add(std::move(p));
     }
@@ -115,11 +117,12 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kLPCGainAttack, 1},
             id::kLPCGainAttack,
-            juce::NormalisableRange<float>{1.0f, 500.0f, 1.0f, 0.4f},
-            10.0f
+            juce::NormalisableRange<float>{1.0f, 100.0f, 1.0f, 0.4f},
+            5.0f
         );
         paramListeners_.Add(p, [this](float l) {
             lpc_.SetGainAttack(l);
+            rls_lpc_.SetGainAttack(l);
         });
         layout.add(std::move(p));
     }
@@ -127,11 +130,12 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kLPCGainRelease, 1},
             id::kLPCGainRelease,
-            juce::NormalisableRange<float>{1.0f, 500.0f, 1.0f, 0.4f},
-            10.0f
+            juce::NormalisableRange<float>{1.0f, 100.0f, 1.0f, 0.4f},
+            5.0f
         );
         paramListeners_.Add(p, [this](float l) {
             lpc_.SetGainRelease(l);
+            rls_lpc_.SetGainRelease(l);
         });
         layout.add(std::move(p));
     }
@@ -156,6 +160,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](int order) {
             juce::ScopedLock lock{getCallbackLock()};
             lpc_.SetLPCOrder(order);
+            rls_lpc_.SetLPCOrder(order);
         });
         layout.add(std::move(p));
     }

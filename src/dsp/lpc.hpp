@@ -23,7 +23,7 @@ public:
     int GetOrder() const { return lpc_order_; }
     void CopyLatticeCoeffient(std::span<float> buffer);
 private:
-    ExpSmoother gain_smooth_;
+    ExpSmoother<float> gain_smooth_;
 
     float sample_rate_{};
     float forget_{};

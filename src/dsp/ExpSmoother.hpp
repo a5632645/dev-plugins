@@ -3,13 +3,14 @@
 
 namespace dsp{
 
+template<class Type>
 class ExpSmoother {
 public:
-    void Init(float sampleRate) {
+    void Init(Type sampleRate) {
         sampleRate_ = sampleRate;
     }
 
-    float Process(float in) {
+    Type Process(Type in) {
         if (in > latch_) {
             latch_ = latch_ * biggerCoeff_ + (1 - biggerCoeff_) * in;
         }
@@ -19,18 +20,18 @@ public:
         return latch_;
     }
 
-    void SetAttackTime(float ms) {
-        biggerCoeff_ = std::exp(-1.0f / (sampleRate_ * ms / 1000.0f));
+    void SetAttackTime(Type ms) {
+        biggerCoeff_ = std::exp((Type)-1.0 / (sampleRate_ * ms / (Type)1000.0));
     }
 
-    void SetReleaseTime(float ms) {
-        smallerCoeff_ = std::exp(-1.0f / (sampleRate_ * ms / 1000.0f));
+    void SetReleaseTime(Type ms) {
+        smallerCoeff_ = std::exp((Type)-1.0 / (sampleRate_ * ms / (Type)1000.0));
     }
 private:
-    float sampleRate_ = 0;
-    float latch_ = 0;
-    float biggerCoeff_ = 0;
-    float smallerCoeff_ = 0;
+    Type sampleRate_ = 0;
+    Type latch_ = 0;
+    Type biggerCoeff_ = 0;
+    Type smallerCoeff_ = 0;
 };
 
 }

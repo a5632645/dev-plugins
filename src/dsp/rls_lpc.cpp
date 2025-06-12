@@ -1,4 +1,5 @@
 #include "rls_lpc.hpp"
+#include "Eigen/Core"
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
@@ -10,15 +11,16 @@ void RLSLPC::Init(float fs) {
     //     p_[i][i] = 0.01f;
     // }
 
+    sample_rate_ = fs;
     forget_ = std::exp(-1.0f / (fs * 20.0f / 1000.0f));
+    gain_smoother_.Init(fs);
 
-    p_.setIdentity();
-    p_ *= 0.01f;
-    w_.setZero();
-    latch_.setZero();
-
-    iir_latch_.setZero();
-    iir_w_.setZero();
+    p_.resize(kOrder, kOrder);
+    identity_.resize(kOrder, kOrder);
+    w_.resize(kOrder, Eigen::NoChange);
+    latch_.resize(kOrder, Eigen::NoChange);
+    k_.resize(kOrder, Eigen::NoChange);
+    iir_latch_.resize(kOrder, Eigen::NoChange);
 }
 
 void RLSLPC::Process(std::span<float> block, std::span<float> block2) {
@@ -39,38 +41,71 @@ float RLSLPC::ProcessSingle(float x, float exci) {
     mat wtf = p_ * lamda_inv;
     k_ = (p_ * latch_) / (forget_ + (latch_.transpose() * p_ * latch_).value());
     w_.noalias() += k_ * err;
-    if (num_zero_ != kOrder) {
-        p_.noalias() = (mat::Identity() - k_ * latch_.transpose()) * wtf;
-    }
+    p_.noalias() = (identity_ - k_ * latch_.transpose()) * wtf;
 
     // push latch
-    bool zero_last = std::abs(latch_(kOrder - 1)) < 1e-6;
-    bool zero_push = std::abs(x) < 1e-6;
-    if (!zero_last && zero_push) ++num_zero_;
-    else if (zero_last && !zero_push) --num_zero_;
-
-    for (int i = kOrder - 1; i > 0; --i) {
+    for (int i = order_ - 1; i > 0; --i) {
         latch_[i] = latch_[i - 1];
     }
     latch_[0] = x;
 
     // iir processing
     double gain = std::sqrt(err * err + 1e-10f);
-    smooth_gain_ = smooth_gain_ * forget_ + gain * (1.0f - forget_);
+    gain = gain_smoother_.Process(gain);
 
-    double yy = w_.transpose() * iir_latch_ + smooth_gain_ * exci;
+    double yy = w_.transpose() * iir_latch_ + gain * exci;
     yy = std::clamp(yy, -4.0, 4.0);
-    for (int i = kOrder - 1; i > 0; --i) {
+    for (int i = order_ - 1; i > 0; --i) {
         iir_latch_[i] = iir_latch_[i - 1];
     }
     iir_latch_[0] = yy;
 
     assert(!isnan(yy));
 
-    return yy;
+    return static_cast<float>(yy);
 }
 
 void RLSLPC::CopyLatticeCoeffient(std::span<float> buffer) {
-    std::copy_n(w_.begin(), kOrder, buffer.begin());
+    std::copy_n(w_.begin(), order_, buffer.begin());
 }
+
+void RLSLPC::SetForgetRate(float ms) {
+    forget_ = std::exp(-1.0f / (sample_rate_ * ms / 1000.0f));
+}
+
+void RLSLPC::SetSmooth(float smooth) {
+}
+
+void RLSLPC::SetLPCOrder(int order) {
+    order_ = order;
+
+    p_.resize(order, order);
+    identity_.resize(order, order);
+    w_.resize(order, Eigen::NoChange);
+    latch_.resize(order, Eigen::NoChange);
+    k_.resize(order, Eigen::NoChange);
+    iir_latch_.resize(order, Eigen::NoChange);
+
+    p_.setIdentity();
+    identity_.setIdentity();
+    p_.noalias() = identity_ * 0.01;
+    w_.setZero();
+    latch_.setZero();
+    k_.setZero();
+    iir_latch_.setZero();
+}
+
+void RLSLPC::SetApAlpha(float alpha) {
+    // nothing
+}
+
+void RLSLPC::SetGainAttack(float ms) {
+    gain_smoother_.SetAttackTime(ms);
+}
+
+void RLSLPC::SetGainRelease(float ms) {
+    gain_smoother_.SetReleaseTime(ms);
+}
+
+
 } // namespace dsp
