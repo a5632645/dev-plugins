@@ -32,9 +32,11 @@ private:
     ui::VerticalSlider lpc_order_;
     ui::VerticalSlider lpc_attack_;
     ui::VerticalSlider lpc_release_;
+    ui::VerticalSlider stft_bandwidth_;
     juce::Label filter_{"", "filter"};
     juce::Label shifter_{"", "shifter"};
     juce::Label lpc_{"", "lpc"};
+    juce::Label stft_{"", "stft"};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };

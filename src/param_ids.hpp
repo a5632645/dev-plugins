@@ -18,4 +18,6 @@ static constexpr auto kLPCBend = "lpc_bend";
 static constexpr auto kLPCGainAttack = "lpc_attack";
 static constexpr auto kLPCGainRelease = "lpc_release";
 
+static constexpr auto kStftWindowWidth = "stft_bandwidth";
+
 }

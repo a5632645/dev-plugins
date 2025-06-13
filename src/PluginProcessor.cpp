@@ -1,6 +1,9 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "juce_audio_processors/juce_audio_processors.h"
+#include "juce_core/juce_core.h"
 #include "param_ids.hpp"
+#include <memory>
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
@@ -165,6 +168,20 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
 
+    // stft
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kStftWindowWidth, 1},
+            id::kStftWindowWidth,
+            0.1, 500.0f, 1.0f
+        );
+        paramListeners_.Add(p, [this](float bw) {
+            juce::ScopedLock lock{getCallbackLock()};
+            stft_vocoder_.SetBandwidth(bw);
+        });
+        layout.add(std::move(p));
+    }
+
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
 }
 
@@ -246,6 +263,7 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     filter_.Init(fs);
     hpfilter_.Init(fs);
     rls_lpc_.Init(fs);
+    stft_vocoder_.Init(fs);
     paramListeners_.CallAll();
 }
 
@@ -291,11 +309,12 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     
     std::span left_block { buffer.getWritePointer(0), static_cast<size_t>(buffer.getNumSamples()) };
     std::span right_block { buffer.getWritePointer(1), static_cast<size_t>(buffer.getNumSamples()) };
-    rls_lpc_.Process(left_block, right_block);
     hpfilter_.Process(left_block);
     filter_.Process(left_block);
-    shifter_.Process(left_block);
+    // shifter_.Process(left_block);
+    // rls_lpc_.Process(left_block, right_block);
     // lpc_.Process(left_block, right_block);
+    stft_vocoder_.Process(left_block, right_block);
     std::copy(left_block.begin(), left_block.end(), right_block.begin());
 }
 

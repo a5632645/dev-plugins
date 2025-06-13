@@ -78,7 +78,11 @@ target_sources(LPCVocoderRework
 )
 set_target_properties(LPCVocoderRework PROPERTIES CXX_STANDARD 20)
 
-target_include_directories(LPCVocoderRework PRIVATE .)
+target_include_directories(LPCVocoderRework
+    PRIVATE
+        .
+        ./..
+)
 
 add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
