@@ -2,6 +2,7 @@
 
 #include "PluginProcessor.h"
 #include <array>
+#include "juce_graphics/juce_graphics.h"
 #include "ui/vertical_slider.hpp"
 #include "ui/toggle_button.hpp"
 
@@ -18,6 +19,9 @@ public:
 
 private:
     void timerCallback() override;
+    void DrawBurgLPC(juce::Graphics& g);
+    void DrawRLSLPC(juce::Graphics& g);
+    void DrawSTFTVocoder(juce::Graphics& g);
 
     AudioPluginAudioProcessor& processorRef;
 

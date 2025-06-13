@@ -1,33 +1,33 @@
 #pragma once
 #include <span>
-#include <array>
+#include <cassert>
 #include <Eigen/Dense>
 #include "Eigen/Core"
 #include "ExpSmoother.hpp"
+#include "filter.hpp"
 
 namespace dsp {
-    
-class RLSLPC {
+
+namespace internal {
+
+template <int LPC_SIZE>
+class FIXED_RLSLPC {
 public:
-    static constexpr int kOrder = 200;
-    static constexpr int kDefaultOrder = 35;
-    using vec = Eigen::Matrix<double, Eigen::Dynamic, 1>;
-    using mat = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
+    using vec = Eigen::Matrix<double, LPC_SIZE, 1>;
+    using mat = Eigen::Matrix<double, LPC_SIZE, LPC_SIZE>;
+    static constexpr int order = LPC_SIZE;
 
     void Init(float fs);
     void Process(std::span<float> block, std::span<float> block2);
     float ProcessSingle(float x, float exci);
-    int GetOrder() const { return order_; }
-    void CopyLatticeCoeffient(std::span<float> buffer);
+    constexpr int GetOrder() const { return LPC_SIZE; }
+    void CopyTransferFunction(std::span<float> buffer);
 
     void SetForgetRate(float ms);
-    void SetSmooth(float smooth);
     void SetLPCOrder(int order);
-    void SetApAlpha(float alpha);
     void SetGainAttack(float ms);
     void SetGainRelease(float ms);
 private:
-    int order_{};
     float sample_rate_{};
     double forget_ = 0.999f;
     mat p_;
@@ -38,6 +38,111 @@ private:
 
     vec iir_latch_;
     ExpSmoother<double> gain_smoother_;
+};
+
+template <int LPC_SIZE>
+void FIXED_RLSLPC<LPC_SIZE>::Init(float fs) {
+    sample_rate_ = fs;
+    forget_ = std::exp(-1.0f / (fs * 20.0f / 1000.0f));
+    gain_smoother_.Init(fs);
+
+    identity_.setIdentity();
+    p_.noalias() = identity_ * 0.01;
+    w_.setZero();
+    latch_.setZero();
+    iir_latch_.setZero();
+}
+
+template <int LPC_SIZE>
+void FIXED_RLSLPC<LPC_SIZE>::Process(std::span<float> block, std::span<float> block2) {
+    int size = static_cast<int>(block.size());
+    for (int i = 0; i < size; ++i) {
+        block[i] = ProcessSingle(block[i], block2[i]);
+    }
+}
+
+template <int LPC_SIZE>
+float FIXED_RLSLPC<LPC_SIZE>::ProcessSingle(float x, float exci) {
+    x += 0.001f * rand() / static_cast<float>(RAND_MAX);
+
+    // prediate
+    double pred = w_.transpose() * latch_;
+    double lamda_inv = 1.0f / forget_;
+    double err = x - pred;
+
+    auto wtf = p_ * lamda_inv;
+    k_.noalias() = (p_ * latch_) / (forget_ + (latch_.transpose() * p_ * latch_).value());
+    w_.noalias() += k_ * err;
+    p_ = (identity_ - k_ * latch_.transpose()) * wtf;
+
+    // push latch
+    for (int i = LPC_SIZE - 1; i > 0; --i) {
+        latch_[i] = latch_[i - 1];
+    }
+    latch_[0] = x;
+
+    // iir processing
+    double gain = std::sqrt(err * err + 1e-10f);
+    gain = gain_smoother_.Process(gain);
+
+    double yy = w_.transpose() * iir_latch_ + gain * exci;
+    yy = std::clamp(yy, -4.0, 4.0);
+    for (int i = LPC_SIZE - 1; i > 0; --i) {
+        iir_latch_[i] = iir_latch_[i - 1];
+    }
+    iir_latch_[0] = yy;
+
+    assert(!isnan(yy));
+
+    return static_cast<float>(yy);
+}
+
+template <int LPC_SIZE>
+void FIXED_RLSLPC<LPC_SIZE>::CopyTransferFunction(std::span<float> buffer) {
+    std::copy_n(w_.begin(), LPC_SIZE, buffer.begin());
+}
+
+template <int LPC_SIZE>
+void FIXED_RLSLPC<LPC_SIZE>::SetForgetRate(float ms) {
+    forget_ = std::exp(-1.0f / (sample_rate_ * ms / 1000.0f));
+}
+
+template <int LPC_SIZE>
+void FIXED_RLSLPC<LPC_SIZE>::SetGainAttack(float ms) {
+    gain_smoother_.SetAttackTime(ms);
+}
+
+template <int LPC_SIZE>
+void FIXED_RLSLPC<LPC_SIZE>::SetGainRelease(float ms) {
+    gain_smoother_.SetReleaseTime(ms);
+}
+
+} // namespace internal
+
+// --------------------------------------------------------------------------------
+// RLS LPC
+// --------------------------------------------------------------------------------
+class RLSLPC {
+public:
+    void Init(float fs);
+    void Process(std::span<float> block, std::span<float> block2);
+    int GetOrder() const { return order_; }
+    void CopyTransferFunction(std::span<float> buffer);
+
+    void SetForgetRate(float ms);
+    void SetGainAttack(float ms);
+    void SetGainRelease(float ms);
+    void SetOrder(int order);
+private:
+    internal::FIXED_RLSLPC<8> lpc8_;
+    internal::FIXED_RLSLPC<10> lpc10_;
+    internal::FIXED_RLSLPC<15> lpc15_;
+    internal::FIXED_RLSLPC<20> lpc20_;
+    internal::FIXED_RLSLPC<30> lpc35_;
+    internal::FIXED_RLSLPC<40> lpc40_;
+    int order_{};
+    Filter main_downsample_filter_;
+    Filter side_downsample_filter_;
 };
 
 } // namespace dsp

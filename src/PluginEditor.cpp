@@ -71,6 +71,10 @@ AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
 
 //==============================================================================
 void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
+    DrawRLSLPC(g);
+}
+
+void AudioPluginAudioProcessorEditor::DrawBurgLPC(juce::Graphics& g) {
     g.fillAll(juce::Colours::grey);
     auto bb = getLocalBounds();
     bb.removeFromTop(stft_bandwidth_.getBottom());
@@ -128,6 +132,60 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
         g.drawLine(juce::Line<float>{line_last, line_end}, 2.0f);
         line_last = line_end;
     }
+}
+
+void AudioPluginAudioProcessorEditor::DrawRLSLPC(juce::Graphics& g) {
+    g.fillAll(juce::Colours::grey);
+    auto bb = getLocalBounds();
+    bb.removeFromTop(stft_bandwidth_.getBottom());
+
+    g.setColour(juce::Colours::black);
+    g.fillRect(bb);
+    g.setColour(juce::Colours::white);
+    g.drawRect(bb);
+
+    int w = bb.getWidth();
+    auto b = bb.toFloat();
+
+    std::array<float, dsp::BurgLPC::kNumPoles> transfer_function;
+    processorRef.rls_lpc_.CopyTransferFunction(transfer_function);
+    int order = processorRef.rls_lpc_.GetOrder();
+
+    constexpr float up = 60.0f;
+    constexpr float down = -20.0f;
+    // draw
+    juce::Point<float> line_last{ b.getX(), b.getCentreY() };
+    g.setColour(juce::Colours::green);
+    float mul_val = std::pow(10.0f, 2.0f / w);
+    float mul_begin = 1.0f;
+    float omega_base = 180.0f * std::numbers::pi_v<float> / static_cast<float>(processorRef.getSampleRate());
+    for (int x = 0; x < w; ++x) {
+        // float omega = static_cast<float>(x) * std::numbers::pi_v<float> / static_cast<float>(w - 1);
+        float omega = omega_base * mul_begin;
+        mul_begin *= mul_val;
+        auto z_responce = std::complex{1.0f, 0.0f};
+        for (int i = 0; i < order; ++i) {
+            auto z = std::polar(1.0f, -omega * (i + 1));
+            z_responce -= transfer_function[i] * z;
+        }
+        z_responce = 1.0f / z_responce;
+        if (std::isnan(z_responce.real()) || std::isnan(z_responce.imag())) {
+            continue;
+        }
+
+        float gain = std::abs(z_responce);
+        float db_gain = 20.0f * std::log10(gain + 1e-8f);
+        if (db_gain < down) db_gain = down;
+        float y_nor = (db_gain - (down)) / (up - (down));
+        float y = b.getBottom() - y_nor * b.getHeight();
+        juce::Point line_end{ static_cast<float>(x + b.toFloat().getX()), y };
+        g.drawLine(juce::Line<float>{line_last, line_end}, 2.0f);
+        line_last = line_end;
+    }
+}
+
+void AudioPluginAudioProcessorEditor::DrawSTFTVocoder(juce::Graphics& g) {
+
 }
 
 void AudioPluginAudioProcessorEditor::resized() {
