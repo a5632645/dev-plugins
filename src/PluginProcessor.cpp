@@ -86,7 +86,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             0.0f, 1.0f, 1.0f
         );
         paramListeners_.Add(p, [this](float l) {
-            lpc_.SetLearn(l);
+            burg_lpc_.SetLearn(l);
         });
         layout.add(std::move(p));
     }
@@ -98,7 +98,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             10.0f
         );
         paramListeners_.Add(p, [this](float l) {
-            lpc_.SetForget(l);
+            burg_lpc_.SetForget(l);
             rls_lpc_.SetForgetRate(l);
         });
         layout.add(std::move(p));
@@ -111,7 +111,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             0.1f
         );
         paramListeners_.Add(p, [this](float l) {
-            lpc_.SetSmooth(l);
+            burg_lpc_.SetSmooth(l);
             rls_lpc_.SetSmooth(l);
         });
         layout.add(std::move(p));
@@ -124,7 +124,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             5.0f
         );
         paramListeners_.Add(p, [this](float l) {
-            lpc_.SetGainAttack(l);
+            burg_lpc_.SetGainAttack(l);
             rls_lpc_.SetGainAttack(l);
         });
         layout.add(std::move(p));
@@ -137,20 +137,20 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             5.0f
         );
         paramListeners_.Add(p, [this](float l) {
-            lpc_.SetGainRelease(l);
+            burg_lpc_.SetGainRelease(l);
             rls_lpc_.SetGainRelease(l);
         });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kLPCBend, 1},
-            id::kLPCBend,
-            -0.99f, 1.0f, 0.0f
+        auto p = std::make_unique<juce::AudioParameterInt>(
+            juce::ParameterID{id::kLPCDicimate, 1},
+            id::kLPCDicimate,
+            1, 6, 1
         );
-        paramListeners_.Add(p, [this](float l) {
+        paramListeners_.Add(p, [this](int l) {
             juce::ScopedLock lock{getCallbackLock()};
-            lpc_.SetApAlpha(l);
+            burg_lpc_.SetDicimate(l);
         });
         layout.add(std::move(p));
     }
@@ -158,11 +158,11 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterInt>(
             juce::ParameterID{id::kLPCOrder, 1},
             id::kLPCOrder,
-            1, dsp::BackLPC::kNumPoles, 35
+            1, dsp::BurgLPC::kNumPoles, 35
         );
         paramListeners_.Add(p, [this](int order) {
             juce::ScopedLock lock{getCallbackLock()};
-            lpc_.SetLPCOrder(order);
+            burg_lpc_.SetLPCOrder(order);
             rls_lpc_.SetLPCOrder(order);
         });
         layout.add(std::move(p));
@@ -259,7 +259,7 @@ void AudioPluginAudioProcessor::changeProgramName (int index, const juce::String
 void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     float fs = static_cast<float>(sampleRate);
-    lpc_.Init(fs);
+    burg_lpc_.Init(fs);
     filter_.Init(fs);
     hpfilter_.Init(fs);
     rls_lpc_.Init(fs);
@@ -313,8 +313,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     filter_.Process(left_block);
     // shifter_.Process(left_block);
     // rls_lpc_.Process(left_block, right_block);
-    // lpc_.Process(left_block, right_block);
-    stft_vocoder_.Process(left_block, right_block);
+    burg_lpc_.Process(left_block, right_block);
+    // stft_vocoder_.Process(left_block, right_block);
     std::copy(left_block.begin(), left_block.end(), right_block.begin());
 }
 

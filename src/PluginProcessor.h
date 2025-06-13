@@ -2,7 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "dsp/filter.hpp"
-#include "dsp/lpc.hpp"
+#include "dsp/burg_lpc.hpp"
 #include "dsp/pitch_shifter.hpp"
 #include "dsp/rls_lpc.hpp"
 #include "dsp/stft_vocoder.hpp"
@@ -113,7 +113,7 @@ public:
     dsp::Filter filter_;
     dsp::Filter hpfilter_;
     dsp::PitchShifter shifter_;
-    dsp::BackLPC lpc_;
+    dsp::BurgLPC burg_lpc_;
     dsp::RLSLPC rls_lpc_;
     dsp::STFTVocoder stft_vocoder_;
 private:

@@ -10,6 +10,7 @@ public:
     float ProcessSingle(float x);
     void MakeHighShelf(float db_gain, float freq, float s);
     void MakeHighPass(float pitch);
+    void MakeDownSample(int dicimate);
 private:
     float sample_rate_{};
     float b0_{};

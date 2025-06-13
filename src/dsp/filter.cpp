@@ -54,4 +54,17 @@ void Filter::MakeHighPass(float pitch) {
     a1_ = (k - 1) / (k + 1);
     a2_ = 0;
 }
+
+void Filter::MakeDownSample(int dicimate) {
+    auto omega = std::numbers::pi_v<float> / dicimate;
+    auto k = std::tan(omega / 2);
+    constexpr auto Q = 1.0f / std::numbers::sqrt2_v<float>;
+    auto down = k * k * Q + k + Q;
+    b0_ = k * k * Q / down;
+    b1_ = 2 * b0_;
+    b2_ = b0_;
+    a1_ = 2 * Q * (k * k - 1) / down;
+    a2_ = (k * k * Q - k + Q) / down;
+}
+
 }

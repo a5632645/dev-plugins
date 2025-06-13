@@ -2,10 +2,11 @@
 #include <span>
 #include <array>
 #include "ExpSmoother.hpp"
+#include "Filter.hpp"
 
 namespace dsp {
 
-class BackLPC {
+class BurgLPC {
 public:
     static constexpr int kNumPoles = 200;
     void Init(float sample_rate);
@@ -16,17 +17,21 @@ public:
     void SetLearn(float learn) { learn_ = learn; }
     void SetSmooth(float smooth);
     void SetLPCOrder(int order);
-    void SetApAlpha(float alpha);
     void SetGainAttack(float ms);
     void SetGainRelease(float ms);
+    void SetDicimate(int dicimate);
 
     int GetOrder() const { return lpc_order_; }
     void CopyLatticeCoeffient(std::span<float> buffer);
 private:
     ExpSmoother<float> gain_smooth_;
+    Filter dicimate_filter_;
+    int dicimate_{};
+    int dicimate_counter_{};
 
     float sample_rate_{};
     float forget_{};
+    float forget_ms_{};
     float learn_{};
     float smooth_{};
     int lpc_order_{};
