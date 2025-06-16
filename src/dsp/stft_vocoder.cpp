@@ -58,6 +58,7 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
             side_imag[i] *= g;
 
             float v = std::abs(main_real[i] * main_real[i] + main_imag[i] * main_imag[i]);
+            gains_[i] = v * g;
             side_real[i] *= v;
             side_imag[i] *= v;
         }

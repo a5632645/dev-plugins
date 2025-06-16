@@ -1,7 +1,5 @@
 #include "rls_lpc.hpp"
-#include "Eigen/Core"
 #include <cassert>
-#include <cmath>
 #include <cstddef>
 #include <cstdlib>
 
@@ -16,27 +14,28 @@ void RLSLPC::Init(float fs) {
     lpc40_.Init(fs);
     main_downsample_filter_.Init(fs);
     side_downsample_filter_.Init(fs);
+    upsample_filter_.Init(fs);
 }
 
 void RLSLPC::Process(std::span<float> block, std::span<float> block2) {
     switch (order_) {
     case lpc8_.order:
-        lpc8_.Process(block, block2);
+        ProcessBlock(lpc8_, block, block2);
         break;
     case lpc10_.order:
-        lpc10_.Process(block, block2);
+        ProcessBlock(lpc10_, block, block2);
         break;
     case lpc15_.order:
-        lpc15_.Process(block, block2);
+        ProcessBlock(lpc15_, block, block2);
         break;
     case lpc20_.order:
-        lpc20_.Process(block, block2);
+        ProcessBlock(lpc20_, block, block2);
         break;
     case lpc35_.order:
-        lpc35_.Process(block, block2);
+        ProcessBlock(lpc35_, block, block2);
         break;
     case lpc40_.order:
-        lpc40_.Process(block, block2);
+        ProcessBlock(lpc40_, block, block2);
         break;
     default:
         assert(false);
@@ -117,6 +116,15 @@ void RLSLPC::SetOrder(int order) {
     else {
         order_ = lpc8_.order;
     }
+}
+
+void RLSLPC::SetDicimate(int dicimate) {
+    dicimate_ = dicimate;
+    dicimate_counter_ = dicimate + 1;
+    upsample_filter_.MakeDownSample(dicimate);
+    main_downsample_filter_.MakeDownSample(dicimate);
+    side_downsample_filter_.MakeDownSample(dicimate);
+    upsample_latch_ = 0.0f;
 }
 
 } // namespace dsp

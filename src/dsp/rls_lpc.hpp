@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <span>
 #include <cassert>
 #include <Eigen/Dense>
@@ -133,7 +134,23 @@ public:
     void SetGainAttack(float ms);
     void SetGainRelease(float ms);
     void SetOrder(int order);
+    void SetDicimate(int dicimate);
 private:
+    template<int LPC_SIZE>
+    void ProcessBlock(internal::FIXED_RLSLPC<LPC_SIZE>& lpc, std::span<float> block, std::span<float> block2) {
+        for (size_t i = 0; i < block.size(); ++i) {
+            float filt_x = main_downsample_filter_.ProcessSingle(block[i]);
+            float filt_side = side_downsample_filter_.ProcessSingle(block2[i]);
+            ++dicimate_counter_;
+            if (dicimate_counter_ > dicimate_) {
+                dicimate_counter_ = 1;
+
+                upsample_latch_ = lpc.ProcessSingle(filt_x, filt_side);
+            }
+            block[i] = upsample_filter_.ProcessSingle(upsample_latch_);
+        }
+    }
+
     internal::FIXED_RLSLPC<8> lpc8_;
     internal::FIXED_RLSLPC<10> lpc10_;
     internal::FIXED_RLSLPC<15> lpc15_;
@@ -143,6 +160,10 @@ private:
     int order_{};
     Filter main_downsample_filter_;
     Filter side_downsample_filter_;
+    Filter upsample_filter_;
+    float upsample_latch_ = 0.0f;
+    int dicimate_ = 1;
+    int dicimate_counter_ = 1;
 };
 
 } // namespace dsp

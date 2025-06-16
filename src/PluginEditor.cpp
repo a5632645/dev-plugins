@@ -3,7 +3,6 @@
 #include "dsp/burg_lpc.hpp"
 #include "juce_graphics/juce_graphics.h"
 #include "param_ids.hpp"
-#include <algorithm>
 #include <array>
 #include <complex>
 #include <numbers>
@@ -32,6 +31,10 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     shift_pitch_.BindParameter(apvts, id::kShiftPitch);
     shift_pitch_.SetShortName("PITCH");
     addAndMakeVisible(shift_pitch_);
+
+    vocoder_type_.BindParam(apvts, id::kVocoderType);
+    vocoder_type_.SetShortName("TYPE");
+    addAndMakeVisible(vocoder_type_);
 
     addAndMakeVisible(lpc_);
     lpc_learn_.BindParameter(apvts, id::kLearnRate);
@@ -71,7 +74,19 @@ AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
 
 //==============================================================================
 void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
-    DrawRLSLPC(g);
+    switch (static_cast<VocoderType>(processorRef.current_vocoder_type_)) {
+    case VocoderType::ChannelVocoder:
+        break;
+    case VocoderType::STFTVocoder:
+        DrawSTFTVocoder(g);
+        break;
+    case VocoderType::BurgLPC:
+        DrawBurgLPC(g);
+        break;
+    case VocoderType::RLSLPC:
+        DrawRLSLPC(g);
+        break;
+    }
 }
 
 void AudioPluginAudioProcessorEditor::DrawBurgLPC(juce::Graphics& g) {
@@ -185,7 +200,36 @@ void AudioPluginAudioProcessorEditor::DrawRLSLPC(juce::Graphics& g) {
 }
 
 void AudioPluginAudioProcessorEditor::DrawSTFTVocoder(juce::Graphics& g) {
+    g.fillAll(juce::Colours::grey);
+    auto bb = getLocalBounds();
+    bb.removeFromTop(stft_bandwidth_.getBottom());
 
+    g.setColour(juce::Colours::black);
+    g.fillRect(bb);
+    g.setColour(juce::Colours::white);
+    g.drawRect(bb);
+
+    auto b = bb.toFloat();
+    auto gains = processorRef.stft_vocoder_.gains_;
+    juce::Point<float> line_last{ b.getX(), b.getCentreY() };
+    g.setColour(juce::Colours::green);
+    float mul_val = std::pow(10.0f, 2.0f / b.getWidth());
+    float mul_begin = 1.0f;
+    float omega_base = 180.0f * 2.0f / static_cast<float>(processorRef.getSampleRate());
+    for (int x = 0; x < bb.getWidth(); ++x) {
+        float omega = omega_base * mul_begin;
+        mul_begin *= mul_val;
+        
+        int idx = static_cast<int>(omega * gains.size());
+        idx = std::min<int>(idx, gains.size() - 1);
+        float gain = gains[idx];
+        float db_gain = 20.0f * std::log10(gain + 1e-10f);
+        float y_nor = (db_gain - (-96.0f)) / (10.0f - (-96.0f));
+        float y = b.getBottom() - y_nor * b.getHeight();
+        juce::Point line_end{ static_cast<float>(x + b.toFloat().getX()), y };
+        g.drawLine(juce::Line<float>{line_last, line_end}, 2.0f);
+        line_last = line_end;
+    }
 }
 
 void AudioPluginAudioProcessorEditor::resized() {
@@ -197,11 +241,10 @@ void AudioPluginAudioProcessorEditor::resized() {
         em_pitch_.setBounds(top.removeFromLeft(50));
         em_gain_.setBounds(top.removeFromLeft(50));
         em_s_.setBounds(top.removeFromLeft(50));
+        shift_pitch_.setBounds(top.removeFromLeft(50));
     }
     {
-        shifter_.setBounds(b.removeFromTop(20));
-        auto top = b.removeFromTop(100);
-        shift_pitch_.setBounds(top.removeFromLeft(50));
+        vocoder_type_.setBounds(b.removeFromTop(30));
     }
     {
         lpc_.setBounds(b.removeFromTop(20));

@@ -2,6 +2,8 @@
 
 namespace id {
 
+static constexpr auto kVocoderType = "vocoder_type";
+
 static constexpr auto kHighpassPitch = "hp_pitch";
 
 static constexpr auto kEmphasisPitch = "em_pitch";

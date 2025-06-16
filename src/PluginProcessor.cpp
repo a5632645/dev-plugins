@@ -65,6 +65,18 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
 
+    // vocoder type
+    {
+        auto p = std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID{id::kVocoderType, 1},
+            id::kVocoderType,
+            kVocoderNames,
+            0
+        );
+        vocoder_type_param_ = p.get();
+        layout.add(std::move(p));
+    }
+
     // pitch shifter
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
@@ -150,6 +162,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](int l) {
             juce::ScopedLock lock{getCallbackLock()};
             burg_lpc_.SetDicimate(l);
+            rls_lpc_.SetDicimate(l);
         });
         layout.add(std::move(p));
     }
@@ -299,6 +312,20 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
+    if (current_vocoder_type_ != vocoder_type_param_->getIndex()) {
+        current_vocoder_type_ = vocoder_type_param_->getIndex();
+        switch (static_cast<VocoderType>(current_vocoder_type_)) {
+        case VocoderType::BurgLPC:
+            break;
+        case VocoderType::RLSLPC:
+            break;
+        case VocoderType::STFTVocoder:
+            break;
+        case VocoderType::ChannelVocoder:
+            break;
+        }
+    }
+
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
@@ -310,10 +337,22 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     std::span right_block { buffer.getWritePointer(1), static_cast<size_t>(buffer.getNumSamples()) };
     hpfilter_.Process(left_block);
     filter_.Process(left_block);
-    // shifter_.Process(left_block);
-    rls_lpc_.Process(left_block, right_block);
-    // burg_lpc_.Process(left_block, right_block);
-    // stft_vocoder_.Process(left_block, right_block);
+    shifter_.Process(left_block);
+
+    switch (static_cast<VocoderType>(current_vocoder_type_)) {
+        case VocoderType::BurgLPC:
+            burg_lpc_.Process(left_block, right_block);
+            break;
+        case VocoderType::RLSLPC:
+            rls_lpc_.Process(left_block, right_block);
+            break;
+        case VocoderType::STFTVocoder:
+            stft_vocoder_.Process(left_block, right_block);
+            break;
+        case VocoderType::ChannelVocoder:
+            break;
+    }
+
     std::copy(left_block.begin(), left_block.end(), right_block.begin());
 }
 

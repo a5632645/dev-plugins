@@ -24,8 +24,12 @@ public:
     int GetOrder() const { return lpc_order_; }
     void CopyLatticeCoeffient(std::span<float> buffer);
 private:
+    Filter main_downsample_filter_;
+    Filter side_downsample_filter_;
+    Filter upsample_filter_;
+    float upsample_latch_{};
+
     ExpSmoother<float> gain_smooth_;
-    Filter dicimate_filter_;
     int dicimate_{};
     int dicimate_counter_{};
 

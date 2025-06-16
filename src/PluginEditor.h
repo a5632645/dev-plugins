@@ -5,6 +5,7 @@
 #include "juce_graphics/juce_graphics.h"
 #include "ui/vertical_slider.hpp"
 #include "ui/toggle_button.hpp"
+#include "ui/comb_box.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor, private juce::Timer
@@ -30,6 +31,7 @@ private:
     ui::VerticalSlider em_s_;
     ui::VerticalSlider hp_pitch_;
     ui::VerticalSlider shift_pitch_;
+    ui::CombBox vocoder_type_;
     ui::VerticalSlider lpc_learn_;
     ui::VerticalSlider lpc_foorget_;
     ui::VerticalSlider lpc_smooth_;

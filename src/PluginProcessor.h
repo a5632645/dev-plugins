@@ -7,6 +7,19 @@
 #include "dsp/rls_lpc.hpp"
 #include "dsp/stft_vocoder.hpp"
 
+enum class VocoderType {
+    BurgLPC,
+    RLSLPC,
+    STFTVocoder,
+    ChannelVocoder,
+};
+static const juce::StringArray kVocoderNames{
+    "Burg-LPC",
+    "RLS-LPC",
+    "STFT-Vocoder",
+    "Channel-Vocoder",
+};
+
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
 {
@@ -116,6 +129,9 @@ public:
     dsp::BurgLPC burg_lpc_;
     dsp::RLSLPC rls_lpc_;
     dsp::STFTVocoder stft_vocoder_;
+
+    juce::AudioParameterChoice* vocoder_type_param_{};
+    int current_vocoder_type_ = 0;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)
