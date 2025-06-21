@@ -31,6 +31,7 @@ private:
     void comboBoxChanged (juce::ComboBox* comboBoxThatHasChanged) override;
 
     AudioPluginAudioProcessor& processorRef;
+    juce::TooltipWindow tooltip_window_;
 
     juce::Label filter_{"", "filter"};
     ui::VerticalSlider em_pitch_;

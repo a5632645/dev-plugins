@@ -1,6 +1,7 @@
 #include "cepstrum_vocoder.hpp"
 #include "../PluginProcessor.h"
 #include "../param_ids.hpp"
+#include "tooltips.hpp"
 
 namespace widget {
 
@@ -13,10 +14,12 @@ CepstrumVocoderUI::CepstrumVocoderUI(AudioPluginAudioProcessor& processor)
 
     omega_.BindParameter(apvts, id::kCepstrumOmega);
     omega_.SetShortName("OMEGA");
+    omega_.slider_.setTooltip(tooltip::kCepstrumOmega);
     addAndMakeVisible(omega_);
 
     release_.BindParameter(apvts, id::kStftRelease);
     release_.SetShortName("REL");
+    release_.slider_.setTooltip(tooltip::kStftRelease);
     addAndMakeVisible(release_);
 }
 

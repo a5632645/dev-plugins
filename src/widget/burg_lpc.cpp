@@ -1,6 +1,7 @@
 #include "burg_lpc.hpp"
 #include "../PluginProcessor.h"
 #include "../param_ids.hpp"
+#include "tooltips.hpp"
 #include <numbers>
 
 namespace widget {
@@ -12,26 +13,29 @@ BurgLPC::BurgLPC(AudioPluginAudioProcessor& processor)
     lpc_label_.setText("Burg-LPC", juce::dontSendNotification);
     addAndMakeVisible(lpc_label_);
 
-    lpc_learn_.BindParameter(apvts, id::kLearnRate);
-    lpc_learn_.SetShortName("LEARN");
-    addAndMakeVisible(lpc_learn_);
     lpc_foorget_.BindParameter(apvts, id::kForgetRate);
     lpc_foorget_.SetShortName("FORGET");
+    lpc_foorget_.slider_.setTooltip(tooltip::kForgetRate);
     addAndMakeVisible(lpc_foorget_);
     lpc_smooth_.BindParameter(apvts, id::kLPCSmooth);
     lpc_smooth_.SetShortName("SMOOTH");
+    lpc_smooth_.slider_.setTooltip(tooltip::kLPCSmooth);
     addAndMakeVisible(lpc_smooth_);
     lpc_dicimate_.BindParameter(apvts, id::kLPCDicimate);
     lpc_dicimate_.SetShortName("DICIMATE");
+    lpc_dicimate_.slider_.setTooltip(tooltip::kLPCDicimate);
     addAndMakeVisible(lpc_dicimate_);
     lpc_order_.BindParameter(apvts, id::kLPCOrder);
     lpc_order_.SetShortName("ORDER");
+    lpc_order_.slider_.setTooltip(tooltip::kLPCOrder);
     addAndMakeVisible(lpc_order_);
     lpc_attack_.BindParameter(apvts, id::kLPCGainAttack);
     lpc_attack_.SetShortName("ATTACK");
+    lpc_attack_.slider_.setTooltip(tooltip::kLPCGainAttack);
     addAndMakeVisible(lpc_attack_);
     lpc_release_.BindParameter(apvts, id::kLPCGainRelease);
     lpc_release_.SetShortName("RELEASE");
+    lpc_release_.slider_.setTooltip(tooltip::kLPCGainRelease);
     addAndMakeVisible(lpc_release_);
 }
 
@@ -39,7 +43,6 @@ void BurgLPC::resized() {
     auto b = getLocalBounds();
     lpc_label_.setBounds(b.removeFromTop(20));
     auto top = b.removeFromTop(100);
-    lpc_learn_.setBounds(top.removeFromLeft(50));
     lpc_foorget_.setBounds(top.removeFromLeft(50));
     lpc_smooth_.setBounds(top.removeFromLeft(50));
     lpc_dicimate_.setBounds(top.removeFromLeft(50));

@@ -16,7 +16,6 @@ private:
 
     AudioPluginAudioProcessor& processor_;
     juce::Label lpc_label_;
-    ui::VerticalSlider lpc_learn_;
     ui::VerticalSlider lpc_foorget_;
     ui::VerticalSlider lpc_smooth_;
     ui::VerticalSlider lpc_dicimate_;

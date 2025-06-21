@@ -97,18 +97,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     // lpc
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kLearnRate, 1},
-            id::kLearnRate,
-            0.0f, 1.0f, 1.0f
-        );
-        paramListeners_.Add(p, [this](float l) {
-            juce::ScopedLock lock{getCallbackLock()};
-            burg_lpc_.SetLearn(l);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kForgetRate, 1},
             id::kForgetRate,
             juce::NormalisableRange<float>{2.0f, 100.0f, 1.0f, 0.4f},

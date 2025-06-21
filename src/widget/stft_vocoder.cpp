@@ -1,6 +1,7 @@
 #include "stft_vocoder.hpp"
 #include "../PluginProcessor.h"
 #include "../param_ids.hpp"
+#include "../tooltips.hpp"
 
 namespace widget {
 
@@ -12,15 +13,18 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
     addAndMakeVisible(title_);
 
     bandwidth_.BindParameter(apvts, id::kStftWindowWidth);
-    bandwidth_.SetShortName("BW");
+    bandwidth_.SetShortName("F.EXPAN");
+    bandwidth_.slider_.setTooltip(tooltip::kStftWindowWidth);
     addAndMakeVisible(bandwidth_);
 
     release_.BindParameter(apvts, id::kStftRelease);
-    release_.SetShortName("REL");
+    release_.SetShortName("T.REL");
+    release_.slider_.setTooltip(tooltip::kStftRelease);
     addAndMakeVisible(release_);
 
     blend_.BindParameter(apvts, id::kStftBlend);
-    blend_.SetShortName("BLEND");
+    blend_.SetShortName("A.REMAP");
+    blend_.slider_.setTooltip(tooltip::kStftBlend);
     addAndMakeVisible(blend_);
 }
 

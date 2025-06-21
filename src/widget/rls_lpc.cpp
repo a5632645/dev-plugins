@@ -1,6 +1,7 @@
 #include "rls_lpc.hpp"
 #include "../PluginProcessor.h"
 #include "../param_ids.hpp"
+#include "tooltips.hpp"
 #include <numbers>
 
 namespace widget {
@@ -14,18 +15,23 @@ RLSLPC::RLSLPC(AudioPluginAudioProcessor& processor)
 
     lpc_foorget_.BindParameter(apvts, id::kForgetRate);
     lpc_foorget_.SetShortName("FORGET");
+    lpc_foorget_.slider_.setTooltip(tooltip::kForgetRate);
     addAndMakeVisible(lpc_foorget_);
     lpc_dicimate_.BindParameter(apvts, id::kLPCDicimate);
     lpc_dicimate_.SetShortName("DICIMATE");
+    lpc_dicimate_.slider_.setTooltip(tooltip::kLPCDicimate);
     addAndMakeVisible(lpc_dicimate_);
     lpc_order_.BindParameter(apvts, id::kRLSLPCOrder);
     lpc_order_.SetShortName("ORDER");
+    lpc_order_.slider_.setTooltip(tooltip::kRLSLPCOrder);
     addAndMakeVisible(lpc_order_);
     lpc_attack_.BindParameter(apvts, id::kLPCGainAttack);
     lpc_attack_.SetShortName("ATTACK");
+    lpc_attack_.slider_.setTooltip(tooltip::kLPCGainAttack);
     addAndMakeVisible(lpc_attack_);
     lpc_release_.BindParameter(apvts, id::kLPCGainRelease);
     lpc_release_.SetShortName("RELEASE");
+    lpc_release_.slider_.setTooltip(tooltip::kLPCGainRelease);
     addAndMakeVisible(lpc_release_);
 }
 

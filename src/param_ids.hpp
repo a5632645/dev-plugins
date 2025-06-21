@@ -16,7 +16,6 @@ static constexpr auto kEmphasisS = "em_s";
 
 static constexpr auto kShiftPitch = "shift_pitch";
 
-static constexpr auto kLearnRate = "lpc_leran";
 static constexpr auto kForgetRate = "lpc_forget";
 static constexpr auto kLPCSmooth = "lpc_smooth";
 static constexpr auto kLPCOrder = "lpc_order";

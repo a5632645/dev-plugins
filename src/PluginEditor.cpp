@@ -3,12 +3,14 @@
 #include "juce_graphics/juce_graphics.h"
 #include "juce_gui_basics/juce_gui_basics.h"
 #include "param_ids.hpp"
+#include "tooltips.hpp"
 #include "widget/cepstrum_vocoder.hpp"
 #include "widget/stft_vocoder.hpp"
 
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
     : AudioProcessorEditor (&p), processorRef (p)
+    , tooltip_window_(this, 500)
     , main_gain_(p.main_gain_)
     , side_gain_(p.side_gain_)
     , output_gain_(p.output_gain_)
@@ -22,35 +24,44 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addAndMakeVisible(filter_);
     hp_pitch_.BindParameter(apvts, id::kHighpassPitch);
     hp_pitch_.SetShortName("HPASS");
+    hp_pitch_.slider_.setTooltip(tooltip::kHighpassPitch);
     addAndMakeVisible(hp_pitch_);
     em_pitch_.BindParameter(apvts, id::kEmphasisPitch);
     em_pitch_.SetShortName("HSHELF");
+    em_pitch_.slider_.setTooltip(tooltip::kEmphasisPitch);
     addAndMakeVisible(em_pitch_);
     em_gain_.BindParameter(apvts, id::kEmphasisGain);
     em_gain_.SetShortName("GAIN");
+    em_gain_.slider_.setTooltip(tooltip::kEmphasisGain);
     addAndMakeVisible(em_gain_);
     em_s_.BindParameter(apvts, id::kEmphasisS);
     em_s_.SetShortName("S");
+    em_s_.slider_.setTooltip(tooltip::kEmphasisS);
     addAndMakeVisible(em_s_);
 
     addAndMakeVisible(shifter_);
     shift_pitch_.BindParameter(apvts, id::kShiftPitch);
     shift_pitch_.SetShortName("PITCH");
+    shift_pitch_.slider_.setTooltip(tooltip::kShiftPitch);
     addAndMakeVisible(shift_pitch_);
 
     main_gain_.gain_slide_.BindParameter(apvts, id::kMainGain);
     main_gain_.gain_slide_.SetShortName("MAIN");
+    main_gain_.gain_slide_.slider_.setTooltip(tooltip::kMainGain);
     addAndMakeVisible(main_gain_);
     side_gain_.gain_slide_.BindParameter(apvts, id::kSideGain);
     side_gain_.gain_slide_.SetShortName("SIDE");
+    side_gain_.gain_slide_.slider_.setTooltip(tooltip::kSideGain);
     addAndMakeVisible(side_gain_);
     output_gain_.gain_slide_.BindParameter(apvts, id::kOutputgain);
     output_gain_.gain_slide_.SetShortName("OUTPUT");
+    output_gain_.gain_slide_.slider_.setTooltip(tooltip::kOutputgain);
     addAndMakeVisible(output_gain_);
 
     vocoder_type_.BindParam(apvts, id::kVocoderType);
     vocoder_type_.SetShortName("TYPE");
     vocoder_type_.combobox_.addListener(this);
+    vocoder_type_.combobox_.setTooltip(tooltip::kVocoderType);
     addAndMakeVisible(vocoder_type_);
 
     addChildComponent(stft_vocoder_);
