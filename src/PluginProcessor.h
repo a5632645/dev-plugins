@@ -1,23 +1,27 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "dsp/cepstrum_vocoder.hpp"
 #include "dsp/filter.hpp"
 #include "dsp/burg_lpc.hpp"
 #include "dsp/pitch_shifter.hpp"
 #include "dsp/rls_lpc.hpp"
 #include "dsp/stft_vocoder.hpp"
+#include "dsp/gain.hpp"
 
 enum class VocoderType {
     BurgLPC,
     RLSLPC,
     STFTVocoder,
     ChannelVocoder,
+    CepstrumVocoder,
 };
 static const juce::StringArray kVocoderNames{
     "Burg-LPC",
     "RLS-LPC",
     "STFT-Vocoder",
     "Channel-Vocoder",
+    "Cepstrum-Vocoder",
 };
 
 //==============================================================================
@@ -71,8 +75,13 @@ public:
             }
             void parameterValueChanged (int parameterIndex, float newValue) override {
                 func(ptr->get());
+                (void)parameterIndex;
+                (void)newValue;
             }
-            void parameterGestureChanged (int parameterIndex, bool gestureIsStarting) override {}
+            void parameterGestureChanged (int parameterIndex, bool gestureIsStarting) override {
+                (void)parameterIndex;
+                (void)gestureIsStarting;
+            }
         };
         struct BoolStore : public juce::AudioProcessorParameter::Listener {
             std::function<void(bool)> func;
@@ -83,8 +92,13 @@ public:
             }
             void parameterValueChanged (int parameterIndex, float newValue) override {
                 func(ptr->get());
+                (void)parameterIndex;
+                (void)newValue;
             }
-            void parameterGestureChanged (int parameterIndex, bool gestureIsStarting) override {}
+            void parameterGestureChanged (int parameterIndex, bool gestureIsStarting) override {
+                (void)parameterIndex;
+                (void)gestureIsStarting;
+            }
         };
         struct IntStore : public juce::AudioProcessorParameter::Listener {
             std::function<void(int)> func;
@@ -95,8 +109,13 @@ public:
             }
             void parameterValueChanged (int parameterIndex, float newValue) override {
                 func(ptr->get());
+                (void)parameterIndex;
+                (void)newValue;
             }
-            void parameterGestureChanged (int parameterIndex, bool gestureIsStarting) override {}
+            void parameterGestureChanged (int parameterIndex, bool gestureIsStarting) override {
+                (void)parameterIndex;
+                (void)gestureIsStarting;
+            }
         };
 
         std::vector<std::unique_ptr<juce::AudioProcessorParameter::Listener>> listeners;
@@ -129,6 +148,11 @@ public:
     dsp::BurgLPC burg_lpc_;
     dsp::RLSLPC rls_lpc_;
     dsp::STFTVocoder stft_vocoder_;
+    dsp::CepstrumVocoder cepstrum_vocoder_;
+
+    dsp::Gain main_gain_;
+    dsp::Gain side_gain_;
+    dsp::Gain output_gain_;
 
     juce::AudioParameterChoice* vocoder_type_param_{};
     int current_vocoder_type_ = 0;

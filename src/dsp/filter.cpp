@@ -55,8 +55,7 @@ void Filter::MakeHighPass(float pitch) {
     a2_ = 0;
 }
 
-void Filter::MakeDownSample(int dicimate) {
-    auto omega = std::numbers::pi_v<float> / dicimate;
+void Filter::MakeLowpassDirect(float omega) {
     auto k = std::tan(omega / 2);
     constexpr auto Q = 1.0f / std::numbers::sqrt2_v<float>;
     auto down = k * k * Q + k + Q;
@@ -65,6 +64,32 @@ void Filter::MakeDownSample(int dicimate) {
     b2_ = b0_;
     a1_ = 2 * Q * (k * k - 1) / down;
     a2_ = (k * k * Q - k + Q) / down;
+}
+
+void Filter::MakeDownSample(int dicimate) {
+    if (dicimate == 1) {
+        b0_ = 1.0f;
+        b1_ = 0.0f;
+        b2_ = 0.0f;
+        a1_ = 0.0f;
+        a2_ = 0.0f;
+    }
+    else {
+        auto omega = std::numbers::pi_v<float> / dicimate;
+        auto k = std::tan(omega / 2);
+        constexpr auto Q = 1.0f / std::numbers::sqrt2_v<float>;
+        auto down = k * k * Q + k + Q;
+        b0_ = k * k * Q / down;
+        b1_ = 2 * b0_;
+        b2_ = b0_;
+        a1_ = 2 * Q * (k * k - 1) / down;
+        a2_ = (k * k * Q - k + Q) / down;
+    }
+}
+
+void Filter::ResetLatch() {
+    latch1_ = 0.0f;
+    latch2_ = 0.0f;
 }
 
 }

@@ -24,7 +24,7 @@ public:
     constexpr int GetOrder() const { return LPC_SIZE; }
     void CopyTransferFunction(std::span<float> buffer);
 
-    void SetForgetRate(float ms);
+    void SetForgetParam(float forget);
     void SetLPCOrder(int order);
     void SetGainAttack(float ms);
     void SetGainRelease(float ms);
@@ -64,7 +64,8 @@ void FIXED_RLSLPC<LPC_SIZE>::Process(std::span<float> block, std::span<float> bl
 
 template <int LPC_SIZE>
 float FIXED_RLSLPC<LPC_SIZE>::ProcessSingle(float x, float exci) {
-    x += 0.001f * rand() / static_cast<float>(RAND_MAX);
+    float noise = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f) * 1e-4f;
+    x += noise;
 
     // prediate
     double pred = w_.transpose() * latch_;
@@ -104,8 +105,8 @@ void FIXED_RLSLPC<LPC_SIZE>::CopyTransferFunction(std::span<float> buffer) {
 }
 
 template <int LPC_SIZE>
-void FIXED_RLSLPC<LPC_SIZE>::SetForgetRate(float ms) {
-    forget_ = std::exp(-1.0f / (sample_rate_ * ms / 1000.0f));
+void FIXED_RLSLPC<LPC_SIZE>::SetForgetParam(float forget) {
+    forget_ = forget;
 }
 
 template <int LPC_SIZE>
@@ -125,6 +126,11 @@ void FIXED_RLSLPC<LPC_SIZE>::SetGainRelease(float ms) {
 // --------------------------------------------------------------------------------
 class RLSLPC {
 public:
+    static constexpr int kNumLPC = 6;
+    static constexpr std::array kLPCOrders {
+        8, 10, 15, 20, 30, 40
+    };
+
     void Init(float fs);
     void Process(std::span<float> block, std::span<float> block2);
     int GetOrder() const { return order_; }
@@ -164,6 +170,8 @@ private:
     float upsample_latch_ = 0.0f;
     int dicimate_ = 1;
     int dicimate_counter_ = 1;
+    float forget_ms_{};
+    float sample_rate_{};
 };
 
 } // namespace dsp

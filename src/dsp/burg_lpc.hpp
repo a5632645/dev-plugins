@@ -8,7 +8,7 @@ namespace dsp {
 
 class BurgLPC {
 public:
-    static constexpr int kNumPoles = 200;
+    static constexpr int kNumPoles = 80;
     void Init(float sample_rate);
     void Process(std::span<float> block, std::span<float> block2);
     float ProcessSingle(float x, float exci);

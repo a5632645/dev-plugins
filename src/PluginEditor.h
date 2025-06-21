@@ -1,14 +1,22 @@
 #pragma once
 
 #include "PluginProcessor.h"
-#include <array>
 #include "juce_graphics/juce_graphics.h"
+
+#include "juce_gui_basics/juce_gui_basics.h"
 #include "ui/vertical_slider.hpp"
-#include "ui/toggle_button.hpp"
 #include "ui/comb_box.hpp"
 
+#include "widget/burg_lpc.hpp"
+#include "widget/rls_lpc.hpp"
+#include "widget/stft_vocoder.hpp"
+#include "widget/cepstrum_vocoder.hpp"
+#include "widget/gain.hpp"
+
 //==============================================================================
-class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor, private juce::Timer
+class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor
+    , private juce::Timer
+    , private juce::ComboBox::Listener
 {
 public:
     explicit AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor&);
@@ -20,30 +28,28 @@ public:
 
 private:
     void timerCallback() override;
-    void DrawBurgLPC(juce::Graphics& g);
-    void DrawRLSLPC(juce::Graphics& g);
-    void DrawSTFTVocoder(juce::Graphics& g);
+    void comboBoxChanged (juce::ComboBox* comboBoxThatHasChanged) override;
 
     AudioPluginAudioProcessor& processorRef;
 
+    juce::Label filter_{"", "filter"};
     ui::VerticalSlider em_pitch_;
     ui::VerticalSlider em_gain_;
     ui::VerticalSlider em_s_;
     ui::VerticalSlider hp_pitch_;
-    ui::VerticalSlider shift_pitch_;
-    ui::CombBox vocoder_type_;
-    ui::VerticalSlider lpc_learn_;
-    ui::VerticalSlider lpc_foorget_;
-    ui::VerticalSlider lpc_smooth_;
-    ui::VerticalSlider lpc_dicimate_;
-    ui::VerticalSlider lpc_order_;
-    ui::VerticalSlider lpc_attack_;
-    ui::VerticalSlider lpc_release_;
-    ui::VerticalSlider stft_bandwidth_;
-    juce::Label filter_{"", "filter"};
     juce::Label shifter_{"", "shifter"};
-    juce::Label lpc_{"", "lpc"};
-    juce::Label stft_{"", "stft"};
+    ui::VerticalSlider shift_pitch_;
+    widget::Gain main_gain_;
+    widget::Gain side_gain_;
+    widget::Gain output_gain_;
+
+    ui::CombBox vocoder_type_;
+
+    widget::STFTVocoder stft_vocoder_;
+    widget::BurgLPC burg_lpc_;
+    widget::RLSLPC rls_lpc_;
+    widget::CepstrumVocoderUI cepstrum_vocoder_;
+    juce::Component* current_vocoder_widget_{};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };

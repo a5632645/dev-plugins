@@ -1,46 +1,39 @@
-#include "stft_vocoder.hpp"
+#include "cepstrum_vocoder.hpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
-#include <numbers>
-#include <numeric>
+#include "dsp/windows.h"
 
 namespace dsp {
 
-void STFTVocoder::Init(float fs) {
+void CepstrumVocoder::Init(float fs) {
     sample_rate_ = fs;
     SetFFTSize(kFFTSize);
 }
 
-void STFTVocoder::SetFFTSize(int size) {
+void CepstrumVocoder::SetFFTSize(int size) {
     fft_.init(kFFTSize);
     for (int i = 0; i < kFFTSize; ++i) {
-        hann_window_[i] = 0.5 - 0.5 * std::cos(2 * std::numbers::pi_v<float> * i / (kFFTSize - 1));
+        hann_window_[i] = 0.5 - 0.5 * std::cos(2 * M_PI * i / (kFFTSize - 1));
     }
 }
 
-void STFTVocoder::SetRelease(float ms) {
+void CepstrumVocoder::SetRelease(float ms) {
     decay_ = std::exp(-1.0f / ((sample_rate_ / kHopSize) * ms / 1000.0f));
 }
 
-void STFTVocoder::SetBlend(float blend) {
-    blend_ = blend;
-}
-
-void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
+void CepstrumVocoder::Process(std::span<float> block, std::span<float> block2) {
     assert(block2.size() == block.size());
 
     std::copy(block.begin(), block.end(), main_inputBuffer_.begin() + numInput_);
     std::copy(block2.begin(), block2.end(), side_inputBuffer_.begin() + numInput_);
     numInput_ += static_cast<int>(block.size());
     while (numInput_ >= kFFTSize) {
-        // forward fft, copy 1024
         float main_timeBuffer[kFFTSize]{};
         float side_timeBuffer[kFFTSize]{};
-        // zero pad to 2048
         for (int i = 0; i < kFFTSize; ++i) {
-            main_timeBuffer[i] = window_[i] * main_inputBuffer_[i];
+            main_timeBuffer[i] = hann_window_[i] * main_inputBuffer_[i];
         }
         std::copy_n(side_inputBuffer_.cbegin(), kFFTSize, side_timeBuffer);
         // lost hopsize samples
@@ -62,16 +55,25 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
 
         // spectral processing
         float g = 1.0f / (kFFTSize / 2.0f);
+        spectral_filter_.ResetLatch();
         for (int i = 1; i < kNumBins; ++i) {
-            float v = std::abs(main_real[i] * main_real[i] + main_imag[i] * main_imag[i]) * g;
-            v = Blend(v);
-            gains_[i] = decay_ * gains_[i] + (1 - decay_) * v;
-            
-            side_real[i] *= gains_[i];
-            side_imag[i] *= gains_[i];
+            float gain = std::abs(main_real[i] * main_real[i] + main_imag[i] * main_imag[i]) * g;
+            float db = CepstrumVocoder::GainToDb(gain);
+            float spectral_evelop = spectral_filter_.ProcessSingle(db);
+
+            if (spectral_evelop > gains_[i]) {
+                gains_[i] = spectral_evelop;
+            }
+            else {
+                gains_[i] = decay_ * gains_[i] + (1 - decay_) * spectral_evelop;
+            }
+
+            float se_gain = std::pow(10.0f, spectral_evelop / 20.0f);
+            side_real[i] *= se_gain;
+            side_imag[i] *= se_gain;
         }
 
-        // get ifft output, 2048 samlpes
+        // get ifft output
         fft_.ifft(main_timeBuffer, side_real.data(), side_imag.data());
 
         // overlay add
@@ -108,22 +110,12 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
     }
 }
 
-void STFTVocoder::SetBandwidth(float bw) {
-    bandwidth_ = bw;
-    // generate sinc window
-    float f0 = bandwidth_;
-    for (int i = 0; i < kFFTSize; i++) {
-        float x = (2 * std::numbers::pi_v<float> * f0 * (i - kFFTSize / 2.0f)) / kFFTSize;
-        float sinc = std::abs(x) < 1e-6 ? 1.0f : std::sin(x) / x;
-        window_[i] = sinc * hann_window_[i];
-    }
+float CepstrumVocoder::GainToDb(float gain) {
+    return 20.0f * std::log10(gain + 1e-5f); // mininal -100dB
 }
 
-float STFTVocoder::Blend(float x) {
-    x = 2.0f * x - 1.0f;
-    x = (blend_ + x) / (1 + blend_ * x);
-    x = 0.5f * x + 0.5f;
-    return x;
+void CepstrumVocoder::SetOmega(float omega) {
+    spectral_filter_.MakeLowpassDirect(omega);
 }
 
 }

@@ -11,6 +11,8 @@ public:
     void MakeHighShelf(float db_gain, float freq, float s);
     void MakeHighPass(float pitch);
     void MakeDownSample(int dicimate);
+    void MakeLowpassDirect(float omega);
+    void ResetLatch();
 private:
     float sample_rate_{};
     float b0_{};

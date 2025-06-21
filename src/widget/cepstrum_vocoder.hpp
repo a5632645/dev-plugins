@@ -6,9 +6,9 @@ class AudioPluginAudioProcessor;
 
 namespace widget {
 
-class STFTVocoder : public juce::Component, private juce::Timer {
+class CepstrumVocoderUI : public juce::Component, private juce::Timer {
 public:
-    STFTVocoder(AudioPluginAudioProcessor& processor);
+    CepstrumVocoderUI(AudioPluginAudioProcessor& processor);
     void resized() override;
     void paint(juce::Graphics& g) override;
 private:
@@ -16,9 +16,8 @@ private:
 
     AudioPluginAudioProcessor& processor_;
     juce::Label title_;
-    ui::VerticalSlider bandwidth_;
+    ui::VerticalSlider omega_;
     ui::VerticalSlider release_;
-    ui::VerticalSlider blend_;
 };
 
 }

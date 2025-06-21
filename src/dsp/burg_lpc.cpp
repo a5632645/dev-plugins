@@ -1,4 +1,5 @@
 #include "burg_lpc.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
@@ -26,7 +27,7 @@ float BurgLPC::ProcessSingle(float x, float exci) {
     ++dicimate_counter_;
     if (dicimate_counter_ > dicimate_) {
         dicimate_counter_ = 1;
-        float noise = static_cast<float>(rand()) * 1e-4f / static_cast<float>(RAND_MAX);
+        float noise = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f) * 1e-5f;
         filt_x += noise;
 
         ef_out_[0] = filt_x;
@@ -34,25 +35,28 @@ float BurgLPC::ProcessSingle(float x, float exci) {
         for (int i = 0; i < lpc_order_; ++i) {
             float up = ef_out_[i] * eb_out_latch_[i];
             float down = ef_out_[i] * ef_out_[i] + eb_out_latch_[i] * eb_out_latch_[i];
-            efsum_[i] = forget_ * efsum_[i] + up * learn_;
-            ebsum_[i] = forget_ * ebsum_[i] + down * learn_;
+            efsum_[i] = forget_ * efsum_[i] + up;
+            ebsum_[i] = forget_ * ebsum_[i] + down;
             lattice_k_[i] = -2.0f * efsum_[i] / ebsum_[i];
-            if (lattice_k_[i] >= 1.0f - 1e-6f) lattice_k_[i] = 1.0f - 1e-6f;
-            else if (lattice_k_[i] < -(1.0f - 1e-6f)) lattice_k_[i] = -(1.0f - 1e-6f);
+            if (lattice_k_[i] >= 1.0f - 1e-6f) {
+                lattice_k_[i] = 1.0f - 1e-6f;
+            }
+            else if (lattice_k_[i] < -(1.0f - 1e-6f)) {
+                lattice_k_[i] = -(1.0f - 1e-6f);
+            }
             ef_out_[i + 1] = ef_out_[i] + lattice_k_[i] * eb_latch_[i];
             eb_out_[i + 1] = eb_latch_[i] + lattice_k_[i] * ef_out_[i];
             eb_latch_[i] = eb_out_[i];
             eb_out_latch_[i] = eb_out_[i];
         }
 
-        // TODO: interpolate filter
         for (int i = 0; i < lpc_order_; ++i) {
             iir_k_[i] = iir_k_[i] * smooth_ + lattice_k_[i] * (1.0f - smooth_);
         }
 
         // iir part
         float recusial = ef_out_[lpc_order_];
-        float gain = std::sqrt(recusial * recusial + 1e-20f);
+        float gain = std::sqrt(recusial * recusial + 1e-10f);
         gain = gain_smooth_.Process(gain);
         x_iir_[0] = filt_side * gain;
         // iir lattice
@@ -62,9 +66,11 @@ float BurgLPC::ProcessSingle(float x, float exci) {
         for (int i = 0; i < lpc_order_; ++i) {
             l_iir[i] = l_iir[i + 1] + iir_k_[lpc_order_ - i - 1] * x_iir_[i + 1];
         }
-        l_iir[lpc_order_] = x_iir_[lpc_order_];
+        float out_iir = x_iir_[lpc_order_];
+        out_iir = std::clamp(out_iir, -4.0f, 4.0f);
+        l_iir[lpc_order_] = out_iir;
 
-        upsample_latch_ = x_iir_[lpc_order_];
+        upsample_latch_ = out_iir;
     }
 
     float out = upsample_filter_.ProcessSingle(upsample_latch_);

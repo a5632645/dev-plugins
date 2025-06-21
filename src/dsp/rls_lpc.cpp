@@ -6,6 +6,7 @@
 namespace dsp {
 
 void RLSLPC::Init(float fs) {
+    sample_rate_ = fs;
     lpc8_.Init(fs);
     lpc10_.Init(fs);
     lpc15_.Init(fs);
@@ -71,12 +72,14 @@ void RLSLPC::CopyTransferFunction(std::span<float> buffer) {
 }
 
 void RLSLPC::SetForgetRate(float ms) {
-    lpc8_.SetForgetRate(ms);
-    lpc10_.SetForgetRate(ms);
-    lpc15_.SetForgetRate(ms);
-    lpc20_.SetForgetRate(ms);
-    lpc35_.SetForgetRate(ms);
-    lpc40_.SetForgetRate(ms);
+    forget_ms_ = ms;
+    float forget_ = std::exp(-1.0f / ((sample_rate_ / dicimate_) * ms / 1000.0f));
+    lpc8_.SetForgetParam(forget_);
+    lpc10_.SetForgetParam(forget_);
+    lpc15_.SetForgetParam(forget_);
+    lpc20_.SetForgetParam(forget_);
+    lpc35_.SetForgetParam(forget_);
+    lpc40_.SetForgetParam(forget_);
 }
 
 void RLSLPC::SetGainAttack(float ms) {
@@ -125,6 +128,7 @@ void RLSLPC::SetDicimate(int dicimate) {
     main_downsample_filter_.MakeDownSample(dicimate);
     side_downsample_filter_.MakeDownSample(dicimate);
     upsample_latch_ = 0.0f;
+    SetForgetRate(forget_ms_);
 }
 
 } // namespace dsp

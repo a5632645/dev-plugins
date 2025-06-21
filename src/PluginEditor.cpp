@@ -1,15 +1,21 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "dsp/burg_lpc.hpp"
 #include "juce_graphics/juce_graphics.h"
+#include "juce_gui_basics/juce_gui_basics.h"
 #include "param_ids.hpp"
-#include <array>
-#include <complex>
-#include <numbers>
+#include "widget/cepstrum_vocoder.hpp"
+#include "widget/stft_vocoder.hpp"
 
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
     : AudioProcessorEditor (&p), processorRef (p)
+    , main_gain_(p.main_gain_)
+    , side_gain_(p.side_gain_)
+    , output_gain_(p.output_gain_)
+    , stft_vocoder_(p)
+    , burg_lpc_(p)
+    , rls_lpc_(p)
+    , cepstrum_vocoder_(p)
 {
     auto& apvts = *p.value_tree_;
 
@@ -32,39 +38,28 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     shift_pitch_.SetShortName("PITCH");
     addAndMakeVisible(shift_pitch_);
 
+    main_gain_.gain_slide_.BindParameter(apvts, id::kMainGain);
+    main_gain_.gain_slide_.SetShortName("MAIN");
+    addAndMakeVisible(main_gain_);
+    side_gain_.gain_slide_.BindParameter(apvts, id::kSideGain);
+    side_gain_.gain_slide_.SetShortName("SIDE");
+    addAndMakeVisible(side_gain_);
+    output_gain_.gain_slide_.BindParameter(apvts, id::kOutputgain);
+    output_gain_.gain_slide_.SetShortName("OUTPUT");
+    addAndMakeVisible(output_gain_);
+
     vocoder_type_.BindParam(apvts, id::kVocoderType);
     vocoder_type_.SetShortName("TYPE");
+    vocoder_type_.combobox_.addListener(this);
     addAndMakeVisible(vocoder_type_);
 
-    addAndMakeVisible(lpc_);
-    lpc_learn_.BindParameter(apvts, id::kLearnRate);
-    lpc_learn_.SetShortName("LEARN");
-    addAndMakeVisible(lpc_learn_);
-    lpc_foorget_.BindParameter(apvts, id::kForgetRate);
-    lpc_foorget_.SetShortName("FORGET");
-    addAndMakeVisible(lpc_foorget_);
-    lpc_smooth_.BindParameter(apvts, id::kLPCSmooth);
-    lpc_smooth_.SetShortName("SMOOTH");
-    addAndMakeVisible(lpc_smooth_);
-    lpc_dicimate_.BindParameter(apvts, id::kLPCDicimate);
-    lpc_dicimate_.SetShortName("DICIMATE");
-    addAndMakeVisible(lpc_dicimate_);
-    lpc_order_.BindParameter(apvts, id::kLPCOrder);
-    lpc_order_.SetShortName("ORDER");
-    addAndMakeVisible(lpc_order_);
-    lpc_attack_.BindParameter(apvts, id::kLPCGainAttack);
-    lpc_attack_.SetShortName("ATTACK");
-    addAndMakeVisible(lpc_attack_);
-    lpc_release_.BindParameter(apvts, id::kLPCGainRelease);
-    lpc_release_.SetShortName("RELEASE");
-    addAndMakeVisible(lpc_release_);
+    addChildComponent(stft_vocoder_);
+    addChildComponent(rls_lpc_);
+    addChildComponent(burg_lpc_);
+    addChildComponent(cepstrum_vocoder_);
+    this->comboBoxChanged(&vocoder_type_.combobox_);
 
-    addAndMakeVisible(stft_);
-    stft_bandwidth_.BindParameter(apvts, id::kStftWindowWidth);
-    stft_bandwidth_.SetShortName("BANDW");
-    addAndMakeVisible(stft_bandwidth_);
-
-    setSize (500, 600);
+    setSize (500, 400);
     startTimerHz(30);
 }
 
@@ -74,162 +69,7 @@ AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
 
 //==============================================================================
 void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
-    switch (static_cast<VocoderType>(processorRef.current_vocoder_type_)) {
-    case VocoderType::ChannelVocoder:
-        break;
-    case VocoderType::STFTVocoder:
-        DrawSTFTVocoder(g);
-        break;
-    case VocoderType::BurgLPC:
-        DrawBurgLPC(g);
-        break;
-    case VocoderType::RLSLPC:
-        DrawRLSLPC(g);
-        break;
-    }
-}
-
-void AudioPluginAudioProcessorEditor::DrawBurgLPC(juce::Graphics& g) {
-    g.fillAll(juce::Colours::grey);
-    auto bb = getLocalBounds();
-    bb.removeFromTop(stft_bandwidth_.getBottom());
-
-    g.setColour(juce::Colours::black);
-    g.fillRect(bb);
-    g.setColour(juce::Colours::white);
-    g.drawRect(bb);
-
-    int w = bb.getWidth();
-    auto b = bb.toFloat();
-
-    // lattice to tf
-    std::array<float, dsp::BurgLPC::kNumPoles> lattice_buff;
-    std::array<float, dsp::BurgLPC::kNumPoles> transfer_function;
-    processorRef.burg_lpc_.CopyLatticeCoeffient(lattice_buff);
-    int order = processorRef.burg_lpc_.GetOrder();
-    for (int i = 0; i < order; ++i) {
-        transfer_function[i] = lattice_buff[i];
-        for (int j = 0; j < i - 1; ++j) {
-            transfer_function[j] = transfer_function[j] - lattice_buff[i] * transfer_function[i - j];
-        }
-    }
-    // processorRef.rls_lpc_.CopyLatticeCoeffient(transfer_function);
-    // int order = processorRef.rls_lpc_.GetOrder();
-
-    constexpr float up = 60.0f;
-    constexpr float down = -20.0f;
-    // draw
-    juce::Point<float> line_last{ b.getX(), b.getCentreY() };
-    g.setColour(juce::Colours::green);
-    float mul_val = std::pow(10.0f, 2.0f / w);
-    float mul_begin = 1.0f;
-    float omega_base = 180.0f * std::numbers::pi_v<float> / static_cast<float>(processorRef.getSampleRate());
-    for (int x = 0; x < w; ++x) {
-        // float omega = static_cast<float>(x) * std::numbers::pi_v<float> / static_cast<float>(w - 1);
-        float omega = omega_base * mul_begin;
-        mul_begin *= mul_val;
-        auto z_responce = std::complex{1.0f, 0.0f};
-        for (int i = 0; i < order; ++i) {
-            auto z = std::polar(1.0f, -omega * (i + 1));
-            z_responce -= transfer_function[i] * z;
-        }
-        z_responce = 1.0f / z_responce;
-        if (std::isnan(z_responce.real()) || std::isnan(z_responce.imag())) {
-            continue;
-        }
-
-        float gain = std::abs(z_responce);
-        float db_gain = 20.0f * std::log10(gain + 1e-8f);
-        if (db_gain < down) db_gain = down;
-        float y_nor = (db_gain - (down)) / (up - (down));
-        float y = b.getBottom() - y_nor * b.getHeight();
-        juce::Point line_end{ static_cast<float>(x + b.toFloat().getX()), y };
-        g.drawLine(juce::Line<float>{line_last, line_end}, 2.0f);
-        line_last = line_end;
-    }
-}
-
-void AudioPluginAudioProcessorEditor::DrawRLSLPC(juce::Graphics& g) {
-    g.fillAll(juce::Colours::grey);
-    auto bb = getLocalBounds();
-    bb.removeFromTop(stft_bandwidth_.getBottom());
-
-    g.setColour(juce::Colours::black);
-    g.fillRect(bb);
-    g.setColour(juce::Colours::white);
-    g.drawRect(bb);
-
-    int w = bb.getWidth();
-    auto b = bb.toFloat();
-
-    std::array<float, dsp::BurgLPC::kNumPoles> transfer_function;
-    processorRef.rls_lpc_.CopyTransferFunction(transfer_function);
-    int order = processorRef.rls_lpc_.GetOrder();
-
-    constexpr float up = 60.0f;
-    constexpr float down = -20.0f;
-    // draw
-    juce::Point<float> line_last{ b.getX(), b.getCentreY() };
-    g.setColour(juce::Colours::green);
-    float mul_val = std::pow(10.0f, 2.0f / w);
-    float mul_begin = 1.0f;
-    float omega_base = 180.0f * std::numbers::pi_v<float> / static_cast<float>(processorRef.getSampleRate());
-    for (int x = 0; x < w; ++x) {
-        // float omega = static_cast<float>(x) * std::numbers::pi_v<float> / static_cast<float>(w - 1);
-        float omega = omega_base * mul_begin;
-        mul_begin *= mul_val;
-        auto z_responce = std::complex{1.0f, 0.0f};
-        for (int i = 0; i < order; ++i) {
-            auto z = std::polar(1.0f, -omega * (i + 1));
-            z_responce -= transfer_function[i] * z;
-        }
-        z_responce = 1.0f / z_responce;
-        if (std::isnan(z_responce.real()) || std::isnan(z_responce.imag())) {
-            continue;
-        }
-
-        float gain = std::abs(z_responce);
-        float db_gain = 20.0f * std::log10(gain + 1e-8f);
-        if (db_gain < down) db_gain = down;
-        float y_nor = (db_gain - (down)) / (up - (down));
-        float y = b.getBottom() - y_nor * b.getHeight();
-        juce::Point line_end{ static_cast<float>(x + b.toFloat().getX()), y };
-        g.drawLine(juce::Line<float>{line_last, line_end}, 2.0f);
-        line_last = line_end;
-    }
-}
-
-void AudioPluginAudioProcessorEditor::DrawSTFTVocoder(juce::Graphics& g) {
-    g.fillAll(juce::Colours::grey);
-    auto bb = getLocalBounds();
-    bb.removeFromTop(stft_bandwidth_.getBottom());
-
-    g.setColour(juce::Colours::black);
-    g.fillRect(bb);
-    g.setColour(juce::Colours::white);
-    g.drawRect(bb);
-
-    auto b = bb.toFloat();
-    auto gains = processorRef.stft_vocoder_.gains_;
-    juce::Point<float> line_last{ b.getX(), b.getCentreY() };
-    g.setColour(juce::Colours::green);
-    float mul_val = std::pow(10.0f, 2.0f / b.getWidth());
-    float mul_begin = 1.0f;
-    float omega_base = 180.0f * 2.0f / static_cast<float>(processorRef.getSampleRate());
-    for (int x = 0; x < bb.getWidth(); ++x) {
-        float omega = omega_base * mul_begin;
-        mul_begin *= mul_val;
-        
-        int idx = static_cast<int>(omega * gains.size());
-        idx = std::min<int>(idx, gains.size() - 1);
-        float gain = gains[idx];
-        float db_gain = 20.0f * std::log10(gain + 1e-10f);
-        float y_nor = (db_gain - (-96.0f)) / (10.0f - (-96.0f));
-        float y = b.getBottom() - y_nor * b.getHeight();
-        juce::Point line_end{ static_cast<float>(x + b.toFloat().getX()), y };
-        g.drawLine(juce::Line<float>{line_last, line_end}, 2.0f);
-        line_last = line_end;
-    }
+    (void)g;
 }
 
 void AudioPluginAudioProcessorEditor::resized() {
@@ -242,28 +82,53 @@ void AudioPluginAudioProcessorEditor::resized() {
         em_gain_.setBounds(top.removeFromLeft(50));
         em_s_.setBounds(top.removeFromLeft(50));
         shift_pitch_.setBounds(top.removeFromLeft(50));
+        main_gain_.setBounds(top.removeFromLeft(50 + 20));
+        side_gain_.setBounds(top.removeFromLeft(50 + 20));
+        output_gain_.setBounds(top.removeFromLeft(50 + 20));
     }
     {
         vocoder_type_.setBounds(b.removeFromTop(30));
     }
     {
-        lpc_.setBounds(b.removeFromTop(20));
-        auto top = b.removeFromTop(100);
-        lpc_learn_.setBounds(top.removeFromLeft(50));
-        lpc_foorget_.setBounds(top.removeFromLeft(50));
-        lpc_smooth_.setBounds(top.removeFromLeft(50));
-        lpc_dicimate_.setBounds(top.removeFromLeft(50));
-        lpc_order_.setBounds(top.removeFromLeft(50));
-        lpc_attack_.setBounds(top.removeFromLeft(50));
-        lpc_release_.setBounds(top.removeFromLeft(50));
-    }
-    {
-        stft_.setBounds(b.removeFromTop(20));
-        auto top = b.removeFromTop(100);
-        stft_bandwidth_.setBounds(top.removeFromLeft(50));
+        burg_lpc_.setBounds(b);
+        rls_lpc_.setBounds(b);
+        stft_vocoder_.setBounds(b);
+        cepstrum_vocoder_.setBounds(b);
     }
 }
 
 void AudioPluginAudioProcessorEditor::timerCallback() {
-    repaint();
+    if (current_vocoder_widget_ != nullptr) {
+        current_vocoder_widget_->repaint();
+    }
+    main_gain_.repaint();
+    side_gain_.repaint();
+    output_gain_.repaint();
+}
+
+void AudioPluginAudioProcessorEditor::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) {
+    if (comboBoxThatHasChanged == &vocoder_type_.combobox_) {
+        if (current_vocoder_widget_ != nullptr) {
+            current_vocoder_widget_->setVisible(false);
+        }
+
+        switch (static_cast<VocoderType>(vocoder_type_.combobox_.getSelectedItemIndex())) {
+        case VocoderType::ChannelVocoder:
+            break;
+        case VocoderType::STFTVocoder:
+            current_vocoder_widget_ = &stft_vocoder_;
+            break;
+        case VocoderType::BurgLPC:
+            current_vocoder_widget_ = &burg_lpc_;
+            break;
+        case VocoderType::RLSLPC:
+            current_vocoder_widget_ = &rls_lpc_;
+            break;
+        case VocoderType::CepstrumVocoder:
+            current_vocoder_widget_ = &cepstrum_vocoder_;
+            break;
+        }
+
+        current_vocoder_widget_->setVisible(true);
+    }
 }
