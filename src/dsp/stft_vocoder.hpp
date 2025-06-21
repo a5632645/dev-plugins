@@ -32,10 +32,11 @@ private:
     int numInput_{};
     int writeEnd_{};
     int writeAddBegin_{};
-    float bandwidth_{0.5f};
+    float bandwidth_{};
     float decay_{};
     float sample_rate_{};
     float blend_{};
+    float window_gain_{};
 };
 
 }

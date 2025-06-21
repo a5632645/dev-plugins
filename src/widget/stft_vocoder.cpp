@@ -56,10 +56,10 @@ void STFTVocoder::paint(juce::Graphics& g) {
         mul_begin *= mul_val;
         
         int idx = static_cast<int>(omega * gains.size());
-        idx = std::min<int>(idx, gains.size() - 1);
+        idx = std::min<int>(idx, static_cast<int>(gains.size()) - 1);
         float gain = gains[idx];
         float db_gain = 20.0f * std::log10(gain + 1e-10f);
-        float y_nor = (db_gain - (-96.0f)) / (10.0f - (-96.0f));
+        float y_nor = (db_gain - (-100.0f)) / (20.0f - (-100.0f));
         float y = b.getBottom() - y_nor * b.getHeight();
         juce::Point line_end{ static_cast<float>(x + b.toFloat().getX()), y };
         g.drawLine(juce::Line<float>{line_last, line_end}, 2.0f);
