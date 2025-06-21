@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(LPCVocoder)
+project(GreenVocoder)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")

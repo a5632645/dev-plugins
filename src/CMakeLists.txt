@@ -14,7 +14,7 @@ cmake_minimum_required(VERSION 3.22)
 # `project()` command. `project()` sets up some helpful variables that describe source/binary
 # directories, and the current project version. This is a standard CMake command.
 
-project(LPCVocoderRework VERSION 0.0.1)
+project(GreenVocoder VERSION 0.0.1)
 
 # If you've installed JUCE somehow (via a package manager, or directly using the CMake install
 # target), you'll need to tell this project that it depends on the installed copy of JUCE. If you've
@@ -37,7 +37,7 @@ project(LPCVocoderRework VERSION 0.0.1)
 # the formats specified by the FORMATS arguments. This function accepts many optional arguments.
 # Check the readme at `docs/CMake API.md` in the JUCE repo for the full list.
 
-juce_add_plugin(LPCVocoderRework
+juce_add_plugin(GreenVocoder
     # VERSION ...                               # Set this if the plugin version is different to the project version
     # ICON_BIG ...                              # ICON_* arguments specify a path to an image file to use as an icon for the Standalone
     # ICON_SMALL ...
@@ -54,7 +54,7 @@ juce_add_plugin(LPCVocoderRework
     PLUGIN_CODE Lpcv                            # A unique four-character plugin id with exactly one upper-case character
                                                 # GarageBand 10.3 requires the first letter to be upper-case, and the remaining letters to be lower-case
     FORMATS AU VST3 Standalone                  # The formats to build. Other valid formats are: AAX Unity VST AU AUv3
-    PRODUCT_NAME "LPC VOCODER REWORK")        # The name of the final executable, which can differ from the target name
+    PRODUCT_NAME "Green Vocoder")        # The name of the final executable, which can differ from the target name
 
 # `juce_generate_juce_header` will create a JuceHeader.h for a given target, which will be generated
 # into your build tree. This should be included with `#include <JuceHeader.h>`. The include path for
@@ -70,15 +70,15 @@ juce_add_plugin(LPCVocoderRework
 # CMake command.
 
 file(GLOB_RECURSE PLUGIN_SOURCES CONFIGURE_DEPENDS "*.cpp" "*.hpp")
-target_sources(LPCVocoderRework
+target_sources(GreenVocoder
     PRIVATE
         PluginEditor.cpp
         PluginProcessor.cpp
         ${PLUGIN_SOURCES}
 )
-set_target_properties(LPCVocoderRework PROPERTIES CXX_STANDARD 20)
+set_target_properties(GreenVocoder PROPERTIES CXX_STANDARD 20)
 
-target_include_directories(LPCVocoderRework
+target_include_directories(GreenVocoder
     PRIVATE
         .
         ./..
@@ -91,7 +91,7 @@ target_include_directories(LPCVocoderRework
 # definitions will be visible both to your code, and also the JUCE module code, so for new
 # definitions, pick unique names that are unlikely to collide! This is a standard CMake command.
 
-target_compile_definitions(LPCVocoderRework
+target_compile_definitions(GreenVocoder
     PUBLIC
         # JUCE_WEB_BROWSER and JUCE_USE_CURL would be on by default, but you might not need them.
         JUCE_WEB_BROWSER=0  # If you remove this, add `NEEDS_WEB_BROWSER TRUE` to the `juce_add_plugin` call
@@ -113,7 +113,7 @@ target_compile_definitions(LPCVocoderRework
 # linked automatically. If we'd generated a binary data target above, we would need to link to it
 # here too. This is a standard CMake command.
 
-target_link_libraries(LPCVocoderRework
+target_link_libraries(GreenVocoder
     PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils

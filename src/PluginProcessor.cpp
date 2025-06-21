@@ -238,7 +238,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kStftWindowWidth, 1},
             id::kStftWindowWidth,
-            0.1f, 10.0f, 1.0f
+            0.1f, 10.0f, 5.0f
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -251,7 +251,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kStftRelease, 1},
             id::kStftRelease,
             juce::NormalisableRange<float>{1.0f, 1000.0f, 1.0f, 0.4f},
-            150.0f
+            20.0f
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -276,7 +276,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kStftBlend, 1},
             id::kStftBlend,
-            0.0f, 0.99f, 0.5f
+            0.0f, 0.99f, 0.2f
         );
         paramListeners_.Add(p, [this](float omega) {
             juce::ScopedLock lock{getCallbackLock()};
