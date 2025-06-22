@@ -1,9 +1,11 @@
 #include "cepstrum_vocoder.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
-#include "dsp/windows.h"
+#include <numbers>
+#include <numeric>
 
 namespace dsp {
 
@@ -13,10 +15,12 @@ void CepstrumVocoder::Init(float fs) {
 }
 
 void CepstrumVocoder::SetFFTSize(int size) {
-    fft_.init(kFFTSize);
+    fft_.init(size);
+    cepstrum_fft_.init(size / 2);
     for (int i = 0; i < kFFTSize; ++i) {
-        hann_window_[i] = 0.5 - 0.5 * std::cos(2 * M_PI * i / (kFFTSize - 1));
+        hann_window_[i] = 0.5 - 0.5 * std::cos(2 * std::numbers::pi_v<float> * i / (kFFTSize - 1));
     }
+    fft_gain_ = 2.0f / std::accumulate(hann_window_.begin(), hann_window_.end(), 0.0f);
 }
 
 void CepstrumVocoder::SetRelease(float ms) {
@@ -54,23 +58,31 @@ void CepstrumVocoder::Process(std::span<float> block, std::span<float> block2) {
         fft_.fft(side_timeBuffer, side_real.data(), side_imag.data());
 
         // spectral processing
-        float g = 1.0f / (kFFTSize / 2.0f);
-        spectral_filter_.ResetLatch();
+        // half amp -> log
+        std::array<float, kFFTSize / 2> log_amps;
         for (int i = 1; i < kNumBins; ++i) {
-            float gain = std::abs(main_real[i] * main_real[i] + main_imag[i] * main_imag[i]) * g;
-            float db = CepstrumVocoder::GainToDb(gain);
-            float spectral_evelop = spectral_filter_.ProcessSingle(db);
+            float g = std::abs(main_real[i] * main_real[i] + main_imag[i] * main_imag[i]) * fft_gain_;
+            log_amps[i - 1] = std::log(g + 1e-10f);
+        }
+        // filter
+        cepstrum_fft_.fft(log_amps.data(), main_real.data(), main_imag.data());
+        int len = kFFTSize / 2;
+        int bins = len / 2 + 1;
+        for (int i = filtering_; i < bins; ++i) {
+            main_real[i] = 0.0f;
+            main_imag[i] = 0.0f;
+        }
+        cepstrum_fft_.ifft(log_amps.data(), main_real.data(), main_imag.data());
 
-            if (spectral_evelop > gains_[i]) {
-                gains_[i] = spectral_evelop;
-            }
-            else {
-                gains_[i] = decay_ * gains_[i] + (1 - decay_) * spectral_evelop;
-            }
+        // vocoding
+        for (int i = 1; i < kNumBins; ++i) {
+            float log_amp = log_amps[i - 1];
+            float gain = std::exp(log_amp);
+            gain = Blend(gain);
+            gains_[i] = decay_ * gains_[i] + (1 - decay_) * gain;
 
-            float se_gain = std::pow(10.0f, spectral_evelop / 20.0f);
-            side_real[i] *= se_gain;
-            side_imag[i] *= se_gain;
+            side_real[i] *= gains_[i];
+            side_imag[i] *= gains_[i];
         }
 
         // get ifft output
@@ -114,8 +126,22 @@ float CepstrumVocoder::GainToDb(float gain) {
     return 20.0f * std::log10(gain + 1e-5f); // mininal -100dB
 }
 
-void CepstrumVocoder::SetOmega(float omega) {
-    spectral_filter_.MakeLowpassDirect(omega);
+void CepstrumVocoder::SetBlend(float blend) {
+    blend_ = blend;
+}
+
+void CepstrumVocoder::SetFiltering(float filtering) {
+    int cepstrum_fft_size = kFFTSize / 2;
+    int bins = cepstrum_fft_size / 2 + 1;
+    filtering_ = static_cast<int>(filtering * bins);
+    filtering_ = std::max(filtering_, 1);
+}
+
+float CepstrumVocoder::Blend(float x) {
+    x = 2.0f * x - 1.0f;
+    x = (blend_ + x) / (1 + blend_ * x);
+    x = 0.5f * x + 0.5f;
+    return x;
 }
 
 }

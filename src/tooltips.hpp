@@ -28,6 +28,6 @@ static constexpr auto kStftWindowWidth = "expand energy in frequency axis by spe
 static constexpr auto kStftRelease = "bin energy release in time axis";
 static constexpr auto kStftBlend = "bin energy remap, higher value cause more noisy sound while lower cause crystal sound";
 
-static constexpr auto kCepstrumOmega = "cepstrum filter cutoff";
+static constexpr auto kCepstrumFiltering = "cepstrum filter cutoff";
 
 }

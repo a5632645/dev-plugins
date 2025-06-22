@@ -18,6 +18,7 @@ private:
     juce::Label title_;
     ui::VerticalSlider omega_;
     ui::VerticalSlider release_;
+    ui::VerticalSlider blend_;
 };
 
 }

@@ -99,8 +99,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kForgetRate, 1},
             id::kForgetRate,
-            juce::NormalisableRange<float>{2.0f, 100.0f, 1.0f, 0.4f},
-            10.0f
+            juce::NormalisableRange<float>{5.0f, 100.0f, 1.0f, 0.4f},
+            20.0f
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -113,7 +113,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kLPCSmooth, 1},
             id::kLPCSmooth,
-            juce::NormalisableRange<float>{0.1f, 100.0f, 0.1f, 0.4f},
+            juce::NormalisableRange<float>{0.1f, 50.0f, 0.1f, 0.4f},
             0.1f
         );
         paramListeners_.Add(p, [this](float l) {
@@ -127,7 +127,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kLPCGainAttack, 1},
             id::kLPCGainAttack,
             juce::NormalisableRange<float>{1.0f, 100.0f, 1.0f, 0.4f},
-            5.0f
+            20.0f
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -141,7 +141,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kLPCGainRelease, 1},
             id::kLPCGainRelease,
             juce::NormalisableRange<float>{1.0f, 100.0f, 1.0f, 0.4f},
-            5.0f
+            20.0f
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -262,17 +262,17 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     }
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kCepstrumOmega, 1},
-            id::kCepstrumOmega,
-            0.0f, 0.9f, 0.5f
+            juce::ParameterID{id::kCepstrumFiltering, 1},
+            id::kCepstrumFiltering,
+            0.0f, 1.0f, 0.15f
         );
         paramListeners_.Add(p, [this](float omega) {
             juce::ScopedLock lock{getCallbackLock()};
-            cepstrum_vocoder_.SetOmega(omega);
+            cepstrum_vocoder_.SetFiltering(omega);
         });
         layout.add(std::move(p));
     }
-        {
+    {
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kStftBlend, 1},
             id::kStftBlend,
@@ -281,6 +281,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float omega) {
             juce::ScopedLock lock{getCallbackLock()};
             stft_vocoder_.SetBlend(omega);
+            cepstrum_vocoder_.SetBlend(omega);
         });
         layout.add(std::move(p));
     }

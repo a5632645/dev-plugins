@@ -61,7 +61,6 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
         fft_.fft(side_timeBuffer, side_real.data(), side_imag.data());
 
         // spectral processing
-        // float g = 1.0f / (kFFTSize / 2.0f);
         for (int i = 1; i < kNumBins; ++i) {
             float v = std::abs(main_real[i] * main_real[i] + main_imag[i] * main_imag[i]) * window_gain_;
             v = Blend(v);
@@ -115,6 +114,7 @@ void STFTVocoder::SetBandwidth(float bw) {
     for (int i = 0; i < kFFTSize; i++) {
         float x = (2 * std::numbers::pi_v<float> * f0 * (i - kFFTSize / 2.0f)) / kFFTSize;
         float sinc = std::abs(x) < 1e-6 ? 1.0f : std::sin(x) / x;
+        // float sinc = std::cos(x) * 0.5f + 0.5f;
         window_[i] = sinc * hann_window_[i];
     }
     // keep energy

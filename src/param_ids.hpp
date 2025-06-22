@@ -28,6 +28,6 @@ static constexpr auto kStftWindowWidth = "stft_bandwidth";
 static constexpr auto kStftRelease = "stft_release";
 static constexpr auto kStftBlend = "stft_blend";
 
-static constexpr auto kCepstrumOmega = "cepstrum_omega";
+static constexpr auto kCepstrumFiltering = "cepstrum_filtering";
 
 }

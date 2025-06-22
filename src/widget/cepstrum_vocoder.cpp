@@ -12,15 +12,20 @@ CepstrumVocoderUI::CepstrumVocoderUI(AudioPluginAudioProcessor& processor)
     title_.setText("Cepstrum Vocoder", juce::dontSendNotification);
     addAndMakeVisible(title_);
 
-    omega_.BindParameter(apvts, id::kCepstrumOmega);
-    omega_.SetShortName("OMEGA");
-    omega_.slider_.setTooltip(tooltip::kCepstrumOmega);
+    omega_.BindParameter(apvts, id::kCepstrumFiltering);
+    omega_.SetShortName("FILTER");
+    omega_.slider_.setTooltip(tooltip::kCepstrumFiltering);
     addAndMakeVisible(omega_);
 
     release_.BindParameter(apvts, id::kStftRelease);
     release_.SetShortName("REL");
     release_.slider_.setTooltip(tooltip::kStftRelease);
     addAndMakeVisible(release_);
+
+    blend_.BindParameter(apvts, id::kStftBlend);
+    blend_.SetShortName("BLEND");
+    blend_.slider_.setTooltip(tooltip::kStftBlend);
+    addAndMakeVisible(blend_);
 }
 
 void CepstrumVocoderUI::resized() {
@@ -29,11 +34,12 @@ void CepstrumVocoderUI::resized() {
     auto top = b.removeFromTop(100);
     omega_.setBounds(top.removeFromLeft(50));
     release_.setBounds(top.removeFromLeft(50));
+    blend_.setBounds(top.removeFromLeft(50));
 }
 
 void CepstrumVocoderUI::paint(juce::Graphics& g) {
     auto bb = getLocalBounds();
-    bb.removeFromTop(omega_.getBottom());
+    bb.removeFromTop(release_.getBottom());
 
     g.setColour(juce::Colours::black);
     g.fillRect(bb);
@@ -50,9 +56,10 @@ void CepstrumVocoderUI::paint(juce::Graphics& g) {
         mul_begin *= mul_val;
         
         int idx = static_cast<int>(omega * gains.size());
-        idx = std::min<int>(idx, gains.size() - 1);
-        float db_gain = gains[idx];
-        float y_nor = (db_gain - (-96.0f)) / (10.0f - (-96.0f));
+        idx = std::min<int>(idx, static_cast<int>(gains.size()) - 1);
+        float gain = gains[idx];
+        float db_gain = 20.0f * std::log10(gain + 1e-10f);
+        float y_nor = (db_gain - (-100.0f)) / (20.0f - (-100.0f));
         float y = b.getBottom() - y_nor * b.getHeight();
         juce::Point line_end{ static_cast<float>(x + b.toFloat().getX()), y };
         g.drawLine(juce::Line<float>{line_last, line_end}, 2.0f);
