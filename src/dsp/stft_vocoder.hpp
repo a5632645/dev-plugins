@@ -17,6 +17,7 @@ public:
 
     void SetBandwidth(float bw);
     void SetRelease(float ms);
+    void SetAttack(float ms);
     void SetBlend(float blend);
 
     std::array<float, kNumBins> gains_{};
@@ -34,6 +35,7 @@ private:
     int writeAddBegin_{};
     float bandwidth_{};
     float decay_{};
+    float attck_{};
     float sample_rate_{};
     float blend_{};
     float window_gain_{};

@@ -1,4 +1,5 @@
 #include "cepstrum_vocoder.hpp"
+#include "utli.hpp"
 
 #include <algorithm>
 #include <array>
@@ -18,13 +19,13 @@ void CepstrumVocoder::SetFFTSize(int size) {
     fft_.init(size);
     cepstrum_fft_.init(size / 2);
     for (int i = 0; i < kFFTSize; ++i) {
-        hann_window_[i] = 0.5 - 0.5 * std::cos(2 * std::numbers::pi_v<float> * i / (kFFTSize - 1));
+        hann_window_[i] = 0.5f - 0.5f * std::cos(2.0f* std::numbers::pi_v<float> * i / (kFFTSize - 1.0f));
     }
     fft_gain_ = 2.0f / std::accumulate(hann_window_.begin(), hann_window_.end(), 0.0f);
 }
 
 void CepstrumVocoder::SetRelease(float ms) {
-    decay_ = std::exp(-1.0f / ((sample_rate_ / kHopSize) * ms / 1000.0f));
+    decay_ = utli::GetDecayValue(sample_rate_ / kHopSize, ms);
 }
 
 void CepstrumVocoder::Process(std::span<float> block, std::span<float> block2) {

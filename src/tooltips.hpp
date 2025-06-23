@@ -25,6 +25,7 @@ static constexpr auto kLPCGainRelease = "lpc vocoder gain release";
 static constexpr auto kLPCDicimate = "lpc vocoder dicimate, higher value make a more robotic sound and clearity";
 
 static constexpr auto kStftWindowWidth = "expand energy in frequency axis by spectral leak caused by sinc window";
+static constexpr auto kStftAttack = "bin energy attack in time axis";
 static constexpr auto kStftRelease = "bin energy release in time axis";
 static constexpr auto kStftBlend = "bin energy remap, higher value cause more noisy sound while lower cause crystal sound";
 

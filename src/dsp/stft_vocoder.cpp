@@ -1,4 +1,5 @@
 #include "stft_vocoder.hpp"
+#include "utli.hpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -14,14 +15,14 @@ void STFTVocoder::Init(float fs) {
 }
 
 void STFTVocoder::SetFFTSize(int size) {
-    fft_.init(kFFTSize);
+    fft_.init(size);
     for (int i = 0; i < kFFTSize; ++i) {
-        hann_window_[i] = 0.5 - 0.5 * std::cos(2 * std::numbers::pi_v<float> * i / (kFFTSize - 1));
+        hann_window_[i] = 0.5f - 0.5f * std::cos(2.0f* std::numbers::pi_v<float> * i / (kFFTSize - 1.0f));
     }
 }
 
 void STFTVocoder::SetRelease(float ms) {
-    decay_ = std::exp(-1.0f / ((sample_rate_ / kHopSize) * ms / 1000.0f));
+    decay_ = utli::GetDecayValue(sample_rate_ / kHopSize, ms);
 }
 
 void STFTVocoder::SetBlend(float blend) {
@@ -62,9 +63,17 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
 
         // spectral processing
         for (int i = 1; i < kNumBins; ++i) {
-            float v = std::abs(main_real[i] * main_real[i] + main_imag[i] * main_imag[i]) * window_gain_;
-            v = Blend(v);
-            gains_[i] = decay_ * gains_[i] + (1 - decay_) * v;
+            // i know this is power spectrum, but it sounds better than mag spectrum(???)
+            float power = std::abs(main_real[i] * main_real[i] + main_imag[i] * main_imag[i]);
+            float gain = power * window_gain_;
+            gain = Blend(gain);
+
+            if (gain > gains_[i]) {
+                gains_[i] = attck_ * gains_[i] + (1 - attck_) * gain;
+            }
+            else {
+                gains_[i] = decay_ * gains_[i] + (1 - decay_) * gain;
+            }
             
             side_real[i] *= gains_[i];
             side_imag[i] *= gains_[i];
@@ -114,12 +123,14 @@ void STFTVocoder::SetBandwidth(float bw) {
     for (int i = 0; i < kFFTSize; i++) {
         float x = (2 * std::numbers::pi_v<float> * f0 * (i - kFFTSize / 2.0f)) / kFFTSize;
         float sinc = std::abs(x) < 1e-6 ? 1.0f : std::sin(x) / x;
-        // float sinc = std::cos(x) * 0.5f + 0.5f;
         window_[i] = sinc * hann_window_[i];
     }
-    // keep energy
-    float sum = std::accumulate(window_.begin(), window_.end(), 0.0f);
-    window_gain_ = 2.0f / sum;
+    // keep energy(???)
+    window_gain_ = 2.0f / std::accumulate(window_.begin(), window_.end(), 0.0f);
+}
+
+void STFTVocoder::SetAttack(float ms) {
+    attck_ = utli::GetDecayValue(sample_rate_ / kHopSize, ms);
 }
 
 float STFTVocoder::Blend(float x) {

@@ -25,6 +25,7 @@ static constexpr auto kLPCGainRelease = "lpc_release";
 static constexpr auto kLPCDicimate = "lpc_dicimate";
 
 static constexpr auto kStftWindowWidth = "stft_bandwidth";
+static constexpr auto kStftAttack = "stft_attack";
 static constexpr auto kStftRelease = "stft_release";
 static constexpr auto kStftBlend = "stft_blend";
 

@@ -18,6 +18,7 @@ private:
     juce::Label title_;
     ui::VerticalSlider bandwidth_;
     ui::VerticalSlider release_;
+    ui::VerticalSlider attack_;
     ui::VerticalSlider blend_;
 };
 

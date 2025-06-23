@@ -13,17 +13,22 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
     addAndMakeVisible(title_);
 
     bandwidth_.BindParameter(apvts, id::kStftWindowWidth);
-    bandwidth_.SetShortName("F.EXPAN");
+    bandwidth_.SetShortName("SMEAR");
     bandwidth_.slider_.setTooltip(tooltip::kStftWindowWidth);
     addAndMakeVisible(bandwidth_);
 
+    attack_.BindParameter(apvts, id::kStftAttack);
+    attack_.SetShortName("ATTACK");
+    attack_.slider_.setTooltip(tooltip::kStftRelease);
+    addAndMakeVisible(attack_);
+
     release_.BindParameter(apvts, id::kStftRelease);
-    release_.SetShortName("T.REL");
+    release_.SetShortName("RELEASE");
     release_.slider_.setTooltip(tooltip::kStftRelease);
     addAndMakeVisible(release_);
 
     blend_.BindParameter(apvts, id::kStftBlend);
-    blend_.SetShortName("A.REMAP");
+    blend_.SetShortName("NOISY");
     blend_.slider_.setTooltip(tooltip::kStftBlend);
     addAndMakeVisible(blend_);
 }
@@ -33,6 +38,7 @@ void STFTVocoder::resized() {
     title_.setBounds(b.removeFromTop(20));
     auto top = b.removeFromTop(100);
     bandwidth_.setBounds(top.removeFromLeft(50));
+    attack_.setBounds(top.removeFromLeft(50));
     release_.setBounds(top.removeFromLeft(50));
     blend_.setBounds(top.removeFromLeft(50));
 }
