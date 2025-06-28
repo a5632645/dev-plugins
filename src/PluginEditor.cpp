@@ -5,6 +5,7 @@
 #include "param_ids.hpp"
 #include "tooltips.hpp"
 #include "widget/cepstrum_vocoder.hpp"
+#include "widget/ensemble.hpp"
 #include "widget/stft_vocoder.hpp"
 
 //==============================================================================
@@ -18,6 +19,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     , burg_lpc_(p)
     , rls_lpc_(p)
     , cepstrum_vocoder_(p)
+    , ensemble_(p)
 {
     auto& apvts = *p.value_tree_;
 
@@ -70,7 +72,9 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addChildComponent(cepstrum_vocoder_);
     this->comboBoxChanged(&vocoder_type_.combobox_);
 
-    setSize (500, 400);
+    addAndMakeVisible(ensemble_);
+
+    setSize (500, 550);
     startTimerHz(30);
 }
 
@@ -99,6 +103,10 @@ void AudioPluginAudioProcessorEditor::resized() {
     }
     {
         vocoder_type_.setBounds(b.removeFromTop(30));
+    }
+    {
+        auto top = b.removeFromBottom(120);
+        ensemble_.setBounds(top);
     }
     {
         burg_lpc_.setBounds(b);

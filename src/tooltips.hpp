@@ -31,4 +31,10 @@ static constexpr auto kStftBlend = "bin energy remap, higher value cause more no
 
 static constexpr auto kCepstrumFiltering = "cepstrum filter cutoff";
 
+static constexpr auto kEnsembleDetune = "ensemble detune";
+static constexpr auto kEnsembleRate = "ensemble lfo rate";
+static constexpr auto kEnsembleSpread = "ensemble spread";
+static constexpr auto kEnsembleMix = "ensemble mix";
+static constexpr auto kEnsembleNumVoices = "ensemble number of voices";
+
 }

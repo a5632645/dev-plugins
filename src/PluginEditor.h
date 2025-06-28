@@ -12,6 +12,7 @@
 #include "widget/stft_vocoder.hpp"
 #include "widget/cepstrum_vocoder.hpp"
 #include "widget/gain.hpp"
+#include "widget/ensemble.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor
@@ -51,6 +52,8 @@ private:
     widget::RLSLPC rls_lpc_;
     widget::CepstrumVocoderUI cepstrum_vocoder_;
     juce::Component* current_vocoder_widget_{};
+
+    widget::Ensemble ensemble_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };

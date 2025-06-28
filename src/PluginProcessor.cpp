@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "dsp/ensemble.hpp"
 #include "dsp/rls_lpc.hpp"
 #include "juce_audio_processors/juce_audio_processors.h"
 #include "juce_core/juce_core.h"
@@ -300,6 +301,69 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
 
+    // ensemble
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kEnsembleDetune, 1},
+            id::kEnsembleDetune,
+            0.01f, dsp::Ensemble::kMaxSemitone, 0.15f
+        );
+        paramListeners_.Add(p, [this](float detune) {
+            juce::ScopedLock lock{getCallbackLock()};
+            ensemble_.SetDetune(detune);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kEnsembleMix, 1},
+            id::kEnsembleMix,
+            0.0f, 1.0f, 0.5f
+        );
+        paramListeners_.Add(p, [this](float mix) {
+            juce::ScopedLock lock{getCallbackLock()};
+            ensemble_.SetMix(mix);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterInt>(
+            juce::ParameterID{id::kEnsembleNumVoices, 1},
+            id::kEnsembleNumVoices,
+            2, dsp::Ensemble::kMaxVoices, 8
+        );
+        paramListeners_.Add(p, [this](int nvocice) {
+            juce::ScopedLock lock{getCallbackLock()};
+            ensemble_.SetNumVoices(nvocice);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kEnsembleSpread, 1},
+            id::kEnsembleSpread,
+            0.0f, 1.0f, 1.0f
+        );
+        paramListeners_.Add(p, [this](float spread) {
+            juce::ScopedLock lock{getCallbackLock()};
+            ensemble_.SetSperead(spread);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kEnsembleRate, 1},
+            id::kEnsembleRate,
+            juce::NormalisableRange<float>(dsp::Ensemble::kMinFrequency, 2.0f, 0.02f, 0.4f),
+            0.2f
+        );
+        paramListeners_.Add(p, [this](float rate) {
+            juce::ScopedLock lock{getCallbackLock()};
+            ensemble_.SetRate(rate);
+        });
+        layout.add(std::move(p));
+    }
+
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
 }
 
@@ -384,6 +448,7 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     stft_vocoder_.Init(fs);
     cepstrum_vocoder_.Init(fs);
 
+    ensemble_.Init(fs);
     main_gain_.Init(fs, samplesPerBlock);
     side_gain_.Init(fs, samplesPerBlock);
     output_gain_.Init(fs, samplesPerBlock);
@@ -439,7 +504,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     
     std::span left_block { buffer.getWritePointer(0), static_cast<size_t>(buffer.getNumSamples()) };
     std::span right_block { buffer.getWritePointer(1), static_cast<size_t>(buffer.getNumSamples()) };
-    hpfilter_.Process(left_block);
+    hpfilter_.Process(right_block);
     filter_.Process(left_block);
     shifter_.Process(left_block);
     main_gain_.Process(left_block);
@@ -463,7 +528,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     }
 
     output_gain_.Process(left_block);
-    std::copy(left_block.begin(), left_block.end(), right_block.begin());
+    ensemble_.Process(left_block, right_block);
+    // std::copy(left_block.begin(), left_block.end(), right_block.begin());
 }
 
 //==============================================================================

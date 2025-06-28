@@ -31,4 +31,10 @@ static constexpr auto kStftBlend = "stft_blend";
 
 static constexpr auto kCepstrumFiltering = "cepstrum_filtering";
 
+static constexpr auto kEnsembleDetune = "ens_detune";
+static constexpr auto kEnsembleRate = "ens_rate";
+static constexpr auto kEnsembleSpread = "ens_spread";
+static constexpr auto kEnsembleMix = "ens_mix";
+static constexpr auto kEnsembleNumVoices = "ens_num_voices";
+
 }

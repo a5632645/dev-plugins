@@ -8,6 +8,7 @@
 #include "dsp/rls_lpc.hpp"
 #include "dsp/stft_vocoder.hpp"
 #include "dsp/gain.hpp"
+#include "dsp/ensemble.hpp"
 
 enum class VocoderType {
     BurgLPC,
@@ -149,6 +150,7 @@ public:
     dsp::RLSLPC rls_lpc_;
     dsp::STFTVocoder stft_vocoder_;
     dsp::CepstrumVocoder cepstrum_vocoder_;
+    dsp::Ensemble ensemble_;
 
     dsp::Gain main_gain_;
     dsp::Gain side_gain_;
