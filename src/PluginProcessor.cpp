@@ -161,7 +161,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kChannelVocoderQ, 1},
             id::kChannelVocoderQ,
-            0.01f, 0.3f, 0.05f
+            0.01f, 1.0f, 0.5f
         );
         paramListeners_.Add(p, [this](float v) {
             juce::ScopedLock _{ getCallbackLock() };
