@@ -9,7 +9,7 @@ void Ensemble::Init(float sample_rate) {
     sample_rate_ = sample_rate;
     float mul = std::exp2(kMaxSemitone / 12.0f);
     float min_delay_s = (mul - 1.0f) / kMinFrequency;
-    int min_delay_len = static_cast<int>(0.5f + min_delay_s * sample_rate);
+    int min_delay_len = static_cast<int>(4.5f + min_delay_s * sample_rate);
 
     int power = 1;
     while (power <= min_delay_len) {
@@ -55,7 +55,6 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
     for (int i = 0; i < size; ++i) {
         float in = block[i];
         buffer_[buffer_wpos_] = in;
-        buffer_.back() = buffer_.front();
 
         float wet_left = 0.0f;
         float wet_right = 0.0f;
@@ -65,14 +64,27 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
 
             float sin = std::cos(voice_phase * std::numbers::pi_v<float> * 2.0f);
             sin = sin * 0.5f + 0.5f;
-            float delay = sin * current_delay_len_;
+            float delay = sin * current_delay_len_ + 2; // give some delay to avoid read future value
             
             float rpos = buffer_wpos_ - delay;
             int irpos = static_cast<int>(rpos) & buffer_len_mask_;
-            int inext = (irpos + 1) & buffer_len_mask_;
-            float frac = rpos - static_cast<int>(rpos);
+            int inext1 = (irpos + 1) & buffer_len_mask_;
+            int inext2 = (irpos + 2) & buffer_len_mask_;
+            int iprev = (irpos - 1) & buffer_len_mask_;
+            float t = rpos - static_cast<int>(rpos);
 
-            float v = std::lerp(buffer_[irpos], buffer_[inext], frac);
+            // Cubic interpolation using four points
+            float p0 = buffer_[iprev];
+            float p1 = buffer_[irpos];
+            float p2 = buffer_[inext1];
+            float p3 = buffer_[inext2];
+
+            float a = -p0 / 2.0f + 3.0f * p1 / 2.0f - 3.0f * p2 / 2.0f + p3 / 2.0f;
+            float b = p0 - 5.0f * p1 / 2.0f + 2.0f * p2 - p3 / 2.0f;
+            float c = -p0 / 2.0f + p2 / 2.0f;
+            float d = p1;
+
+            float v = a * t * t * t + b * t * t + c * t + d;
 
             float pan = pans[voice];
             wet_left += v * (1.0f - pan) / 2.0f;
