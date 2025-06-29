@@ -10,7 +10,6 @@
 #include "widget/burg_lpc.hpp"
 #include "widget/rls_lpc.hpp"
 #include "widget/stft_vocoder.hpp"
-#include "widget/cepstrum_vocoder.hpp"
 #include "widget/gain.hpp"
 #include "widget/ensemble.hpp"
 
@@ -50,7 +49,6 @@ private:
     widget::STFTVocoder stft_vocoder_;
     widget::BurgLPC burg_lpc_;
     widget::RLSLPC rls_lpc_;
-    widget::CepstrumVocoderUI cepstrum_vocoder_;
     juce::Component* current_vocoder_widget_{};
 
     widget::Ensemble ensemble_;

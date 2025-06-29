@@ -29,8 +29,6 @@ static constexpr auto kStftAttack = "stft_attack";
 static constexpr auto kStftRelease = "stft_release";
 static constexpr auto kStftBlend = "stft_blend";
 
-static constexpr auto kCepstrumFiltering = "cepstrum_filtering";
-
 static constexpr auto kEnsembleDetune = "ens_detune";
 static constexpr auto kEnsembleRate = "ens_rate";
 static constexpr auto kEnsembleSpread = "ens_spread";

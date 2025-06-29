@@ -29,8 +29,6 @@ static constexpr auto kStftAttack = "bin energy attack in time axis";
 static constexpr auto kStftRelease = "bin energy release in time axis";
 static constexpr auto kStftBlend = "bin energy remap, higher value cause more noisy sound while lower cause crystal sound";
 
-static constexpr auto kCepstrumFiltering = "cepstrum filter cutoff";
-
 static constexpr auto kEnsembleDetune = "ensemble detune";
 static constexpr auto kEnsembleRate = "ensemble lfo rate";
 static constexpr auto kEnsembleSpread = "ensemble spread";

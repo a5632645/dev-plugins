@@ -1,7 +1,6 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
-#include "dsp/cepstrum_vocoder.hpp"
 #include "dsp/filter.hpp"
 #include "dsp/burg_lpc.hpp"
 #include "dsp/pitch_shifter.hpp"
@@ -15,14 +14,12 @@ enum class VocoderType {
     RLSLPC,
     STFTVocoder,
     ChannelVocoder,
-    CepstrumVocoder,
 };
 static const juce::StringArray kVocoderNames{
     "Burg-LPC",
     "RLS-LPC",
     "STFT-Vocoder",
     "Channel-Vocoder",
-    "Cepstrum-Vocoder",
 };
 
 //==============================================================================
@@ -149,7 +146,6 @@ public:
     dsp::BurgLPC burg_lpc_;
     dsp::RLSLPC rls_lpc_;
     dsp::STFTVocoder stft_vocoder_;
-    dsp::CepstrumVocoder cepstrum_vocoder_;
     dsp::Ensemble ensemble_;
 
     dsp::Gain main_gain_;

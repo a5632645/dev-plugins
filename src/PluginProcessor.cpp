@@ -257,7 +257,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
             stft_vocoder_.SetRelease(bw);
-            cepstrum_vocoder_.SetRelease(bw);
         });
         layout.add(std::move(p));
     }
@@ -277,18 +276,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     }
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kCepstrumFiltering, 1},
-            id::kCepstrumFiltering,
-            0.0f, 1.0f, 0.15f
-        );
-        paramListeners_.Add(p, [this](float omega) {
-            juce::ScopedLock lock{getCallbackLock()};
-            cepstrum_vocoder_.SetFiltering(omega);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kStftBlend, 1},
             id::kStftBlend,
             0.0f, 0.99f, 0.2f
@@ -296,7 +283,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float omega) {
             juce::ScopedLock lock{getCallbackLock()};
             stft_vocoder_.SetBlend(omega);
-            cepstrum_vocoder_.SetBlend(omega);
         });
         layout.add(std::move(p));
     }
@@ -446,7 +432,6 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     hpfilter_.Init(fs);
     rls_lpc_.Init(fs);
     stft_vocoder_.Init(fs);
-    cepstrum_vocoder_.Init(fs);
 
     ensemble_.Init(fs);
     main_gain_.Init(fs, samplesPerBlock);
@@ -519,9 +504,6 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             break;
         case VocoderType::STFTVocoder:
             stft_vocoder_.Process(left_block, right_block);
-            break;
-        case VocoderType::CepstrumVocoder:
-            cepstrum_vocoder_.Process(left_block, right_block);
             break;
         case VocoderType::ChannelVocoder:
             break;

@@ -4,7 +4,6 @@
 #include "juce_gui_basics/juce_gui_basics.h"
 #include "param_ids.hpp"
 #include "tooltips.hpp"
-#include "widget/cepstrum_vocoder.hpp"
 #include "widget/ensemble.hpp"
 #include "widget/stft_vocoder.hpp"
 
@@ -18,7 +17,6 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     , stft_vocoder_(p)
     , burg_lpc_(p)
     , rls_lpc_(p)
-    , cepstrum_vocoder_(p)
     , ensemble_(p)
 {
     auto& apvts = *p.value_tree_;
@@ -69,7 +67,6 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addChildComponent(stft_vocoder_);
     addChildComponent(rls_lpc_);
     addChildComponent(burg_lpc_);
-    addChildComponent(cepstrum_vocoder_);
     this->comboBoxChanged(&vocoder_type_.combobox_);
 
     addAndMakeVisible(ensemble_);
@@ -112,7 +109,6 @@ void AudioPluginAudioProcessorEditor::resized() {
         burg_lpc_.setBounds(b);
         rls_lpc_.setBounds(b);
         stft_vocoder_.setBounds(b);
-        cepstrum_vocoder_.setBounds(b);
     }
 }
 
@@ -142,9 +138,6 @@ void AudioPluginAudioProcessorEditor::comboBoxChanged(juce::ComboBox* comboBoxTh
             break;
         case VocoderType::RLSLPC:
             current_vocoder_widget_ = &rls_lpc_;
-            break;
-        case VocoderType::CepstrumVocoder:
-            current_vocoder_widget_ = &cepstrum_vocoder_;
             break;
         }
 

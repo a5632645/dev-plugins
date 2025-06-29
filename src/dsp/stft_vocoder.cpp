@@ -62,7 +62,7 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
         fft_.fft(side_timeBuffer, side_real.data(), side_imag.data());
 
         // spectral processing
-        for (int i = 1; i < kNumBins; ++i) {
+        for (int i = 0; i < kNumBins; ++i) {
             // i know this is power spectrum, but it sounds better than mag spectrum(???)
             float power = std::abs(main_real[i] * main_real[i] + main_imag[i] * main_imag[i]);
             float gain = power * window_gain_;
