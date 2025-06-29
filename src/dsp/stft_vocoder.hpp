@@ -1,3 +1,8 @@
+/*
+ * TODO: add fft size control
+ *       add minium phase mode
+*/
+
 #pragma once
 #include <span>
 #include <array>

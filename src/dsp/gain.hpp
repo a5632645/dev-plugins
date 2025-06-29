@@ -1,3 +1,7 @@
+/*
+ * TODO: add more channels
+*/
+
 #pragma once
 #include <span>
 #include <cmath>

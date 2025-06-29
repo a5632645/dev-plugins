@@ -1,3 +1,7 @@
+/*
+ * TODO: enhance formant control
+*/
+
 #pragma once
 #include <span>
 #include <array>

@@ -1,3 +1,7 @@
+/*
+ * TODO: optimise speed
+*/
+
 #pragma once
 #include <cstddef>
 #include <span>

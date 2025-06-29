@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "dsp/channel_vocoder.hpp"
 #include "dsp/ensemble.hpp"
 #include "dsp/rls_lpc.hpp"
 #include "juce_audio_processors/juce_audio_processors.h"
@@ -95,6 +96,80 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
 
+    // channel vocoder
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kChannelVocoderAttack, 1},
+            id::kChannelVocoderAttack,
+            1.0f, 1000.0f, 1.0f
+        );
+        paramListeners_.Add(p, [this](float v) {
+            juce::ScopedLock _{ getCallbackLock() };
+            channel_vocoder_.SetAttack(v);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kChannelVocoderRelease, 1},
+            id::kChannelVocoderRelease,
+            10.0f, 1000.0f, 150.0f
+        );
+        paramListeners_.Add(p, [this](float v) {
+            juce::ScopedLock _{ getCallbackLock() };
+            channel_vocoder_.SetRelease(v);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kChannelVocoderFreqBegin, 1},
+            id::kChannelVocoderFreqBegin,
+            20.0f, 2000.0f, 40.0f
+        );
+        paramListeners_.Add(p, [this](float v) {
+            juce::ScopedLock _{ getCallbackLock() };
+            channel_vocoder_.SetFreqBegin(v);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kChannelVocoderFreqEnd, 1},
+            id::kChannelVocoderFreqEnd,
+            4000.0f, 18000.0f, 12000.0f
+        );
+        paramListeners_.Add(p, [this](float v) {
+            juce::ScopedLock _{ getCallbackLock() };
+            channel_vocoder_.SetFreqEnd(v);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterInt>(
+            juce::ParameterID{id::kChannelVocoderNBands, 1},
+            id::kChannelVocoderNBands,
+            8, dsp::ChannelVocoder::kMaxOrder, 12
+        );
+        paramListeners_.Add(p, [this](int v) {
+            juce::ScopedLock _{ getCallbackLock() };
+            channel_vocoder_.SetNumBands(v);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kChannelVocoderQ, 1},
+            id::kChannelVocoderQ,
+            0.01f, 0.3f, 0.05f
+        );
+        paramListeners_.Add(p, [this](float v) {
+            juce::ScopedLock _{ getCallbackLock() };
+            channel_vocoder_.SetQ(v);
+        });
+        layout.add(std::move(p));
+    }
+    
     // lpc
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
@@ -432,6 +507,7 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     hpfilter_.Init(fs);
     rls_lpc_.Init(fs);
     stft_vocoder_.Init(fs);
+    channel_vocoder_.Init(fs);
 
     ensemble_.Init(fs);
     main_gain_.Init(fs, samplesPerBlock);
@@ -506,6 +582,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             stft_vocoder_.Process(left_block, right_block);
             break;
         case VocoderType::ChannelVocoder:
+            channel_vocoder_.ProcessBlock(left_block, right_block);
             break;
     }
 

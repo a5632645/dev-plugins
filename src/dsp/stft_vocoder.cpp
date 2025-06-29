@@ -65,7 +65,8 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
         for (int i = 0; i < kNumBins; ++i) {
             // i know this is power spectrum, but it sounds better than mag spectrum(???)
             float power = std::abs(main_real[i] * main_real[i] + main_imag[i] * main_imag[i]);
-            float gain = power * window_gain_;
+            // float gain = power * window_gain_;
+            float gain = std::sqrt(power + 1e-18f) * window_gain_;
             gain = Blend(gain);
 
             if (gain > gains_[i]) {
@@ -126,7 +127,12 @@ void STFTVocoder::SetBandwidth(float bw) {
         window_[i] = sinc * hann_window_[i];
     }
     // keep energy(???)
-    window_gain_ = 2.0f / std::accumulate(window_.begin(), window_.end(), 0.0f);
+    // window_gain_ = 2.0f / std::accumulate(window_.begin(), window_.end(), 0.0f);
+    float power = 0.0f;
+    for (auto x : window_) {
+        power += x * x;
+    }
+    window_gain_ = 1.0f / std::sqrt(power);
 }
 
 void STFTVocoder::SetAttack(float ms) {

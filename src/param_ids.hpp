@@ -35,4 +35,11 @@ static constexpr auto kEnsembleSpread = "ens_spread";
 static constexpr auto kEnsembleMix = "ens_mix";
 static constexpr auto kEnsembleNumVoices = "ens_num_voices";
 
+static constexpr auto kChannelVocoderNBands = "cv_nbands";
+static constexpr auto kChannelVocoderFreqBegin = "cv_fbegin";
+static constexpr auto kChannelVocoderFreqEnd = "cv_fend";
+static constexpr auto kChannelVocoderAttack = "cv_attack";
+static constexpr auto kChannelVocoderRelease = "cv_release";
+static constexpr auto kChannelVocoderQ = "cv_q";
+
 }

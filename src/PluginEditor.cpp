@@ -4,6 +4,7 @@
 #include "juce_gui_basics/juce_gui_basics.h"
 #include "param_ids.hpp"
 #include "tooltips.hpp"
+#include "widget/channel_vocoder.hpp"
 #include "widget/ensemble.hpp"
 #include "widget/stft_vocoder.hpp"
 
@@ -17,6 +18,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     , stft_vocoder_(p)
     , burg_lpc_(p)
     , rls_lpc_(p)
+    , channel_vocoder_(p)
     , ensemble_(p)
 {
     auto& apvts = *p.value_tree_;
@@ -67,6 +69,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addChildComponent(stft_vocoder_);
     addChildComponent(rls_lpc_);
     addChildComponent(burg_lpc_);
+    addChildComponent(channel_vocoder_);
     this->comboBoxChanged(&vocoder_type_.combobox_);
 
     addAndMakeVisible(ensemble_);
@@ -109,6 +112,7 @@ void AudioPluginAudioProcessorEditor::resized() {
         burg_lpc_.setBounds(b);
         rls_lpc_.setBounds(b);
         stft_vocoder_.setBounds(b);
+        channel_vocoder_.setBounds(b);
     }
 }
 
@@ -129,6 +133,7 @@ void AudioPluginAudioProcessorEditor::comboBoxChanged(juce::ComboBox* comboBoxTh
 
         switch (static_cast<VocoderType>(vocoder_type_.combobox_.getSelectedItemIndex())) {
         case VocoderType::ChannelVocoder:
+            current_vocoder_widget_ = &channel_vocoder_;
             break;
         case VocoderType::STFTVocoder:
             current_vocoder_widget_ = &stft_vocoder_;

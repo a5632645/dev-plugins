@@ -1,3 +1,8 @@
+/*
+ * TODO: add white noise modulation
+ *       add delay controls
+*/
+
 #pragma once
 #include <span>
 #include <vector>
