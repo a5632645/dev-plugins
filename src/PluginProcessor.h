@@ -116,6 +116,23 @@ public:
                 (void)gestureIsStarting;
             }
         };
+        struct ChoiceStore : public juce::AudioProcessorParameter::Listener {
+            std::function<void(int)> func;
+            juce::AudioParameterChoice* ptr;
+
+            ChoiceStore(std::function<void(int)> func, juce::AudioParameterChoice* ptr) : func(func), ptr(ptr) {
+                ptr->addListener(this);
+            }
+            void parameterValueChanged (int parameterIndex, float newValue) override {
+                func(ptr->getIndex());
+                (void)parameterIndex;
+                (void)newValue;
+            }
+            void parameterGestureChanged (int parameterIndex, bool gestureIsStarting) override {
+                (void)parameterIndex;
+                (void)gestureIsStarting;
+            }
+        };
 
         std::vector<std::unique_ptr<juce::AudioProcessorParameter::Listener>> listeners;
         void CallAll() {
@@ -131,6 +148,9 @@ public:
         }
         void Add(const std::unique_ptr<juce::AudioParameterInt>& p, std::function<void(int)> func) {
             listeners.emplace_back(std::make_unique<IntStore>(func, p.get()));
+        }
+        void Add(const std::unique_ptr<juce::AudioParameterChoice>& p, std::function<void(int)> func) {
+            listeners.emplace_back(std::make_unique<ChoiceStore>(func, p.get()));
         }
     } paramListeners_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;

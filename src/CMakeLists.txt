@@ -69,7 +69,7 @@ juce_add_plugin(GreenVocoder
 # Finally, we supply a list of source files that will be built into the target. This is a standard
 # CMake command.
 
-file(GLOB_RECURSE PLUGIN_SOURCES CONFIGURE_DEPENDS "*.cpp" "*.hpp")
+file(GLOB_RECURSE PLUGIN_SOURCES CONFIGURE_DEPENDS "*.cpp" "*.hpp" "*.c")
 target_sources(GreenVocoder
     PRIVATE
         PluginEditor.cpp

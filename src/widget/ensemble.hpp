@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <ui/vertical_slider.hpp>
+#include "ui/comb_box.hpp"
 
 class AudioPluginAudioProcessor;
 
@@ -17,6 +18,7 @@ private:
     ui::VerticalSlider spread_;
     ui::VerticalSlider mix_;
     ui::VerticalSlider rate_;
+    ui::CombBox mode_;
 };
 
 }

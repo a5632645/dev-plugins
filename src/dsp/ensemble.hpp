@@ -4,6 +4,7 @@
 */
 
 #pragma once
+#include "noise.hpp"
 #include <span>
 #include <vector>
 
@@ -15,12 +16,18 @@ public:
     static constexpr float kMaxSemitone = 0.5f;
     static constexpr float kMinFrequency = 0.2f;
 
+    enum class Mode {
+        Sine,
+        Noise,
+    };
+
     void Init(float sample_rate);
     void SetNumVoices(int num_voices);
     void SetDetune(float pitch);
     void SetRate(float rate);
     void SetSperead(float spread);
     void SetMix(float mix);
+    void SetMode(Mode mode);
 
     void Process(std::span<float> block, std::span<float> right);
 private:
@@ -31,6 +38,7 @@ private:
     float mix_{};
     float rate_{};
     float detune_{};
+    Mode mode_{};
 
     float lfo_freq_{};
     float sample_rate_{};
@@ -40,6 +48,7 @@ private:
     std::vector<float> buffer_;
     int buffer_wpos_{};
     int buffer_len_mask_{};
+    Noise noises_[kMaxVoices];
 };
 
 }

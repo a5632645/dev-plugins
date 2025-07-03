@@ -36,6 +36,10 @@ Ensemble::Ensemble(AudioPluginAudioProcessor& p) {
     rate_.slider_.setTooltip(tooltip::kEnsembleRate);
     rate_.SetShortName("RATE");
     addAndMakeVisible(rate_);
+
+    mode_.BindParam(apvts, id::kEnsembleMode);
+    mode_.SetShortName("MODE");
+    addAndMakeVisible(mode_);
 }
 
 void Ensemble::resized() {
@@ -50,6 +54,10 @@ void Ensemble::resized() {
         rate_.setBounds(b.removeFromLeft(50));
         spread_.setBounds(b.removeFromLeft(50));
         mix_.setBounds(b.removeFromLeft(50));
+        {
+            auto box = b.removeFromLeft(150);
+            mode_.setBounds(box.removeFromTop(30));
+        }
     }
 }
 

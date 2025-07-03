@@ -424,6 +424,22 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         });
         layout.add(std::move(p));
     }
+    {
+        auto p = std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID{id::kEnsembleMode, 1},
+            id::kEnsembleMode,
+            juce::StringArray{
+                "sine",
+                "noise"
+            },
+            0
+        );
+        paramListeners_.Add(p, [this](int mode) {
+            juce::ScopedLock _{ getCallbackLock() };
+            ensemble_.SetMode(static_cast<dsp::Ensemble::Mode>(mode));
+        });
+        layout.add(std::move(p));
+    }
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
 }
