@@ -15,8 +15,8 @@ public:
 
     class BandpassFilter {
     public:
-        void Set(float omega, float mul) {
-            float q = 1.0f / mul;
+        void Set(float omega, float bw) {
+            float q = omega / bw;
             auto k = std::tan(omega / 2);
             auto down = k * k * q + k + q;
             b0_ = k * q / down;
@@ -61,7 +61,8 @@ public:
     void SetFreqEnd(float end);
     void SetAttack(float attack);
     void SetRelease(float release);
-    void SetQ(float q);
+    void SetModulatorScale(float scale);
+    void SetCarryScale(float scale);
 
     int GetNumBins() const { return num_bans_; }
     float GetBinPeak(int idx) const { return main_peaks_[idx]; }
@@ -75,7 +76,8 @@ private:
     int num_bans_{ 4 };
     float attack_{};
     float release_{};
-    float q_{ 0.707f };
+    float scale_{1.0f};
+    float carry_scale_{1.0f};
     std::array<BandpassFilter, kMaxOrder> main_filters_;
     std::array<BandpassFilter, kMaxOrder> side_filters_;
     std::array<float, kMaxOrder> main_peaks_{};

@@ -20,7 +20,8 @@ private:
     ui::VerticalSlider nbands_;
     ui::VerticalSlider freq_begin_;
     ui::VerticalSlider freq_end_;
-    ui::VerticalSlider q_;
+    ui::VerticalSlider scale_;
+    ui::VerticalSlider carry_scale_;
 };
 
 }

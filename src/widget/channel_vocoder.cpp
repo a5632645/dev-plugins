@@ -14,35 +14,40 @@ ChannelVocoder::ChannelVocoder(AudioPluginAudioProcessor& p)
     label_.setText("Channel vocoder", juce::dontSendNotification);
     addAndMakeVisible(label_);
 
-    attack_.SetShortName("ATTACK");
     attack_.BindParameter(apvts, id::kChannelVocoderAttack);
+    attack_.SetShortName("ATTACK");
     attack_.slider_.setTooltip(tooltip::kChannelVocoderAttack);
     addAndMakeVisible(attack_);
 
-    release_.SetShortName("RELEASE");
     release_.BindParameter(apvts, id::kChannelVocoderRelease);
+    release_.SetShortName("RELEASE");
     release_.slider_.setTooltip(tooltip::kChannelVocoderRelease);
     addAndMakeVisible(release_);
 
-    nbands_.SetShortName("BANDS");
     nbands_.BindParameter(apvts, id::kChannelVocoderNBands);
+    nbands_.SetShortName("BANDS");
     nbands_.slider_.setTooltip(tooltip::kChannelVocoderNBands);
     addAndMakeVisible(nbands_);
 
-    freq_begin_.SetShortName("FBEGIN");
     freq_begin_.BindParameter(apvts, id::kChannelVocoderFreqBegin);
+    freq_begin_.SetShortName("FBEGIN");
     freq_begin_.slider_.setTooltip(tooltip::kChannelVocoderFreqBegin);
     addAndMakeVisible(freq_begin_);
 
-    freq_end_.SetShortName("FEND");
     freq_end_.BindParameter(apvts, id::kChannelVocoderFreqEnd);
+    freq_end_.SetShortName("FEND");
     freq_end_.slider_.setTooltip(tooltip::kChannelVocoderFreqEnd);
     addAndMakeVisible(freq_end_);
 
-    q_.SetShortName("Q");
-    q_.BindParameter(apvts, id::kChannelVocoderQ);
-    q_.slider_.setTooltip(tooltip::kChannelVocoderQ);
-    addAndMakeVisible(q_);
+    scale_.BindParameter(apvts, id::kChannelVocoderScale);
+    scale_.SetShortName("SCALE");
+    scale_.slider_.setTooltip(tooltip::kChannelVocoderScale);
+    addAndMakeVisible(scale_);
+
+    carry_scale_.BindParameter(apvts, id::kChannelVocoderCarryScale);
+    carry_scale_.SetShortName("CSCALE");
+    carry_scale_.slider_.setTooltip(tooltip::kChannelVocoderCarryScale);
+    addAndMakeVisible(carry_scale_);
 }
 
 void ChannelVocoder::resized() {
@@ -54,12 +59,13 @@ void ChannelVocoder::resized() {
     nbands_.setBounds(top.removeFromLeft(50));
     freq_begin_.setBounds(top.removeFromLeft(50));
     freq_end_.setBounds(top.removeFromLeft(50));
-    q_.setBounds(top.removeFromLeft(50));
+    scale_.setBounds(top.removeFromLeft(50));
+    carry_scale_.setBounds(top.removeFromLeft(50));
 }
 
 void ChannelVocoder::paint(juce::Graphics& g) {
     auto b = getLocalBounds();
-    b.removeFromTop(q_.getBottom());
+    b.removeFromTop(scale_.getBottom());
     auto bb = b.toFloat();
 
     g.setColour(juce::Colours::black);

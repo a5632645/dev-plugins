@@ -38,21 +38,34 @@ void ChannelVocoder::SetRelease(float release) {
     release_ = utli::GetDecayValue(sample_rate_, release);
 }
 
-void ChannelVocoder::SetQ(float q) {
-    q_ = q;
+void ChannelVocoder::SetModulatorScale(float scale) {
+    scale_ = scale;
+    UpdateFilters();
+}
+
+void ChannelVocoder::SetCarryScale(float scale) {
+    carry_scale_ = scale;
     UpdateFilters();
 }
 
 void ChannelVocoder::UpdateFilters() {
     float pitch_begin = std::log(freq_begin_);
     float pitch_end = std::log(freq_end_);
-    float pitch_interval = (pitch_end - pitch_begin) / (num_bans_ - 1.0f);
-    for (int i = 0; i < num_bans_; ++i) {
+    float pitch_interval = (pitch_end - pitch_begin) / num_bans_;
+    float begin = 0.0f;
+    for (int i = 0; i < num_bans_ + 1; ++i) {
         float pitch = pitch_begin + pitch_interval * i;
         float freq = std::exp(pitch);
         float omega = std::numbers::pi_v<float> * 2.0f * freq / sample_rate_;
-        main_filters_[i].Set(omega, q_);
-        side_filters_[i].CopyCoeffients(main_filters_[i]);
+        if (i == 0) {
+            begin = omega;
+            continue;
+        }
+
+        float bw = omega - begin;
+        main_filters_[i - 1].Set(omega, bw * scale_);
+        side_filters_[i - 1].Set(omega, bw * scale_ * carry_scale_);
+        begin = omega;
     }
 }
 

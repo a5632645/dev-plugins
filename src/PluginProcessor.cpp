@@ -160,13 +160,25 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     }
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kChannelVocoderQ, 1},
-            id::kChannelVocoderQ,
-            0.01f, 1.0f, 0.5f
+            juce::ParameterID{id::kChannelVocoderScale, 1},
+            id::kChannelVocoderScale,
+            0.1f, 2.0f, 0.25f
         );
         paramListeners_.Add(p, [this](float v) {
             juce::ScopedLock _{ getCallbackLock() };
-            channel_vocoder_.SetQ(v);
+            channel_vocoder_.SetModulatorScale(v);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kChannelVocoderCarryScale, 1},
+            id::kChannelVocoderCarryScale,
+            0.25f, 4.0f, 4.0f
+        );
+        paramListeners_.Add(p, [this](float v) {
+            juce::ScopedLock _{ getCallbackLock() };
+            channel_vocoder_.SetCarryScale(v);
         });
         layout.add(std::move(p));
     }

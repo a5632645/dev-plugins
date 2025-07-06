@@ -41,6 +41,7 @@ static constexpr auto kChannelVocoderFreqBegin = "cv_fbegin";
 static constexpr auto kChannelVocoderFreqEnd = "cv_fend";
 static constexpr auto kChannelVocoderAttack = "cv_attack";
 static constexpr auto kChannelVocoderRelease = "cv_release";
-static constexpr auto kChannelVocoderQ = "cv_q";
+static constexpr auto kChannelVocoderScale = "cv_scale";
+static constexpr auto kChannelVocoderCarryScale = "cv_carry_scale";
 
 }
