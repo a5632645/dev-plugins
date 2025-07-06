@@ -367,7 +367,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kEnsembleDetune, 1},
             id::kEnsembleDetune,
-            0.01f, dsp::Ensemble::kMaxSemitone, 0.15f
+            0.05f, dsp::Ensemble::kMaxSemitone, 0.15f
         );
         paramListeners_.Add(p, [this](float detune) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -415,7 +415,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kEnsembleRate, 1},
             id::kEnsembleRate,
-            juce::NormalisableRange<float>(dsp::Ensemble::kMinFrequency, 2.0f, 0.02f, 0.4f),
+            juce::NormalisableRange<float>(dsp::Ensemble::kMinFrequency, 1.0f, 0.01f, 0.4f),
             0.2f
         );
         paramListeners_.Add(p, [this](float rate) {

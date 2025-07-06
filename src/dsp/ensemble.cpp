@@ -1,15 +1,51 @@
 #include "ensemble.hpp"
 
+#include <array>
 #include <cmath>
+#include <cstddef>
 #include <numbers>
 
 namespace dsp {
 
+template<size_t N>
+static constexpr std::array<float, N> MakePanTable(int nvocice) {
+    std::array<float, Ensemble::kMaxVoices> out{};
+    if (nvocice == 2) {
+        out[0] = -1.0f;
+        out[1] = 1.0f;
+    }
+    else {
+        float interval = 2.0f / (nvocice - 1);
+        float begin = -1.0f;
+        for (int i = 0; i < nvocice; ++i) {
+            out[i] = begin + i * interval;
+        }
+    }
+    return out;
+}
+
+static constexpr std::array<std::array<float, Ensemble::kMaxVoices>, Ensemble::kMaxVoices>
+kPanTable{
+    MakePanTable<Ensemble::kMaxVoices>(2),
+    MakePanTable<Ensemble::kMaxVoices>(3),
+    MakePanTable<Ensemble::kMaxVoices>(4),
+    MakePanTable<Ensemble::kMaxVoices>(5),
+    MakePanTable<Ensemble::kMaxVoices>(6),
+    MakePanTable<Ensemble::kMaxVoices>(7),
+    MakePanTable<Ensemble::kMaxVoices>(8),
+    MakePanTable<Ensemble::kMaxVoices>(9),
+    MakePanTable<Ensemble::kMaxVoices>(10),
+    MakePanTable<Ensemble::kMaxVoices>(11),
+    MakePanTable<Ensemble::kMaxVoices>(12),
+    MakePanTable<Ensemble::kMaxVoices>(13),
+    MakePanTable<Ensemble::kMaxVoices>(14),
+    MakePanTable<Ensemble::kMaxVoices>(15),
+    MakePanTable<Ensemble::kMaxVoices>(16),
+};
+
 void Ensemble::Init(float sample_rate) {
     sample_rate_ = sample_rate;
-    float mul = std::exp2(kMaxSemitone / 12.0f);
-    float min_delay_s = (mul - 1.0f) / kMinFrequency;
-    int min_delay_len = static_cast<int>(4.5f + min_delay_s * sample_rate);
+    int min_delay_len = static_cast<int>(4.5f + kMaxTime / 1000.0f * sample_rate);
 
     int power = 1;
     while (power <= min_delay_len) {
@@ -44,10 +80,10 @@ void Ensemble::SetMix(float mix) {
 void Ensemble::SetRate(float rate) {
     rate_ = rate;
     CalcCurrDelayLen();
-    lfo_freq_ = rate / sample_rate_;
+    lfo_freq_ = rate_ / sample_rate_;
 
     for (auto& n : noises_) {
-        n.SetRate(rate * 5.0f);
+        n.SetRate(rate_ * 5.0f);
     }
 }
 
@@ -56,13 +92,7 @@ void Ensemble::SetMode(Ensemble::Mode mode) {
 }
 
 void Ensemble::Process(std::span<float> block, std::span<float> right) {
-    float pans[kMaxVoices]{};
-    float pan_interval = 2.0f / (1.0f + num_voices_);
-    float first_pan = pan_interval - 1.0f;
-    for (int i = 0; i < num_voices_; ++i) {
-        pans[i] = (first_pan + pan_interval * i) * spread_;
-    }
-
+    const auto& pans = kPanTable[num_voices_ - 2];
     if (mode_ == Mode::Sine) {
         const float phase_add = 1.0f / num_voices_;
         int size = static_cast<int>(block.size());
@@ -159,6 +189,14 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
 void Ensemble::CalcCurrDelayLen() {
     float mul = std::exp2(detune_ / 12.0f);
     float delay_s = (mul - 1.0f) / rate_;
+    if (delay_s * 1000.0f > kMaxTime) {
+        rate_ = (mul - 1.0f) / (kMaxTime / 1000.0f);
+        delay_s = kMaxTime / 1000.0f;
+        lfo_freq_ = rate_ / sample_rate_;
+        for (auto& n : noises_) {
+            n.SetRate(rate_ * 5.0f);
+        }
+    }
     current_delay_len_ = delay_s * sample_rate_;
 }
 

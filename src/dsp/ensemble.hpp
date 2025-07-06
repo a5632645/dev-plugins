@@ -1,5 +1,5 @@
 /*
- * TODO: add white noise modulation
+ * TODO: 
  *       add delay controls
 */
 
@@ -14,7 +14,8 @@ class Ensemble {
 public:
     static constexpr int kMaxVoices = 16;
     static constexpr float kMaxSemitone = 0.5f;
-    static constexpr float kMinFrequency = 0.2f;
+    static constexpr float kMinFrequency = 0.1f;
+    static constexpr float kMaxTime = 30.0f;
 
     enum class Mode {
         Sine,
