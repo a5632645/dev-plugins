@@ -170,9 +170,9 @@ public:
     dsp::ChannelVocoder channel_vocoder_;
     dsp::Ensemble ensemble_;
 
-    dsp::Gain main_gain_;
-    dsp::Gain side_gain_;
-    dsp::Gain output_gain_;
+    dsp::Gain<1> main_gain_;
+    dsp::Gain<1> side_gain_;
+    dsp::Gain<2> output_gain_;
 
     juce::AudioParameterChoice* vocoder_type_param_{};
     int current_vocoder_type_ = 0;

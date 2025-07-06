@@ -99,7 +99,7 @@ void AudioPluginAudioProcessorEditor::resized() {
         shift_pitch_.setBounds(top.removeFromLeft(50));
         main_gain_.setBounds(top.removeFromLeft(50 + 20));
         side_gain_.setBounds(top.removeFromLeft(50 + 20));
-        output_gain_.setBounds(top.removeFromLeft(50 + 20));
+        output_gain_.setBounds(top.removeFromLeft(50 + 40));
     }
     {
         vocoder_type_.setBounds(b.removeFromTop(30));

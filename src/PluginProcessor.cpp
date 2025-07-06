@@ -6,6 +6,7 @@
 #include "juce_audio_processors/juce_audio_processors.h"
 #include "juce_core/juce_core.h"
 #include "param_ids.hpp"
+#include <array>
 #include <memory>
 
 //==============================================================================
@@ -276,7 +277,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kMainGain, 1},
             id::kMainGain,
-            dsp::Gain::kMinDb - 1.0f, 20.0f, 0.0f
+            dsp::Gain<1>::kMinDb, 20.0f, 0.0f
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -288,7 +289,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kSideGain, 1},
             id::kSideGain,
-            dsp::Gain::kMinDb - 1.0f, 20.0f, 0.0f
+            dsp::Gain<1>::kMinDb, 20.0f, 0.0f
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -300,7 +301,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kOutputgain, 1},
             id::kOutputgain,
-            dsp::Gain::kMinDb - 1.0f, 40.0f, 0.0f
+            dsp::Gain<1>::kMinDb, 40.0f, 0.0f
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -602,9 +603,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             break;
     }
 
-    output_gain_.Process(left_block);
     ensemble_.Process(left_block, right_block);
-    // std::copy(left_block.begin(), left_block.end(), right_block.begin());
+    output_gain_.Process(std::array{left_block, right_block});
 }
 
 //==============================================================================

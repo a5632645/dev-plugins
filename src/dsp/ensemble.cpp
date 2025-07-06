@@ -129,7 +129,7 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
                 float d = p1;
                 float v = a * t * t * t + b * t * t + c * t + d;
     
-                float pan = pans[voice];
+                float pan = pans[voice] * spread_;
                 wet_left += v * (1.0f - pan) / 2.0f;
                 wet_right += v * (1.0f + pan) / 2.0f;
             }
@@ -172,7 +172,7 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
                 float d = p1;
                 float v = a * t * t * t + b * t * t + c * t + d;
     
-                float pan = pans[voice];
+                float pan = pans[voice] * spread_;
                 wet_left += v * (1.0f - pan) / 2.0f;
                 wet_right += v * (1.0f + pan) / 2.0f;
             }
