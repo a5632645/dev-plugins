@@ -380,7 +380,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kEnsembleDetune, 1},
             id::kEnsembleDetune,
-            0.05f, dsp::Ensemble::kMaxSemitone, 0.15f
+            0.05f, dsp::Ensemble::kMaxSemitone, 0.1f
         );
         paramListeners_.Add(p, [this](float detune) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -445,7 +445,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                 "sine",
                 "noise"
             },
-            0
+            1
         );
         paramListeners_.Add(p, [this](int mode) {
             juce::ScopedLock _{ getCallbackLock() };

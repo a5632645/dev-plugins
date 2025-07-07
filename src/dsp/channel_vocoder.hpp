@@ -3,11 +3,38 @@
 #include <array>
 #include "svf.hpp"
 
+/* TODO
+ *   volume explode when high bands and low bandwidth, should has a normalization gain
+*/
+
 namespace dsp {
 
 class ChannelVocoder {
 public:
     static constexpr int kMaxOrder = 40;
+
+    class CascadeBPSVF {
+    public:
+        static constexpr int kNumCascade = 2;
+        void MakeBandpass(float omega, float q) {
+            /* a simple cascade method
+             * https://www.analog.com/media/en/technical-documentation/application-notes/an27af.pdf
+            */
+            q = q * std::sqrt(std::exp2(1.0f / kNumCascade) - 1.0f);
+            for (auto& f : svf_) {
+                f.MakeBandpass(omega, q);
+            }
+        }
+
+        float Tick(float x) {
+            for (auto& f : svf_) {
+                x = f.Tick(x);
+            }
+            return x;
+        }
+    private:
+        SVF svf_[kNumCascade];
+    };
 
     void Init(float sample_rate);
     void ProcessBlock(std::span<float> block, std::span<float> side);
@@ -34,8 +61,8 @@ private:
     float release_{};
     float scale_{1.0f};
     float carry_scale_{1.0f};
-    std::array<SVF, kMaxOrder> main_filters_;
-    std::array<SVF, kMaxOrder> side_filters_;
+    std::array<CascadeBPSVF, kMaxOrder> main_filters_;
+    std::array<CascadeBPSVF, kMaxOrder> side_filters_;
     std::array<float, kMaxOrder> main_peaks_{};
 };
 
