@@ -10,12 +10,6 @@ void ChannelVocoder::Init(float sample_rate) {
 }
 
 void ChannelVocoder::SetNumBands(int bands) {
-    if (bands > num_bans_) {
-        for (int i = num_bans_; i < bands; ++i) {
-            main_filters_[i].ClearLatch();
-            side_filters_[i].ClearLatch();
-        }
-    }
     num_bans_ = bands;
     UpdateFilters();
 }
@@ -63,8 +57,8 @@ void ChannelVocoder::UpdateFilters() {
         }
 
         float bw = omega - begin;
-        main_filters_[i - 1].Set(omega, bw * scale_);
-        side_filters_[i - 1].Set(omega, bw * scale_ * carry_scale_);
+        main_filters_[i - 1].MakeBandpass(omega, omega / (bw * scale_));
+        side_filters_[i - 1].MakeBandpass(omega, omega / (bw * scale_ * carry_scale_));
         begin = omega;
     }
 }
@@ -76,7 +70,7 @@ void ChannelVocoder::ProcessBlock(std::span<float> main_v, std::span<float> side
         float side_in = side_v[i];
         float out = 0.0f;
         for (int j = 0; j < num_bans_; ++j) {
-            float main_curr = main_filters_[j].ProcessSingle(in);
+            float main_curr = main_filters_[j].Tick(in);
             main_curr = main_curr * main_curr;
             float main_latch = main_peaks_[j];
             if (main_curr > main_latch) {
@@ -87,7 +81,7 @@ void ChannelVocoder::ProcessBlock(std::span<float> main_v, std::span<float> side
             }
             main_peaks_[j] = main_latch;
 
-            float side_curr = side_filters_[j].ProcessSingle(side_in);
+            float side_curr = side_filters_[j].Tick(side_in);
             out += side_curr * std::sqrt(main_latch + 1e-18f);
         }
         main_v[i] = out / num_bans_;
