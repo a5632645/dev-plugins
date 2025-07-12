@@ -91,6 +91,17 @@ struct SVF {
         m2 = 0;
     }
 
+    void MakeNormalizedBandpass(float omega, float Q) {
+        float g = std::tan(omega / 2);
+        float k = 1.0f / Q;
+        a1 = 1.0f / (1.0f + g * (g + k));
+        a2 = g * a1;
+        a3 = g * a2;
+        m0 = 0;
+        m1 = k;
+        m2 = 0;
+    }
+
     void MakeNotch(float omega, float Q) {
         float g = std::tan(omega / 2);
         float k = 1.0f / Q;

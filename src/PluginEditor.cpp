@@ -84,7 +84,7 @@ AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
 
 //==============================================================================
 void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
-    (void)g;
+    g.fillAll(findColour(juce::ResizableWindow::backgroundColourId));
 }
 
 void AudioPluginAudioProcessorEditor::resized() {

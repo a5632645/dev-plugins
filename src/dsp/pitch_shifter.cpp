@@ -1,16 +1,9 @@
 #include "pitch_shifter.hpp"
 #include <cmath>
-#include <numbers>
 #include <cassert>
+#include <limits>
 
 namespace dsp {
-PitchShifter::PitchShifter() {
-    constexpr float pi = std::numbers::pi_v<float>;
-    for (int i = 0; i < kNumDelay; ++i) {
-        window_[i] = 0.5f * (1.0f - std::cos(2.0f * pi * i / (kNumDelay - 1)));
-    }
-}
-
 void PitchShifter::Process(std::span<float> block) {
     for (float& s : block) {
         s = ProcessSingle(s);
@@ -19,23 +12,44 @@ void PitchShifter::Process(std::span<float> block) {
 
 float PitchShifter::ProcessSingle(float x) {
     delay_[wpos_] = x;
-    delay_.back() = delay_.front();
-
-    float sum = 0.0f;
-    for (int i = 0; i < kOverlap; ++i) {
-        sum += GetDelay1(i);
+    float out;
+    if (fading_counter_ > 0) {
+        float a = GetDelay1(delay_pos_);
+        float b = GetDelay1(new_delay_pos_);
+        out = std::lerp(b, a, fading_counter_ / static_cast<float>(kNumFade));
+        --fading_counter_;
+        if (fading_counter_ == 0) {
+            delay_pos_ = new_delay_pos_;
+        }
+    } else {
+        out = GetDelay1(delay_pos_);
+        if (delay_pos_ >= kNumDelay - kNumFade * 2 || delay_pos_ < kNumFade * 2) {
+            int min_pos = 0;
+            float min_err = std::numeric_limits<float>::max();
+            int start = delay_pos_ >= kNumDelay - kNumFade * 2 ? 0 : kNumDelay - kNumFade * 4;
+            int end = delay_pos_ >= kNumDelay - kNumFade * 2 ? kNumDelay - kNumFade * 4 : kNumDelay;
+            for (int lag = start; lag < end; ++lag) {
+                float delta = delay_[(wpos_ - lag) & kDelayMask] - delay_[(wpos_ - lag - 1) & kDelayMask];
+                if (delta * delta_out_ >= 0.0f) {
+                    float err = std::abs(out - delay_[(wpos_ - lag) & kDelayMask]);
+                    if (err < min_err) {
+                        min_err = err + delta * delta_out_;
+                        min_pos = lag;
+                    }
+                }
+            }
+            new_delay_pos_ = static_cast<float>(min_pos);
+            fading_counter_ = kNumFade;
+        }
     }
-
-    phase_ += phase_inc_;
-    if (phase_ >= kNumDelay) {
-        phase_ -= kNumDelay;
-    }
-    if (phase_ < 0) {
-        phase_ += kNumDelay;
-    }
+    
+    delta_out_ = out - last_out_;
+    last_out_ = out;
+    delay_pos_ += phase_inc_;
+    new_delay_pos_ += phase_inc_;
     wpos_ = (wpos_ + 1) & kDelayMask;
 
-    return sum;
+    return out;
 }
 
 void PitchShifter::SetPitchShift(float pitch) {
@@ -43,18 +57,16 @@ void PitchShifter::SetPitchShift(float pitch) {
     phase_inc_ = 1.0f - a;
 }
 
-float PitchShifter::GetDelay1(int idx) {
-    float delay = phase_ + idx * kDelayDiff;
+float PitchShifter::GetDelay1(float delay) {
     float rpos = wpos_ - delay;
     int irpos = static_cast<int>(rpos) & kDelayMask;
-    int inext = irpos + 1;
+    int inext = (irpos + 1) & kDelayMask;
     float frac = rpos - static_cast<int>(rpos);
-    int iwpos = static_cast<int>(delay) & kDelayMask;
-    int iwnext = (iwpos + 1) & kDelayMask;
-    float fwfrac = delay - static_cast<int>(delay);
     float v = std::lerp(delay_[irpos], delay_[inext], frac);
-    float w = std::lerp(window_[iwpos], window_[iwnext], fwfrac);
-    return w * v;
+    return v;
 }
 
+float PitchShifter::GetBufferNoInterpolation(int delay) {
+    return delay_[(wpos_ - delay) & kDelayMask];
+}
 }
