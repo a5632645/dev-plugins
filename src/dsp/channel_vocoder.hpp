@@ -61,8 +61,8 @@ private:
     float release_{};
     float scale_{1.0f};
     float carry_scale_{1.0f};
-    std::array<CascadeBPSVF, kMaxOrder> main_filters_;
-    std::array<CascadeBPSVF, kMaxOrder> side_filters_;
+    std::array<SVF, kMaxOrder> main_filters_;
+    std::array<SVF, kMaxOrder> side_filters_;
     std::array<float, kMaxOrder> main_peaks_{};
 };
 

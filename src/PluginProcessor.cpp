@@ -596,10 +596,6 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     std::span left_block { buffer.getWritePointer(0), static_cast<size_t>(buffer.getNumSamples()) };
     std::span right_block { buffer.getWritePointer(1), static_cast<size_t>(buffer.getNumSamples()) };
 
-    shifter_.Process(left_block);
-    std::copy(left_block.begin(), left_block.end(), right_block.begin());
-    return;
-
     hpfilter_.Process(right_block);
     filter_.Process(left_block);
     shifter_.Process(left_block);
