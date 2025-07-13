@@ -81,6 +81,10 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             0
         );
         vocoder_type_param_ = p.get();
+        paramListeners_.Add(p, [this](int i) {
+            juce::ScopedLock lock{getCallbackLock()};
+            SetLatency(); 
+        });
         layout.add(std::move(p));
     }
 
@@ -94,6 +98,19 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
             shifter_.SetPitchShift(l);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{id::kEnableShifter, 1},
+            id::kEnableShifter,
+            false
+        );
+        shifter_enabled_ = p.get();
+        paramListeners_.Add(p, [this](bool b) {
+            juce::ScopedLock lock{getCallbackLock()};
+            SetLatency();
         });
         layout.add(std::move(p));
     }
@@ -598,7 +615,9 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     hpfilter_.Process(right_block);
     filter_.Process(left_block);
-    shifter_.Process(left_block);
+    if (shifter_enabled_->get()) {
+        shifter_.Process(left_block);
+    }
     main_gain_.Process(left_block);
     side_gain_.Process(right_block);
 
@@ -646,6 +665,22 @@ void AudioPluginAudioProcessor::setStateInformation (const void* data, int sizeI
 
 void AudioPluginAudioProcessor::Panic() {
     const juce::ScopedLock lock{ getCallbackLock() };
+}
+
+void AudioPluginAudioProcessor::SetLatency() {
+    int latency = 0;
+    switch (static_cast<VocoderType>(vocoder_type_param_->getIndex())) {
+    case VocoderType::STFTVocoder:
+        latency += stft_vocoder_.kFFTSize;
+        break;
+    default:
+        break;
+    }
+
+    if (shifter_enabled_->get()) {
+        latency += shifter_.kNumDelay / 2;
+    }
+    setLatencySamples(latency);
 }
 
 //==============================================================================

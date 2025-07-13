@@ -1,4 +1,6 @@
 #include "vertical_slider.hpp"
+#include "juce_core/juce_core.h"
+#include "tooltips.hpp"
 
 namespace ui {
 VerticalSlider::VerticalSlider() {
@@ -17,19 +19,24 @@ VerticalSlider::VerticalSlider() {
     addAndMakeVisible(label_);
 }
 
-void VerticalSlider::SetShortName(juce::String name) {
-    short_name_ = std::move(name);
-    label_.setText(short_name_, juce::NotificationType::dontSendNotification);
-}
+// void VerticalSlider::SetShortName(juce::String name) {
+//     short_name_ = std::move(name);
+//     label_.setText(short_name_, juce::NotificationType::dontSendNotification);
+// }
 
 VerticalSlider::~VerticalSlider() {
     attach_ = nullptr;
+    tooltip::tooltips.RemoveListener(this);
 }
 
-void VerticalSlider::BindParameter(juce::AudioProcessorValueTreeState& apvts, const juce::String& id) {
-    auto* p = apvts.getParameter(id);
+void VerticalSlider::BindParameter(juce::AudioProcessorValueTreeState& apvts, const char* id) {
+    auto* p = apvts.getParameter(juce::String::fromUTF8(id));
     jassert(p != nullptr);
     attach_ = std::make_unique<juce::SliderParameterAttachment>(*p, slider_);
+    
+    id_ = id;
+    tooltip::tooltips.AddListener(this);
+    OnLanguageChanged(tooltip::tooltips);
 }
 
 void VerticalSlider::resized() {
@@ -37,5 +44,11 @@ void VerticalSlider::resized() {
     auto e = b.removeFromBottom(20);
     label_.setBounds(e);
     slider_.setBounds(b);
+}
+
+void VerticalSlider::OnLanguageChanged(tooltip::Tooltips& tooltips) {
+    short_name_ = tooltips.Label(id_);
+    label_.setText(short_name_, juce::NotificationType::dontSendNotification);
+    slider_.setTooltip(tooltips.Tooltip(id_));
 }
 }

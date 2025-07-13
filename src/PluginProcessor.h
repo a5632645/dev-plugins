@@ -64,6 +64,7 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     void Panic();
+    void SetLatency();
     struct {
         struct FloatStore : public juce::AudioProcessorParameter::Listener {
             std::function<void(float)> func;
@@ -160,6 +161,7 @@ public:
     juce::AudioParameterFloat* filter_s_;
     juce::AudioParameterFloat* lpc_pitch_;
     juce::AudioParameterFloat* lpc_detune_;
+    juce::AudioParameterBool* shifter_enabled_;
 
     dsp::Filter filter_;
     dsp::Filter hpfilter_;

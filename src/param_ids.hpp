@@ -1,7 +1,11 @@
 #pragma once
+#include <array>
 
 namespace id {
 
+// --------------------------------------------------------------------------------
+// params
+// --------------------------------------------------------------------------------
 static constexpr auto kMainGain = "main_gain";
 static constexpr auto kSideGain = "side_gain";
 static constexpr auto kOutputgain = "output_gain";
@@ -15,6 +19,7 @@ static constexpr auto kEmphasisGain = "em_gain";
 static constexpr auto kEmphasisS = "em_s";
 
 static constexpr auto kShiftPitch = "shift_pitch";
+static constexpr auto kEnableShifter = "shift_enable";
 
 static constexpr auto kForgetRate = "lpc_forget";
 static constexpr auto kLPCSmooth = "lpc_smooth";
@@ -43,5 +48,26 @@ static constexpr auto kChannelVocoderAttack = "cv_attack";
 static constexpr auto kChannelVocoderRelease = "cv_release";
 static constexpr auto kChannelVocoderScale = "cv_scale";
 static constexpr auto kChannelVocoderCarryScale = "cv_carry_scale";
+
+// --------------------------------------------------------------------------------
+// gui others
+// --------------------------------------------------------------------------------
+static constexpr auto kFilterTitle = "filter_title";
+static constexpr auto kEnsembleTitle = "ensemble_title";
+static constexpr auto kRLSTitle = "rls_title";
+namespace combbox {
+static constexpr auto kVocoderNames = kVocoderType;
+static constexpr std::array kVocoderNameIds {
+    "vn_burg",
+    "vn_rls",
+    "vn_stft",
+    "vn_channel"
+};
+static constexpr auto kEnsembleModeNames = kEnsembleMode;
+static constexpr std::array kEnsembleModeNameIds {
+    "emn_sine",
+    "emn_noise"
+};
+}
 
 }

@@ -2,6 +2,7 @@
 #include "../PluginProcessor.h"
 #include "../param_ids.hpp"
 #include "../tooltips.hpp"
+#include "juce_events/juce_events.h"
 
 namespace widget {
 
@@ -9,28 +10,25 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
 : processor_(processor) {
     auto& apvts = *processor.value_tree_;
 
-    title_.setText("STFT Vocoder", juce::dontSendNotification);
     addAndMakeVisible(title_);
 
     bandwidth_.BindParameter(apvts, id::kStftWindowWidth);
-    bandwidth_.SetShortName("SMEAR");
-    bandwidth_.slider_.setTooltip(tooltip::kStftWindowWidth);
     addAndMakeVisible(bandwidth_);
 
     attack_.BindParameter(apvts, id::kStftAttack);
-    attack_.SetShortName("ATTACK");
-    attack_.slider_.setTooltip(tooltip::kStftRelease);
     addAndMakeVisible(attack_);
 
     release_.BindParameter(apvts, id::kStftRelease);
-    release_.SetShortName("RELEASE");
-    release_.slider_.setTooltip(tooltip::kStftRelease);
     addAndMakeVisible(release_);
 
     blend_.BindParameter(apvts, id::kStftBlend);
-    blend_.SetShortName("NOISY");
-    blend_.slider_.setTooltip(tooltip::kStftBlend);
     addAndMakeVisible(blend_);
+    
+    tooltip::tooltips.AddListenerAndInvoke(this);
+}
+
+void STFTVocoder::OnLanguageChanged(tooltip::Tooltips& tooltips) {
+    title_.setText(tooltips.Label(id::combbox::kVocoderNameIds[2]), juce::dontSendNotification);
 }
 
 void STFTVocoder::resized() {

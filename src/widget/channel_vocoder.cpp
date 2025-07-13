@@ -11,43 +11,34 @@ ChannelVocoder::ChannelVocoder(AudioPluginAudioProcessor& p)
     : vocoder_(p.channel_vocoder_) {
     auto& apvts = *p.value_tree_;
 
-    label_.setText("Channel vocoder", juce::dontSendNotification);
     addAndMakeVisible(label_);
 
     attack_.BindParameter(apvts, id::kChannelVocoderAttack);
-    attack_.SetShortName("ATTACK");
-    attack_.slider_.setTooltip(tooltip::kChannelVocoderAttack);
     addAndMakeVisible(attack_);
 
     release_.BindParameter(apvts, id::kChannelVocoderRelease);
-    release_.SetShortName("RELEASE");
-    release_.slider_.setTooltip(tooltip::kChannelVocoderRelease);
     addAndMakeVisible(release_);
 
     nbands_.BindParameter(apvts, id::kChannelVocoderNBands);
-    nbands_.SetShortName("BANDS");
-    nbands_.slider_.setTooltip(tooltip::kChannelVocoderNBands);
     addAndMakeVisible(nbands_);
 
     freq_begin_.BindParameter(apvts, id::kChannelVocoderFreqBegin);
-    freq_begin_.SetShortName("FBEGIN");
-    freq_begin_.slider_.setTooltip(tooltip::kChannelVocoderFreqBegin);
     addAndMakeVisible(freq_begin_);
 
     freq_end_.BindParameter(apvts, id::kChannelVocoderFreqEnd);
-    freq_end_.SetShortName("FEND");
-    freq_end_.slider_.setTooltip(tooltip::kChannelVocoderFreqEnd);
     addAndMakeVisible(freq_end_);
 
     scale_.BindParameter(apvts, id::kChannelVocoderScale);
-    scale_.SetShortName("SCALE");
-    scale_.slider_.setTooltip(tooltip::kChannelVocoderScale);
     addAndMakeVisible(scale_);
 
     carry_scale_.BindParameter(apvts, id::kChannelVocoderCarryScale);
-    carry_scale_.SetShortName("CSCALE");
-    carry_scale_.slider_.setTooltip(tooltip::kChannelVocoderCarryScale);
     addAndMakeVisible(carry_scale_);
+
+    tooltip::tooltips.AddListenerAndInvoke(this);
+}
+
+void ChannelVocoder::OnLanguageChanged(tooltip::Tooltips& strs) {
+    label_.setText(strs.Label(id::combbox::kVocoderNameIds[3]), juce::dontSendNotification);
 }
 
 void ChannelVocoder::resized() {

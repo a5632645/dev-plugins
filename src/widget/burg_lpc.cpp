@@ -10,33 +10,26 @@ BurgLPC::BurgLPC(AudioPluginAudioProcessor& processor)
 : processor_(processor) {
     auto& apvts = *processor.value_tree_;
 
-    lpc_label_.setText("Burg-LPC", juce::dontSendNotification);
     addAndMakeVisible(lpc_label_);
 
     lpc_foorget_.BindParameter(apvts, id::kForgetRate);
-    lpc_foorget_.SetShortName("FORGET");
-    lpc_foorget_.slider_.setTooltip(tooltip::kForgetRate);
     addAndMakeVisible(lpc_foorget_);
     lpc_smooth_.BindParameter(apvts, id::kLPCSmooth);
-    lpc_smooth_.SetShortName("SMOOTH");
-    lpc_smooth_.slider_.setTooltip(tooltip::kLPCSmooth);
     addAndMakeVisible(lpc_smooth_);
     lpc_dicimate_.BindParameter(apvts, id::kLPCDicimate);
-    lpc_dicimate_.SetShortName("DICIMATE");
-    lpc_dicimate_.slider_.setTooltip(tooltip::kLPCDicimate);
     addAndMakeVisible(lpc_dicimate_);
     lpc_order_.BindParameter(apvts, id::kLPCOrder);
-    lpc_order_.SetShortName("ORDER");
-    lpc_order_.slider_.setTooltip(tooltip::kLPCOrder);
     addAndMakeVisible(lpc_order_);
     lpc_attack_.BindParameter(apvts, id::kLPCGainAttack);
-    lpc_attack_.SetShortName("ATTACK");
-    lpc_attack_.slider_.setTooltip(tooltip::kLPCGainAttack);
     addAndMakeVisible(lpc_attack_);
     lpc_release_.BindParameter(apvts, id::kLPCGainRelease);
-    lpc_release_.SetShortName("RELEASE");
-    lpc_release_.slider_.setTooltip(tooltip::kLPCGainRelease);
     addAndMakeVisible(lpc_release_);
+
+    tooltip::tooltips.AddListenerAndInvoke(this);
+}
+
+void BurgLPC::OnLanguageChanged(tooltip::Tooltips& strs) {
+    lpc_label_.setText(strs.Label(id::combbox::kVocoderNameIds[0]), juce::NotificationType::dontSendNotification);
 }
 
 void BurgLPC::resized() {

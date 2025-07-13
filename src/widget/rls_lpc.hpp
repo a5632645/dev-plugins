@@ -6,11 +6,12 @@ class AudioPluginAudioProcessor;
 
 namespace widget {
 
-class RLSLPC : public juce::Component, private juce::Timer {
+class RLSLPC : public juce::Component, private juce::Timer, public tooltip::Tooltips::Listener {
 public:
     RLSLPC(AudioPluginAudioProcessor& processor);
     void resized() override;
     void paint(juce::Graphics& g) override;
+    void OnLanguageChanged(tooltip::Tooltips& tooltips) override;
 private:
     void timerCallback() override;
 
