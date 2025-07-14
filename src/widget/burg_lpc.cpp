@@ -100,7 +100,7 @@ void BurgLPC::paint(juce::Graphics& g) {
         float w = bb.getWidth();
         float span_w = w / 3.0f;
         for (int i = 0; i < 3; ++i) {
-            float span_x = span_w * i;
+            float span_x = span_w * i + bb.getX();
             for (int j = 0; j < 9; ++j) {
                 float log_nor = kLogJtable[j];
                 float x = span_x + span_w * log_nor;

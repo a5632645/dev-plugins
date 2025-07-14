@@ -195,7 +195,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kForgetRate, 1},
             id::kForgetRate,
-            juce::NormalisableRange<float>{5.0f, 100.0f, 1.0f, 0.4f},
+            juce::NormalisableRange<float>{5.0f, 200.0f, 1.0f, 0.4f},
             20.0f
         );
         paramListeners_.Add(p, [this](float l) {
@@ -236,7 +236,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kLPCGainRelease, 1},
             id::kLPCGainRelease,
-            juce::NormalisableRange<float>{1.0f, 100.0f, 1.0f, 0.4f},
+            juce::NormalisableRange<float>{5.0f, 200.0f, 1.0f, 0.4f},
             20.0f
         );
         paramListeners_.Add(p, [this](float l) {
