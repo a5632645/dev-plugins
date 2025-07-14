@@ -1,6 +1,48 @@
 #include "vertical_slider.hpp"
 #include "juce_core/juce_core.h"
+#include "juce_events/juce_events.h"
+#include "juce_gui_basics/juce_gui_basics.h"
 #include "tooltips.hpp"
+#include "param_ids.hpp"
+
+namespace ui {
+void MyPopmenuSlider::mouseDown(const juce::MouseEvent& e) {
+    juce::ModifierKeys keys = juce::ModifierKeys::getCurrentModifiers();
+    if (keys.isPopupMenu()) {
+        menu_.clear();
+        menu_.addItem(tooltip::tooltips.Label(id::kSliderMenuEnterValue), [this]{
+            auto* editor = new juce::TextEditor;
+            editor->setText(this->getTextFromValue(this->getValue()));
+
+            juce::DialogWindow::LaunchOptions op;
+            op.dialogTitle = tooltip::tooltips.Label(id::kSliderMenuEnterValue);
+            op.escapeKeyTriggersCloseButton = true;
+            op.useNativeTitleBar = true;
+            op.resizable = false;
+            op.content = {editor, true};
+
+            auto* dialog = op.create();
+            editor->onReturnKey = [this, dialog, editor] {
+                this->setValue(this->getValueFromText(editor->getText()),
+                               juce::NotificationType::sendNotificationSync);
+                this->onDragEnd();
+                dialog->closeButtonPressed();
+            };
+            dialog->enterModalState(true, nullptr, true);
+            juce::MessageManager::callAsync([editor]{
+                editor->grabKeyboardFocus();
+                editor->selectAll();
+            });
+        });
+
+        juce::PopupMenu::Options op;
+        menu_.showMenuAsync(op.withMousePosition());
+    }
+    else {
+        juce::Slider::mouseDown(e);
+    }
+}
+}
 
 namespace ui {
 VerticalSlider::VerticalSlider() {
@@ -18,11 +60,6 @@ VerticalSlider::VerticalSlider() {
     addAndMakeVisible(slider_);
     addAndMakeVisible(label_);
 }
-
-// void VerticalSlider::SetShortName(juce::String name) {
-//     short_name_ = std::move(name);
-//     label_.setText(short_name_, juce::NotificationType::dontSendNotification);
-// }
 
 VerticalSlider::~VerticalSlider() {
     attach_ = nullptr;

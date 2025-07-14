@@ -59,18 +59,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, filter_callback);
         layout.add(std::move(p));
     }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kHighpassPitch, 1},
-            id::kHighpassPitch,
-            0.0f, 135.0f, 20.0f
-        );
-        paramListeners_.Add(p, [this](float p) {
-            juce::ScopedLock lock{getCallbackLock()};
-            hpfilter_.MakeHighPass(p);
-        });
-        layout.add(std::move(p));
-    }
 
     // vocoder type
     {
@@ -82,6 +70,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         vocoder_type_param_ = p.get();
         paramListeners_.Add(p, [this](int i) {
+            (void)i;
             juce::ScopedLock lock{getCallbackLock()};
             SetLatency(); 
         });
@@ -551,7 +540,6 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     float fs = static_cast<float>(sampleRate);
     burg_lpc_.Init(fs);
     filter_.Init(fs);
-    hpfilter_.Init(fs);
     rls_lpc_.Init(fs);
     stft_vocoder_.Init(fs);
     channel_vocoder_.Init(fs);
@@ -613,7 +601,6 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     std::span left_block { buffer.getWritePointer(0), static_cast<size_t>(buffer.getNumSamples()) };
     std::span right_block { buffer.getWritePointer(1), static_cast<size_t>(buffer.getNumSamples()) };
 
-    hpfilter_.Process(right_block);
     filter_.Process(left_block);
     if (shifter_enabled_->get()) {
         shifter_.Process(left_block);

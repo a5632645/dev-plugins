@@ -42,7 +42,6 @@ private:
     ui::VerticalSlider em_pitch_;
     ui::VerticalSlider em_gain_;
     ui::VerticalSlider em_s_;
-    ui::VerticalSlider hp_pitch_;
     juce::Label shifter_{"", "Enable"};
     ui::ToggleButton shift_enable_;
     ui::VerticalSlider shift_pitch_;

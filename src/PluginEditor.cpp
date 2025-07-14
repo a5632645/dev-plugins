@@ -29,8 +29,6 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     auto& apvts = *p.value_tree_;
 
     addAndMakeVisible(filter_);
-    hp_pitch_.BindParameter(apvts, id::kHighpassPitch);
-    addAndMakeVisible(hp_pitch_);
     em_pitch_.BindParameter(apvts, id::kEmphasisPitch);
     addAndMakeVisible(em_pitch_);
     em_gain_.BindParameter(apvts, id::kEmphasisGain);
@@ -108,7 +106,6 @@ void AudioPluginAudioProcessorEditor::resized() {
         auto title_box = b.removeFromTop(20);
         filter_.setBounds(title_box);
         auto top = b.removeFromTop(100);
-        hp_pitch_.setBounds(top.removeFromLeft(50));
         em_pitch_.setBounds(top.removeFromLeft(50));
         em_gain_.setBounds(top.removeFromLeft(50));
         em_s_.setBounds(top.removeFromLeft(50));

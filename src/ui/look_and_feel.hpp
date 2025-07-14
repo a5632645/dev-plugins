@@ -15,7 +15,11 @@ public:
     juce::Font getAlertWindowFont() override;
     juce::Font getComboBoxFont(juce::ComboBox&) override;
     juce::Font getLabelFont (juce::Label& label) override;
+    juce::Font getPopupMenuFont () override;
     void drawTooltip (juce::Graphics& g, const juce::String& text, int width, int height) override;
+    void drawLinearSlider (juce::Graphics&, int x, int y, int width, int height,
+                           float sliderPos, float minSliderPos, float maxSliderPos,
+                           juce::Slider::SliderStyle, juce::Slider&) override;
 private:
     juce::Typeface::Ptr typeface_;
 };

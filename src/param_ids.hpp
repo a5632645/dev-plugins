@@ -12,8 +12,6 @@ static constexpr auto kOutputgain = "output_gain";
 
 static constexpr auto kVocoderType = "vocoder_type";
 
-static constexpr auto kHighpassPitch = "hp_pitch";
-
 static constexpr auto kEmphasisPitch = "em_pitch";
 static constexpr auto kEmphasisGain = "em_gain";
 static constexpr auto kEmphasisS = "em_s";
@@ -55,6 +53,7 @@ static constexpr auto kChannelVocoderCarryScale = "cv_carry_scale";
 static constexpr auto kFilterTitle = "filter_title";
 static constexpr auto kEnsembleTitle = "ensemble_title";
 static constexpr auto kRLSTitle = "rls_title";
+static constexpr auto kSliderMenuEnterValue = "sm_enter_value";
 namespace combbox {
 static constexpr auto kVocoderNames = kVocoderType;
 static constexpr std::array kVocoderNameIds {

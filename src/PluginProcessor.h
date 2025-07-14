@@ -164,7 +164,6 @@ public:
     juce::AudioParameterBool* shifter_enabled_;
 
     dsp::Filter filter_;
-    dsp::Filter hpfilter_;
     dsp::PitchShifter shifter_;
     dsp::BurgLPC burg_lpc_;
     dsp::RLSLPC rls_lpc_;

@@ -6,14 +6,20 @@
 
 namespace ui {
 
+class MyPopmenuSlider : public juce::Slider {
+public:
+    void mouseDown(const juce::MouseEvent& e) override;
+private:
+    juce::PopupMenu menu_;
+};
+
 class VerticalSlider : public juce::Component, public tooltip::Tooltips::Listener {
 public:
     VerticalSlider();
     ~VerticalSlider() override;
     void BindParameter(juce::AudioProcessorValueTreeState& apvts, const char* id);
-    // void SetShortName(juce::String name);
     void resized() override;
-    juce::Slider slider_;
+    MyPopmenuSlider slider_;
 
     void OnLanguageChanged(tooltip::Tooltips& tooltips) override;
 private:

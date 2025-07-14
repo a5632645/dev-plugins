@@ -23,8 +23,6 @@ void Tooltips::MakeEnglishTooltips() {
     tooltips_[id::kOutputgain] = "control the output gain";
     labels_[id::kVocoderType] = "TYPE";
     tooltips_[id::kVocoderType] = "change the vocoder type";
-    labels_[id::kHighpassPitch] = "HPASS";
-    tooltips_[id::kHighpassPitch] = "set main high pass filter cutoff pitch";
     labels_[id::kEmphasisPitch] = "HSHELF";
     tooltips_[id::kEmphasisPitch] = "set main high shelf filter cutoff pitch";
     labels_[id::kEmphasisGain] = "GAIN";
@@ -96,6 +94,7 @@ void Tooltips::MakeEnglishTooltips() {
     labels_[id::combbox::kEnsembleModeNameIds[0]] = "Sine";
     labels_[id::combbox::kEnsembleModeNameIds[1]] = "Noise";
     labels_[id::kRLSTitle] = "RLS-LPC    Warning: Too lound audio will cause unstable";
+    labels_[id::kSliderMenuEnterValue] = "Enter Value";
 
     OnLanguageChanged();
 }
@@ -112,8 +111,6 @@ void Tooltips::MakeChineseTooltips() {
     tooltips_[id::kOutputgain] = juce::String::fromUTF8("输出增益");
     labels_[id::kVocoderType] = juce::String::fromUTF8("类型");
     tooltips_[id::kVocoderType] = juce::String::fromUTF8("更改声码器类型");
-    labels_[id::kHighpassPitch] = juce::String::fromUTF8("高通");
-    tooltips_[id::kHighpassPitch] = juce::String::fromUTF8("载波高通滤波器截止音高");
     labels_[id::kEmphasisPitch] = juce::String::fromUTF8("高架");
     tooltips_[id::kEmphasisPitch] = juce::String::fromUTF8("调制源高架滤波器截止音高");
     labels_[id::kEmphasisGain] = juce::String::fromUTF8("增益");
@@ -185,6 +182,7 @@ void Tooltips::MakeChineseTooltips() {
     labels_[id::combbox::kEnsembleModeNameIds[0]] = juce::String::fromUTF8("正弦");
     labels_[id::combbox::kEnsembleModeNameIds[1]] = juce::String::fromUTF8("噪声");
     labels_[id::kRLSTitle] = juce::String::fromUTF8("RLS线性预测    注意：过大的音频会导致不稳定");
+    labels_[id::kSliderMenuEnterValue] = juce::String::fromUTF8("输入值");
 
     OnLanguageChanged();
 }
