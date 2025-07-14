@@ -8,7 +8,7 @@ Real time music vocoder based on variable methods.
 > [!NOTE]
 > This project is still under development.
 # GUI
-![GUI](resouce/gui.png)
+![GUI](resouce/gui2.png)
 # Build
 ```
 git clone https://github.com/a5632645/Green-Vocoder.git
