@@ -9,3 +9,12 @@ Real time music vocoder based on variable methods.
 > This project is still under development.
 # GUI
 ![GUI](resouce/gui.png)
+# Build
+```
+git clone https://github.com/a5632645/Green-Vocoder.git
+git submodule update --init --recursive
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --target GreenVocoder_VST3
+```

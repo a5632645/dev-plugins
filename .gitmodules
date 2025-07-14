@@ -1,3 +1,9 @@
 [submodule "dsp"]
 	path = dsp
 	url = https://github.com/Signalsmith-Audio/dsp.git
+[submodule "eigen"]
+	path = eigen
+	url = https://gitlab.com/libeigen/eigen.git
+[submodule "JUCE"]
+	path = JUCE
+	url = https://github.com/juce-framework/JUCE.git

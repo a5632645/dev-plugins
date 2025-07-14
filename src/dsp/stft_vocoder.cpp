@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cmath>
 #include <numbers>
-#include <numeric>
 
 namespace dsp {
 
