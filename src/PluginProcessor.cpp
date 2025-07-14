@@ -263,7 +263,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterInt>(
             juce::ParameterID{id::kLPCOrder, 1},
             id::kLPCOrder,
-            1, dsp::BurgLPC::kNumPoles, 35
+            2, dsp::BurgLPC::kNumPoles, 35
         );
         paramListeners_.Add(p, [this](int order) {
             juce::ScopedLock lock{getCallbackLock()};
