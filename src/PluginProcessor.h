@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <vector>
 #include "dsp/filter.hpp"
 #include "dsp/burg_lpc.hpp"
 #include "dsp/pitch_shifter.hpp"
@@ -162,6 +163,8 @@ public:
     juce::AudioParameterFloat* lpc_pitch_;
     juce::AudioParameterFloat* lpc_detune_;
     juce::AudioParameterBool* shifter_enabled_;
+    juce::AudioParameterInt* main_channel_config_;
+    juce::AudioParameterInt* side_channel_config_;
 
     dsp::Filter filter_;
     dsp::PitchShifter shifter_;
@@ -177,6 +180,9 @@ public:
 
     juce::AudioParameterChoice* vocoder_type_param_{};
     int current_vocoder_type_ = 0;
+
+    std::vector<float> main_buffer_;
+    std::vector<float> side_buffer_;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)

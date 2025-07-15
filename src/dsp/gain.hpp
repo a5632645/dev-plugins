@@ -20,7 +20,7 @@ template<int NCHANNEL>
 class Gain : public IGain {
 public:
     static constexpr float kDecayTime = 5.0f;
-    static constexpr float kMinDb = -20.0f;
+    static constexpr float kMinDb = -40.0f;
     void Init(float sample_rate, int block) {
         decay_ = std::exp(-1.0f / ((sample_rate / block) * kDecayTime / 1000.0f));
     }

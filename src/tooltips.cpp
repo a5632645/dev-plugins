@@ -95,6 +95,8 @@ void Tooltips::MakeEnglishTooltips() {
     labels_[id::combbox::kEnsembleModeNameIds[1]] = "Noise";
     labels_[id::kRLSTitle] = "RLS-LPC    Warning: Too lound audio will cause unstable";
     labels_[id::kSliderMenuEnterValue] = "Enter Value";
+    labels_[id::kMainChannelConfig] = "Main Channel";
+    labels_[id::kSideChannelConfig] = "Side Channel";
 
     OnLanguageChanged();
 }
@@ -183,6 +185,8 @@ void Tooltips::MakeChineseTooltips() {
     labels_[id::combbox::kEnsembleModeNameIds[1]] = juce::String::fromUTF8("噪声");
     labels_[id::kRLSTitle] = juce::String::fromUTF8("RLS线性预测    注意：过大的音频会导致不稳定");
     labels_[id::kSliderMenuEnterValue] = juce::String::fromUTF8("输入值");
+    labels_[id::kMainChannelConfig] = juce::String::fromUTF8("调制源通道");
+    labels_[id::kSideChannelConfig] = juce::String::fromUTF8("载波通道");
 
     OnLanguageChanged();
 }

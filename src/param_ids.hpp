@@ -9,6 +9,8 @@ namespace id {
 static constexpr auto kMainGain = "main_gain";
 static constexpr auto kSideGain = "side_gain";
 static constexpr auto kOutputgain = "output_gain";
+static constexpr auto kMainChannelConfig = "main_ch_config";
+static constexpr auto kSideChannelConfig = "side_ch_config";
 
 static constexpr auto kVocoderType = "vocoder_type";
 

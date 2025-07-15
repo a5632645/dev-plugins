@@ -8,6 +8,7 @@
 #include "param_ids.hpp"
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <memory>
 
 //==============================================================================
@@ -16,6 +17,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                      #if ! JucePlugin_IsMidiEffect
                       #if ! JucePlugin_IsSynth
                        .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
+                       .withInput("Sidechain", juce::AudioChannelSet::stereo(), true)
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
@@ -57,6 +59,24 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         filter_s_ = p.get();
         paramListeners_.Add(p, filter_callback);
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterInt>(
+            juce::ParameterID{id::kMainChannelConfig, 1},
+            id::kMainChannelConfig,
+            0, 5, 0
+        );
+        main_channel_config_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterInt>(
+            juce::ParameterID{id::kSideChannelConfig, 1},
+            id::kSideChannelConfig,
+            0, 5, 1
+        );
+        side_channel_config_ = p.get();
         layout.add(std::move(p));
     }
 
@@ -537,6 +557,9 @@ void AudioPluginAudioProcessor::changeProgramName (int index, const juce::String
 //==============================================================================
 void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    main_buffer_.resize(samplesPerBlock);
+    side_buffer_.resize(samplesPerBlock);
+
     float fs = static_cast<float>(sampleRate);
     burg_lpc_.Init(fs);
     filter_.Init(fs);
@@ -585,44 +608,113 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
-    (void)midiMessages;
-
-    if (current_vocoder_type_ != vocoder_type_param_->getIndex()) {
-        current_vocoder_type_ = vocoder_type_param_->getIndex();
-    }
-
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
 
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
-    
+
     std::span left_block { buffer.getWritePointer(0), static_cast<size_t>(buffer.getNumSamples()) };
     std::span right_block { buffer.getWritePointer(1), static_cast<size_t>(buffer.getNumSamples()) };
 
-    filter_.Process(left_block);
-    if (shifter_enabled_->get()) {
-        shifter_.Process(left_block);
+    int main_ch = main_channel_config_->get();
+    int side_ch = side_channel_config_->get();
+    if (buffer.getNumChannels() < 4) {
+        // 无侧链，侧链声道映射为主声道
+        if (main_ch > 2) {
+            main_ch -= 3;
+        }
+        if (side_ch > 2) {
+            side_ch -= 3;
+        }
     }
-    main_gain_.Process(left_block);
-    side_gain_.Process(right_block);
+
+    switch (main_ch) {
+    case 0:
+        std::copy_n(left_block.begin(), main_buffer_.size(), main_buffer_.begin());
+        break;
+    case 1:
+        std::copy_n(right_block.begin(), main_buffer_.size(), main_buffer_.begin());
+        break;
+    case 2:
+        for (size_t i = 0; i < main_buffer_.size(); i++) {
+            main_buffer_[i] = left_block[i] + right_block[i];
+        }
+        break;
+    case 3:
+        std::copy_n(buffer.getReadPointer(2), main_buffer_.size(), main_buffer_.begin());
+        break;
+    case 4:
+        std::copy_n(buffer.getReadPointer(3), main_buffer_.size(), main_buffer_.begin());
+        break;
+    case 5: {
+        auto* side_left = buffer.getReadPointer(2);
+        auto* side_right = buffer.getReadPointer(3);
+        for (size_t i = 0; i < main_buffer_.size(); i++) {
+            main_buffer_[i] = side_left[i] + side_right[i];
+        }
+    }
+        break;
+    }
+
+    switch (side_ch) {
+    case 0:
+        std::copy_n(left_block.begin(), side_buffer_.size(), side_buffer_.begin());
+        break;
+    case 1:
+        std::copy_n(right_block.begin(), side_buffer_.size(), side_buffer_.begin());
+        break;
+    case 2:
+        for (size_t i = 0; i < side_buffer_.size(); i++) {
+            side_buffer_[i] = left_block[i] + right_block[i];
+        }
+        break;
+    case 3:
+        std::copy_n(buffer.getReadPointer(2), side_buffer_.size(), side_buffer_.begin());
+        break;
+    case 4:
+        std::copy_n(buffer.getReadPointer(3), side_buffer_.size(), side_buffer_.begin());
+        break;
+    case 5: {
+        auto* side_left = buffer.getReadPointer(2);
+        auto* side_right = buffer.getReadPointer(3);
+        for (size_t i = 0; i < side_buffer_.size(); i++) {
+            side_buffer_[i] = side_left[i] + side_right[i];
+        }
+    }
+        break;
+    }
+
+
+    if (current_vocoder_type_ != vocoder_type_param_->getIndex()) {
+        current_vocoder_type_ = vocoder_type_param_->getIndex();
+    }
+    
+
+    filter_.Process(main_buffer_);
+    if (shifter_enabled_->get()) {
+        shifter_.Process(main_buffer_);
+    }
+    main_gain_.Process(main_buffer_);
+    side_gain_.Process(side_buffer_);
 
     switch (static_cast<VocoderType>(current_vocoder_type_)) {
-        case VocoderType::BurgLPC:
-            burg_lpc_.Process(left_block, right_block);
-            break;
-        case VocoderType::RLSLPC:
-            rls_lpc_.Process(left_block, right_block);
-            break;
-        case VocoderType::STFTVocoder:
-            stft_vocoder_.Process(left_block, right_block);
-            break;
-        case VocoderType::ChannelVocoder:
-            channel_vocoder_.ProcessBlock(left_block, right_block);
-            break;
+    case VocoderType::BurgLPC:
+        burg_lpc_.Process(main_buffer_, side_buffer_);
+        break;
+    case VocoderType::RLSLPC:
+        rls_lpc_.Process(main_buffer_, side_buffer_);
+        break;
+    case VocoderType::STFTVocoder:
+        stft_vocoder_.Process(main_buffer_, side_buffer_);
+        break;
+    case VocoderType::ChannelVocoder:
+        channel_vocoder_.ProcessBlock(main_buffer_, side_buffer_);
+        break;
     }
 
+    std::copy_n(main_buffer_.begin(), main_buffer_.size(), left_block.begin());
     ensemble_.Process(left_block, right_block);
     output_gain_.Process(std::array{left_block, right_block});
 }

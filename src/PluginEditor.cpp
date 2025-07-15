@@ -52,6 +52,10 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addAndMakeVisible(side_gain_);
     output_gain_.gain_slide_.BindParameter(apvts, id::kOutputgain);
     addAndMakeVisible(output_gain_);
+    main_channel_selector_.BindParameter(apvts, id::kMainChannelConfig);
+    addAndMakeVisible(main_channel_selector_);
+    side_channel_selector_.BindParameter(apvts, id::kSideChannelConfig);
+    addAndMakeVisible(side_channel_selector_);
 
     vocoder_type_.BindParam(apvts, id::kVocoderType);
     vocoder_type_.combobox_.addListener(this);
@@ -80,7 +84,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
 
     addAndMakeVisible(ensemble_);
 
-    setSize (500, 550);
+    setSize (550, 550);
     startTimerHz(30);
     tooltip::tooltips.AddListenerAndInvoke(this);
 }
@@ -98,6 +102,8 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
 
 void AudioPluginAudioProcessorEditor::OnLanguageChanged(tooltip::Tooltips& tooltips) {
     filter_.setText(tooltips.Label(id::kFilterTitle), juce::dontSendNotification);
+    main_channel_selector_.SetLabelName(tooltips.Label(id::kMainChannelConfig));
+    side_channel_selector_.SetLabelName(tooltips.Label(id::kSideChannelConfig));
 }
 
 void AudioPluginAudioProcessorEditor::resized() {
@@ -119,6 +125,11 @@ void AudioPluginAudioProcessorEditor::resized() {
         main_gain_.setBounds(top.removeFromLeft(50 + 20));
         side_gain_.setBounds(top.removeFromLeft(50 + 20));
         output_gain_.setBounds(top.removeFromLeft(50 + 40));
+        {
+            auto half_top = top.removeFromTop(top.getHeight() / 2);
+            main_channel_selector_.setBounds(half_top);
+            side_channel_selector_.setBounds(top);
+        }
     }
     {
         vocoder_type_.setBounds(b.removeFromTop(30));

@@ -10,6 +10,7 @@
 #include "ui/look_and_feel.hpp"
 
 #include "widget/burg_lpc.hpp"
+#include "widget/channel_selector.hpp"
 #include "widget/rls_lpc.hpp"
 #include "widget/stft_vocoder.hpp"
 #include "widget/channel_vocoder.hpp"
@@ -48,6 +49,8 @@ private:
     widget::Gain main_gain_;
     widget::Gain side_gain_;
     widget::Gain output_gain_;
+    widget::ChannelSelector main_channel_selector_;
+    widget::ChannelSelector side_channel_selector_;
     juce::ComboBox language_box_;
 
     ui::CombBox vocoder_type_;
