@@ -13,7 +13,7 @@ namespace dsp {
 class STFTVocoder {
 public:
     static constexpr int kFFTSize = 1024;
-    static constexpr int kHopSize = 256;
+    static constexpr int kHopSize = kFFTSize / 4;
     static constexpr int kNumBins = kFFTSize / 2 + 1;
 
     void Init(float fs);

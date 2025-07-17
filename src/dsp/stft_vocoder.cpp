@@ -119,7 +119,7 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
 void STFTVocoder::SetBandwidth(float bw) {
     bandwidth_ = bw;
     // generate sinc window
-    float f0 = bandwidth_;
+    float f0 = bandwidth_ * kFFTSize / kFFTSize;
     for (int i = 0; i < kFFTSize; i++) {
         float x = (2 * std::numbers::pi_v<float> * f0 * (i - kFFTSize / 2.0f)) / kFFTSize;
         float sinc = std::abs(x) < 1e-6 ? 1.0f : std::sin(x) / x;

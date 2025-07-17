@@ -80,11 +80,11 @@ void Ensemble::SetMix(float mix) {
 void Ensemble::SetRate(float rate) {
     rate_ = rate;
     CalcCurrDelayLen();
-    lfo_freq_ = rate_ / sample_rate_;
+    // lfo_freq_ = rate_ / sample_rate_;
 
-    for (auto& n : noises_) {
-        n.SetRate(rate_ * 5.0f);
-    }
+    // for (auto& n : noises_) {
+    //     n.SetRate(rate_ * 5.0f);
+    // }
 }
 
 void Ensemble::SetMode(Ensemble::Mode mode) {
@@ -176,8 +176,8 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
                 wet_left += v * (1.0f - pan) / 2.0f;
                 wet_right += v * (1.0f + pan) / 2.0f;
             }
-            block[i] = std::lerp(in, wet_left, mix_);
-            right[i] = std::lerp(in, wet_right, mix_);
+            block[i] = in + wet_left * mix_;
+            right[i] = in + wet_right * mix_;
     
             buffer_wpos_ = (buffer_wpos_ + 1) & buffer_len_mask_;
             lfo_phase_ += lfo_freq_;
@@ -189,15 +189,16 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
 void Ensemble::CalcCurrDelayLen() {
     float mul = std::exp2(detune_ / 12.0f);
     float delay_s = (mul - 1.0f) / rate_;
+    float rate = rate_;
     if (delay_s * 1000.0f > kMaxTime) {
-        rate_ = (mul - 1.0f) / (kMaxTime / 1000.0f);
+        rate = (mul - 1.0f) / (kMaxTime / 1000.0f);
         delay_s = kMaxTime / 1000.0f;
-        lfo_freq_ = rate_ / sample_rate_;
-        for (auto& n : noises_) {
-            n.SetRate(rate_ * 5.0f);
-        }
     }
     current_delay_len_ = delay_s * sample_rate_;
+    lfo_freq_ = rate / sample_rate_;
+    for (auto& n : noises_) {
+        n.SetRate(rate * 5.0f);
+    }
 }
 
 }

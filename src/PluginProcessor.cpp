@@ -362,7 +362,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kStftWindowWidth, 1},
             id::kStftWindowWidth,
-            0.0f, 10.0f, 3.0f
+            0.0f, 5.0f, 2.0f
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
