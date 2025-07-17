@@ -1,6 +1,14 @@
 #pragma once
 #include <array>
 
+enum eVocoderType {
+    eVocoderType_BurgLPC = 0,
+    eVocoderType_RLSLPC,
+    eVocoderType_STFTVocoder,
+    eVocoderType_ChannelVocoder,
+    eVocoderType_NumVocoderTypes
+};
+
 namespace id {
 
 // --------------------------------------------------------------------------------
@@ -62,8 +70,9 @@ static constexpr std::array kVocoderNameIds {
     "vn_burg",
     "vn_rls",
     "vn_stft",
-    "vn_channel"
+    "vn_channel",
 };
+static_assert(kVocoderNameIds.size() == eVocoderType_NumVocoderTypes);
 static constexpr auto kEnsembleModeNames = kEnsembleMode;
 static constexpr std::array kEnsembleModeNameIds {
     "emn_sine",

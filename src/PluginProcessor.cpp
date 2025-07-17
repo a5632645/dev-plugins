@@ -5,11 +5,19 @@
 #include "dsp/rls_lpc.hpp"
 #include "juce_audio_processors/juce_audio_processors.h"
 #include "juce_core/juce_core.h"
+#include "juce_core/system/juce_PlatformDefs.h"
 #include "param_ids.hpp"
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <memory>
+
+static const juce::StringArray kVocoderNames{
+    "Burg-LPC",
+    "RLS-LPC",
+    "STFT-Vocoder",
+    "Channel-Vocoder",
+};
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
@@ -385,7 +393,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
             stft_vocoder_.SetAttack(bw);
-            // cepstrum_vocoder_.SetRelease(bw);
         });
         layout.add(std::move(p));
     }
@@ -699,18 +706,21 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     main_gain_.Process(main_buffer_);
     side_gain_.Process(side_buffer_);
 
-    switch (static_cast<VocoderType>(current_vocoder_type_)) {
-    case VocoderType::BurgLPC:
+    switch (current_vocoder_type_) {
+    case eVocoderType_BurgLPC:
         burg_lpc_.Process(main_buffer_, side_buffer_);
         break;
-    case VocoderType::RLSLPC:
+    case eVocoderType_RLSLPC:
         rls_lpc_.Process(main_buffer_, side_buffer_);
         break;
-    case VocoderType::STFTVocoder:
+    case eVocoderType_STFTVocoder:
         stft_vocoder_.Process(main_buffer_, side_buffer_);
         break;
-    case VocoderType::ChannelVocoder:
+    case eVocoderType_ChannelVocoder:
         channel_vocoder_.ProcessBlock(main_buffer_, side_buffer_);
+        break;
+    default:
+        jassertfalse;
         break;
     }
 
@@ -748,8 +758,8 @@ void AudioPluginAudioProcessor::Panic() {
 
 void AudioPluginAudioProcessor::SetLatency() {
     int latency = 0;
-    switch (static_cast<VocoderType>(vocoder_type_param_->getIndex())) {
-    case VocoderType::STFTVocoder:
+    switch (vocoder_type_param_->getIndex()) {
+    case eVocoderType_STFTVocoder:
         latency += stft_vocoder_.kFFTSize;
         break;
     default:

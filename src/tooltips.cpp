@@ -87,10 +87,10 @@ void Tooltips::MakeEnglishTooltips() {
     // guis
     labels_[id::kFilterTitle] = "Pre-Filter";
     labels_[id::kEnsembleTitle] = "Ensemble";
-    labels_[id::combbox::kVocoderNameIds[0]] = "Burg-LPC";
-    labels_[id::combbox::kVocoderNameIds[1]] = "RLS-LPC";
-    labels_[id::combbox::kVocoderNameIds[2]] = "STFT Vocoder";
-    labels_[id::combbox::kVocoderNameIds[3]] = "Channel Vocoder";
+    labels_[id::combbox::kVocoderNameIds[eVocoderType_BurgLPC]] = "Burg-LPC";
+    labels_[id::combbox::kVocoderNameIds[eVocoderType_RLSLPC]] = "RLS-LPC";
+    labels_[id::combbox::kVocoderNameIds[eVocoderType_STFTVocoder]] = "STFT Vocoder";
+    labels_[id::combbox::kVocoderNameIds[eVocoderType_ChannelVocoder]] = "Channel Vocoder";
     labels_[id::combbox::kEnsembleModeNameIds[0]] = "Sine";
     labels_[id::combbox::kEnsembleModeNameIds[1]] = "Noise";
     labels_[id::kRLSTitle] = "RLS-LPC    Warning: Too lound audio will cause unstable";
@@ -177,10 +177,10 @@ void Tooltips::MakeChineseTooltips() {
     // guis
     labels_[id::kFilterTitle] = juce::String::fromUTF8("预滤波");
     labels_[id::kEnsembleTitle] = juce::String::fromUTF8("合唱");
-    labels_[id::combbox::kVocoderNameIds[0]] = juce::String::fromUTF8("Burg线性预测");
-    labels_[id::combbox::kVocoderNameIds[1]] = juce::String::fromUTF8("RLS线性预测");
-    labels_[id::combbox::kVocoderNameIds[2]] = juce::String::fromUTF8("STFT");
-    labels_[id::combbox::kVocoderNameIds[3]] = juce::String::fromUTF8("通道声码器");
+    labels_[id::combbox::kVocoderNameIds[eVocoderType_BurgLPC]] = juce::String::fromUTF8("Burg线性预测");
+    labels_[id::combbox::kVocoderNameIds[eVocoderType_RLSLPC]] = juce::String::fromUTF8("RLS线性预测");
+    labels_[id::combbox::kVocoderNameIds[eVocoderType_STFTVocoder]] = juce::String::fromUTF8("STFT");
+    labels_[id::combbox::kVocoderNameIds[eVocoderType_ChannelVocoder]] = juce::String::fromUTF8("通道声码器");
     labels_[id::combbox::kEnsembleModeNameIds[0]] = juce::String::fromUTF8("正弦");
     labels_[id::combbox::kEnsembleModeNameIds[1]] = juce::String::fromUTF8("噪声");
     labels_[id::kRLSTitle] = juce::String::fromUTF8("RLS线性预测    注意：过大的音频会导致不稳定");

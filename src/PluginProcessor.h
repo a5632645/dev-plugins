@@ -11,19 +11,6 @@
 #include "dsp/ensemble.hpp"
 #include "dsp/channel_vocoder.hpp"
 
-enum class VocoderType {
-    BurgLPC,
-    RLSLPC,
-    STFTVocoder,
-    ChannelVocoder,
-};
-static const juce::StringArray kVocoderNames{
-    "Burg-LPC",
-    "RLS-LPC",
-    "STFT-Vocoder",
-    "Channel-Vocoder",
-};
-
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
 {

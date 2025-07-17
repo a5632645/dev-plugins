@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "juce_core/juce_core.h"
+#include "juce_core/system/juce_PlatformDefs.h"
 #include "juce_events/juce_events.h"
 #include "juce_graphics/juce_graphics.h"
 #include "juce_gui_basics/juce_gui_basics.h"
@@ -161,18 +162,21 @@ void AudioPluginAudioProcessorEditor::comboBoxChanged(juce::ComboBox* comboBoxTh
             current_vocoder_widget_->setVisible(false);
         }
 
-        switch (static_cast<VocoderType>(vocoder_type_.combobox_.getSelectedItemIndex())) {
-        case VocoderType::ChannelVocoder:
+        switch (vocoder_type_.combobox_.getSelectedItemIndex()) {
+        case eVocoderType_ChannelVocoder:
             current_vocoder_widget_ = &channel_vocoder_;
             break;
-        case VocoderType::STFTVocoder:
+        case eVocoderType_STFTVocoder:
             current_vocoder_widget_ = &stft_vocoder_;
             break;
-        case VocoderType::BurgLPC:
+        case eVocoderType_BurgLPC:
             current_vocoder_widget_ = &burg_lpc_;
             break;
-        case VocoderType::RLSLPC:
+        case eVocoderType_RLSLPC:
             current_vocoder_widget_ = &rls_lpc_;
+            break;
+        default:
+            jassertfalse;
             break;
         }
 

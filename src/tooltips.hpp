@@ -20,7 +20,6 @@ public:
     void RemoveListener(Listener* listener) { listeners_.erase(std::remove(listeners_.begin(), listeners_.end(), listener), listeners_.end()); }
     void OnLanguageChanged() { for (auto listener : listeners_) listener->OnLanguageChanged(*this); }
 
-    // const juce::String& operator[](const char* id) const { return tooltips_.at(id); }
     const juce::String& Label(const char* id) const { return labels_.at(id); }
     const juce::String& Tooltip(const char* id) const { return tooltips_.at(id); }
     std::span<const char* const> CombboxIds(const char* id) const { return combbox_ids_.at(id); }
