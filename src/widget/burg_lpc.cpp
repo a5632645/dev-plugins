@@ -119,7 +119,6 @@ void BurgLPC::paint(juce::Graphics& g) {
         g.drawSingleLineText(kFreqStr[3], bb.getRight() - last_w, bb.getBottom() - current_font.getHeight() / 2);
     }
 
-
     // lattice to tf
     std::array<float, dsp::BurgLPC::kNumPoles> lattice_buff;
     std::array<float, dsp::BurgLPC::kNumPoles> transfer_function;
