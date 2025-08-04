@@ -133,8 +133,8 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
                 wet_left += v * (1.0f - pan) / 2.0f;
                 wet_right += v * (1.0f + pan) / 2.0f;
             }
-            block[i] = in + wet_left * mix_ * 2.0 / num_voices_;
-            right[i] = in + wet_right * mix_ * 2.0 / num_voices_;
+            block[i] = std::lerp(in, wet_left, mix_);
+            right[i] = std::lerp(in, wet_right, mix_);
     
             buffer_wpos_ = (buffer_wpos_ + 1) & buffer_len_mask_;
             lfo_phase_ += lfo_freq_;
@@ -176,8 +176,8 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
                 wet_left += v * (1.0f - pan) / 2.0f;
                 wet_right += v * (1.0f + pan) / 2.0f;
             }
-            block[i] = in + wet_left * mix_ * 2.0 / num_voices_;
-            right[i] = in + wet_right * mix_ * 2.0 / num_voices_;
+            block[i] = std::lerp(in, wet_left, mix_);
+            right[i] = std::lerp(in, wet_right, mix_);
     
             buffer_wpos_ = (buffer_wpos_ + 1) & buffer_len_mask_;
             lfo_phase_ += lfo_freq_;
