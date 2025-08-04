@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <span>
 #include <array>
 #include "svf.hpp"
@@ -9,32 +10,66 @@
 
 namespace dsp {
 
+struct BandSVF {
+    float m1{};
+    float ic2eq{};
+    float ic1eq{};
+    float a1{};
+    float a2{};
+    float a3{};
+
+    float Tick(float v0) {
+        float v3 = v0 - ic2eq;
+        float v1 = a1 * ic1eq + a2 * v3;
+        float v2 = ic2eq + a2 * ic1eq + a3 * v3;
+        ic1eq = 2 * v1 - ic1eq;
+        ic2eq = 2 * v2 - ic2eq;
+        float out = v1;
+        return out;
+    }
+
+    void MakeBandpass(float omega, float Q) {
+        float g = std::tan(omega / 2);
+        float k = 1.0f / Q;
+        a1 = 1.0f / (1.0f + g * (g + k));
+        a2 = g * a1;
+        a3 = g * a2;
+    }
+};
+
+template<class T>
+class CascadeBPSVF {
+public:
+    static constexpr int kNumCascade = 4;
+
+    static float DbToGain(float db) {
+        return std::pow(10.0f, db / 20.0f);
+    }
+
+    // From https://github.com/ZL-Audio/ZLEqualizer
+    void MakeBandpass(float omega, float Q) {
+        const auto halfbw = std::asinh(0.5f / Q) / std::log(2.0f);
+        const auto w = omega / std::pow(2.0f, halfbw);
+        const auto g = DbToGain(-6 / static_cast<float>(kNumCascade * 2));
+        const auto _q = std::sqrt(1 - g * g) * w * omega / g / (omega * omega - w * w);
+        for (auto& f : svf_) {
+            f.MakeBandpass(omega, _q);
+        }
+    }
+
+    float Tick(float x) {
+        for (auto& f : svf_) {
+            x = f.Tick(x);
+        }
+        return x;
+    }
+private:
+    T svf_[kNumCascade];
+};
+
 class ChannelVocoder {
 public:
     static constexpr int kMaxOrder = 40;
-
-    class CascadeBPSVF {
-    public:
-        static constexpr int kNumCascade = 2;
-        void MakeBandpass(float omega, float q) {
-            /* a simple cascade method
-             * https://www.analog.com/media/en/technical-documentation/application-notes/an27af.pdf
-            */
-            q = q * std::sqrt(std::exp2(1.0f / kNumCascade) - 1.0f);
-            for (auto& f : svf_) {
-                f.MakeBandpass(omega, q);
-            }
-        }
-
-        float Tick(float x) {
-            for (auto& f : svf_) {
-                x = f.Tick(x);
-            }
-            return x;
-        }
-    private:
-        SVF svf_[kNumCascade];
-    };
 
     void Init(float sample_rate);
     void ProcessBlock(std::span<float> block, std::span<float> side);
@@ -61,8 +96,9 @@ private:
     float release_{};
     float scale_{1.0f};
     float carry_scale_{1.0f};
-    std::array<SVF, kMaxOrder> main_filters_;
-    std::array<SVF, kMaxOrder> side_filters_;
+    float gain_{};
+    std::array<CascadeBPSVF<BandSVF>, kMaxOrder> main_filters_;
+    std::array<CascadeBPSVF<BandSVF>, kMaxOrder> side_filters_;
     std::array<float, kMaxOrder> main_peaks_{};
 };
 

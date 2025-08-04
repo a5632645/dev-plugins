@@ -42,14 +42,26 @@ void ChannelVocoder::SetCarryScale(float scale) {
     UpdateFilters();
 }
 
+static float FreqToMel(float freq) {
+    return 1127.0f * std::log(1.0f + freq / 700.0f);
+}
+
+static float MelToFreq(float mel) {
+    return 700.0f * (std::exp(mel / 1127.0f) - 1.0f);
+}
+
 void ChannelVocoder::UpdateFilters() {
     float pitch_begin = std::log(freq_begin_);
     float pitch_end = std::log(freq_end_);
+    // float pitch_begin = FreqToMel(freq_begin_);
+    // float pitch_end = FreqToMel(freq_end_);
     float pitch_interval = (pitch_end - pitch_begin) / num_bans_;
     float begin = 0.0f;
+    gain_ = 0.0f;
     for (int i = 0; i < num_bans_ + 1; ++i) {
         float pitch = pitch_begin + pitch_interval * i;
         float freq = std::exp(pitch);
+        // float freq = MelToFreq(pitch);
         float omega = std::numbers::pi_v<float> * 2.0f * freq / sample_rate_;
         if (i == 0) {
             begin = omega;
@@ -57,10 +69,14 @@ void ChannelVocoder::UpdateFilters() {
         }
 
         float bw = omega - begin;
-        main_filters_[i - 1].MakeBandpass(omega, omega / (bw * scale_));
-        side_filters_[i - 1].MakeBandpass(omega, omega / (bw * scale_ * carry_scale_));
+        float q1 = omega / (bw * scale_);
+        float q2 = omega / (bw * carry_scale_);
+        main_filters_[i - 1].MakeBandpass(omega, q1);
+        side_filters_[i - 1].MakeBandpass(omega, q2);
         begin = omega;
+        gain_ += omega / q2;
     }
+    gain_ = 1.0f / gain_;
 }
 
 void ChannelVocoder::ProcessBlock(std::span<float> main_v, std::span<float> side_v) {
@@ -84,7 +100,7 @@ void ChannelVocoder::ProcessBlock(std::span<float> main_v, std::span<float> side
             float side_curr = side_filters_[j].Tick(side_in);
             out += side_curr * std::sqrt(main_latch + 1e-18f);
         }
-        main_v[i] = out / num_bans_;
+        main_v[i] = out * gain_;
     }
 }
 

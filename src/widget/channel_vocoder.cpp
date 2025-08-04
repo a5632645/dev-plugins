@@ -72,7 +72,7 @@ void ChannelVocoder::paint(juce::Graphics& g) {
     float x = bb.getX();
     for (int i = 0; i < nbands; ++i) {
         juce::Rectangle<float> rect{ x, bb.getY(), width * 0.5f, bb.getHeight() };
-        float gain = vocoder_.GetBinPeak(i) * nbands;
+        float gain = vocoder_.GetBinPeak(i);
 
         float db_gain = 20.0f * std::log10(gain + 1e-10f);
         if (db_gain < down) db_gain = down;
