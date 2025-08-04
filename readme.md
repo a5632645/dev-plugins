@@ -1,19 +1,28 @@
-# Green-Vocoder
+
+# Green-Vocoder  
+
 Real time music vocoder based on variable methods.  
+
+## features
+
 **Burg-LPC**: modified leaky add based burg linear prediate vocoder, 0 latency!.  
 **RLS-LPC**: recursion least square linear prediate vocoder, better than burg-lpc but takes lot's of cpu  
 **STFT-Vocoder**: unique fft Algorithm, from clear to noisy sound.  
 **Channel-Vocoder**: bandpass filter classic implemension.  
-> [!WARN]
-> The channel vocoder volume will explode in some parameters, please pay attension when you adjust parameters to protect your sound device and ear!.  
+> [!WARNING]
+> The channel vocoder will generate some high volume click when adjust parameters, please pay attention to your sound device and ear!
 
 **Ensemble**: An up to 16-vocices ensemble gives a chrous-like(or unison) sound.  
 > [!NOTE]
 > This project is still under development.
-# GUI
+
+## GUI
+
 ![GUI](resouce/gui2.png)
-# Build
-```
+
+## Build
+
+```bash
 git clone https://github.com/a5632645/Green-Vocoder.git
 git submodule update --init --recursive
 mkdir build
