@@ -11,6 +11,7 @@
 #include <array>
 #include <cstddef>
 #include <memory>
+#include "channel_mix.hpp"
 
 static const juce::StringArray kVocoderNames{
     "Burg-LPC",
@@ -564,9 +565,6 @@ void AudioPluginAudioProcessor::changeProgramName (int index, const juce::String
 //==============================================================================
 void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    main_buffer_.resize(samplesPerBlock);
-    side_buffer_.resize(samplesPerBlock);
-
     float fs = static_cast<float>(sampleRate);
     burg_lpc_.Init(fs);
     filter_.Init(fs);
@@ -622,9 +620,6 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    std::span left_block { buffer.getWritePointer(0), static_cast<size_t>(buffer.getNumSamples()) };
-    std::span right_block { buffer.getWritePointer(1), static_cast<size_t>(buffer.getNumSamples()) };
-
     int main_ch = main_channel_config_->get();
     int side_ch = side_channel_config_->get();
     if (buffer.getNumChannels() < 4) {
@@ -637,61 +632,9 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         }
     }
 
-    switch (main_ch) {
-    case 0:
-        std::copy_n(left_block.begin(), main_buffer_.size(), main_buffer_.begin());
-        break;
-    case 1:
-        std::copy_n(right_block.begin(), main_buffer_.size(), main_buffer_.begin());
-        break;
-    case 2:
-        for (size_t i = 0; i < main_buffer_.size(); i++) {
-            main_buffer_[i] = left_block[i] + right_block[i];
-        }
-        break;
-    case 3:
-        std::copy_n(buffer.getReadPointer(2), main_buffer_.size(), main_buffer_.begin());
-        break;
-    case 4:
-        std::copy_n(buffer.getReadPointer(3), main_buffer_.size(), main_buffer_.begin());
-        break;
-    case 5: {
-        auto* side_left = buffer.getReadPointer(2);
-        auto* side_right = buffer.getReadPointer(3);
-        for (size_t i = 0; i < main_buffer_.size(); i++) {
-            main_buffer_[i] = side_left[i] + side_right[i];
-        }
-    }
-        break;
-    }
-
-    switch (side_ch) {
-    case 0:
-        std::copy_n(left_block.begin(), side_buffer_.size(), side_buffer_.begin());
-        break;
-    case 1:
-        std::copy_n(right_block.begin(), side_buffer_.size(), side_buffer_.begin());
-        break;
-    case 2:
-        for (size_t i = 0; i < side_buffer_.size(); i++) {
-            side_buffer_[i] = left_block[i] + right_block[i];
-        }
-        break;
-    case 3:
-        std::copy_n(buffer.getReadPointer(2), side_buffer_.size(), side_buffer_.begin());
-        break;
-    case 4:
-        std::copy_n(buffer.getReadPointer(3), side_buffer_.size(), side_buffer_.begin());
-        break;
-    case 5: {
-        auto* side_left = buffer.getReadPointer(2);
-        auto* side_right = buffer.getReadPointer(3);
-        for (size_t i = 0; i < side_buffer_.size(); i++) {
-            side_buffer_[i] = side_left[i] + side_right[i];
-        }
-    }
-        break;
-    }    
+    auto channels = Mix(main_ch, side_ch, buffer);
+    auto& main_buffer_ = channels[0];
+    auto& side_buffer_ = channels[1];
 
     filter_.Process(main_buffer_);
     if (shifter_enabled_->get()) {
@@ -718,9 +661,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         break;
     }
 
-    std::copy_n(main_buffer_.begin(), main_buffer_.size(), left_block.begin());
-    ensemble_.Process(left_block, right_block);
-    output_gain_.Process(std::array{left_block, right_block});
+    ensemble_.Process(main_buffer_, side_buffer_);
+    output_gain_.Process(channels);
 }
 
 //==============================================================================

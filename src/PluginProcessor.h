@@ -166,9 +166,6 @@ public:
     dsp::Gain<2> output_gain_;
 
     juce::AudioParameterChoice* vocoder_type_param_{};
-
-    std::vector<float> main_buffer_;
-    std::vector<float> side_buffer_;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)
