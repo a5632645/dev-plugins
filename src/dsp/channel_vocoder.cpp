@@ -42,26 +42,35 @@ void ChannelVocoder::SetCarryScale(float scale) {
     UpdateFilters();
 }
 
-static float FreqToMel(float freq) {
-    return 1127.0f * std::log(1.0f + freq / 700.0f);
-}
+struct LogMap {
+    static float FromFreq(float freq) {
+        return std::log(freq);
+    }
+    
+    static float ToFreq(float log) {
+        return std::exp(log);
+    }
+};
 
-static float MelToFreq(float mel) {
-    return 700.0f * (std::exp(mel / 1127.0f) - 1.0f);
-}
+struct MelMap {
+    static float FromFreq(float freq) {
+        return 1127.0f * std::log(1.0f + freq / 700.0f);
+    }
+    
+    static float ToFreq(float mel) {
+        return 700.0f * (std::exp(mel / 1127.0f) - 1.0f);
+    }
+};
+using AssignMap = LogMap;
 
 void ChannelVocoder::UpdateFilters() {
-    float pitch_begin = std::log(freq_begin_);
-    float pitch_end = std::log(freq_end_);
-    // float pitch_begin = FreqToMel(freq_begin_);
-    // float pitch_end = FreqToMel(freq_end_);
+    float pitch_begin = AssignMap::FromFreq(freq_begin_);
+    float pitch_end = AssignMap::FromFreq(freq_end_);
     float pitch_interval = (pitch_end - pitch_begin) / num_bans_;
     float begin = 0.0f;
-    gain_ = 0.0f;
     for (int i = 0; i < num_bans_ + 1; ++i) {
         float pitch = pitch_begin + pitch_interval * i;
-        float freq = std::exp(pitch);
-        // float freq = MelToFreq(pitch);
+        float freq = AssignMap::ToFreq(pitch);
         float omega = std::numbers::pi_v<float> * 2.0f * freq / sample_rate_;
         if (i == 0) {
             begin = omega;
@@ -74,9 +83,10 @@ void ChannelVocoder::UpdateFilters() {
         main_filters_[i - 1].MakeBandpass(omega, q1);
         side_filters_[i - 1].MakeBandpass(omega, q2);
         begin = omega;
-        gain_ += omega / q2;
     }
-    gain_ = 1.0f / gain_;
+    float g1 = scale_ < 1.0f ? 1.0 / scale_ : 1.0f;
+    float g2 = carry_scale_ < 1.0f ? 1.0f / carry_scale_ : carry_scale_;
+    gain_ = g1 * g2 * 10.0f;
 }
 
 void ChannelVocoder::ProcessBlock(std::span<float> main_v, std::span<float> side_v) {

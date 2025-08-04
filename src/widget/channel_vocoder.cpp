@@ -69,8 +69,8 @@ void ChannelVocoder::paint(juce::Graphics& g) {
     g.setColour(juce::Colours::white);
     g.drawRect(bb);
 
-    constexpr float up = -30.0f;
-    constexpr float down = -60.0f;
+    constexpr float up = 0.0f;
+    constexpr float down = -120.0f;
 
     int nbands = vocoder_.GetNumBins();
     float width = bb.getWidth() / nbands;
@@ -80,10 +80,10 @@ void ChannelVocoder::paint(juce::Graphics& g) {
         float gain = vocoder_.GetBinPeak(i);
 
         float db_gain = 20.0f * std::log10(gain + 1e-10f);
-        if (db_gain < down) db_gain = down;
+        db_gain = std::clamp(db_gain, down, up);
         float y_nor = (db_gain - (down)) / (up - (down));
 
-        auto bin = rect.removeFromBottom(y_nor * rect.getWidth());
+        auto bin = rect.removeFromBottom(y_nor * rect.getHeight());
         g.setColour(juce::Colours::green);
         g.fillRect(bin);
 

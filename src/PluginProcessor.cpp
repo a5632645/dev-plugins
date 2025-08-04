@@ -186,7 +186,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterInt>(
             juce::ParameterID{id::kChannelVocoderNBands, 1},
             id::kChannelVocoderNBands,
-            8, dsp::ChannelVocoder::kMaxOrder, 12
+            4, dsp::ChannelVocoder::kMaxOrder, 16
         );
         paramListeners_.Add(p, [this](int v) {
             juce::ScopedLock _{ getCallbackLock() };
@@ -198,7 +198,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kChannelVocoderScale, 1},
             id::kChannelVocoderScale,
-            0.1f, 2.0f, 0.25f
+            0.25f, 2.0f, 1.0f
         );
         paramListeners_.Add(p, [this](float v) {
             juce::ScopedLock _{ getCallbackLock() };
@@ -210,7 +210,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kChannelVocoderCarryScale, 1},
             id::kChannelVocoderCarryScale,
-            0.25f, 4.0f, 4.0f
+            0.25f, 2.0f, 1.0f
         );
         paramListeners_.Add(p, [this](float v) {
             juce::ScopedLock _{ getCallbackLock() };

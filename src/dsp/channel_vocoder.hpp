@@ -1,12 +1,7 @@
 #pragma once
-#include <cstddef>
 #include <span>
 #include <array>
-#include "svf.hpp"
-
-/* TODO
- *   volume explode when high bands and low bandwidth, should has a normalization gain
-*/
+#include <cmath>
 
 namespace dsp {
 
@@ -52,8 +47,12 @@ public:
         const auto w = omega / std::pow(2.0f, halfbw);
         const auto g = DbToGain(-6 / static_cast<float>(kNumCascade * 2));
         const auto _q = std::sqrt(1 - g * g) * w * omega / g / (omega * omega - w * w);
+        gain_ = 1.0f;
         for (auto& f : svf_) {
             f.MakeBandpass(omega, _q);
+            // this will keep the spectrum volume
+            // the time-domain volume will change a bit
+            gain_ *= 1.0f / _q;
         }
     }
 
@@ -61,15 +60,17 @@ public:
         for (auto& f : svf_) {
             x = f.Tick(x);
         }
-        return x;
+        return x * gain_;
     }
+
+    float gain_{};
 private:
     T svf_[kNumCascade];
 };
 
 class ChannelVocoder {
 public:
-    static constexpr int kMaxOrder = 40;
+    static constexpr int kMaxOrder = 100;
 
     void Init(float sample_rate);
     void ProcessBlock(std::span<float> block, std::span<float> side);
