@@ -15,20 +15,20 @@ void Tooltips::MakeEnglishTooltips() {
     tooltips_.clear();
     labels_.clear();
 
-    labels_[id::kMainGain] = "MAIN";
-    tooltips_[id::kMainGain] = "control the main gain";
-    labels_[id::kSideGain] = "SIDE";
-    tooltips_[id::kSideGain] = "control the side gain";
+    labels_[id::kMainGain] = "MODU";
+    tooltips_[id::kMainGain] = "control the modulator gain";
+    labels_[id::kSideGain] = "CARRY";
+    tooltips_[id::kSideGain] = "control the carry gain";
     labels_[id::kOutputgain] = "OUTPUT";
     tooltips_[id::kOutputgain] = "control the output gain";
     labels_[id::kVocoderType] = "TYPE";
     tooltips_[id::kVocoderType] = "change the vocoder type";
     labels_[id::kEmphasisPitch] = "HSHELF";
-    tooltips_[id::kEmphasisPitch] = "set main high shelf filter cutoff pitch";
+    tooltips_[id::kEmphasisPitch] = "set modulator high shelf filter cutoff pitch";
     labels_[id::kEmphasisGain] = "GAIN";
-    tooltips_[id::kEmphasisGain] = "set main high shelf filter gain";
-    labels_[id::kEmphasisS] = "S";
-    tooltips_[id::kEmphasisS] = "set main high shelf filter resonance";
+    tooltips_[id::kEmphasisGain] = "set modulator high shelf filter gain";
+    labels_[id::kEmphasisS] = "SLOPE";
+    tooltips_[id::kEmphasisS] = "set modulator high shelf filter slope";
     labels_[id::kShiftPitch] = "PITCH";
     tooltips_[id::kShiftPitch] = "set main pitch shifter, this cause formant shift like effects";
 
@@ -80,7 +80,7 @@ void Tooltips::MakeEnglishTooltips() {
     labels_[id::kChannelVocoderRelease] = "RELEASE";
     tooltips_[id::kChannelVocoderRelease] = "envelope follower release";
     labels_[id::kChannelVocoderScale] = "SCALE";
-    tooltips_[id::kChannelVocoderScale] = "main bandpass bandwidth scale";
+    tooltips_[id::kChannelVocoderScale] = "modulator bandpass bandwidth scale";
     labels_[id::kChannelVocoderCarryScale] = "CSCALE";
     tooltips_[id::kChannelVocoderCarryScale] = "carry bandwidth scale";
 
@@ -95,8 +95,8 @@ void Tooltips::MakeEnglishTooltips() {
     labels_[id::combbox::kEnsembleModeNameIds[1]] = "Noise";
     labels_[id::kRLSTitle] = "RLS-LPC    Warning: Too lound audio will cause unstable";
     labels_[id::kSliderMenuEnterValue] = "Enter Value";
-    labels_[id::kMainChannelConfig] = "Main Channel";
-    labels_[id::kSideChannelConfig] = "Side Channel";
+    labels_[id::kMainChannelConfig] = "Modulator Channel";
+    labels_[id::kSideChannelConfig] = "Carry Channel";
 
     OnLanguageChanged();
 }
@@ -117,8 +117,8 @@ void Tooltips::MakeChineseTooltips() {
     tooltips_[id::kEmphasisPitch] = juce::String::fromUTF8("调制源高架滤波器截止音高");
     labels_[id::kEmphasisGain] = juce::String::fromUTF8("增益");
     tooltips_[id::kEmphasisGain] = juce::String::fromUTF8("调制源高架滤波器增益");
-    labels_[id::kEmphasisS] = juce::String::fromUTF8("共振");
-    tooltips_[id::kEmphasisS] = juce::String::fromUTF8("调制源高架滤波器共振");
+    labels_[id::kEmphasisS] = juce::String::fromUTF8("斜率");
+    tooltips_[id::kEmphasisS] = juce::String::fromUTF8("调制源高架滤波器斜率");
     labels_[id::kShiftPitch] = juce::String::fromUTF8("音高");
     tooltips_[id::kShiftPitch] = juce::String::fromUTF8("调制源音高移动,这会导致共振峰移动的效果");
 
