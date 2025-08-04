@@ -32,9 +32,9 @@ private:
     audiofft::AudioFFT fft_;
     std::array<float, kFFTSize> window_{};
     std::array<float, kFFTSize> hann_window_{};
-    std::array<float, 4096> main_inputBuffer_{};
-    std::array<float, 4096> side_inputBuffer_{};
-    std::array<float, 4096> main_outputBuffer_{};
+    std::array<float, 16384> main_inputBuffer_{};
+    std::array<float, 16384> side_inputBuffer_{};
+    std::array<float, 16384> main_outputBuffer_{};
     int numInput_{};
     int writeEnd_{};
     int writeAddBegin_{};
