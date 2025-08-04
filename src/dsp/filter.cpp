@@ -9,11 +9,10 @@ void Filter::Init(float sample_rate) {
 }
 
 float Filter::ProcessSingle(float x) {
-    auto t = x - a1_ * latch1_ - a2_ * latch2_;
-    auto y = t * b0_ + b1_ * latch1_ + b2_ * latch2_;
-    latch2_ = latch1_;
-    latch1_ = t;
-    return y;
+    auto output = x * b0_ + latch1_;
+    latch1_ = x * b1_ - output * a1_ + latch2_;
+    latch2_ = x * b2_ - output * a2_;
+    return output;
 }
 
 void Filter::Process(std::span<float> block) {
