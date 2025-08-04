@@ -7,12 +7,12 @@ class AudioPluginAudioProcessor;
 
 namespace widget {
 
-class STFTVocoder : public juce::Component, private juce::Timer, public tooltip::Tooltips::Listener {
+class STFTVocoder : public juce::Component, private juce::Timer {
 public:
     STFTVocoder(AudioPluginAudioProcessor& processor);
     void resized() override;
     void paint(juce::Graphics& g) override;
-    void OnLanguageChanged(tooltip::Tooltips& tooltips) override;
+    void OnLanguageChanged(tooltip::Tooltips& tooltips);
 private:
     void timerCallback() override;
 

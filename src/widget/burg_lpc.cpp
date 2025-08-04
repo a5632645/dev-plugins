@@ -27,12 +27,16 @@ BurgLPC::BurgLPC(AudioPluginAudioProcessor& processor)
     addAndMakeVisible(lpc_attack_);
     lpc_release_.BindParameter(apvts, id::kLPCGainRelease);
     addAndMakeVisible(lpc_release_);
-
-    tooltip::tooltips.AddListenerAndInvoke(this);
 }
 
 void BurgLPC::OnLanguageChanged(tooltip::Tooltips& strs) {
     lpc_label_.setText(strs.Label(id::combbox::kVocoderNameIds[0]), juce::NotificationType::dontSendNotification);
+    lpc_foorget_.OnLanguageChanged(strs);
+    lpc_smooth_.OnLanguageChanged(strs);
+    lpc_dicimate_.OnLanguageChanged(strs);
+    lpc_order_.OnLanguageChanged(strs);
+    lpc_attack_.OnLanguageChanged(strs);
+    lpc_release_.OnLanguageChanged(strs);
 }
 
 void BurgLPC::resized() {

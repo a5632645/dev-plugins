@@ -8,12 +8,12 @@ class AudioPluginAudioProcessor;
 
 namespace widget {
 
-class ChannelVocoder : public juce::Component, public tooltip::Tooltips::Listener {
+class ChannelVocoder : public juce::Component {
 public:
     ChannelVocoder(AudioPluginAudioProcessor& processor);
     void resized() override;
     void paint(juce::Graphics& g) override;
-    void OnLanguageChanged(tooltip::Tooltips& tooltips) override;
+    void OnLanguageChanged(tooltip::Tooltips& tooltips);
 private:
     dsp::ChannelVocoder& vocoder_;
     juce::Label label_;

@@ -63,7 +63,6 @@ VerticalSlider::VerticalSlider() {
 
 VerticalSlider::~VerticalSlider() {
     attach_ = nullptr;
-    tooltip::tooltips.RemoveListener(this);
 }
 
 void VerticalSlider::BindParameter(juce::AudioProcessorValueTreeState& apvts, const char* id) {
@@ -72,8 +71,6 @@ void VerticalSlider::BindParameter(juce::AudioProcessorValueTreeState& apvts, co
     attach_ = std::make_unique<juce::SliderParameterAttachment>(*p, slider_);
     
     id_ = id;
-    tooltip::tooltips.AddListener(this);
-    OnLanguageChanged(tooltip::tooltips);
 }
 
 void VerticalSlider::resized() {

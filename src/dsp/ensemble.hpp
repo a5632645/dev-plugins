@@ -45,6 +45,7 @@ private:
     float sample_rate_{};
     float lfo_phase_{};
     float current_delay_len_{};
+    float gain_{};
     
     std::vector<float> buffer_;
     int buffer_wpos_{};

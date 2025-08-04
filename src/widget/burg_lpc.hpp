@@ -7,13 +7,12 @@ class AudioPluginAudioProcessor;
 
 namespace widget {
 
-class BurgLPC : public juce::Component
-    , public tooltip::Tooltips::Listener {
+class BurgLPC : public juce::Component {
 public:
     BurgLPC(AudioPluginAudioProcessor& processor);
     void resized() override;
     void paint(juce::Graphics& g) override;
-    void OnLanguageChanged(tooltip::Tooltips& tooltips) override;
+    void OnLanguageChanged(tooltip::Tooltips& tooltips);
 private:
     AudioPluginAudioProcessor& processor_;
     juce::Label lpc_label_;

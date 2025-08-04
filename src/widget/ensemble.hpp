@@ -8,11 +8,11 @@ class AudioPluginAudioProcessor;
 
 namespace widget {
 
-class Ensemble : public juce::Component, public tooltip::Tooltips::Listener {
+class Ensemble : public juce::Component {
 public:
     Ensemble(AudioPluginAudioProcessor& p);
     void resized() override;
-    void OnLanguageChanged(tooltip::Tooltips& tooltips) override;
+    void OnLanguageChanged(tooltip::Tooltips& tooltips);
 private:
     juce::Label label_;
     ui::VerticalSlider num_voice_;

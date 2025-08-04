@@ -9,7 +9,7 @@
 
 namespace ui {
 
-class CombBox : public juce::Component, public tooltip::Tooltips::Listener {
+class CombBox : public juce::Component {
 public:
     CombBox() {
         addAndMakeVisible(label_);
@@ -19,17 +19,13 @@ public:
     void BindParam(juce::AudioProcessorValueTreeState& apvts, const char* id) {
         auto* param = apvts.getParameter(juce::String::fromUTF8(id));
         attach_ = std::make_unique<juce::ComboBoxParameterAttachment>(*param, combobox_);
-        // combobox_.addItemList(static_cast<juce::AudioParameterChoice*>(param)->choices, 1);
         
         id_ = id;
-        tooltip::tooltips.AddListener(this);
-        OnLanguageChanged(tooltip::tooltips);
-        combobox_.setSelectedItemIndex(static_cast<juce::AudioParameterChoice*>(param)->getIndex(), juce::NotificationType::dontSendNotification);
+        auto* choices = static_cast<juce::AudioParameterChoice*>(param);
+        combobox_.clear(juce::dontSendNotification);
+        combobox_.addItemList(choices->choices, 1);
+        combobox_.setSelectedItemIndex(static_cast<juce::AudioParameterChoice*>(param)->getIndex());
     }
-
-    // void SetShortName(juce::StringRef name) {
-    //     label_.setText(name, juce::dontSendNotification);
-    // }
 
     void resized() override {
         auto b = getLocalBounds();
@@ -37,7 +33,7 @@ public:
         combobox_.setBounds(b);
     }
 
-    void OnLanguageChanged(tooltip::Tooltips& tooltips) override {
+    void OnLanguageChanged(tooltip::Tooltips& tooltips) {
         label_.setText(tooltips.Label(id_), juce::NotificationType::dontSendNotification);
         combobox_.setTooltip(tooltips.Tooltip(id_));
 

@@ -58,36 +58,26 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     side_channel_selector_.BindParameter(apvts, id::kSideChannelConfig);
     addAndMakeVisible(side_channel_selector_);
 
-    vocoder_type_.BindParam(apvts, id::kVocoderType);
     vocoder_type_.combobox_.addListener(this);
+    vocoder_type_.BindParam(apvts, id::kVocoderType);
     addAndMakeVisible(vocoder_type_);
 
     language_box_.addItem("English", 1);
     language_box_.addItem(juce::String::fromUTF8("中文"), 2);
+    language_box_.addListener(this);
     language_box_.setSelectedItemIndex(0);
-    language_box_.onChange = [this] {
-        switch (language_box_.getSelectedItemIndex()) {
-        case 0:
-            tooltip::tooltips.MakeEnglishTooltips();
-            break;
-        case 1:
-            tooltip::tooltips.MakeChineseTooltips();
-            break;
-        }
-    };
     addAndMakeVisible(language_box_);
 
     addChildComponent(stft_vocoder_);
     addChildComponent(rls_lpc_);
     addChildComponent(burg_lpc_);
     addChildComponent(channel_vocoder_);
-    this->comboBoxChanged(&vocoder_type_.combobox_);
 
     addAndMakeVisible(ensemble_);
 
     setSize (550, 550);
     startTimerHz(30);
-    tooltip::tooltips.AddListenerAndInvoke(this);
+    OnLanguageChanged(tooltip::tooltips);
 }
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
@@ -105,6 +95,19 @@ void AudioPluginAudioProcessorEditor::OnLanguageChanged(tooltip::Tooltips& toolt
     filter_.setText(tooltips.Label(id::kFilterTitle), juce::dontSendNotification);
     main_channel_selector_.SetLabelName(tooltips.Label(id::kMainChannelConfig));
     side_channel_selector_.SetLabelName(tooltips.Label(id::kSideChannelConfig));
+    em_pitch_.OnLanguageChanged(tooltips);
+    em_gain_.OnLanguageChanged(tooltips);
+    em_s_.OnLanguageChanged(tooltips);
+    shift_pitch_.OnLanguageChanged(tooltips);
+    vocoder_type_.OnLanguageChanged(tooltips);
+    stft_vocoder_.OnLanguageChanged(tooltips);
+    burg_lpc_.OnLanguageChanged(tooltips);
+    rls_lpc_.OnLanguageChanged(tooltips);
+    channel_vocoder_.OnLanguageChanged(tooltips);
+    ensemble_.OnLanguageChanged(tooltips);
+    main_gain_.gain_slide_.OnLanguageChanged(tooltips);
+    side_gain_.gain_slide_.OnLanguageChanged(tooltips);
+    output_gain_.gain_slide_.OnLanguageChanged(tooltips);
 }
 
 void AudioPluginAudioProcessorEditor::resized() {
@@ -181,5 +184,16 @@ void AudioPluginAudioProcessorEditor::comboBoxChanged(juce::ComboBox* comboBoxTh
         }
 
         current_vocoder_widget_->setVisible(true);
+    }
+    else if (comboBoxThatHasChanged == &language_box_) {
+        switch (language_box_.getSelectedItemIndex()) {
+        case 0:
+            tooltip::tooltips.MakeEnglishTooltips();
+            break;
+        case 1:
+            tooltip::tooltips.MakeChineseTooltips();
+            break;
+        };
+        OnLanguageChanged(tooltip::tooltips);
     }
 }

@@ -97,8 +97,6 @@ void Tooltips::MakeEnglishTooltips() {
     labels_[id::kSliderMenuEnterValue] = "Enter Value";
     labels_[id::kMainChannelConfig] = "Modulator Channel";
     labels_[id::kSideChannelConfig] = "Carry Channel";
-
-    OnLanguageChanged();
 }
 
 void Tooltips::MakeChineseTooltips() {
@@ -187,8 +185,6 @@ void Tooltips::MakeChineseTooltips() {
     labels_[id::kSliderMenuEnterValue] = juce::String::fromUTF8("输入值");
     labels_[id::kMainChannelConfig] = juce::String::fromUTF8("调制源通道");
     labels_[id::kSideChannelConfig] = juce::String::fromUTF8("载波通道");
-
-    OnLanguageChanged();
 }
 
 Tooltips tooltips;

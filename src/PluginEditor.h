@@ -21,7 +21,6 @@
 class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor
     , private juce::Timer
     , private juce::ComboBox::Listener
-    , private tooltip::Tooltips::Listener
 {
 public:
     explicit AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor&);
@@ -30,7 +29,7 @@ public:
     //==============================================================================
     void paint (juce::Graphics&) override;
     void resized() override;
-    void OnLanguageChanged(tooltip::Tooltips& tooltips) override;
+    void OnLanguageChanged(tooltip::Tooltips& tooltips);
 private:
     void timerCallback() override;
     void comboBoxChanged (juce::ComboBox* comboBoxThatHasChanged) override;

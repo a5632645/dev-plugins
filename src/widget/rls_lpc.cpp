@@ -23,12 +23,15 @@ RLSLPC::RLSLPC(AudioPluginAudioProcessor& processor)
     addAndMakeVisible(lpc_attack_);
     lpc_release_.BindParameter(apvts, id::kLPCGainRelease);
     addAndMakeVisible(lpc_release_);
-
-    tooltip::tooltips.AddListenerAndInvoke(this);
 }
 
 void RLSLPC::OnLanguageChanged(tooltip::Tooltips& tooltips) {
     lpc_label_.setText(tooltips.Label(id::kRLSTitle), juce::dontSendNotification);
+    lpc_foorget_.OnLanguageChanged(tooltips);
+    lpc_dicimate_.OnLanguageChanged(tooltips);
+    lpc_order_.OnLanguageChanged(tooltips);
+    lpc_attack_.OnLanguageChanged(tooltips);
+    lpc_release_.OnLanguageChanged(tooltips);
 }
 
 void RLSLPC::resized() {

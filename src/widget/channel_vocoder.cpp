@@ -33,12 +33,17 @@ ChannelVocoder::ChannelVocoder(AudioPluginAudioProcessor& p)
 
     carry_scale_.BindParameter(apvts, id::kChannelVocoderCarryScale);
     addAndMakeVisible(carry_scale_);
-
-    tooltip::tooltips.AddListenerAndInvoke(this);
 }
 
 void ChannelVocoder::OnLanguageChanged(tooltip::Tooltips& strs) {
     label_.setText(strs.Label(id::combbox::kVocoderNameIds[3]), juce::dontSendNotification);
+    attack_.OnLanguageChanged(strs);
+    release_.OnLanguageChanged(strs);
+    nbands_.OnLanguageChanged(strs);
+    freq_begin_.OnLanguageChanged(strs);
+    freq_end_.OnLanguageChanged(strs);
+    scale_.OnLanguageChanged(strs);
+    carry_scale_.OnLanguageChanged(strs);
 }
 
 void ChannelVocoder::resized() {

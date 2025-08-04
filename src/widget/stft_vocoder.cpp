@@ -23,12 +23,14 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
 
     blend_.BindParameter(apvts, id::kStftBlend);
     addAndMakeVisible(blend_);
-    
-    tooltip::tooltips.AddListenerAndInvoke(this);
 }
 
 void STFTVocoder::OnLanguageChanged(tooltip::Tooltips& tooltips) {
     title_.setText(tooltips.Label(id::combbox::kVocoderNameIds[2]), juce::dontSendNotification);
+    bandwidth_.OnLanguageChanged(tooltips);
+    release_.OnLanguageChanged(tooltips);
+    attack_.OnLanguageChanged(tooltips);
+    blend_.OnLanguageChanged(tooltips);
 }
 
 void STFTVocoder::resized() {

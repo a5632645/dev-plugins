@@ -13,7 +13,7 @@ private:
     juce::PopupMenu menu_;
 };
 
-class VerticalSlider : public juce::Component, public tooltip::Tooltips::Listener {
+class VerticalSlider : public juce::Component {
 public:
     VerticalSlider();
     ~VerticalSlider() override;
@@ -21,7 +21,7 @@ public:
     void resized() override;
     MyPopmenuSlider slider_;
 
-    void OnLanguageChanged(tooltip::Tooltips& tooltips) override;
+    void OnLanguageChanged(tooltip::Tooltips& tooltips);
 private:
     juce::String short_name_;
     juce::Label label_;

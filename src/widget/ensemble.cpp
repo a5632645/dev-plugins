@@ -28,12 +28,16 @@ Ensemble::Ensemble(AudioPluginAudioProcessor& p) {
 
     mode_.BindParam(apvts, id::kEnsembleMode);
     addAndMakeVisible(mode_);
-
-    tooltip::tooltips.AddListenerAndInvoke(this);
 }
 
 void Ensemble::OnLanguageChanged(tooltip::Tooltips& tooltips) {
     label_.setText(tooltips.Label(id::kEnsembleTitle), juce::dontSendNotification);
+    num_voice_.OnLanguageChanged(tooltips);
+    detune_.OnLanguageChanged(tooltips);
+    spread_.OnLanguageChanged(tooltips);
+    mix_.OnLanguageChanged(tooltips);
+    rate_.OnLanguageChanged(tooltips);
+    mode_.OnLanguageChanged(tooltips);
 }
 
 void Ensemble::resized() {

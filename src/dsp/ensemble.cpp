@@ -62,6 +62,7 @@ void Ensemble::Init(float sample_rate) {
 
 void Ensemble::SetNumVoices(int num_voices) {
     num_voices_ = num_voices;
+    gain_ = 1.0f / std::sqrt(static_cast<float>(num_voices));
 }
 
 void Ensemble::SetDetune(float detune) {
@@ -133,8 +134,8 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
                 wet_left += v * (1.0f - pan) / 2.0f;
                 wet_right += v * (1.0f + pan) / 2.0f;
             }
-            block[i] = std::lerp(in, wet_left, mix_);
-            right[i] = std::lerp(in, wet_right, mix_);
+            block[i] = std::lerp(in, wet_left * gain_, mix_);
+            right[i] = std::lerp(in, wet_right * gain_, mix_);
     
             buffer_wpos_ = (buffer_wpos_ + 1) & buffer_len_mask_;
             lfo_phase_ += lfo_freq_;
@@ -176,8 +177,8 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
                 wet_left += v * (1.0f - pan) / 2.0f;
                 wet_right += v * (1.0f + pan) / 2.0f;
             }
-            block[i] = std::lerp(in, wet_left, mix_);
-            right[i] = std::lerp(in, wet_right, mix_);
+            block[i] = std::lerp(in, wet_left * gain_, mix_);
+            right[i] = std::lerp(in, wet_right * gain_, mix_);
     
             buffer_wpos_ = (buffer_wpos_ + 1) & buffer_len_mask_;
             lfo_phase_ += lfo_freq_;
