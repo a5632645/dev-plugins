@@ -2,6 +2,7 @@
 #include "dsp/channel_vocoder.hpp"
 #include "juce_gui_basics/juce_gui_basics.h"
 #include "tooltips.hpp"
+#include "ui/comb_box.hpp"
 #include "ui/vertical_slider.hpp"
 
 class AudioPluginAudioProcessor;
@@ -24,6 +25,7 @@ private:
     ui::VerticalSlider freq_end_;
     ui::VerticalSlider scale_;
     ui::VerticalSlider carry_scale_;
+    ui::CombBox map_;
 };
 
 }

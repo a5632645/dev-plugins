@@ -33,6 +33,9 @@ ChannelVocoder::ChannelVocoder(AudioPluginAudioProcessor& p)
 
     carry_scale_.BindParameter(apvts, id::kChannelVocoderCarryScale);
     addAndMakeVisible(carry_scale_);
+
+    map_.BindParam(apvts, id::kChannelVocoderMap);
+    addAndMakeVisible(map_);
 }
 
 void ChannelVocoder::OnLanguageChanged(tooltip::Tooltips& strs) {
@@ -44,6 +47,7 @@ void ChannelVocoder::OnLanguageChanged(tooltip::Tooltips& strs) {
     freq_end_.OnLanguageChanged(strs);
     scale_.OnLanguageChanged(strs);
     carry_scale_.OnLanguageChanged(strs);
+    map_.OnLanguageChanged(strs);
 }
 
 void ChannelVocoder::resized() {
@@ -57,6 +61,10 @@ void ChannelVocoder::resized() {
     freq_end_.setBounds(top.removeFromLeft(50));
     scale_.setBounds(top.removeFromLeft(50));
     carry_scale_.setBounds(top.removeFromLeft(50));
+    {
+        auto comb = top.removeFromLeft(150);
+        map_.setBounds(comb.removeFromTop(30));
+    }
 }
 
 void ChannelVocoder::paint(juce::Graphics& g) {

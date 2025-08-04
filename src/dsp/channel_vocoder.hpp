@@ -1,4 +1,5 @@
 #pragma once
+#include "param_ids.hpp"
 #include <span>
 #include <array>
 #include <cmath>
@@ -29,6 +30,27 @@ struct BandSVF {
         a1 = 1.0f / (1.0f + g * (g + k));
         a2 = g * a1;
         a3 = g * a2;
+    }
+
+    float Test(float v0) {
+        float max = 0.0f;
+        float _ic1eq = ic1eq;
+        float _ic2eq = ic2eq;
+        for (int i = 0; i < 8; ++i) {
+            float v3 = v0 - _ic2eq;
+            float v1 = a1 * _ic1eq + a2 * v3;
+            float v2 = _ic2eq + a2 * _ic1eq + a3 * v3;
+            _ic1eq = 2 * v1 - _ic1eq;
+            _ic2eq = 2 * v2 - _ic2eq;
+            max = std::max(max, std::abs(v1));
+            v0 = -v0 * 0.99f;
+        }
+        return max;
+    }
+
+    void Reset() {
+        ic1eq = 0.0f;
+        ic2eq = 0.0f;
     }
 };
 
@@ -63,6 +85,19 @@ public:
         return x * gain_;
     }
 
+    float Test(float x) {
+        for (auto& f : svf_) {
+            x = f.Test(x);
+        }
+        return x * gain_;
+    }
+
+    void Reset() {
+        for (auto& f : svf_) {
+            f.Reset();
+        }
+    }
+
     float gain_{};
 private:
     T svf_[kNumCascade];
@@ -82,12 +117,15 @@ public:
     void SetRelease(float release);
     void SetModulatorScale(float scale);
     void SetCarryScale(float scale);
+    void SetMap(eChannelVocoderMap map);
 
     int GetNumBins() const { return num_bans_; }
     float GetBinPeak(int idx) const { return main_peaks_[idx]; }
 
 private:
     void UpdateFilters();
+    template<class AssignMap>
+    void _UpdateFilters();
 
     float sample_rate_{};
     float freq_begin_{ 40.0f };
@@ -98,6 +136,7 @@ private:
     float scale_{1.0f};
     float carry_scale_{1.0f};
     float gain_{};
+    eChannelVocoderMap map_{};
     std::array<CascadeBPSVF<BandSVF>, kMaxOrder> main_filters_;
     std::array<CascadeBPSVF<BandSVF>, kMaxOrder> side_filters_;
     std::array<float, kMaxOrder> main_peaks_{};

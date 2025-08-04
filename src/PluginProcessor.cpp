@@ -7,9 +7,7 @@
 #include "juce_core/juce_core.h"
 #include "juce_core/system/juce_PlatformDefs.h"
 #include "param_ids.hpp"
-#include <algorithm>
 #include <array>
-#include <cstddef>
 #include <memory>
 #include "channel_mix.hpp"
 
@@ -18,6 +16,12 @@ static const juce::StringArray kVocoderNames{
     "RLS-LPC",
     "STFT-Vocoder",
     "Channel-Vocoder",
+};
+
+static const juce::StringArray kChannelVocoderMapNames{
+    "linear",
+    "mel",
+    "log"
 };
 
 //==============================================================================
@@ -215,6 +219,19 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float v) {
             juce::ScopedLock _{ getCallbackLock() };
             channel_vocoder_.SetCarryScale(v);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID{id::kChannelVocoderMap, 1},
+            id::kChannelVocoderMap,
+            kChannelVocoderMapNames,
+            eChannelVocoderMap_Log
+        );
+        paramListeners_.Add(p, [this](int i) {
+            juce::ScopedLock lock{getCallbackLock()};
+            channel_vocoder_.SetMap(static_cast<eChannelVocoderMap>(i));
         });
         layout.add(std::move(p));
     }

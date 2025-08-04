@@ -1,5 +1,7 @@
 #include "channel_vocoder.hpp"
+#include "param_ids.hpp"
 #include "utli.hpp"
+#include <cassert>
 #include <numbers>
 
 namespace dsp {
@@ -17,6 +19,14 @@ void ChannelVocoder::SetNumBands(int bands) {
 void ChannelVocoder::SetFreqBegin(float begin) {
     freq_begin_ = begin;
     UpdateFilters();
+    if (begin < 100.0f) {
+        for (auto& f : main_filters_) {
+            f.Reset();
+        }
+        for (auto& f : side_filters_) {
+            f.Reset();
+        }
+    }
 }
 
 void ChannelVocoder::SetFreqEnd(float end) {
@@ -42,6 +52,17 @@ void ChannelVocoder::SetCarryScale(float scale) {
     UpdateFilters();
 }
 
+void ChannelVocoder::SetMap(eChannelVocoderMap map) {
+    map_ = map;
+    UpdateFilters();
+    for (auto& f : main_filters_) {
+        f.Reset();
+    }
+    for (auto& f : side_filters_) {
+        f.Reset();
+    }
+}
+
 struct LogMap {
     static float FromFreq(float freq) {
         return std::log(freq);
@@ -61,9 +82,35 @@ struct MelMap {
         return 700.0f * (std::exp(mel / 1127.0f) - 1.0f);
     }
 };
-using AssignMap = LogMap;
+
+struct LinearMap {
+static float FromFreq(float freq) {
+        return freq;
+    }
+    
+    static float ToFreq(float freq) {
+        return freq;
+    }
+};
 
 void ChannelVocoder::UpdateFilters() {
+    switch (map_) {
+    case eChannelVocoderMap_Log:
+        this->template _UpdateFilters<LogMap>();
+        break;
+    case eChannelVocoderMap_Linear:
+        this->template _UpdateFilters<LinearMap>();
+        break;
+    case eChannelVocoderMap_Mel:
+        this->template _UpdateFilters<MelMap>();
+        break;
+    default:
+        assert(false);
+    }
+}
+
+template<class AssignMap>
+void ChannelVocoder::_UpdateFilters() {
     float pitch_begin = AssignMap::FromFreq(freq_begin_);
     float pitch_end = AssignMap::FromFreq(freq_end_);
     float pitch_interval = (pitch_end - pitch_begin) / num_bans_;
@@ -78,15 +125,17 @@ void ChannelVocoder::UpdateFilters() {
         }
 
         float bw = omega - begin;
-        float q1 = omega / (bw * scale_);
-        float q2 = omega / (bw * carry_scale_);
-        main_filters_[i - 1].MakeBandpass(omega, q1);
-        side_filters_[i - 1].MakeBandpass(omega, q2);
+        float cutoff = std::sqrt(begin * omega);
+        float q1 = cutoff / (bw * scale_);
+        float q2 = cutoff / (bw * carry_scale_);
+        main_filters_[i - 1].MakeBandpass(cutoff, q1);
+        side_filters_[i - 1].MakeBandpass(cutoff, q2);
+
         begin = omega;
     }
     float g1 = scale_ < 1.0f ? 1.0 / scale_ : 1.0f;
     float g2 = carry_scale_ < 1.0f ? 1.0f / carry_scale_ : carry_scale_;
-    gain_ = g1 * g2 * 10.0f;
+    gain_ = g1 * g2 * num_bans_ > 8 ? 10.0f : 2.0f;
 }
 
 void ChannelVocoder::ProcessBlock(std::span<float> main_v, std::span<float> side_v) {

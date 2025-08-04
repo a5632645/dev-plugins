@@ -9,6 +9,13 @@ enum eVocoderType {
     eVocoderType_NumVocoderTypes
 };
 
+enum eChannelVocoderMap {
+    eChannelVocoderMap_Linear = 0,
+    eChannelVocoderMap_Mel,
+    eChannelVocoderMap_Log,
+    eChannelVocoderMap_NumEnums
+};
+
 namespace id {
 
 // --------------------------------------------------------------------------------
@@ -56,6 +63,7 @@ static constexpr auto kChannelVocoderAttack = "cv_attack";
 static constexpr auto kChannelVocoderRelease = "cv_release";
 static constexpr auto kChannelVocoderScale = "cv_scale";
 static constexpr auto kChannelVocoderCarryScale = "cv_carry_scale";
+static constexpr auto kChannelVocoderMap = "cv_map";
 
 // --------------------------------------------------------------------------------
 // gui others
@@ -64,7 +72,9 @@ static constexpr auto kFilterTitle = "filter_title";
 static constexpr auto kEnsembleTitle = "ensemble_title";
 static constexpr auto kRLSTitle = "rls_title";
 static constexpr auto kSliderMenuEnterValue = "sm_enter_value";
+
 namespace combbox {
+
 static constexpr auto kVocoderNames = kVocoderType;
 static constexpr std::array kVocoderNameIds {
     "vn_burg",
@@ -73,11 +83,19 @@ static constexpr std::array kVocoderNameIds {
     "vn_channel",
 };
 static_assert(kVocoderNameIds.size() == eVocoderType_NumVocoderTypes);
+
 static constexpr auto kEnsembleModeNames = kEnsembleMode;
 static constexpr std::array kEnsembleModeNameIds {
     "emn_sine",
     "emn_noise"
 };
-}
 
-}
+static constexpr std::array kChannelVocoderMaps {
+    "cvm_linear",
+    "cvm_mel",
+    "cvm_log"
+};
+
+} // id::combbox
+
+} // id

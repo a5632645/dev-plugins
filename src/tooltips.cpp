@@ -7,6 +7,7 @@ namespace tooltip {
 Tooltips::Tooltips() {
     combbox_ids_[id::combbox::kEnsembleModeNames] = id::combbox::kEnsembleModeNameIds;
     combbox_ids_[id::combbox::kVocoderNames] = id::combbox::kVocoderNameIds;
+    combbox_ids_[id::kChannelVocoderMap] = id::combbox::kChannelVocoderMaps;
 
     MakeEnglishTooltips();
 }
@@ -83,6 +84,11 @@ void Tooltips::MakeEnglishTooltips() {
     tooltips_[id::kChannelVocoderScale] = "modulator bandpass bandwidth scale";
     labels_[id::kChannelVocoderCarryScale] = "CSCALE";
     tooltips_[id::kChannelVocoderCarryScale] = "carry bandwidth scale";
+    labels_[id::kChannelVocoderMap] = "MAP";
+    tooltips_[id::kChannelVocoderMap] = "select bandpass filter distribution type";
+    labels_[id::combbox::kChannelVocoderMaps[eChannelVocoderMap_Log]] = "Log";
+    labels_[id::combbox::kChannelVocoderMaps[eChannelVocoderMap_Mel]] = "Mel";
+    labels_[id::combbox::kChannelVocoderMaps[eChannelVocoderMap_Linear]] = "Linear";
 
     // guis
     labels_[id::kFilterTitle] = "Pre-Filter";
@@ -171,6 +177,11 @@ void Tooltips::MakeChineseTooltips() {
     tooltips_[id::kChannelVocoderScale] = juce::String::fromUTF8("调制源带通滤波器带宽缩放");
     labels_[id::kChannelVocoderCarryScale] = juce::String::fromUTF8("载波");
     tooltips_[id::kChannelVocoderCarryScale] = juce::String::fromUTF8("载波带通滤波器带宽缩放");
+    labels_[id::kChannelVocoderMap] = juce::String::fromUTF8("分布");
+    tooltips_[id::kChannelVocoderMap] = juce::String::fromUTF8("带通滤波器频率分布");
+    labels_[id::combbox::kChannelVocoderMaps[eChannelVocoderMap_Log]] = juce::String::fromUTF8("对数");
+    labels_[id::combbox::kChannelVocoderMaps[eChannelVocoderMap_Mel]] = juce::String::fromUTF8("梅尔");
+    labels_[id::combbox::kChannelVocoderMaps[eChannelVocoderMap_Linear]] = juce::String::fromUTF8("线性");
 
     // guis
     labels_[id::kFilterTitle] = juce::String::fromUTF8("预滤波");
