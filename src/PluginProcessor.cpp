@@ -691,13 +691,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         }
     }
         break;
-    }
-
-
-    if (current_vocoder_type_ != vocoder_type_param_->getIndex()) {
-        current_vocoder_type_ = vocoder_type_param_->getIndex();
-    }
-    
+    }    
 
     filter_.Process(main_buffer_);
     if (shifter_enabled_->get()) {
@@ -706,7 +700,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     main_gain_.Process(main_buffer_);
     side_gain_.Process(side_buffer_);
 
-    switch (current_vocoder_type_) {
+    switch (vocoder_type_param_->getIndex()) {
     case eVocoderType_BurgLPC:
         burg_lpc_.Process(main_buffer_, side_buffer_);
         break;

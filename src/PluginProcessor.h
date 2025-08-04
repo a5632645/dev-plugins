@@ -166,7 +166,6 @@ public:
     dsp::Gain<2> output_gain_;
 
     juce::AudioParameterChoice* vocoder_type_param_{};
-    int current_vocoder_type_ = 0;
 
     std::vector<float> main_buffer_;
     std::vector<float> side_buffer_;
