@@ -130,9 +130,9 @@ void FIXED_RLSLPC<LPC_SIZE>::SetGainRelease(float ms) {
 // --------------------------------------------------------------------------------
 class RLSLPC {
 public:
-    static constexpr int kNumLPC = 6;
+    static constexpr int kNumLPC = 5;
     static constexpr std::array kLPCOrders {
-        8, 10, 15, 20, 30, 40
+        8, 16, 24, 32, 40
     };
 
     void Init(float fs);
@@ -162,10 +162,9 @@ private:
     }
 
     internal::FIXED_RLSLPC<8> lpc8_;
-    internal::FIXED_RLSLPC<10> lpc10_;
-    internal::FIXED_RLSLPC<15> lpc15_;
-    internal::FIXED_RLSLPC<20> lpc20_;
-    internal::FIXED_RLSLPC<30> lpc35_;
+    internal::FIXED_RLSLPC<16> lpc16_;
+    internal::FIXED_RLSLPC<24> lpc24_;
+    internal::FIXED_RLSLPC<32> lpc32_;
     internal::FIXED_RLSLPC<40> lpc40_;
     int order_{};
     Filter main_downsample_filter_;
