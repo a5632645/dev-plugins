@@ -1,11 +1,6 @@
-/*
- * TODO: add more channels
-*/
-
 #pragma once
 #include <span>
 #include <cmath>
-#include <type_traits>
 
 namespace dsp {
 
@@ -28,22 +23,22 @@ public:
     void Process(std::array<std::span<float>, NCHANNEL> block) {
         for (int channel = 0; channel < NCHANNEL; ++channel) {
             float peak = peak_[channel];
+            peak *= decay_;
             for (float& s : block[channel]) {
                 s *= gain_;
                 if (std::abs(s) > peak) peak = std::abs(s);
             }
-            peak *= decay_;
             peak_[channel] = peak;
         }
     }
 
     void Process(std::span<float> block) {
         float peak = peak_[0];
+        peak *= decay_;
         for (float& s : block) {
             s *= gain_;
             if (std::abs(s) > peak) peak = std::abs(s);
         }
-        peak *= decay_;
         peak_[0] = peak;
     }
 

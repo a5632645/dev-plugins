@@ -35,6 +35,7 @@ public:
         for (int channel = 0; channel < nchannel; ++channel) {
             float peak = gain_.GetPeak(channel);
             float db = 20.0f * std::log10(peak + 1e-10f);
+            db = std::clamp(db, kMinDb, kMaxDb);
             float norm = (db - kMinDb) / (kMaxDb - kMinDb);
             float h = e.getHeight() * norm;
             if (peak > 1.0f) {
