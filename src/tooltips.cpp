@@ -198,6 +198,4 @@ void Tooltips::MakeChineseTooltips() {
     labels_[id::kSideChannelConfig] = juce::String::fromUTF8("载波通道");
 }
 
-Tooltips tooltips;
-
 }

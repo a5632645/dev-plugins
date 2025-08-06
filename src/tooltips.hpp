@@ -20,6 +20,4 @@ private:
     std::unordered_map<const char*, std::span<const char* const>> combbox_ids_;
 };
 
-extern Tooltips tooltips;
-
 }

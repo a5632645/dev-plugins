@@ -1,4 +1,5 @@
 #include "vertical_slider.hpp"
+#include "PluginEditor.h"
 #include "juce_core/juce_core.h"
 #include "juce_events/juce_events.h"
 #include "juce_gui_basics/juce_gui_basics.h"
@@ -9,13 +10,20 @@ namespace ui {
 void MyPopmenuSlider::mouseDown(const juce::MouseEvent& e) {
     juce::ModifierKeys keys = juce::ModifierKeys::getCurrentModifiers();
     if (keys.isPopupMenu()) {
+        AudioPluginAudioProcessorEditor* ed = findParentComponentOfClass<AudioPluginAudioProcessorEditor>();
+        if (ed == nullptr) {
+            return;
+        }
+        auto& tpis = ed->tooltips_;
+
         menu_.clear();
-        menu_.addItem(tooltip::tooltips.Label(id::kSliderMenuEnterValue), [this]{
+        menu_.addItem(tpis.Label(id::kSliderMenuEnterValue),
+         [this, &tooltips = ed->tooltips_]{
             auto* editor = new juce::TextEditor;
             editor->setText(this->getTextFromValue(this->getValue()));
 
             juce::DialogWindow::LaunchOptions op;
-            op.dialogTitle = tooltip::tooltips.Label(id::kSliderMenuEnterValue);
+            op.dialogTitle = tooltips.Label(id::kSliderMenuEnterValue);
             op.escapeKeyTriggersCloseButton = true;
             op.useNativeTitleBar = true;
             op.resizable = false;

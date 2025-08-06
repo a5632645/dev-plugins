@@ -78,9 +78,9 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addAndMakeVisible(ensemble_);
     addAndMakeVisible(performance_);
 
-    setSize (550, 600);
+    setSize (550, 550);
     startTimerHz(30);
-    OnLanguageChanged(tooltip::tooltips);
+    OnLanguageChanged(tooltips_);
 }
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
@@ -142,11 +142,9 @@ void AudioPluginAudioProcessorEditor::resized() {
         vocoder_type_.setBounds(b.removeFromTop(30));
     }
     {
-        performance_.setBounds(b.removeFromBottom(50));
-    }
-    {
         auto top = b.removeFromBottom(120);
         ensemble_.setBounds(top);
+        performance_.setBounds(ensemble_.getBounds().removeFromRight(300).removeFromBottom(50));
     }
     {
         burg_lpc_.setBounds(b);
@@ -195,12 +193,12 @@ void AudioPluginAudioProcessorEditor::comboBoxChanged(juce::ComboBox* comboBoxTh
     else if (comboBoxThatHasChanged == &language_box_) {
         switch (language_box_.getSelectedItemIndex()) {
         case 0:
-            tooltip::tooltips.MakeEnglishTooltips();
+            tooltips_.MakeEnglishTooltips();
             break;
         case 1:
-            tooltip::tooltips.MakeChineseTooltips();
+            tooltips_.MakeChineseTooltips();
             break;
         };
-        OnLanguageChanged(tooltip::tooltips);
+        OnLanguageChanged(tooltips_);
     }
 }

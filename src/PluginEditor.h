@@ -31,13 +31,15 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void OnLanguageChanged(tooltip::Tooltips& tooltips);
+
+    tooltip::Tooltips tooltips_;
 private:
     void timerCallback() override;
     void comboBoxChanged (juce::ComboBox* comboBoxThatHasChanged) override;
 
+    ui::MyLookAndFeel myLookAndFeel_;
     AudioPluginAudioProcessor& processorRef;
     juce::TooltipWindow tooltip_window_;
-    ui::MyLookAndFeel myLookAndFeel_;
 
     juce::Label filter_;
     ui::VerticalSlider em_pitch_;
