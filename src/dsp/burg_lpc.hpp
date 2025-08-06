@@ -14,7 +14,6 @@ public:
     float ProcessSingle(float x, float exci);
 
     void SetForget(float forget);
-    void SetLearn(float learn) { learn_ = learn; }
     void SetSmooth(float smooth);
     void SetLPCOrder(int order);
     void SetGainAttack(float ms);
@@ -30,14 +29,16 @@ private:
     float upsample_latch_{};
 
     ExpSmoother<float> gain_smooth_;
+    float gain_attack_{};
+    float gain_release_{};
     int dicimate_{};
     int dicimate_counter_{};
 
     float sample_rate_{};
     float forget_{};
     float forget_ms_{};
-    float learn_{};
     float smooth_{};
+    float smooth_ms_{};
     int lpc_order_{};
 
     std::array<float, kNumPoles> lattice_k_{};

@@ -72,7 +72,8 @@ float BurgLPC::ProcessSingle(float x, float exci) {
 }
 
 void BurgLPC::SetSmooth(float smooth) {
-    smooth_ = std::exp(-1.0f / (sample_rate_ * smooth / 1000.0f));
+    smooth_ms_ = smooth;
+    smooth_ = std::exp(-1.0f / ((sample_rate_ / dicimate_) * smooth / 1000.0f));
 }
 
 void BurgLPC::SetForget(float forget_ms) {
@@ -95,10 +96,12 @@ void BurgLPC::SetLPCOrder(int order) {
 }
 
 void BurgLPC::SetGainAttack(float ms) {
+    gain_attack_ = ms;
     gain_smooth_.SetAttackTime(ms);
 }
 
 void BurgLPC::SetGainRelease(float ms) {
+    gain_release_ = ms;
     gain_smooth_.SetReleaseTime(ms);
 }
 
@@ -114,6 +117,10 @@ void BurgLPC::SetDicimate(int dicimate) {
     upsample_filter_.MakeDownSample(dicimate);
     upsample_latch_ = 0.0f;
     SetForget(forget_ms_);
+    SetSmooth(smooth_ms_);
+    gain_smooth_.Init(sample_rate_ / dicimate);
+    gain_smooth_.SetAttackTime(gain_attack_);
+    gain_smooth_.SetReleaseTime(gain_release_);
 }
 
 }
