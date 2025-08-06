@@ -75,19 +75,21 @@ void RLSLPC::SetForgetRate(float ms) {
 }
 
 void RLSLPC::SetGainAttack(float ms) {
-    lpc8_.SetGainAttack(ms);
-    lpc16_.SetGainAttack(ms);
-    lpc24_.SetGainAttack(ms);
-    lpc32_.SetGainAttack(ms);
-    lpc40_.SetGainAttack(ms);
+    gain_attack_ = ms;
+    lpc8_.SetGainAttack(ms, sample_rate_ / dicimate_);
+    lpc16_.SetGainAttack(ms, sample_rate_ / dicimate_);
+    lpc24_.SetGainAttack(ms, sample_rate_ / dicimate_);
+    lpc32_.SetGainAttack(ms, sample_rate_ / dicimate_);
+    lpc40_.SetGainAttack(ms, sample_rate_ / dicimate_);
 }
 
 void RLSLPC::SetGainRelease(float ms) {
-    lpc8_.SetGainRelease(ms);
-    lpc16_.SetGainRelease(ms);
-    lpc24_.SetGainRelease(ms);
-    lpc32_.SetGainRelease(ms);
-    lpc40_.SetGainRelease(ms);
+    gain_release_ = ms;
+    lpc8_.SetGainRelease(ms, sample_rate_ / dicimate_);
+    lpc16_.SetGainRelease(ms, sample_rate_ / dicimate_);
+    lpc24_.SetGainRelease(ms, sample_rate_ / dicimate_);
+    lpc32_.SetGainRelease(ms, sample_rate_ / dicimate_);
+    lpc40_.SetGainRelease(ms, sample_rate_ / dicimate_);
 }
 
 void RLSLPC::SetOrder(int order) {
@@ -119,6 +121,8 @@ void RLSLPC::SetDicimate(int dicimate) {
     side_downsample_filter_.MakeDownSample(dicimate);
     upsample_latch_ = 0.0f;
     SetForgetRate(forget_ms_);
+    SetGainAttack(gain_attack_);
+    SetGainRelease(gain_release_);
 }
 
 } // namespace dsp

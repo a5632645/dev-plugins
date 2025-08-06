@@ -7,7 +7,6 @@
 namespace dsp {
 void BurgLPC::Init(float sample_rate) {
     sample_rate_ = sample_rate;
-    gain_smooth_.Init(sample_rate);
     main_downsample_filter_.Init(sample_rate);
     side_downsample_filter_.Init(sample_rate);
     upsample_filter_.Init(sample_rate);
@@ -97,12 +96,12 @@ void BurgLPC::SetLPCOrder(int order) {
 
 void BurgLPC::SetGainAttack(float ms) {
     gain_attack_ = ms;
-    gain_smooth_.SetAttackTime(ms);
+    gain_smooth_.SetAttackTime(ms, sample_rate_ / dicimate_);
 }
 
 void BurgLPC::SetGainRelease(float ms) {
     gain_release_ = ms;
-    gain_smooth_.SetReleaseTime(ms);
+    gain_smooth_.SetReleaseTime(ms, sample_rate_ / dicimate_);
 }
 
 void BurgLPC::CopyLatticeCoeffient(std::span<float> buffer) {
@@ -118,9 +117,8 @@ void BurgLPC::SetDicimate(int dicimate) {
     upsample_latch_ = 0.0f;
     SetForget(forget_ms_);
     SetSmooth(smooth_ms_);
-    gain_smooth_.Init(sample_rate_ / dicimate);
-    gain_smooth_.SetAttackTime(gain_attack_);
-    gain_smooth_.SetReleaseTime(gain_release_);
+    gain_smooth_.SetAttackTime(gain_attack_, sample_rate_ / dicimate);
+    gain_smooth_.SetReleaseTime(gain_release_, sample_rate_ / dicimate);
 }
 
 }

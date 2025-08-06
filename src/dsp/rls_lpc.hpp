@@ -23,15 +23,15 @@ public:
     static constexpr int order = LPC_SIZE;
 
     void Init(float fs);
-    void Process(std::span<float> block, std::span<float> block2);
-    float ProcessSingle(float x, float exci);
+    inline void Process(std::span<float> block, std::span<float> block2);
+    inline float ProcessSingle(float x, float exci);
     constexpr int GetOrder() const { return LPC_SIZE; }
     void CopyTransferFunction(std::span<float> buffer);
 
     void SetForgetParam(float forget);
     void SetLPCOrder(int order);
-    void SetGainAttack(float ms);
-    void SetGainRelease(float ms);
+    void SetGainAttack(float ms, float fs);
+    void SetGainRelease(float ms, float fs);
 private:
     float sample_rate_{};
     double forget_ = 0.999f;
@@ -49,7 +49,6 @@ template <int LPC_SIZE>
 void FIXED_RLSLPC<LPC_SIZE>::Init(float fs) {
     sample_rate_ = fs;
     forget_ = std::exp(-1.0f / (fs * 20.0f / 1000.0f));
-    gain_smoother_.Init(fs);
 
     identity_.setIdentity();
     p_.noalias() = identity_ * 0.01;
@@ -114,13 +113,13 @@ void FIXED_RLSLPC<LPC_SIZE>::SetForgetParam(float forget) {
 }
 
 template <int LPC_SIZE>
-void FIXED_RLSLPC<LPC_SIZE>::SetGainAttack(float ms) {
-    gain_smoother_.SetAttackTime(ms);
+void FIXED_RLSLPC<LPC_SIZE>::SetGainAttack(float ms, float fs) {
+    gain_smoother_.SetAttackTime(ms, fs);
 }
 
 template <int LPC_SIZE>
-void FIXED_RLSLPC<LPC_SIZE>::SetGainRelease(float ms) {
-    gain_smoother_.SetReleaseTime(ms);
+void FIXED_RLSLPC<LPC_SIZE>::SetGainRelease(float ms, float fs) {
+    gain_smoother_.SetReleaseTime(ms, fs);
 }
 
 } // namespace internal
@@ -174,6 +173,8 @@ private:
     int dicimate_ = 1;
     int dicimate_counter_ = 1;
     float forget_ms_{};
+    float gain_attack_{};
+    float gain_release_{};
     float sample_rate_{};
 };
 
