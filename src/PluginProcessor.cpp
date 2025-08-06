@@ -6,6 +6,7 @@
 #include "juce_audio_processors/juce_audio_processors.h"
 #include "juce_core/juce_core.h"
 #include "juce_core/system/juce_PlatformDefs.h"
+#include "juce_data_structures/juce_data_structures.h"
 #include "param_ids.hpp"
 #include <array>
 #include <chrono>
@@ -703,13 +704,17 @@ juce::AudioProcessorEditor* AudioPluginAudioProcessor::createEditor()
 //==============================================================================
 void AudioPluginAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    (void)destData;
+    if (auto state = value_tree_->copyState().createXml()) {
+        copyXmlToBinary(*state, destData);
+    }
 }
 
 void AudioPluginAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    (void)data;
-    (void)sizeInBytes;
+    auto state = juce::ValueTree::fromXml(*getXmlFromBinary(data, sizeInBytes));
+    if (state.isValid()) {
+        value_tree_->replaceState(state);
+    }
 }
 
 void AudioPluginAudioProcessor::Panic() {
