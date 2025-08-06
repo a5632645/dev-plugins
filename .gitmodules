@@ -10,3 +10,6 @@
 [submodule "LibPyin"]
 	path = LibPyin
 	url = https://github.com/xstreck1/LibPyin.git
+[submodule "simde"]
+	path = simde
+	url = https://github.com/simd-everywhere/simde.git
