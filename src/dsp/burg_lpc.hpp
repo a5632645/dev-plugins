@@ -2,7 +2,7 @@
 #include <span>
 #include <array>
 #include "ExpSmoother.hpp"
-#include "Filter.hpp"
+#include "filter.hpp"
 
 namespace dsp {
 

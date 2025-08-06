@@ -8,6 +8,7 @@
 #include "juce_core/system/juce_PlatformDefs.h"
 #include "param_ids.hpp"
 #include <array>
+#include <chrono>
 #include <memory>
 #include "channel_mix.hpp"
 
@@ -187,14 +188,15 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterInt>(
+        auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kChannelVocoderNBands, 1},
             id::kChannelVocoderNBands,
-            4, dsp::ChannelVocoder::kMaxOrder, 16
+            juce::NormalisableRange<float>(dsp::ChannelVocoder::kMinOrder, dsp::ChannelVocoder::kMaxOrder, 4),
+            16
         );
-        paramListeners_.Add(p, [this](int v) {
+        paramListeners_.Add(p, [this](float v) {
             juce::ScopedLock _{ getCallbackLock() };
-            channel_vocoder_.SetNumBands(v);
+            channel_vocoder_.SetNumBands(static_cast<int>(std::round(v)));
         });
         layout.add(std::move(p));
     }
@@ -202,7 +204,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kChannelVocoderScale, 1},
             id::kChannelVocoderScale,
-            0.25f, 2.0f, 1.0f
+            0.1f, 2.0f, 1.0f
         );
         paramListeners_.Add(p, [this](float v) {
             juce::ScopedLock _{ getCallbackLock() };
@@ -214,7 +216,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kChannelVocoderCarryScale, 1},
             id::kChannelVocoderCarryScale,
-            0.25f, 2.0f, 1.0f
+            0.1f, 2.0f, 1.0f
         );
         paramListeners_.Add(p, [this](float v) {
             juce::ScopedLock _{ getCallbackLock() };
@@ -630,6 +632,8 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
+    auto begin_time = std::chrono::high_resolution_clock::now();
+
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
@@ -680,6 +684,9 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     ensemble_.Process(main_buffer_, side_buffer_);
     output_gain_.Process(channels);
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    process_ns_ = std::chrono::duration_cast<std::chrono::microseconds>(end_time - begin_time).count();
 }
 
 //==============================================================================

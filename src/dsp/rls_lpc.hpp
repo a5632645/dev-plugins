@@ -132,7 +132,7 @@ class RLSLPC {
 public:
     static constexpr int kNumLPC = 5;
     static constexpr std::array kLPCOrders {
-        8, 16, 24, 32, 40
+        8, 12, 16, 20, 24
     };
 
     void Init(float fs);
@@ -161,11 +161,11 @@ private:
         }
     }
 
-    internal::FIXED_RLSLPC<8> lpc8_;
-    internal::FIXED_RLSLPC<16> lpc16_;
-    internal::FIXED_RLSLPC<24> lpc24_;
-    internal::FIXED_RLSLPC<32> lpc32_;
-    internal::FIXED_RLSLPC<40> lpc40_;
+    internal::FIXED_RLSLPC<kLPCOrders[0]> lpc8_;
+    internal::FIXED_RLSLPC<kLPCOrders[1]> lpc16_;
+    internal::FIXED_RLSLPC<kLPCOrders[2]> lpc24_;
+    internal::FIXED_RLSLPC<kLPCOrders[3]> lpc32_;
+    internal::FIXED_RLSLPC<kLPCOrders[4]> lpc40_;
     int order_{};
     Filter main_downsample_filter_;
     Filter side_downsample_filter_;

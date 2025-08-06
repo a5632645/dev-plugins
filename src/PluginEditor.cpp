@@ -9,6 +9,7 @@
 #include "tooltips.hpp"
 #include "widget/channel_vocoder.hpp"
 #include "widget/ensemble.hpp"
+#include "widget/performance.hpp"
 #include "widget/stft_vocoder.hpp"
 
 //==============================================================================
@@ -23,6 +24,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     , rls_lpc_(p)
     , channel_vocoder_(p)
     , ensemble_(p)
+    , performance_(p)
 {
     setLookAndFeel(&myLookAndFeel_);
     tooltip_window_.setLookAndFeel(&myLookAndFeel_);
@@ -74,8 +76,9 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addChildComponent(channel_vocoder_);
 
     addAndMakeVisible(ensemble_);
+    addAndMakeVisible(performance_);
 
-    setSize (550, 550);
+    setSize (550, 600);
     startTimerHz(30);
     OnLanguageChanged(tooltip::tooltips);
 }
@@ -139,6 +142,9 @@ void AudioPluginAudioProcessorEditor::resized() {
         vocoder_type_.setBounds(b.removeFromTop(30));
     }
     {
+        performance_.setBounds(b.removeFromBottom(50));
+    }
+    {
         auto top = b.removeFromBottom(120);
         ensemble_.setBounds(top);
     }
@@ -157,6 +163,7 @@ void AudioPluginAudioProcessorEditor::timerCallback() {
     main_gain_.repaint();
     side_gain_.repaint();
     output_gain_.repaint();
+    performance_.Update();
 }
 
 void AudioPluginAudioProcessorEditor::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) {

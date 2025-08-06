@@ -78,7 +78,7 @@ void ChannelVocoder::paint(juce::Graphics& g) {
     g.drawRect(bb);
 
     constexpr float up = 0.0f;
-    constexpr float down = -120.0f;
+    constexpr float down = -60.0f;
 
     int nbands = vocoder_.GetNumBins();
     float width = bb.getWidth() / nbands;

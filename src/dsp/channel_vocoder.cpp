@@ -2,6 +2,7 @@
 #include "param_ids.hpp"
 #include "utli.hpp"
 #include <cassert>
+#include <cstddef>
 #include <numbers>
 
 namespace dsp {
@@ -139,28 +140,60 @@ void ChannelVocoder::_UpdateFilters() {
 }
 
 void ChannelVocoder::ProcessBlock(std::span<float> main_v, std::span<float> side_v) {
-    int nsamples = static_cast<int>(main_v.size());
-    for (int i = 0; i < nsamples; ++i) {
-        float in = main_v[i];
-        float side_in = side_v[i];
-        float out = 0.0f;
-        for (int j = 0; j < num_bans_; ++j) {
-            float main_curr = main_filters_[j].Tick(in);
+    if (output_.size() < main_v.size()) {
+        output_.resize(main_v.size());
+    }
+    std::fill(output_.begin(), output_.end(), float{});
+
+    size_t nsamples = main_v.size();
+    int nbans = num_bans_ / 4 * 4;
+    for (int bin = 0; bin < nbans; ++bin) {
+        for (size_t i = 0; i < nsamples; ++i) {
+            float modu = main_v[i];
+            float carry = side_v[i];
+            float main_curr = main_filters_[bin].Tick(modu);
             main_curr = main_curr * main_curr;
-            float main_latch = main_peaks_[j];
+            main_curr = std::sqrt(main_curr + 1e-18f);
+            float main_latch = main_peaks_[bin];
             if (main_curr > main_latch) {
                 main_latch = main_latch * attack_ + (1.0f - attack_) * main_curr;
             }
             else {
                 main_latch = main_latch * release_ + (1.0f - release_) * main_curr;
             }
-            main_peaks_[j] = main_latch;
+            main_peaks_[bin] = main_latch;
 
-            float side_curr = side_filters_[j].Tick(side_in);
-            out += side_curr * std::sqrt(main_latch + 1e-18f);
+            float side_curr = side_filters_[bin].Tick(carry);
+            output_[i] += side_curr * main_latch;
         }
-        main_v[i] = out * gain_;
     }
+    for (size_t i = 0; i < nsamples; ++i) {
+        main_v[i] = gain_ * output_[i];
+    }
+
+    // int nsamples = static_cast<int>(main_v.size());
+    // for (int i = 0; i < nsamples; ++i) {
+    //     float in = main_v[i];
+    //     float side_in = side_v[i];
+    //     float out = 0.0f;
+    //     for (int j = 0; j < num_bans_; ++j) {
+    //         float main_curr = main_filters_[j].Tick(in);
+    //         main_curr = main_curr * main_curr;
+    //         main_curr = std::sqrt(main_curr + 1e-18f);
+    //         float main_latch = main_peaks_[j];
+    //         if (main_curr > main_latch) {
+    //             main_latch = main_latch * attack_ + (1.0f - attack_) * main_curr;
+    //         }
+    //         else {
+    //             main_latch = main_latch * release_ + (1.0f - release_) * main_curr;
+    //         }
+    //         main_peaks_[j] = main_latch;
+
+    //         float side_curr = side_filters_[j].Tick(side_in);
+    //         out += side_curr * main_latch;
+    //     }
+    //     main_v[i] = out * gain_;
+    // }
 }
 
 }

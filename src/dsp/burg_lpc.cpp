@@ -38,12 +38,6 @@ float BurgLPC::ProcessSingle(float x, float exci) {
             efsum_[i] = forget_ * efsum_[i] + up;
             ebsum_[i] = forget_ * ebsum_[i] + down;
             lattice_k_[i] = -2.0f * efsum_[i] / ebsum_[i];
-            // if (lattice_k_[i] >= 1.0f - 1e-6f) {
-            //     lattice_k_[i] = 1.0f - 1e-6f;
-            // }
-            // else if (lattice_k_[i] < -(1.0f - 1e-6f)) {
-            //     lattice_k_[i] = -(1.0f - 1e-6f);
-            // }
             ef_out_[i + 1] = ef_out_[i] + lattice_k_[i] * eb_latch_[i];
             eb_out_[i + 1] = eb_latch_[i] + lattice_k_[i] * ef_out_[i];
             eb_latch_[i] = eb_out_[i];

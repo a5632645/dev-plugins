@@ -16,6 +16,7 @@
 #include "widget/channel_vocoder.hpp"
 #include "widget/gain.hpp"
 #include "widget/ensemble.hpp"
+#include "widget/performance.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor
@@ -61,6 +62,7 @@ private:
     juce::Component* current_vocoder_widget_{};
 
     widget::Ensemble ensemble_;
+    widget::Performance performance_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };
