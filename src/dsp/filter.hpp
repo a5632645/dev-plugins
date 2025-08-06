@@ -7,7 +7,12 @@ class Filter {
 public:
     void Init(float sample_rate);
     void Process(std::span<float> block);
-    float ProcessSingle(float x);
+    float ProcessSingle(float x) {
+        auto output = x * b0_ + latch1_;
+        latch1_ = x * b1_ - output * a1_ + latch2_;
+        latch2_ = x * b2_ - output * a2_;
+        return output;
+    }
     void MakeHighShelf(float db_gain, float freq, float s);
     void MakeHighPass(float pitch);
     void MakeDownSample(int dicimate);

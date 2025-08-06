@@ -15,7 +15,7 @@ public:
 
     PitchShifter();
     void Process(std::span<float> block);
-    float ProcessSingle(float x);
+    inline float ProcessSingle(float x);
     void SetPitchShift(float pitch);
 
 private:
