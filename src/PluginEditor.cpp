@@ -24,7 +24,9 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     , rls_lpc_(p)
     , channel_vocoder_(p)
     , ensemble_(p)
+#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
     , performance_(p)
+#endif
 {
     setLookAndFeel(&myLookAndFeel_);
     tooltip_window_.setLookAndFeel(&myLookAndFeel_);
@@ -76,7 +78,9 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addChildComponent(channel_vocoder_);
 
     addAndMakeVisible(ensemble_);
+#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
     addAndMakeVisible(performance_);
+#endif
 
     setSize (550, 550);
     startTimerHz(30);
@@ -144,7 +148,9 @@ void AudioPluginAudioProcessorEditor::resized() {
     {
         auto top = b.removeFromBottom(120);
         ensemble_.setBounds(top);
+#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
         performance_.setBounds(ensemble_.getBounds().removeFromRight(300).removeFromBottom(50));
+#endif
     }
     {
         burg_lpc_.setBounds(b);
@@ -161,7 +167,9 @@ void AudioPluginAudioProcessorEditor::timerCallback() {
     main_gain_.repaint();
     side_gain_.repaint();
     output_gain_.repaint();
+#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
     performance_.Update();
+#endif
 }
 
 void AudioPluginAudioProcessorEditor::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) {

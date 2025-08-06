@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstddef>
 
+#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
 namespace widget {
 
 void Performance::paint(juce::Graphics& g) {
@@ -54,3 +55,4 @@ void Performance::Update() {
 }
 
 }
+#endif

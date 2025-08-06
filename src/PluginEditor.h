@@ -64,7 +64,9 @@ private:
     juce::Component* current_vocoder_widget_{};
 
     widget::Ensemble ensemble_;
+#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
     widget::Performance performance_;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };

@@ -166,7 +166,9 @@ public:
     dsp::Gain<2> output_gain_;
 
     juce::AudioParameterChoice* vocoder_type_param_{};
+#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
     int process_ns_{};
+#endif
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)

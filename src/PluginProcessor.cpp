@@ -633,7 +633,9 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
+#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
     auto begin_time = std::chrono::high_resolution_clock::now();
+#endif
 
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
@@ -686,8 +688,10 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     ensemble_.Process(main_buffer_, side_buffer_);
     output_gain_.Process(channels);
 
+#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
     auto end_time = std::chrono::high_resolution_clock::now();
     process_ns_ = std::chrono::duration_cast<std::chrono::microseconds>(end_time - begin_time).count();
+#endif
 }
 
 //==============================================================================

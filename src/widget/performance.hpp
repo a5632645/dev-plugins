@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
 class AudioPluginAudioProcessor;
 
 namespace widget {
@@ -25,3 +26,4 @@ private:
 };
 
 }
+#endif
