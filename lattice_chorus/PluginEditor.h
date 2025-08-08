@@ -3,6 +3,7 @@
 #include "juce_graphics/juce_graphics.h"
 #include "juce_gui_basics/juce_gui_basics.h"
 #include "ui/look_and_feel.hpp"
+#include "ui/toggle_button.hpp"
 #include "ui/vertical_slider.hpp"
 #include "widget/performance.hpp"
 
@@ -33,6 +34,8 @@ private:
     ui::VerticalSlider freq_;
     ui::VerticalSlider num_;
     ui::VerticalSlider mix_;
+    ui::ToggleButton mono_;
+    juce::Label text_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };

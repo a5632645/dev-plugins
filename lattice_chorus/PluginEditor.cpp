@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "dsp/lattice_apf.hpp"
+#include "juce_events/juce_events.h"
 #include "juce_graphics/juce_graphics.h"
 #include "param_ids.hpp"
 #include "ui/vertical_slider.hpp"
@@ -39,8 +40,14 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     mix_.SetShortName("mix");
     mix_.slider_.setTooltip("dry wet");
     addAndMakeVisible(mix_);
+    mono_.BindParameter(apvsts, id::kMono);
+    mono_.setTooltip("use mono modulator");
+    mono_.setButtonText("mono noise");
+    addAndMakeVisible(mono_);
+    text_.setText("push ref down or increase modulation when unstable", juce::dontSendNotification);
+    addAndMakeVisible(text_);
 
-    setSize (300, 100);
+    setSize (300, 130);
     // startTimerHz(30);
 }
 
@@ -56,7 +63,10 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
 }
 
 void AudioPluginAudioProcessorEditor::resized() {
-    auto b = getLocalBounds().removeFromTop(100);
+    auto b = getLocalBounds();
+    auto top = b.removeFromTop(30);
+    mono_.setBounds(top.removeFromRight(100));
+    text_.setBounds(top);
     reflection_.setBounds(b.removeFromLeft(50));
     begin_.setBounds(b.removeFromLeft(50));
     end_.setBounds(b.removeFromLeft(50));

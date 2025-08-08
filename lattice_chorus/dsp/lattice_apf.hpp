@@ -1,9 +1,10 @@
 #pragma once
 #include "delay_line.hpp"
 #include "noise.hpp"
-#include "thiran_filter.hpp"
+#include <algorithm>
 #include <cstddef>
 #include <array>
+#include <span>
 
 namespace dsp {
 class LatticeBlock {
@@ -47,31 +48,79 @@ public:
     static constexpr size_t kNumBlock = 8;
 
     void Init(float max_ms, float fs) {
-        for (auto& b : block_) {
+        for (auto& b : left_block_) {
             b.Init(max_ms, fs);
         }
-        for (auto& n : noise_) {
+        for (auto& n : left_noise_) {
+            n.Init(fs);
+            n.Reset();
+        }
+        for (auto& b : rigt_block_) {
+            b.Init(max_ms, fs);
+        }
+        for (auto& n : right_noise_) {
             n.Init(fs);
             n.Reset();
         }
         fs_ = fs;
     }
 
-    float Tick(float x) {
-        float y = x;
-        // update delay time
-        for (size_t i = 0; i < num_block_; ++i) {
-            block_[i].SetDelay(std::lerp(begin_, end_, noise_[i].Tick()), fs_);
-        }
+    void Process(std::span<float> left, std::span<float> right) {
+        size_t num_blocks = left.size();
+        if (mono_modulator_) {
+            for (size_t i = 0; i < num_blocks; ++i) {
+                float x = left[i];
+                float xr = right[i];
+                float y = x;
+                float yr = xr;
+                // update delay time
+                for (size_t i = 0; i < num_block_; ++i) {
+                    left_block_[i].SetDelay(std::lerp(begin_, end_, left_noise_[i].Tick()), fs_);
+                    rigt_block_[i].SetDelay(std::lerp(begin_, end_, left_noise_[i].Tick()), fs_);
+                }
 
-        // process
-        for (size_t i = 0; i < num_block_; ++i) {
-            x = block_[i].TickUp(x);
+                // process
+                for (size_t i = 0; i < num_block_; ++i) {
+                    x = left_block_[i].TickUp(x);
+                    xr = rigt_block_[i].TickUp(xr);
+                }
+                for (int i = num_block_ - 1; i >= 0; --i) {
+                    x = left_block_[i].TickDown(x);
+                    xr = rigt_block_[i].TickDown(xr);
+                }
+                x = std::clamp(x, -4.0f, 4.0f);
+                xr = std::clamp(xr, -4.0f, 4.0f);
+                left[i] = std::lerp(y, x, mix_);
+                right[i] = std::lerp(yr, xr, mix_);
+            }
         }
-        for (int i = num_block_ - 1; i >= 0; --i) {
-            x = block_[i].TickDown(x);
+        else {
+           for (size_t i = 0; i < num_blocks; ++i) {
+                float x = left[i];
+                float xr = right[i];
+                float y = x;
+                float yr = xr;
+                // update delay time
+                for (size_t i = 0; i < num_block_; ++i) {
+                    left_block_[i].SetDelay(std::lerp(begin_, end_, left_noise_[i].Tick()), fs_);
+                    rigt_block_[i].SetDelay(std::lerp(begin_, end_, right_noise_[i].Tick()), fs_);
+                }
+
+                // process
+                for (size_t i = 0; i < num_block_; ++i) {
+                    x = left_block_[i].TickUp(x);
+                    xr = rigt_block_[i].TickUp(xr);
+                }
+                for (int i = num_block_ - 1; i >= 0; --i) {
+                    x = left_block_[i].TickDown(x);
+                    xr = rigt_block_[i].TickDown(xr);
+                }
+                x = std::clamp(x, -4.0f, 4.0f);
+                xr = std::clamp(xr, -4.0f, 4.0f);
+                left[i] = std::lerp(y, x, mix_);
+                right[i] = std::lerp(yr, xr, mix_);
+            }
         }
-        return std::lerp(y, x, mix_);
     }
 
     // --------------------------------------------------------------------------------
@@ -89,20 +138,29 @@ public:
 
     void SetDelayBegin(float begin) {
         begin_ = begin;
+        _CheckRange();
     }
 
     void SetDelayEnd(float end) {
         end_ = end;
+        _CheckRange();
     }
 
     void SetFrequency(float freq) {
-        for (auto& n : noise_) {
+        for (auto& n : left_noise_) {
+            n.SetRate(freq);
+        }
+        for (auto& n : right_noise_) {
             n.SetRate(freq);
         }
     }
 
     void SetMix(float mix) {
         mix_ = mix;
+    }
+
+    void SetMono(bool p) {
+        mono_modulator_ = p;
     }
 private:
     void _CalcK() {
@@ -114,18 +172,35 @@ private:
         else if (k < -max_k) {
             k = -max_k;
         }
-        for (auto& f : block_) {
+        for (auto& f : left_block_) {
+            f.SetK(k);
+        }
+        for (auto& f : rigt_block_) {
             f.SetK(k);
         }
     }
 
-    std::array<LatticeBlock, kNumBlock> block_;
+    void _CheckRange() {
+        if (std::abs(begin_ - end_) < 5.0f) {
+            if (begin_ > end_) {
+                begin_ = end_ + 5.0f;
+            }
+            else {
+                end_ = begin_ + 5.0f;
+            }
+        }
+    }
+
+    std::array<LatticeBlock, kNumBlock> left_block_;
+    std::array<LatticeBlock, kNumBlock> rigt_block_;
     size_t num_block_{};
     float begin_{};
     float end_{};
     float fs_{};
     float used_k_{};
     float mix_{};
-    dsp::Noise noise_[kNumBlock];
+    bool mono_modulator_{};
+    dsp::Noise left_noise_[kNumBlock];
+    dsp::Noise right_noise_[kNumBlock];
 };
 }

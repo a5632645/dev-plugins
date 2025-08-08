@@ -14,7 +14,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                      #if ! JucePlugin_IsMidiEffect
                       #if ! JucePlugin_IsSynth
                        .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                       .withInput("Sidechain", juce::AudioChannelSet::stereo(), true)
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
@@ -25,7 +24,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kK, 1},
             id::kK,
-            -0.5f, 0.5f, 0.2f
+            -0.9f, 0.9f, 0.2f
         );
         paramListeners_.Add(p, [this](float f){
             juce::ScopedLock lock{getCallbackLock()};
@@ -90,6 +89,18 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](int f){
             juce::ScopedLock lock{getCallbackLock()};
             dsp_.SetNumBlock(f);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{id::kMono, 1},
+            id::kMono,
+            false
+        );
+        paramListeners_.Add(p, [this](bool p){
+            juce::ScopedLock lock{getCallbackLock()};
+            dsp_.SetMono(p);
         });
         layout.add(std::move(p));
     }
@@ -216,10 +227,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     std::span left{buffer.getWritePointer(0), static_cast<size_t>(buffer.getNumSamples())};
     std::span right{buffer.getWritePointer(1), static_cast<size_t>(buffer.getNumSamples())};
-    for (auto& s : left) {
-        s = dsp_.Tick(s);
-    }
-    std::copy(left.begin(), left.end(), right.begin());
+    dsp_.Process(left, right);
 }
 
 //==============================================================================
