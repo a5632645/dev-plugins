@@ -48,11 +48,11 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     altk_.setTooltip("pos neg switch inner reflection");
     altk_.setButtonText("alt");
     addAndMakeVisible(altk_);
-    text_.setText("please move ref slowly", juce::dontSendNotification);
+    text_.setText("High volume warning", juce::dontSendNotification);
+    text_.setTooltip("please move ref slowly, it's normal when moving high to low value causing extreme volume");
     addAndMakeVisible(text_);
 
     setSize (300, 130);
-    // startTimerHz(30);
 }
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {

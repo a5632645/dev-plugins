@@ -1,6 +1,7 @@
 #pragma once
 #include "delay_line.hpp"
 #include "noise.hpp"
+#include "smoother.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <array>
@@ -63,20 +64,33 @@ public:
             n.Reset();
         }
         fs_ = fs;
+        begin_smooth_.SetSmoothTime(50.0f, fs);
+        end_smooth_.SetSmoothTime(50.0f, fs);
+        for (size_t i = 0; i < kNumBlock; ++i) {
+            k_smooth_[i].SetSmoothTime(10.0f + 10.0f * i, fs);
+        }
     }
 
     void Process(std::span<float> left, std::span<float> right) {
-        size_t num_blocks = left.size();
+        size_t num_samples = left.size();
         if (mono_modulator_) {
-            for (size_t i = 0; i < num_blocks; ++i) {
+            for (size_t i = 0; i < num_samples; ++i) {
+                float begin_time = begin_smooth_.Tick();
+                float end_time = end_smooth_.Tick();
+                for (size_t i = 0; i < num_block_; ++i) {
+                    float k = k_smooth_[i].Tick();
+                    left_block_[i].SetK(k);
+                    rigt_block_[i].SetK(k);
+                }
+
                 float x = left[i];
                 float xr = right[i];
                 float y = x;
                 float yr = xr;
                 // update delay time
                 for (size_t i = 0; i < num_block_; ++i) {
-                    left_block_[i].SetDelay(std::lerp(begin_, end_, left_noise_[i].Tick()), fs_);
-                    rigt_block_[i].SetDelay(std::lerp(begin_, end_, left_noise_[i].Tick()), fs_);
+                    left_block_[i].SetDelay(std::lerp(begin_time, end_time, left_noise_[i].Tick()), fs_);
+                    rigt_block_[i].SetDelay(std::lerp(begin_time, end_time, left_noise_[i].Tick()), fs_);
                 }
 
                 // process
@@ -95,15 +109,23 @@ public:
             }
         }
         else {
-           for (size_t i = 0; i < num_blocks; ++i) {
+            for (size_t i = 0; i < num_samples; ++i) {
+                float begin_time = begin_smooth_.Tick();
+                float end_time = end_smooth_.Tick();
+                for (size_t i = 0; i < num_block_; ++i) {
+                    float k = k_smooth_[i].Tick();
+                    left_block_[i].SetK(k);
+                    rigt_block_[i].SetK(k);
+                }
+
                 float x = left[i];
                 float xr = right[i];
                 float y = x;
                 float yr = xr;
                 // update delay time
                 for (size_t i = 0; i < num_block_; ++i) {
-                    left_block_[i].SetDelay(std::lerp(begin_, end_, left_noise_[i].Tick()), fs_);
-                    rigt_block_[i].SetDelay(std::lerp(begin_, end_, right_noise_[i].Tick()), fs_);
+                    left_block_[i].SetDelay(std::lerp(begin_time, end_time, left_noise_[i].Tick()), fs_);
+                    rigt_block_[i].SetDelay(std::lerp(begin_time, end_time, right_noise_[i].Tick()), fs_);
                 }
 
                 // process
@@ -137,13 +159,11 @@ public:
     }
 
     void SetDelayBegin(float begin) {
-        begin_ = begin;
-        _CheckRange();
+        begin_smooth_.SetTarget(begin);
     }
 
     void SetDelayEnd(float end) {
-        end_ = end;
-        _CheckRange();
+        end_smooth_.SetTarget(end);
     }
 
     void SetFrequency(float freq) {
@@ -169,38 +189,21 @@ public:
     }
 private:
     void _CalcK() {
-        float max_k = 2.0f / num_block_;
         float k = used_k_;
-        // if (k > max_k) {
-        //     k = max_k;
-        // }
-        // else if (k < -max_k) {
-        //     k = -max_k;
-        // }
         for (size_t i = 0; i < kNumBlock; ++i) {
             float kk = i % 2 == 0 ? k : -k;
             if (!alt_k_) kk = k;
-            left_block_[i].SetK(kk);
-            rigt_block_[i].SetK(kk);
+            // left_block_[i].SetK(kk);
+            // rigt_block_[i].SetK(kk);
+            k_smooth_[i].SetTarget(kk);
         }
-    }
-
-    void _CheckRange() {
-        // if (std::abs(begin_ - end_) < 5.0f) {
-        //     if (begin_ > end_) {
-        //         begin_ = end_ + 5.0f;
-        //     }
-        //     else {
-        //         end_ = begin_ + 5.0f;
-        //     }
-        // }
     }
 
     std::array<LatticeBlock, kNumBlock> left_block_;
     std::array<LatticeBlock, kNumBlock> rigt_block_;
     size_t num_block_{};
-    float begin_{};
-    float end_{};
+    // float begin_{};
+    // float end_{};
     float fs_{};
     float used_k_{};
     float mix_{};
@@ -208,5 +211,8 @@ private:
     bool alt_k_{};
     dsp::Noise left_noise_[kNumBlock];
     dsp::Noise right_noise_[kNumBlock];
+    dsp::ConstantTimeSmoother begin_smooth_;
+    dsp::ConstantTimeSmoother end_smooth_;
+    dsp::ExpSmoother k_smooth_[kNumBlock];
 };
 }
