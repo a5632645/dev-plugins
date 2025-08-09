@@ -24,7 +24,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kK, 1},
             id::kK,
-            -0.9f, 0.9f, 0.2f
+            -0.8f, 0.8f, 0.2f
         );
         paramListeners_.Add(p, [this](float f){
             juce::ScopedLock lock{getCallbackLock()};
@@ -36,7 +36,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kBegin, 1},
             id::kBegin,
-            0.1f, 80.0f, 5.0f
+            0.0f, 80.0f, 5.0f
         );
         paramListeners_.Add(p, [this](float f){
             juce::ScopedLock lock{getCallbackLock()};
@@ -48,7 +48,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kEnd, 1},
             id::kEnd,
-            0.1f, 80.0f, 20.0f
+            0.0f, 80.0f, 20.0f
         );
         paramListeners_.Add(p, [this](float f){
             juce::ScopedLock lock{getCallbackLock()};
@@ -60,7 +60,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kFreq, 1},
             id::kFreq,
-            0.1f, 5.0f, 0.5f
+            0.0f, 5.0f, 0.5f
         );
         paramListeners_.Add(p, [this](float f){
             juce::ScopedLock lock{getCallbackLock()};
@@ -72,7 +72,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kMix, 1},
             id::kMix,
-            0.0f, 1.0f, 0.5f
+            0.0f, 1.0f, 1.0f
         );
         paramListeners_.Add(p, [this](float f){
             juce::ScopedLock lock{getCallbackLock()};
@@ -101,6 +101,18 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](bool p){
             juce::ScopedLock lock{getCallbackLock()};
             dsp_.SetMono(p);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{id::kAltK, 1},
+            id::kAltK,
+            false
+        );
+        paramListeners_.Add(p, [this](bool p){
+            juce::ScopedLock lock{getCallbackLock()};
+            dsp_.SetAltK(p);
         });
         layout.add(std::move(p));
     }

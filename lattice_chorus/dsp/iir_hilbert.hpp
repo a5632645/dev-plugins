@@ -1,25 +1,22 @@
 #pragma once
+#include <complex>
 
 namespace dsp {
 class IIRHilbert {
 public:
-    struct AnalyzeSignal {
-        float real;
-        float imag;
-    };
-
-    AnalyzeSignal Tick(float x) {
-        AnalyzeSignal r;
-        r.imag = latch_;
-        r.real = real0_.Tick(x);
-        r.real = real1_.Tick(r.real);
-        r.real = real2_.Tick(r.real);
-        r.real = real3_.Tick(r.real);
+    std::complex<float> Tick(float x) {
+        float real{};
+        float imag{};
+        real = real0_.Tick(x);
+        real = real1_.Tick(real);
+        real = real2_.Tick(real);
+        real = real3_.Tick(real);
+        imag = latch_;
         latch_ = imag0_.Tick(x);
         latch_ = imag1_.Tick(latch_);
         latch_ = imag2_.Tick(latch_);
         latch_ = imag3_.Tick(latch_);
-        return r;
+        return {real, imag};
     }
 private:
     template<float alpha>

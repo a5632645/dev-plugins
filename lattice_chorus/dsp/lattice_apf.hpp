@@ -45,7 +45,7 @@ private:
 
 class LatticeAPF {
 public:
-    static constexpr size_t kNumBlock = 8;
+    static constexpr size_t kNumBlock = 16;
 
     void Init(float max_ms, float fs) {
         for (auto& b : left_block_) {
@@ -162,33 +162,38 @@ public:
     void SetMono(bool p) {
         mono_modulator_ = p;
     }
+
+    void SetAltK(bool k) {
+        alt_k_ = k;
+        _CalcK();
+    }
 private:
     void _CalcK() {
         float max_k = 2.0f / num_block_;
         float k = used_k_;
-        if (k > max_k) {
-            k = max_k;
-        }
-        else if (k < -max_k) {
-            k = -max_k;
-        }
-        for (auto& f : left_block_) {
-            f.SetK(k);
-        }
-        for (auto& f : rigt_block_) {
-            f.SetK(k);
+        // if (k > max_k) {
+        //     k = max_k;
+        // }
+        // else if (k < -max_k) {
+        //     k = -max_k;
+        // }
+        for (size_t i = 0; i < kNumBlock; ++i) {
+            float kk = i % 2 == 0 ? k : -k;
+            if (!alt_k_) kk = k;
+            left_block_[i].SetK(kk);
+            rigt_block_[i].SetK(kk);
         }
     }
 
     void _CheckRange() {
-        if (std::abs(begin_ - end_) < 5.0f) {
-            if (begin_ > end_) {
-                begin_ = end_ + 5.0f;
-            }
-            else {
-                end_ = begin_ + 5.0f;
-            }
-        }
+        // if (std::abs(begin_ - end_) < 5.0f) {
+        //     if (begin_ > end_) {
+        //         begin_ = end_ + 5.0f;
+        //     }
+        //     else {
+        //         end_ = begin_ + 5.0f;
+        //     }
+        // }
     }
 
     std::array<LatticeBlock, kNumBlock> left_block_;
@@ -200,6 +205,7 @@ private:
     float used_k_{};
     float mix_{};
     bool mono_modulator_{};
+    bool alt_k_{};
     dsp::Noise left_noise_[kNumBlock];
     dsp::Noise right_noise_[kNumBlock];
 };

@@ -42,9 +42,13 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addAndMakeVisible(mix_);
     mono_.BindParameter(apvsts, id::kMono);
     mono_.setTooltip("use mono modulator");
-    mono_.setButtonText("mono noise");
+    mono_.setButtonText("mono");
     addAndMakeVisible(mono_);
-    text_.setText("push ref down or increase modulation when unstable", juce::dontSendNotification);
+    altk_.BindParameter(apvsts, id::kAltK);
+    altk_.setTooltip("pos neg switch inner reflection");
+    altk_.setButtonText("alt");
+    addAndMakeVisible(altk_);
+    text_.setText("please move ref slowly", juce::dontSendNotification);
     addAndMakeVisible(text_);
 
     setSize (300, 130);
@@ -65,7 +69,8 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
 void AudioPluginAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
     auto top = b.removeFromTop(30);
-    mono_.setBounds(top.removeFromRight(100));
+    altk_.setBounds(top.removeFromRight(60));
+    mono_.setBounds(top.removeFromRight(60));
     text_.setBounds(top);
     reflection_.setBounds(b.removeFromLeft(50));
     begin_.setBounds(b.removeFromLeft(50));

@@ -35,6 +35,7 @@ private:
     ui::VerticalSlider num_;
     ui::VerticalSlider mix_;
     ui::ToggleButton mono_;
+    ui::ToggleButton altk_;
     juce::Label text_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
