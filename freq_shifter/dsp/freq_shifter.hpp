@@ -1,7 +1,7 @@
 #pragma once
 #include <span>
 #include "qwqdsp/iir_hilbert4.hpp"
-#include "qwqdsp/osciilor/mcf_sine_osc.hpp"
+#include "qwqdsp/osciilor/dr_sine_osc.hpp"
 
 namespace dsp {
 class FreqShifter {
@@ -26,7 +26,7 @@ public:
         osc_.SetFreq(freq, fs_);
     }
 private:
-    qwqdsp::FullMCFSineOsc osc_;
+    qwqdsp::DROscFull osc_;
     qwqdsp::IIRHilbertFull<16> hilbert_;
     float fs_;
 };
