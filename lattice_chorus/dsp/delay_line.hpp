@@ -38,6 +38,10 @@ public:
         int irpos = static_cast<int>(rpos) & mask_;
         return buffer_[irpos];
     }
+
+    void Reset() {
+        std::fill(buffer_.begin(), buffer_.end(), float{});
+    }
 private:
     float Get(float delay) {
         float rpos = wpos_ + buffer_.size() - delay;
@@ -48,7 +52,7 @@ private:
             int inext3 = (irpos + 3) & mask_;
             int iprev1 = (irpos - 1) & mask_;
             float t = rpos - static_cast<int>(rpos);
-            return Interpolation::PCHIP(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
+            return Interpolation::CatmullRomSpline(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
         }
         else {
             return buffer_[irpos];

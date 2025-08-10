@@ -56,18 +56,74 @@ struct Interpolation {
         );
     }
 
-    // TODO: fix these
-    // static float Spline(
-    //     float yn1, float y0, float y1, float y2,
-    //     float frac
-    // ) {
-    //     auto d0 = (y1 - yn1) / 2.0f;
-    //     auto d1 = (y2 - y0) / 2.0f;
-    //     auto d = y1 - y0;
-    //     auto t = frac * frac * (3.0f - 2.0f * frac);
-    //     return (2.0f * y0 - 2.0f * y1 + d0 + d1) * t + d * frac;
-    // }
+    /**
+     * @brief  Cubic Spline
+     * @note   在反馈下稳定
+     * @ref    https://www.desmos.com/calculator/hycpcbwtbq?lang=zh-CN
+     *
+     * @param yn1  y[x=-1]
+     * @param y0   y[x=0]
+     * @param y1   y[x=1]
+     * @param y2   y[x=2]
+     * @param frac 0<x<1
+     */
+    static float Spline(
+        float yn1, float y0, float y1, float y2,
+        float frac
+    ) {
+        auto m1 = y0 - yn1;
+        auto m2 = y1 - y0;
+        auto m3 = y2 - y1;
+        auto z2 = (-m3 + 5 * m2 - 4 * m1) / 15.0f;
+        auto z3 = (m1 - 5 * m2 + 4 * m3) / 15.0f;
+        auto a2 = -(2 * z2 + z3);
+        auto b2 = 2 * z3 + z2;
+        auto l2 = y0 + m2 * frac;
+        auto t = frac - 1;
+        auto c2 = t * frac * (a2 * t + b2 * frac);
+        return l2 + c2;
+    }
 
+    /**
+     * @brief  Catmull-ROM Spline
+     * @note   在反馈下稳定
+     * @ref    https://qroph.github.io/2018/07/30/smooth-paths-using-catmull-rom-splines.html
+     *
+     * @param yn1  y[x=-1]
+     * @param y0   y[x=0]
+     * @param y1   y[x=1]
+     * @param y2   y[x=2]
+     * @param frac 0<x<1
+     * @tparam tension 0<=x<=1
+     */
+    template<float tension = 0.0f>
+    static float CatmullRomSpline(
+        float yn1, float y0, float y1, float y2,
+        float frac
+    ) {
+        auto m0 = (1.0f - tension) * 0.5f * (y1 - yn1);
+        auto m1 = (1.0f - tension) * 0.5f * (y2 - y0);
+
+        auto a = 2.0f * y0 - 2.0f * y1 + m0 + m1;
+        auto b = -3.0f * y0 + 3.0f * y1 - 2.0f * m0 - m1;
+        auto c = m0;
+        auto d = y0;
+
+        return d + frac * (
+            c + frac * (
+                b + a * frac
+            )
+        );
+    }
+
+    static float Linear(
+        float y0, float y1,
+        float frac
+    ) {
+        return y0 + frac * (y1 - y0);
+    }
+
+    // TODO: fix these
     // static float Akima(
     //     float yn2, float yn1, float y0, float y1, float y2, float frac
     // ) {

@@ -36,6 +36,10 @@ public:
     void SetDelay(float ms, float fs) {
         SetDelaySamples(ms * fs / 1000.0f);
     }
+
+    void Reset() {
+        delay_.Reset();
+    }
 private:
     float k_{};
     float delay_samples_{};
@@ -149,6 +153,12 @@ public:
     // set
     // --------------------------------------------------------------------------------
     void SetNumBlock(size_t num) {
+        if (num > num_block_) {
+            for (size_t i = num_block_; i < num; ++i) {
+                left_block_[i].Reset();
+                rigt_block_[i].Reset();
+            }
+        }
         num_block_ = num;
         _CalcK();
     }
