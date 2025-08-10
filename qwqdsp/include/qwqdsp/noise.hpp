@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include "interpolation.hpp"
 
-namespace dsp {
+namespace qwqdsp {
 
 class Noise {
 public:

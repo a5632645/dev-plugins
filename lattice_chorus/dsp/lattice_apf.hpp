@@ -1,7 +1,7 @@
 #pragma once
-#include "delay_line.hpp"
-#include "noise.hpp"
-#include "smoother.hpp"
+#include "qwqdsp/delay_line.hpp"
+#include "qwqdsp/noise.hpp"
+#include "qwqdsp/smoother.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <array>
@@ -45,7 +45,7 @@ private:
     float delay_samples_{};
     float up_out_{};
     float e_{};
-    dsp::DelayLine<true> delay_;
+    qwqdsp::DelayLine<true> delay_;
 };
 
 class LatticeAPF {
@@ -219,10 +219,10 @@ private:
     float mix_{};
     bool mono_modulator_{};
     bool alt_k_{};
-    dsp::Noise left_noise_[kNumBlock];
-    dsp::Noise right_noise_[kNumBlock];
-    dsp::ConstantTimeSmoother begin_smooth_;
-    dsp::ConstantTimeSmoother end_smooth_;
-    dsp::ExpSmoother k_smooth_[kNumBlock];
+    qwqdsp::Noise left_noise_[kNumBlock];
+    qwqdsp::Noise right_noise_[kNumBlock];
+    qwqdsp::ConstantTimeSmoother begin_smooth_;
+    qwqdsp::ConstantTimeSmoother end_smooth_;
+    qwqdsp::ExpSmoother k_smooth_[kNumBlock];
 };
 }

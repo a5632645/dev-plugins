@@ -2,7 +2,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <vector>
 #include <functional>
-#include "dsp/performance.hpp"
+#include "qwqdsp/performance.hpp"
 #include "dsp/lattice_apf.hpp"
 
 //==============================================================================

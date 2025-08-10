@@ -1,7 +1,7 @@
 #pragma once
 #include <chrono>
 
-namespace dsp {
+namespace qwqdsp {
 
 class Performance {
 public:

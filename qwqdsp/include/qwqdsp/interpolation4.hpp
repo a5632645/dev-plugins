@@ -4,7 +4,7 @@
 
 #pragma once
 
-namespace dsp {
+namespace qwqdsp {
 struct Interpolation4 {
 
 };

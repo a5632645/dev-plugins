@@ -1,7 +1,7 @@
 #pragma once
 #include <complex>
 
-namespace dsp {
+namespace qwqdsp {
 class IIRHilbert {
 public:
     std::complex<float> Tick(float x) {

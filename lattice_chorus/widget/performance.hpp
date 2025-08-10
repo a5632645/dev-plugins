@@ -1,12 +1,12 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
-#include "dsp/performance.hpp"
+#include "qwqdsp/performance.hpp"
 
 namespace widget {
 
 class Performance : public juce::Component {
 public:
-    Performance(dsp::Performance& p)
+    Performance(qwqdsp::Performance& p)
         : processor_(p)
     {}
 
@@ -17,7 +17,7 @@ public:
     void Update();
 
 private:
-    dsp::Performance& processor_;
+    qwqdsp::Performance& processor_;
     std::vector<int> historys_;
     int wpos_{};
     int last_{};

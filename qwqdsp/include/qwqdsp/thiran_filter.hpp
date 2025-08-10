@@ -3,7 +3,7 @@
 #include <array>
 #include <cmath>
 
-namespace dsp {
+namespace qwqdsp {
 template<size_t N>
 class ThiranFilter {
 public:

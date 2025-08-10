@@ -10,6 +10,7 @@ option(GREEN_VOCODER_ENABLE_PERFORMANCE_DEBUG "enable the buildin process time d
 
 add_subdirectory(eigen)
 add_subdirectory(JUCE)
+add_subdirectory(qwqdsp)
 add_subdirectory(src)
 # add_subdirectory(synth)
 add_subdirectory(lattice_chorus)

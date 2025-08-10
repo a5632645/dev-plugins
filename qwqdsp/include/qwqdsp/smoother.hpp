@@ -1,7 +1,7 @@
 #pragma once
 #include <cmath>
 
-namespace dsp {
+namespace qwqdsp {
 class ExpSmoother {
 public:
     void SetTarget(float x) {

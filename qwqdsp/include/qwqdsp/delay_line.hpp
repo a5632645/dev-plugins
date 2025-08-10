@@ -5,7 +5,7 @@
 #include <cmath>
 #include "interpolation.hpp"
 
-namespace dsp {
+namespace qwqdsp {
 template<bool INTERPOLATION = true>
 class DelayLine {
 public:

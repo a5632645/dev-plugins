@@ -7,7 +7,7 @@
 #include <numbers>
 #include <vector>
 
-namespace dsp {
+namespace qwqdsp {
 class Biquad {
 public:
     float ProcessSingle(float x) {
