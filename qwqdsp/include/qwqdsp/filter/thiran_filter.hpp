@@ -7,8 +7,8 @@ namespace qwqdsp {
 template<size_t N>
 class ThiranFilter {
 public:
-    /*
-    * \return how many intergal samples need delay
+    /**
+    * @return how many intergal samples need delay
     */
     size_t Make(float delay) {
         delay += 0.5f;

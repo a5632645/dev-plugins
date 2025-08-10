@@ -6,7 +6,7 @@
 #include "interpolation.hpp"
 
 namespace qwqdsp {
-template<bool INTERPOLATION = true>
+template<Interpolation::Type INTERPOLATION_TYPE = Interpolation::Type::Lagrange3rd>
 class DelayLine {
 public:
     void Init(float max_ms, float fs) {
@@ -46,16 +46,28 @@ private:
     float Get(float delay) {
         float rpos = wpos_ + buffer_.size() - delay;
         int irpos = static_cast<int>(rpos) & mask_;
-        if constexpr (INTERPOLATION) {
-            int inext1 = (irpos + 1) & mask_;
-            int inext2 = (irpos + 2) & mask_;
-            int inext3 = (irpos + 3) & mask_;
-            int iprev1 = (irpos - 1) & mask_;
-            float t = rpos - static_cast<int>(rpos);
-            return Interpolation::CatmullRomSpline(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
-        }
-        else {
+        int inext1 = (irpos + 1) & mask_;
+        int inext2 = (irpos + 2) & mask_;
+        int inext3 = (irpos + 3) & mask_;
+        int iprev1 = (irpos - 1) & mask_;
+        float t = rpos - static_cast<int>(rpos);
+        if constexpr (INTERPOLATION_TYPE == Interpolation::Type::None) {
             return buffer_[irpos];
+        }
+        else if constexpr (INTERPOLATION_TYPE == Interpolation::Type::Lagrange3rd) {
+            return Interpolation::Lagrange3rd(buffer_[irpos], buffer_[inext1], buffer_[inext2], buffer_[inext3], t);
+        }
+        else if constexpr (INTERPOLATION_TYPE == Interpolation::Type::Linear) {
+            return Interpolation::Linear(buffer_[irpos], buffer_[inext1], t);
+        }
+        else if constexpr (INTERPOLATION_TYPE == Interpolation::Type::PCHIP) {
+            return Interpolation::PCHIP(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
+        }
+        else if constexpr (INTERPOLATION_TYPE == Interpolation::Type::Spline) {
+            return Interpolation::Spline(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
+        }
+        else if constexpr (INTERPOLATION_TYPE == Interpolation::Type::CatmullRomSpline) {
+            return Interpolation::CatmullRomSpline(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
         }
     }
 

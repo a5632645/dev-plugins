@@ -1,5 +1,6 @@
 #pragma once
 #include "qwqdsp/delay_line.hpp"
+#include "qwqdsp/interpolation.hpp"
 #include "qwqdsp/noise.hpp"
 #include "qwqdsp/smoother.hpp"
 #include <algorithm>
@@ -45,7 +46,7 @@ private:
     float delay_samples_{};
     float up_out_{};
     float e_{};
-    qwqdsp::DelayLine<true> delay_;
+    qwqdsp::DelayLine<qwqdsp::Interpolation::Type::PCHIP> delay_;
 };
 
 class LatticeAPF {
