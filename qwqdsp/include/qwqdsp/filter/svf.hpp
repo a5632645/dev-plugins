@@ -12,6 +12,11 @@ struct SVF {
     float a2{};
     float a3{};
 
+    void Reset() {
+        ic1eq = 0;
+        ic2eq = 0;
+    }
+
     float Tick(float v0) {
         float v3 = v0 - ic2eq;
         float v1 = a1 * ic1eq + a2 * v3;

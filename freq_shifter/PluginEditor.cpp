@@ -19,7 +19,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     shift_.SetShortName("shift");
     addAndMakeVisible(shift_);
 
-    setSize (480, 480);
+    setSize (100, 100);
 }
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {

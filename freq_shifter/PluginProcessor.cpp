@@ -23,7 +23,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kShift, 1},
             id::kShift,
-            -2000.0f, 2000.0f, 0.0f
+            juce::NormalisableRange<float>{-20000.0f, 20000.0f, 0.1f, true},
+            0.0f
         );
         paramListeners_.Add(p, [this](float f){
             juce::ScopedLock lock{getCallbackLock()};

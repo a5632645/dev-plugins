@@ -8,8 +8,7 @@
 #include <vector>
 
 namespace qwqdsp {
-class Biquad {
-public:
+struct Biquad {
     float Tick(float x) {
         auto output = x * b0_ + latch1_;
         latch1_ = x * b1_ - output * a1_ + latch2_;
@@ -50,7 +49,12 @@ public:
         a1_ = other.a1_;
         a2_ = other.a2_;
     }
-private:
+
+    void Reset() {
+        latch1_ = 0;
+        latch2_ = 0;
+    }
+
     float b0_{};
     float b1_{};
     float b2_{};
@@ -113,75 +117,37 @@ static std::complex<double> ScaleComplex(const std::complex<double>& a, double b
     return {a.real() * b, a.imag() * b};
 }
 
-static FilterDesign ProtyleToBandpass(const FilterDesign& protyle, double w, double Q) {
-    double bw = w / Q;
-    FilterDesign ret{protyle.size() * 2};
-    ret.k = protyle.k;
-    for (int i = 0; i < protyle.size(); ++i) {
-        ZPK s;
-        double gain;
-        {
-            auto const& ss = protyle[i];
-            gain = bw * bw / 4;
-            s.p = ScaleComplex(ss.p, bw / 2);
-            if (ss.z) {
-                gain = 1.0;
-                s.z = ScaleComplex(*ss.z, bw / 2);
-            }
-        }
-        auto& bp1 = ret[2 * i];
-        auto& bp2 = ret[2 * i + 1];
+static FilterDesign ProtyleToLowpass(const FilterDesign& analog, double omega) {
+    FilterDesign ret{analog.size()};
+    ret.k = analog.k;
+    for (int i = 0; i < analog.size(); ++i) {
+        const auto& s = analog[i];
+        auto& lps = ret[i];
+        double gain = omega * omega;
+        lps.p = ScaleComplex(s.p, omega);
         if (s.z) {
-            auto p_delta = std::sqrt(s.p * s.p - 4.0 * w * w);
-            auto z_delta = std::sqrt(*s.z * *s.z - 4.0 * w * w);
-            bp1.p = ScaleComplex(s.p + p_delta, 0.5);
-            bp2.p = ScaleComplex(s.p - p_delta, 0.5);
-            bp1.z = ScaleComplex(*s.z + z_delta, 0.5);
-            bp2.z = ScaleComplex(*s.z - z_delta, 0.5);
-        }
-        else {
-            auto delta = std::sqrt(s.p * s.p - 4.0 * w * w);
-            bp1.p = ScaleComplex(s.p + delta, 0.5);
-            bp2.p = ScaleComplex(s.p - delta, 0.5);
-            bp1.z = 0;
+            lps.z = ScaleComplex(*s.z, omega);
+            gain = 1.0;
         }
         ret.k *= gain;
     }
     return ret;
 }
 
-static FilterDesign ProtyleToBandpass2(const FilterDesign& protyle, double w0, double w1) {
-    double w = std::sqrt(w0 * w1);
-    double bw = w1 - w0;
-    FilterDesign ret{protyle.size() * 2};
+static FilterDesign ProtyleToHighpass(const FilterDesign& protyle, double omega) {
+    FilterDesign ret{protyle.size()};
     ret.k = protyle.k;
     for (int i = 0; i < protyle.size(); ++i) {
-        ZPK s;
-        double gain = 1.0;
-        {
-            auto const& ss = protyle[i];
-            gain = bw * bw / 4;
-            s.p = ScaleComplex(ss.p, bw / 2);
-            if (ss.z) {
-                gain = 1.0;
-                s.z = ScaleComplex(*ss.z, bw / 2);
-            }
-        }
-        auto& bp1 = ret[2 * i];
-        auto& bp2 = ret[2 * i + 1];
+        const auto& s = protyle[i];
+        auto& hps = ret[i];
+        double gain = 1.0 / std::norm(s.p);
+        hps.p = omega / s.p;
         if (s.z) {
-            auto p_delta = std::sqrt(s.p * s.p - 4.0 * w * w);
-            auto z_delta = std::sqrt(*s.z * *s.z - 4.0 * w * w);
-            bp1.p = ScaleComplex(s.p + p_delta, 0.5);
-            bp2.p = ScaleComplex(s.p - p_delta, 0.5);
-            bp1.z = ScaleComplex(*s.z + z_delta, 0.5);
-            bp2.z = ScaleComplex(*s.z - z_delta, 0.5);
+            gain *= std::norm(*s.z);
+            hps.z = omega / *s.z;
         }
         else {
-            auto delta = std::sqrt(s.p * s.p - 4.0 * w * w);
-            bp1.p = ScaleComplex(s.p + delta, 0.5);
-            bp2.p = ScaleComplex(s.p - delta, 0.5);
-            bp1.z = 0;
+            hps.z = 0;
         }
         ret.k *= gain;
     }
@@ -240,7 +206,7 @@ static double Prewarp(double w, double fs) {
 
 // TODO: fix frequency not correct
 template<size_t kNumFilter>
-class Cheb2Bandpass {
+class Cheb2LowHighpass {
 public:
     void Init(float fs) {
         fs_ = fs;
@@ -250,41 +216,40 @@ public:
         for (auto& f : filters_) {
             x = f.Tick(x);
         }
-        // return x * gain_;
         return x;
     }
 
-    void MakeBandpass(float freq1, float freq2, float ripple) {
-        if (freq1 > freq2) std::swap(freq1, freq2);
-        auto w1 = freq1 * std::numbers::pi * 2;
-        auto w2 = freq2 * std::numbers::pi * 2;
-        w1 = internal::Prewarp(w1, fs_);
-        w2 = internal::Prewarp(w2, fs_);
-        auto zpk = internal::Chebyshev2(kNumFilter, ripple);
-        zpk = internal::ProtyleToBandpass2(zpk, w1, w2);
-        zpk = internal::Bilinear(zpk, fs_);
-        auto ffs = internal::TfToBiquad(zpk);
-        for (size_t i = 0; i < kNumFilter * 2; ++i) {
-            filters_[i].Copy(ffs[i]);
-        }
-        gain_ = zpk.k;
-    }
-
-    void MakeBandpassQ(float freq, float Q, float ripple) {
+    void MakeLowpass(float freq, float ripple) {
         auto w = freq * std::numbers::pi * 2;
         w = internal::Prewarp(w, fs_);
         auto zpk = internal::Chebyshev2(kNumFilter, ripple);
-        zpk = internal::ProtyleToBandpass(zpk, w, Q);
+        zpk = internal::ProtyleToLowpass(zpk, w);
         zpk = internal::Bilinear(zpk, fs_);
         auto ffs = internal::TfToBiquad(zpk);
-        for (size_t i = 0; i < kNumFilter * 2; ++i) {
+        for (size_t i = 0; i < kNumFilter; ++i) {
             filters_[i].Copy(ffs[i]);
         }
-        gain_ = zpk.k;
+    }
+
+    void MakeHighpass(float freq, float ripple) {
+        auto w = freq * std::numbers::pi * 2;
+        w = internal::Prewarp(w, fs_);
+        auto zpk = internal::Chebyshev2(kNumFilter, ripple);
+        zpk = internal::ProtyleToHighpass(zpk, w);
+        zpk = internal::Bilinear(zpk, fs_);
+        auto ffs = internal::TfToBiquad(zpk);
+        for (size_t i = 0; i < kNumFilter; ++i) {
+            filters_[i].Copy(ffs[i]);
+        }
+    }
+
+    void Reset() {
+        for (auto& f : filters_) {
+            f.Reset();
+        }
     }
 private:
     float fs_{};
-    float gain_{};
-    std::array<Biquad, kNumFilter * 2> filters_;
+    std::array<Biquad, kNumFilter> filters_;
 };
 }
