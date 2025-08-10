@@ -1,21 +1,26 @@
 #pragma once
+#include <algorithm>
 #include <cstdlib>
+#include "interpolation.hpp"
 
 namespace dsp {
 
 class Noise {
 public:
-    void Init(float fs);
-    void SetRate(float rate);
-    void Reset();
+    void Init(float fs) {
+        fs_ = fs;
+    }
+    void SetRate(float rate) {
+        inc_ = rate / fs_;
+    }
+    void Reset() {
+        a_ = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+        b_ = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+        c_ = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+        d_ = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+        phase_ = 0.0f;
+    }
     inline float Tick() {
-        float a = -a_ / 2.0f + 3.0f * b_ / 2.0f - 3.0f * c_ / 2.0f + d_ / 2.0f;
-        float b = a_ - 5.0f * b_ / 2.0f + 2.0f * c_ - d_ / 2.0f;
-        float c = -a_ / 2.0f + c_ / 2.0f;
-        float d = b_;
-        float t = phase_;
-        float v = a * t * t * t + b * t * t + c * t + d;
-
         phase_ += inc_;
         if (phase_ > 1.0f) {
             phase_ -= 1.0f;
@@ -24,8 +29,8 @@ public:
             c_ = d_;
             d_ = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
         }
-
-        return v;
+        float v = Interpolation::CatmullRomSpline(a_, b_, c_, d_, phase_);
+        return std::clamp(v, 0.0f, 1.0f);
     }
 private:
     float fs_;
