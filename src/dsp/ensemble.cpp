@@ -45,10 +45,10 @@ kPanTable{
 
 void Ensemble::Init(float sample_rate) {
     sample_rate_ = sample_rate;
-    int min_delay_len = static_cast<int>(4.5f + kMaxTime / 1000.0f * sample_rate);
+    int min_delay_len = static_cast<int>(4.0f + kMaxTime / 1000.0f * sample_rate);
 
     int power = 1;
-    while (power <= min_delay_len) {
+    while (power < min_delay_len) {
         power *= 2;
     }
     buffer_.resize(power);
@@ -58,6 +58,8 @@ void Ensemble::Init(float sample_rate) {
         n.Init(sample_rate);
         n.Reset();
     }
+
+    buffer_wpos_ = 0;
 }
 
 void Ensemble::SetNumVoices(int num_voices) {
@@ -81,11 +83,6 @@ void Ensemble::SetMix(float mix) {
 void Ensemble::SetRate(float rate) {
     rate_ = rate;
     CalcCurrDelayLen();
-    // lfo_freq_ = rate_ / sample_rate_;
-
-    // for (auto& n : noises_) {
-    //     n.SetRate(rate_ * 5.0f);
-    // }
 }
 
 void Ensemble::SetMode(Ensemble::Mode mode) {
@@ -141,7 +138,8 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
             block[i] = std::lerp(in, wet_left * gain_, mix_);
             right[i] = std::lerp(in, wet_right * gain_, mix_);
     
-            buffer_wpos_ = (buffer_wpos_ + 1) & buffer_len_mask_;
+            ++buffer_wpos_;
+            buffer_wpos_ &= buffer_len_mask_;
             lfo_phase_ += lfo_freq_;
             lfo_phase_ -= std::floor(lfo_phase_);
         }
@@ -188,7 +186,8 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
             block[i] = std::lerp(in, wet_left * gain_, mix_);
             right[i] = std::lerp(in, wet_right * gain_, mix_);
     
-            buffer_wpos_ = (buffer_wpos_ + 1) & buffer_len_mask_;
+            ++buffer_wpos_;
+            buffer_wpos_ &= buffer_len_mask_;
             lfo_phase_ += lfo_freq_;
             lfo_phase_ -= std::floor(lfo_phase_);
         }

@@ -4,9 +4,10 @@
 */
 
 #pragma once
-#include "noise.hpp"
+#include <cstddef>
 #include <span>
 #include <vector>
+#include "qwqdsp/noise.hpp"
 
 namespace dsp {
 
@@ -48,9 +49,9 @@ private:
     float gain_{};
     
     std::vector<float> buffer_;
-    int buffer_wpos_{};
-    int buffer_len_mask_{};
-    Noise noises_[kMaxVoices];
+    size_t buffer_wpos_{};
+    size_t buffer_len_mask_{};
+    qwqdsp::Noise noises_[kMaxVoices];
 };
 
 }
