@@ -157,67 +157,25 @@ struct TraditionalDesign {
         return ret;
     }
 
-    // TODO: fix frequency error
-    static FilterDesign ProtyleToBandpass(const FilterDesign& protyle, double w, double Q) {
-        double bw = w / Q;
+    FilterDesign ProtyleToBandpass(const FilterDesign& protyle, double wo, double Q) {
         FilterDesign ret{protyle.size() * 2};
         ret.k = protyle.k;
+        
+        double bw = wo / Q;
         for (int i = 0; i < protyle.size(); ++i) {
-            ZPK s;
-            double gain;
-            {
-                auto const& ss = protyle[i];
-                gain = bw * bw / 4;
-                s.p = ScaleComplex(ss.p, bw / 2);
-                if (ss.z) {
-                    gain = 1.0;
-                    s.z = ScaleComplex(*ss.z, bw / 2);
-                }
-            }
-            auto& bp1 = ret[2 * i];
-            auto& bp2 = ret[2 * i + 1];
-            if (s.z) {
-                auto p_delta = std::sqrt(s.p * s.p - 4.0 * w * w);
-                auto z_delta = std::sqrt(*s.z * *s.z - 4.0 * w * w);
-                bp1.p = ScaleComplex(s.p + p_delta, 0.5);
-                bp2.p = ScaleComplex(s.p - p_delta, 0.5);
-                bp1.z = ScaleComplex(*s.z + z_delta, 0.5);
-                bp2.z = ScaleComplex(*s.z - z_delta, 0.5);
-            }
-            else {
-                auto delta = std::sqrt(s.p * s.p - 4.0 * w * w);
-                bp1.p = ScaleComplex(s.p + delta, 0.5);
-                bp2.p = ScaleComplex(s.p - delta, 0.5);
-                bp1.z = 0;
-            }
-            ret.k *= gain;
-        }
-        return ret;
-    }
-
-    // TODO: fix frequency error
-    static FilterDesign ProtyleToBandstop(const FilterDesign& protyle, double w, double Q) {
-        double bw = w / Q;
-        double w0 = w - bw / 2;
-        double w1 = w + bw / 2;
-        double wo = std::sqrt(w0 * w1);
-        FilterDesign ret{protyle.size() * 2};
-        ret.k = protyle.k;
-        for (int i = 0; i < protyle.size(); ++i) {
+            // prototype -> lowpass at bw
             ZPK s;
             double gain = 1.0;
             {
                 auto const& ss = protyle[i];
-                gain /= std::norm(ss.p);
-                s.p = bw * 0.5 / ss.p;
+                gain = bw * bw;
+                s.p = ScaleComplex(ss.p, bw);
                 if (ss.z) {
-                    gain *= std::norm(*ss.z);
-                    s.z = bw * 0.5 / *ss.z;
-                }
-                else {
-                    s.z = 0;
+                    gain = 1.0;
+                    s.z = ScaleComplex(*ss.z, bw);
                 }
             }
+            // lowpass -> bandpass
             auto& bp1 = ret[2 * i];
             auto& bp2 = ret[2 * i + 1];
             if (s.z) {
@@ -230,6 +188,118 @@ struct TraditionalDesign {
             }
             else {
                 auto delta = std::sqrt(s.p * s.p - 4.0 * wo * wo);
+                bp1.p = ScaleComplex(s.p + delta, 0.5);
+                bp2.p = ScaleComplex(s.p - delta, 0.5);
+                bp1.z = 0;
+            }
+            ret.k *= gain;
+        }
+        return ret;
+    }
+
+    FilterDesign ProtyleToBandpass2(const FilterDesign& protyle, double w1, double w2) {
+        FilterDesign ret{protyle.size() * 2};
+        ret.k = protyle.k;
+
+        double bw = w2 - w1;
+        for (int i = 0; i < protyle.size(); ++i) {
+            auto& bp1 = ret[2 * i];
+            auto& bp2 = ret[2 * i + 1];
+            const auto& s = protyle[i];
+            if (s.z) {
+                auto p_delta = std::sqrt(s.p * s.p * bw * bw - 4.0 * w1 * w2);
+                auto z_delta = std::sqrt(*s.z * *s.z * bw * bw - 4.0 * w1 * w2);
+                bp1.p = ScaleComplex(s.p * bw + p_delta, 0.5);
+                bp2.p = ScaleComplex(s.p * bw - p_delta, 0.5);
+                bp1.z = ScaleComplex(*s.z * bw + z_delta, 0.5);
+                bp2.z = ScaleComplex(*s.z * bw - z_delta, 0.5);
+            }
+            else {
+                auto delta = std::sqrt(s.p * s.p * bw * bw - 4.0 * w1 * w2);
+                bp1.p = ScaleComplex(s.p * bw + delta, 0.5);
+                bp2.p = ScaleComplex(s.p * bw - delta, 0.5);
+                bp1.z = 0;
+                ret.k *= (bw * bw);
+            }
+        }
+        return ret;
+    }
+
+    FilterDesign ProtyleToBandstop(const FilterDesign& protyle, double wo, double Q) {
+        FilterDesign ret{protyle.size() * 2};
+        ret.k = protyle.k;
+
+        double bw = wo / Q;
+        for (int i = 0; i < protyle.size(); ++i) {
+            // prototype -> highpass at bw
+            ZPK s;
+            double gain = 1.0;
+            {
+                auto const& ss = protyle[i];
+                gain /= std::norm(ss.p);
+                s.p = bw / ss.p;
+                if (ss.z) {
+                    gain *= std::norm(*ss.z);
+                    s.z = bw / *ss.z;
+                }
+                else {
+                    s.z = 0;
+                }
+            }
+            // highpass -> bandstop
+            auto& bp1 = ret[2 * i];
+            auto& bp2 = ret[2 * i + 1];
+            if (s.z) {
+                auto p_delta = std::sqrt(s.p * s.p - 4.0 * wo * wo);
+                auto z_delta = std::sqrt(*s.z * *s.z - 4.0 * wo * wo);
+                bp1.p = ScaleComplex(s.p + p_delta, 0.5);
+                bp2.p = ScaleComplex(s.p - p_delta, 0.5);
+                bp1.z = ScaleComplex(*s.z + z_delta, 0.5);
+                bp2.z = ScaleComplex(*s.z - z_delta, 0.5);
+            }
+            else {
+                auto delta = std::sqrt(s.p * s.p - 4.0 * wo * wo);
+                bp1.p = ScaleComplex(s.p + delta, 0.5);
+                bp2.p = ScaleComplex(s.p - delta, 0.5);
+                bp1.z = 0;
+            }
+            ret.k *= gain;
+        }
+        return ret;
+    }
+
+    FilterDesign ProtyleToBandstop2(const FilterDesign& protyle, double w1, double w2) {
+        FilterDesign ret{protyle.size() * 2};
+        ret.k = protyle.k;
+        
+        double bw = w2 - w1;
+        for (int i = 0; i < protyle.size(); ++i) {
+            ZPK s;
+            double gain = 1.0;
+            {
+                auto const& ss = protyle[i];
+                gain /= std::norm(ss.p);
+                s.p = bw / ss.p;
+                if (ss.z) {
+                    gain *= std::norm(*ss.z);
+                    s.z = bw / *ss.z;
+                }
+                else {
+                    s.z = 0;
+                }
+            }
+            auto& bp1 = ret[2 * i];
+            auto& bp2 = ret[2 * i + 1];
+            if (s.z) {
+                auto p_delta = std::sqrt(s.p * s.p - 4.0 * w1 * w2);
+                auto z_delta = std::sqrt(*s.z * *s.z - 4.0 * w1 * w2);
+                bp1.p = ScaleComplex(s.p + p_delta, 0.5);
+                bp2.p = ScaleComplex(s.p - p_delta, 0.5);
+                bp1.z = ScaleComplex(*s.z + z_delta, 0.5);
+                bp2.z = ScaleComplex(*s.z - z_delta, 0.5);
+            }
+            else {
+                auto delta = std::sqrt(s.p * s.p - 4.0 * w1 * w2);
                 bp1.p = ScaleComplex(s.p + delta, 0.5);
                 bp2.p = ScaleComplex(s.p - delta, 0.5);
                 bp1.z = 0;
