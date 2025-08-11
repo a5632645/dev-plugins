@@ -1,9 +1,10 @@
 #pragma once
 #include <span>
 #include "qwqdsp/iir_hilbert.hpp"
+#include "qwqdsp/iir_cpx_hilbert.hpp"
 #include "qwqdsp/osciilor/vic_sine_osc.hpp"
-#include "qwqdsp/filter/cheb2_lphp.hpp"
-#include "qwqdsp/filter/complex_halfband.hpp"
+// #include "qwqdsp/filter/cheb2_lphp.hpp"
+// #include "qwqdsp/filter/complex_halfband.hpp"
 
 namespace dsp {
 class FreqShifter {
@@ -43,9 +44,10 @@ public:
     }
 private:
     qwqdsp::VicSineOsc osc_;
-    qwqdsp::IIRHilbertDeeper hilbert_;
+    qwqdsp::IIRHilbertDeeper<float> hilbert_;
+    qwqdsp::IIRHilbertDeeperCpx<float> filter_;
     // qwqdsp::Cheb2LowHighpass<8> cheb2_;
-    qwqdsp::ComplexHalfband<16> filter_;
+    // qwqdsp::ComplexHalfband<16> filter_;
     float fs_;
     float freq_;
 };
