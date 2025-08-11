@@ -10,6 +10,7 @@
 #include "dsp/gain.hpp"
 #include "dsp/ensemble.hpp"
 #include "dsp/channel_vocoder.hpp"
+#include "qwqdsp/performance.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -167,7 +168,7 @@ public:
 
     juce::AudioParameterChoice* vocoder_type_param_{};
 #ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
-    int process_ns_{};
+    qwqdsp::Performance perf_;
 #endif
 private:
     //==============================================================================

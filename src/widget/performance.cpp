@@ -1,12 +1,19 @@
 #include "performance.hpp"
-#include "PluginProcessor.h"
-#include "juce_core/juce_core.h"
-#include "juce_graphics/juce_graphics.h"
 #include <algorithm>
 #include <cstddef>
 
-#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
 namespace widget {
+
+static juce::String FormatTime(int us) {
+    juce::String s;
+    if (us > 1000) {
+        s << us / 1000 << "ms" << us % 1000 << "us";
+    }
+    else {
+        s << us << "us";
+    }
+    return s;
+}
 
 void Performance::paint(juce::Graphics& g) {
     g.fillAll(juce::Colours::black);
@@ -29,12 +36,7 @@ void Performance::paint(juce::Graphics& g) {
     g.strokePath(p, juce::PathStrokeType{1.0f});
 
     juce::String s;
-    if (last_ > 1000) {
-        s << last_ / 1000 << "ms" << last_ % 1000 << "us";
-    }
-    else {
-        s << last_ << "us";
-    }
+    s << "curr: " << FormatTime(last_) << " avg: " << FormatTime(avg_ / historys_.size());
     g.setColour(juce::Colours::white);
     g.drawSingleLineText(s, 0, b.getCentreY());
 
@@ -47,12 +49,13 @@ void Performance::resized() {
 }
 
 void Performance::Update() {
-    last_ = processor_.process_ns_;
+    last_ = processor_.GetProcessUs();
     size_t num = historys_.size();
+    avg_ -= historys_[wpos_];
     historys_[wpos_++] = last_;
+    avg_ += last_;
     wpos_ %= num;
     repaint();
 }
 
 }
-#endif

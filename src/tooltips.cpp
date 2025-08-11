@@ -56,6 +56,8 @@ void Tooltips::MakeEnglishTooltips() {
     tooltips_[id::kStftRelease] = "bin energy release in time axis";
     labels_[id::kStftBlend] = "NOISY";
     tooltips_[id::kStftBlend] = "bin energy remap, higher value cause more noisy sound while lower cause crystal sound";
+    labels_[id::kStftSize] = "FFT";
+    tooltips_[id::kStftSize] = "fft size";
 
     labels_[id::kEnsembleDetune] = "DETUNE";
     tooltips_[id::kEnsembleDetune] = "ensemble detune";
@@ -149,6 +151,8 @@ void Tooltips::MakeChineseTooltips() {
     tooltips_[id::kStftRelease] = juce::String::fromUTF8("单音在时间上的能量释放");
     labels_[id::kStftBlend] = juce::String::fromUTF8("重新映射");
     tooltips_[id::kStftBlend] = juce::String::fromUTF8("重新映射单音的能量,更高的值会导致嘈杂的声音,更低的值会更清晰");
+    labels_[id::kStftSize] = "FFT";
+    tooltips_[id::kStftSize] = juce::String::fromUTF8("fft大小");
 
     labels_[id::kEnsembleDetune] = juce::String::fromUTF8("失谐");
     tooltips_[id::kEnsembleDetune] = juce::String::fromUTF8("合唱器的失谐");

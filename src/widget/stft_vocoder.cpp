@@ -2,7 +2,9 @@
 #include "../PluginProcessor.h"
 #include "../param_ids.hpp"
 #include "../tooltips.hpp"
+#include "juce_core/juce_core.h"
 #include "juce_events/juce_events.h"
+#include <vector>
 
 namespace widget {
 
@@ -23,6 +25,10 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
 
     blend_.BindParameter(apvts, id::kStftBlend);
     addAndMakeVisible(blend_);
+
+    size_.SetNoChoiceStrs(true);
+    size_.BindParam(apvts, id::kStftSize);
+    addAndMakeVisible(size_);
 }
 
 void STFTVocoder::OnLanguageChanged(tooltip::Tooltips& tooltips) {
@@ -31,6 +37,7 @@ void STFTVocoder::OnLanguageChanged(tooltip::Tooltips& tooltips) {
     release_.OnLanguageChanged(tooltips);
     attack_.OnLanguageChanged(tooltips);
     blend_.OnLanguageChanged(tooltips);
+    size_.OnLanguageChanged(tooltips);
 }
 
 void STFTVocoder::resized() {
@@ -41,6 +48,10 @@ void STFTVocoder::resized() {
     attack_.setBounds(top.removeFromLeft(50));
     release_.setBounds(top.removeFromLeft(50));
     blend_.setBounds(top.removeFromLeft(50));
+    {
+        auto bb = top.removeFromLeft(150);
+        size_.setBounds(bb.removeFromTop(30));
+    }
 }
 
 void STFTVocoder::paint(juce::Graphics& g) {
@@ -49,6 +60,11 @@ void STFTVocoder::paint(juce::Graphics& g) {
     g.setColour(juce::Colours::black);
     g.fillRect(bb);
     auto current_font = g.getCurrentFont();
+    std::vector<float> gains;
+    {
+        juce::ScopedLock _{processor_.getCallbackLock()};
+        gains = processor_.stft_vocoder_.gains_;
+    }
 
     constexpr float top_line_db = 10.0f;
     constexpr float last_line_db = -60.0f;
@@ -116,7 +132,6 @@ void STFTVocoder::paint(juce::Graphics& g) {
     }
 
     auto b = bb.toFloat();
-    auto gains = processor_.stft_vocoder_.gains_;
     juce::Point<float> line_last{ b.getX(), b.getCentreY() };
     g.setColour(juce::Colours::green);
     float mul_val = std::pow(10.0f, freq_pow / b.getWidth());

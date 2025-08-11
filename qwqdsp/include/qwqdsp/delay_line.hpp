@@ -18,6 +18,7 @@ public:
         }
         buffer_.resize(a);
         mask_ = a - 1;
+        wpos_ = 0;
     }
 
     void Push(float x) {

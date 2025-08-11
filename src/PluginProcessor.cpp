@@ -133,6 +133,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         shifter_enabled_ = p.get();
         paramListeners_.Add(p, [this](bool b) {
+            (void)b;
             juce::ScopedLock lock{getCallbackLock()};
             SetLatency();
         });
@@ -429,6 +430,28 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         });
         layout.add(std::move(p));
     }
+    {
+        auto p = std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID{id::kStftSize, 1},
+            id::kStftSize,
+            juce::StringArray{
+                "256",
+                "512",
+                "1024",
+                "2048",
+                "4096"
+            },
+            2
+        );
+        paramListeners_.Add(p, [this](int idx) {
+            juce::ScopedLock lock{getCallbackLock()};
+            static constexpr std::array kArray{
+                256, 512, 1024, 2048, 4096
+            };
+            stft_vocoder_.SetFFTSize(kArray[idx]);
+        });
+        layout.add(std::move(p));
+    }
 
     // ensemble
     {
@@ -634,7 +657,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
 #ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
-    auto begin_time = std::chrono::high_resolution_clock::now();
+    [[maybe_unused]] auto _ = perf_.Count();
 #endif
 
     juce::ScopedNoDenormals noDenormals;
@@ -687,11 +710,6 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     ensemble_.Process(main_buffer_, side_buffer_);
     output_gain_.Process(channels);
-
-#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
-    auto end_time = std::chrono::high_resolution_clock::now();
-    process_ns_ = std::chrono::duration_cast<std::chrono::microseconds>(end_time - begin_time).count();
-#endif
 }
 
 //==============================================================================
@@ -729,7 +747,7 @@ void AudioPluginAudioProcessor::SetLatency() {
     int latency = 0;
     switch (vocoder_type_param_->getIndex()) {
     case eVocoderType_STFTVocoder:
-        latency += stft_vocoder_.kFFTSize;
+        latency += stft_vocoder_.GetFFTSize();
         break;
     default:
         break;

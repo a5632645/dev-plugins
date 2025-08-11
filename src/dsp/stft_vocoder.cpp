@@ -4,24 +4,40 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <cstddef>
 #include <numbers>
 
 namespace dsp {
 
 void STFTVocoder::Init(float fs) {
     sample_rate_ = fs;
-    SetFFTSize(kFFTSize);
+    SetFFTSize(1024);
 }
 
 void STFTVocoder::SetFFTSize(int size) {
+    fft_size_ = size;
     fft_.init(size);
-    for (int i = 0; i < kFFTSize; ++i) {
-        hann_window_[i] = 0.5f - 0.5f * std::cos(2.0f* std::numbers::pi_v<float> * i / (kFFTSize - 1.0f));
+    hann_window_.resize(size);
+    window_.resize(size);
+    temp_main_.resize(size);
+    temp_side_.resize(size);
+    hop_size_ = size / 4;
+    for (int i = 0; i < size; ++i) {
+        hann_window_[i] = 0.5f - 0.5f * std::cos(2.0f* std::numbers::pi_v<float> * i / (size - 1.0f));
     }
+    size_t num_bins = fft_.ComplexSize(size);
+    gains_.resize(num_bins);
+    real_main_.resize(num_bins);
+    imag_main_.resize(num_bins);
+    real_side_.resize(num_bins);
+    imag_side_.resize(num_bins);
+    SetRelease(release_ms_);
+    SetBandwidth(bandwidth_);
 }
 
 void STFTVocoder::SetRelease(float ms) {
-    decay_ = utli::GetDecayValue(sample_rate_ / kHopSize, ms);
+    release_ms_ = ms;
+    decay_ = utli::GetDecayValue(sample_rate_ / hop_size_, ms);
 }
 
 void STFTVocoder::SetBlend(float blend) {
@@ -34,37 +50,27 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
     std::copy(block.begin(), block.end(), main_inputBuffer_.begin() + numInput_);
     std::copy(block2.begin(), block2.end(), side_inputBuffer_.begin() + numInput_);
     numInput_ += static_cast<int>(block.size());
-    while (numInput_ >= kFFTSize) {
-        // forward fft, copy 1024
-        float main_timeBuffer[kFFTSize]{};
-        float side_timeBuffer[kFFTSize]{};
-        // zero pad to 2048
-        for (int i = 0; i < kFFTSize; ++i) {
-            main_timeBuffer[i] = window_[i] * main_inputBuffer_[i];
+    while (numInput_ >= fft_size_) {
+        for (int i = 0; i < fft_size_; ++i) {
+            temp_main_[i] = window_[i] * main_inputBuffer_[i];
         }
-        std::copy_n(side_inputBuffer_.cbegin(), kFFTSize, side_timeBuffer);
-        // lost hopsize samples
-        numInput_ -= kHopSize;
+        std::copy_n(side_inputBuffer_.cbegin(), fft_size_, temp_side_.begin());
+        numInput_ -= hop_size_;
         for (int i = 0; i < numInput_; i++) {
-            main_inputBuffer_[i] = main_inputBuffer_[i + kHopSize];
+            main_inputBuffer_[i] = main_inputBuffer_[i + hop_size_];
         }
         for (int i = 0; i < numInput_; i++) {
-            side_inputBuffer_[i] = side_inputBuffer_[i + kHopSize];
+            side_inputBuffer_[i] = side_inputBuffer_[i + hop_size_];
         }
 
         // do fft
-        std::array<float, kNumBins> main_real;
-        std::array<float, kNumBins> main_imag;
-        std::array<float, kNumBins> side_real;
-        std::array<float, kNumBins> side_imag;
-        fft_.fft(main_timeBuffer, main_real.data(), main_imag.data());
-        fft_.fft(side_timeBuffer, side_real.data(), side_imag.data());
-
+        fft_.fft(temp_main_.data(), real_main_.data(), imag_main_.data());
+        fft_.fft(temp_side_.data(), real_side_.data(), imag_side_.data());
+        
         // spectral processing
-        for (int i = 0; i < kNumBins; ++i) {
-            // i know this is power spectrum, but it sounds better than mag spectrum(???)
-            float power = std::abs(main_real[i] * main_real[i] + main_imag[i] * main_imag[i]);
-            // float gain = power * window_gain_;
+        size_t num_bins = fft_.ComplexSize(fft_size_);
+        for (size_t i = 0; i < num_bins; ++i) {
+            float power = std::abs(real_main_[i] * real_main_[i] + imag_main_[i] * imag_main_[i]);
             float gain = std::sqrt(power + 1e-18f) * window_gain_;
             gain = Blend(gain);
 
@@ -75,26 +81,25 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
                 gains_[i] = decay_ * gains_[i] + (1 - decay_) * gain;
             }
             
-            side_real[i] *= gains_[i];
-            side_imag[i] *= gains_[i];
+            real_side_[i] *= gains_[i];
+            imag_side_[i] *= gains_[i];
         }
 
-        // get ifft output, 2048 samlpes
-        fft_.ifft(main_timeBuffer, side_real.data(), side_imag.data());
+        fft_.ifft(temp_main_.data(), real_side_.data(), imag_side_.data());
 
         // overlay add
-        for (uint32_t i = 0; i < kFFTSize; i++) {   
-            main_outputBuffer_[i + writeAddBegin_] += main_timeBuffer[i] * hann_window_[i];
+        for (int i = 0; i < fft_size_; i++) {   
+            main_outputBuffer_[i + writeAddBegin_] += temp_main_[i] * hann_window_[i];
         }
-        writeEnd_ = writeAddBegin_ + kFFTSize;
-        writeAddBegin_ += kHopSize;
+        writeEnd_ = writeAddBegin_ + fft_size_;
+        writeAddBegin_ += hop_size_;
     }
 
     if (writeAddBegin_ >= static_cast<int>(block.size())) {
         // extract output
         int extractSize = static_cast<int>(block.size());
         for (int i = 0; i < extractSize; ++i) {
-            block[i] = main_outputBuffer_[i] / ((float)kFFTSize / kHopSize);
+            block[i] = main_outputBuffer_[i] / ((float)fft_size_ / hop_size_);
         }
         
         // shift output buffer
@@ -119,14 +124,12 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
 void STFTVocoder::SetBandwidth(float bw) {
     bandwidth_ = bw;
     // generate sinc window
-    float f0 = bandwidth_ * kFFTSize / kFFTSize;
-    for (int i = 0; i < kFFTSize; i++) {
-        float x = (2 * std::numbers::pi_v<float> * f0 * (i - kFFTSize / 2.0f)) / kFFTSize;
+    float f0 = bandwidth_ * fft_size_ / 1024;
+    for (int i = 0; i < fft_size_; i++) {
+        float x = (2 * std::numbers::pi_v<float> * f0 * (i - fft_size_ / 2.0f)) / fft_size_;
         float sinc = std::abs(x) < 1e-6 ? 1.0f : std::sin(x) / x;
         window_[i] = sinc * hann_window_[i];
     }
-    // keep energy(???)
-    // window_gain_ = 2.0f / std::accumulate(window_.begin(), window_.end(), 0.0f);
     float power = 0.0f;
     for (auto x : window_) {
         power += x * x;
@@ -135,7 +138,7 @@ void STFTVocoder::SetBandwidth(float bw) {
 }
 
 void STFTVocoder::SetAttack(float ms) {
-    attck_ = utli::GetDecayValue(sample_rate_ / kHopSize, ms);
+    attck_ = utli::GetDecayValue(sample_rate_ / hop_size_, ms);
 }
 
 float STFTVocoder::Blend(float x) {

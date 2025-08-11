@@ -48,6 +48,7 @@ static constexpr auto kStftWindowWidth = "stft_bandwidth";
 static constexpr auto kStftAttack = "stft_attack";
 static constexpr auto kStftRelease = "stft_release";
 static constexpr auto kStftBlend = "stft_blend";
+static constexpr auto kStftSize = "stft_size";
 
 static constexpr auto kEnsembleDetune = "ens_detune";
 static constexpr auto kEnsembleRate = "ens_rate";

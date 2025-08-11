@@ -25,7 +25,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     , channel_vocoder_(p)
     , ensemble_(p)
 #ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
-    , performance_(p)
+    , performance_(p.perf_)
 #endif
 {
     setLookAndFeel(&myLookAndFeel_);
