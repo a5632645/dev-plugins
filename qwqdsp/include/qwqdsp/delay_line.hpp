@@ -48,8 +48,8 @@ private:
         int irpos = static_cast<int>(rpos) & mask_;
         int inext1 = (irpos + 1) & mask_;
         int inext2 = (irpos + 2) & mask_;
-        int inext3 = (irpos + 3) & mask_;
-        int iprev1 = (irpos - 1) & mask_;
+        [[maybe_unused]] int inext3 = (irpos + 3) & mask_;
+        [[maybe_unused]] int iprev1 = (irpos - 1) & mask_;
         float t = rpos - static_cast<int>(rpos);
         if constexpr (INTERPOLATION_TYPE == Interpolation::Type::None) {
             return buffer_[irpos];

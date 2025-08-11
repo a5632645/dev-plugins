@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include "traditional_design.hpp"
 
 namespace qwqdsp {

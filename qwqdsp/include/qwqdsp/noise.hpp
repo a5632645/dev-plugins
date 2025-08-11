@@ -22,6 +22,7 @@ public:
     }
     inline float Tick() {
         phase_ += inc_;
+        [[unlikely]]
         if (phase_ > 1.0f) {
             phase_ -= 1.0f;
             a_ = b_;

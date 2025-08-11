@@ -72,6 +72,7 @@ struct Interpolation4 {
         }
     }
 
+    // TODO: fix it
     static float Spline(
         float y0, float y1, float y2, float y3,
         float x0, float x1, float x2, float x3,
@@ -111,6 +112,7 @@ struct Interpolation4 {
         }
     }
 
+    // TODO: fix it
     static float CatmullRomSpline(
         float y0, float y1, float y2, float y3,
         float x0, float x1, float x2, float x3,
@@ -141,6 +143,7 @@ struct Interpolation4 {
         }
     }
 
+    // TODO: fix it
     static float Akima(
         float yn2, float yn1, float y0, float y1, float y2,
         float xn2, float xn1, float x0, float x1, float x2,
@@ -149,6 +152,7 @@ struct Interpolation4 {
         
     }
 
+    // TODO: fix it
     static float Makima(
         float yn2, float yn1, float y0, float y1, float y2,
         float xn2, float xn1, float x0, float x1, float x2,

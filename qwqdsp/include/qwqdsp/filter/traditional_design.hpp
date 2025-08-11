@@ -101,6 +101,22 @@ struct TraditionalDesign {
         return ret;
     }
 
+    static FilterDesign Bessel(int num_filter) {
+        FilterDesign ret{num_filter};
+
+        double th = pi / (2.0 * num_filter);
+        double k = 1.0;
+        for (int i = 0; i < num_filter; ++i) {
+            double a = std::cos(th * (i + 1.0));
+            double b = std::sin(th * (i + 1.0));
+            ret[i].p = std::complex{-a, b};
+            k *= std::norm(ret[i].p);
+        }
+        ret.k = k;
+
+        return ret;
+    }
+
     // --------------------------------------------------------------------------------
     // 滤波器映射
     // --------------------------------------------------------------------------------
