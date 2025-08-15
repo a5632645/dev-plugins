@@ -39,17 +39,17 @@ struct BandSVF {
     }
 };
 
-template<class T>
 class CascadeBPSVF {
 public:
-    static constexpr int kNumCascade = 4;
+    static constexpr int kNumCascade = 4; // 48dB/oct
 
     static float DbToGain(float db) {
         return std::pow(10.0f, db / 20.0f);
     }
 
     // From https://github.com/ZL-Audio/ZLEqualizer
-    void MakeBandpass(float omega, float Q) {
+    void MakeBandpass(float omega, float bw) {
+        const auto Q = omega / bw;
         const auto halfbw = std::asinh(0.5f / Q) / std::log(2.0f);
         const auto w = omega / std::pow(2.0f, halfbw);
         const auto g = DbToGain(-6 / static_cast<float>(kNumCascade * 2));
@@ -78,7 +78,7 @@ public:
 
     float gain_{};
 private:
-    T svf_[kNumCascade];
+    BandSVF svf_[kNumCascade];
 };
 
 class ChannelVocoder {
@@ -116,8 +116,8 @@ private:
     float carry_scale_{1.0f};
     float gain_{};
     eChannelVocoderMap map_{};
-    std::array<CascadeBPSVF<BandSVF>, kMaxOrder> main_filters_;
-    std::array<CascadeBPSVF<BandSVF>, kMaxOrder> side_filters_;
+    std::array<CascadeBPSVF, kMaxOrder> main_filters_;
+    std::array<CascadeBPSVF, kMaxOrder> side_filters_;
     std::array<float, kMaxOrder> main_peaks_{};
     std::vector<float> output_;
 };

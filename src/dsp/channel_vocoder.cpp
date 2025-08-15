@@ -127,10 +127,8 @@ void ChannelVocoder::_UpdateFilters() {
 
         float bw = omega - begin;
         float cutoff = std::sqrt(begin * omega);
-        float q1 = cutoff / (bw * scale_);
-        float q2 = cutoff / (bw * carry_scale_);
-        main_filters_[i - 1].MakeBandpass(cutoff, q1);
-        side_filters_[i - 1].MakeBandpass(cutoff, q2);
+        main_filters_[i - 1].MakeBandpass(cutoff, bw * scale_);
+        side_filters_[i - 1].MakeBandpass(cutoff, bw * carry_scale_);
 
         begin = omega;
     }
