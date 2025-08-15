@@ -17,6 +17,9 @@ public:
         if (phase_ > 1.0f) {
             phase_ -= 1.0f;
         }
+        if (phase_ < 0.0f) {
+            phase_ += 1.0f;
+        }
         return phase_ * 2.0f - 1.0f;
     }
 
