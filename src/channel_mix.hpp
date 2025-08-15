@@ -41,6 +41,8 @@ static inline std::array<std::span<float>, 2> Mix(int modu, int carry, juce::Aud
         case 5:
             MixInto(res[1], buffer.getReadPointer(2), buffer.getReadPointer(3), num_samples);
             break;
+        default:
+            break;
         }
         break;
     case 1:
@@ -71,6 +73,8 @@ static inline std::array<std::span<float>, 2> Mix(int modu, int carry, juce::Aud
         case 5:
             std::copy(res[1].begin(), res[1].end(), res[0].begin());
             MixInto(res[1], buffer.getReadPointer(2), buffer.getReadPointer(3), num_samples);
+            break;
+        default:
             break;
         }
         break;
@@ -105,6 +109,8 @@ static inline std::array<std::span<float>, 2> Mix(int modu, int carry, juce::Aud
             AddInto(res[0], res[1]);
             MixInto(res[1], buffer.getReadPointer(2), buffer.getReadPointer(3), num_samples);
             break;
+        default:
+            break;
         }
         break;
     case 3:
@@ -131,6 +137,8 @@ static inline std::array<std::span<float>, 2> Mix(int modu, int carry, juce::Aud
         case 5:
             std::copy_n(buffer.getReadPointer(2), num_samples, res[0].begin());
             MixInto(res[1], buffer.getReadPointer(2), buffer.getReadPointer(3), num_samples);
+            break;
+        default:
             break;
         }
         break;
@@ -159,6 +167,8 @@ static inline std::array<std::span<float>, 2> Mix(int modu, int carry, juce::Aud
             MixInto(res[1], buffer.getReadPointer(2), buffer.getReadPointer(3), num_samples);
             std::copy_n(buffer.getReadPointer(3), num_samples, res[0].begin());
             break;
+        default:
+            break;
         }
         break;
     case 5:
@@ -185,6 +195,8 @@ static inline std::array<std::span<float>, 2> Mix(int modu, int carry, juce::Aud
         case 5:
             MixInto(res[1], buffer.getReadPointer(2), buffer.getReadPointer(3), num_samples);
             std::copy(res[1].begin(), res[1].end(), res[0].begin());
+            break;
+        default:
             break;
         }
         break;

@@ -9,7 +9,6 @@
 #include "juce_data_structures/juce_data_structures.h"
 #include "param_ids.hpp"
 #include <array>
-#include <chrono>
 #include <memory>
 #include "channel_mix.hpp"
 
@@ -89,7 +88,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterInt>(
             juce::ParameterID{id::kSideChannelConfig, 1},
             id::kSideChannelConfig,
-            0, 5, 1
+            0, 6, 1
         );
         side_channel_config_ = p.get();
         layout.add(std::move(p));
@@ -273,7 +272,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kLPCGainAttack, 1},
             id::kLPCGainAttack,
             juce::NormalisableRange<float>{1.0f, 100.0f, 1.0f, 0.4f},
-            20.0f
+            1.0f
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -346,7 +345,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kMainGain, 1},
             id::kMainGain,
-            dsp::Gain<1>::kMinDb, 20.0f, 0.0f
+            dsp::Gain<1>::kMinDb, 20.0f, -20.0f
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -620,6 +619,11 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     side_gain_.Init(fs, samplesPerBlock);
     output_gain_.Init(fs, samplesPerBlock);
 
+    yin_process_.SetSize(2048);
+    yin_process_.SetHop(2048);
+    yin_.Init(fs, 2048);
+    sawtooth_.Init(fs);
+
     paramListeners_.CallAll();
 }
 
@@ -674,7 +678,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         if (main_ch > 2) {
             main_ch -= 3;
         }
-        if (side_ch > 2) {
+        if (side_ch > 2 && side_ch != 6) {
             side_ch -= 3;
         }
     }
@@ -682,6 +686,19 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     auto channels = Mix(main_ch, side_ch, buffer);
     auto& main_buffer_ = channels[0];
     auto& side_buffer_ = channels[1];
+    if (side_ch == 6) {
+        // the pitch tracking oscillor
+        yin_process_.Push(main_buffer_);
+        if (yin_process_.CanProcess()) {
+            yin_.Process(yin_process_.GetBlock());
+        }
+        while (yin_process_.CanProcess()) {
+            yin_process_.Advance();
+        }
+        // generate waveform
+        sawtooth_.SetFreq(yin_.GetPitch());
+        sawtooth_.Process(side_buffer_);
+    }
 
     filter_.Process(main_buffer_);
     if (shifter_enabled_->get()) {

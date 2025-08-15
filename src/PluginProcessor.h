@@ -11,6 +11,9 @@
 #include "dsp/ensemble.hpp"
 #include "dsp/channel_vocoder.hpp"
 #include "qwqdsp/performance.hpp"
+#include "qwqdsp/segement_process.hpp"
+#include "qwqdsp/pitch/yin.hpp"
+#include "qwqdsp/osciilor/raw_saw.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -161,6 +164,9 @@ public:
     dsp::STFTVocoder stft_vocoder_;
     dsp::ChannelVocoder channel_vocoder_;
     dsp::Ensemble ensemble_;
+    qwqdsp::SegementProcess yin_process_;
+    qwqdsp::pitch::Yin yin_;
+    qwqdsp::oscillor::RawSaw sawtooth_;
 
     dsp::Gain<1> main_gain_;
     dsp::Gain<1> side_gain_;

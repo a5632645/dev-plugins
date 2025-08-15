@@ -82,7 +82,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addAndMakeVisible(performance_);
 #endif
 
-    setSize (550, 550);
+    setSize (575, 550);
     startTimerHz(30);
     OnLanguageChanged(tooltips_);
 }

@@ -28,16 +28,17 @@ public:
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Box)
     };
 
-    ChannelSelector();
+    ChannelSelector() = default;
     void resized() override;
     void BindParameter(juce::AudioProcessorValueTreeState& apvts, const char* const id);
     void SetLabelName(const juce::String& name) { label_.setText(name, juce::dontSendNotification); }
     void paint(juce::Graphics& g) override;
 private:
-    std::array<Box, 6> boxes_;
+    std::array<Box, 7> boxes_;
     juce::Slider slider_;
     juce::Label label_;
     std::unique_ptr<juce::SliderParameterAttachment> attach_;
+    int num_boxes_{6};
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChannelSelector)
 };
 }

@@ -12,7 +12,7 @@ public:
         dicimate_ = std::round(fs / 6000.0f);
     }
 
-    float GetPitch(std::span<float> block) {
+    void Process(std::span<float> block) {
         int num_samples = block.size();
         int max_tal = num_samples / 2;
 
@@ -65,12 +65,16 @@ public:
             float frac = 0.5f * (s2 - s0) / (2.0f * s1 - s2 - s0 + 1e-18f);
             preiod = where + frac;
         }
-        float pitch = fs_ / preiod;
-        return pitch;
+        pitch_ = fs_ / preiod;
+    }
+
+    float GetPitch() const {
+        return pitch_;
     }
 private:
     std::vector<float> delta_corr_;
     float fs_{};
+    float pitch_{};
     int dicimate_{};
 };
 }
