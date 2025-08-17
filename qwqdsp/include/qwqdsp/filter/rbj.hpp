@@ -25,7 +25,7 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = std::sqrt(a2);
+        pole_radius = inva0;
         pole_omega = w;
     }
 
@@ -43,7 +43,7 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = std::sqrt(a2);
+        pole_radius = inva0;
         pole_omega = w;
     }
 
@@ -61,7 +61,7 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = std::sqrt(a2);
+        pole_radius = inva0;
         pole_omega = w;
     }
 
@@ -80,7 +80,7 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = std::sqrt(std::abs(a2));
+        pole_radius = inva0;
         pole_omega = w;
     }
 
@@ -100,7 +100,7 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = std::sqrt(a2);
+        pole_radius = inva0 * a1 / (-2.0f * cosw);
         pole_omega = w;
     }
 
@@ -120,7 +120,7 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = std::sqrt(a2);
+        pole_radius = inva0 * a1 / (-2.0f * cosw);
         pole_omega = w;
     }
 
@@ -138,7 +138,7 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = std::sqrt(a2);
+        pole_radius = inva0;
         pole_omega = w;
     }
 
@@ -156,7 +156,7 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = std::sqrt(a2);
+        pole_radius = inva0;
         pole_omega = w;
     }
 };
