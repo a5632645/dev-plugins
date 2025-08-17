@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include <optional>
 
 namespace qwqdsp {
 struct RBJ {
@@ -8,8 +9,8 @@ struct RBJ {
     float b2;
     float a1;
     float a2;
-    float pole_radius;
-    float pole_omega;
+    std::optional<float> pole_radius;
+    std::optional<float> pole_omega;
 
     void Lowpass(float w, float Q) {
         auto a = std::sin(w) / (2 * Q);
@@ -80,8 +81,9 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = inva0;
-        pole_omega = w;
+        // peak doesn't support couple form because the pole will in real axis in some situation
+        pole_omega = std::nullopt;
+        pole_radius = std::nullopt;
     }
 
     void Lowshelf(float w, float Q, float g) {
@@ -100,8 +102,9 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = inva0 * a1 / (-2.0f * cosw);
-        pole_omega = w;
+        // shelf doesn't support couple form because the pole will in real axis in some situation
+        pole_omega = std::nullopt;
+        pole_radius = std::nullopt;
     }
 
     void HighShelf(float w, float Q, float g) {
@@ -120,8 +123,9 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = inva0 * a1 / (-2.0f * cosw);
-        pole_omega = w;
+        // shelf doesn't support couple form because the pole will in real axis in some situation
+        pole_omega = std::nullopt;
+        pole_radius = std::nullopt;
     }
 
     void Notch(float w, float Q) {

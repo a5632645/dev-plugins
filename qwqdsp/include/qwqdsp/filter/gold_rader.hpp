@@ -1,8 +1,6 @@
 #pragma once
-#include <algorithm>
 #include <cmath>
 
-// TODO: fix pole coeffience cause volume error
 namespace qwqdsp::filter {
 class GoldRader {
 public:
