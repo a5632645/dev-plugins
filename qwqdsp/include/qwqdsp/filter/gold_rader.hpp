@@ -1,12 +1,8 @@
 #pragma once
+#include <algorithm>
 #include <cmath>
 
 // TODO: fix pole coeffience cause volume error
-
-/**
- * @brief Gold-Rader form biquad, also known as couple-form
- *        it seems that this filter is siutable for fast-modulation
- */
 namespace qwqdsp::filter {
 class GoldRader {
 public:
@@ -14,18 +10,19 @@ public:
         float acc = b0_ * x + b1_ * x1_ + b2_ * x2_;
         x2_ = x1_;
         x1_ = x;
-        acc += y1_ * rcos_ - y2_ * rsin_;
+        acc += y1_ * rcos_;
+        acc -= y2_ * rsin_;
         y2_ = y2_ * rcos_ + rsin_ * y1_;
         y1_ = acc;
         return y2_;
     }
 
     void Set(float b0, float b1, float b2, float pole_radius, float pole_omega) {
-        b0_ = b0;
-        b1_ = b1;
-        b2_ = b2;
         rcos_ = pole_radius * std::cos(pole_omega);
         rsin_ = pole_radius * std::sin(pole_omega);
+        b0_ = b0 / rsin_;
+        b1_ = b1 / rsin_;
+        b2_ = b2 / rsin_;
     }
 
     void Reset() {

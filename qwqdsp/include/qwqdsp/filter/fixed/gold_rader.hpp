@@ -29,6 +29,12 @@ public:
     }
 
     void MakeFromFloat(float b0, float b1, float b2, float pole_radius, float pole_phase) {
+        rcos_ = (QTYPE)((ACCType(1) << FRAC_LEN) * pole_radius * std::cos(pole_phase));
+        rsin_ = (QTYPE)((ACCType(1) << FRAC_LEN) * pole_radius * std::sin(pole_phase));
+
+        b0 /= rsin_;
+        b1 /= rsin_;
+        b2 /= rsin_;
         {
             float maxb = 0.0f;
             if (std::abs(b0) > maxb) {
@@ -50,8 +56,6 @@ public:
             b1_ = (QTYPE)((ACCType)(b1 * (ACCType(1) << FRAC_LEN)) >> bshift_);
             b2_ = (QTYPE)((ACCType)(b2 * (ACCType(1) << FRAC_LEN)) >> bshift_);
         }
-        rcos_ = (QTYPE)((ACCType(1) << FRAC_LEN) * pole_radius * std::cos(pole_phase));
-        rsin_ = (QTYPE)((ACCType(1) << FRAC_LEN) * pole_radius * std::sin(pole_phase));
     }
 private:
     QTYPE x1_{};
