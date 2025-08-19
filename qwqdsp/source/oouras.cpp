@@ -1,6 +1,7 @@
 #include "qwqdsp/spectral/real_fft.hpp"
 #include "qwqdsp/spectral/complex_fft.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 
@@ -39,14 +40,14 @@ void RealFFT::Init(size_t fft_size) {
 
 void RealFFT::FFT(std::span<const float> time, std::span<std::complex<float>> spectral) {
     assert(time.size() == fft_size_);
-    assert(spectral.size() == NumBins());
+    assert(spectral.size() >= NumBins());
 
     std::copy(time.begin(), time.end(), buffer_.begin());
     rdft(fft_size_, 1, buffer_.data(), ip_.data(), w_.data());
     spectral.front().real(buffer_[0]);
     spectral.front().imag(0.0f);
-    spectral.back().real(-buffer_[1]);
-    spectral.back().imag(0.0f);
+    spectral[fft_size_ / 2].real(-buffer_[1]);
+    spectral[fft_size_ / 2].imag(0.0f);
     const size_t n = fft_size_ / 2;
     for (size_t i = 1; i < n; ++i) {
         spectral[i].real(buffer_[i * 2]);
@@ -54,12 +55,30 @@ void RealFFT::FFT(std::span<const float> time, std::span<std::complex<float>> sp
     }
 }
 
-void RealFFT::IFFT(std::span<float> time, std::span<std::complex<float>> spectral) {
+void RealFFT::FFT(std::span<const float> time, std::span<float> real, std::span<float> imag) {
     assert(time.size() == fft_size_);
-    assert(spectral.size() == NumBins());
+    assert(real.size() >= NumBins());
+    assert(imag.size() >= NumBins());
+
+    std::copy(time.begin(), time.end(), buffer_.begin());
+    rdft(fft_size_, 1, buffer_.data(), ip_.data(), w_.data());
+    real.front() = buffer_[0];
+    imag.front() = 0.0f;
+    real[fft_size_ / 2] = -buffer_[1];
+    imag[fft_size_ / 2] = 0.0f;
+    const size_t n = fft_size_ / 2;
+    for (size_t i = 1; i < n; ++i) {
+        real[i] = buffer_[i * 2];
+        imag[i] = -buffer_[i * 2 + 1];
+    }
+}
+
+void RealFFT::IFFT(std::span<float> time, std::span<const std::complex<float>> spectral) {
+    assert(time.size() == fft_size_);
+    assert(spectral.size() >= NumBins());
 
     buffer_[0] = spectral.front().real();
-    buffer_[1] = -spectral.back().real();
+    buffer_[1] = -spectral[fft_size_ / 2].real();
     const size_t n = fft_size_ / 2;
     for (size_t i = 1; i < n; ++i) {
         buffer_[2 * i] = spectral[i].real();
@@ -72,19 +91,156 @@ void RealFFT::IFFT(std::span<float> time, std::span<std::complex<float>> spectra
     }
 }
 
+void RealFFT::IFFT(std::span<float> time, std::span<const float> real, std::span<const float> imag) {
+    assert(time.size() == fft_size_);
+    assert(real.size() >= NumBins());
+    assert(imag.size() >= NumBins());
+
+    buffer_[0] = real.front();
+    buffer_[1] = -real[fft_size_ / 2];
+    const size_t n = fft_size_ / 2;
+    for (size_t i = 1; i < n; ++i) {
+        buffer_[2 * i] = real[i];
+        buffer_[2 * i + 1] = -imag[i];
+    }
+    rdft(fft_size_, -1, buffer_.data(), ip_.data(), w_.data());
+    float gain = 2.0f / fft_size_;
+    for (size_t i = 0; i < fft_size_; ++i) {
+        time[i] = buffer_[i] * gain;
+    }
+}
+
 // --------------------------------------------------------------------------------
 // complex fft
 // --------------------------------------------------------------------------------
-void ComplexFFT::Init(size_t fft_size) {
-    fft_size_ = fft_size;
-    ip_.resize(2 + std::ceil(std::sqrt(fft_size / 2.0f)));
-    w_.resize(fft_size / 2);
-    buffer_.resize(fft_size * 2);
-    const size_t size4 = fft_size / 2;
-    makewt(size4, ip_.data(), w_.data());
+struct ComplexFFTHelper {
+    template<ComplexFFTResultType type>
+    static inline void Init(ComplexFFT<type>& self, size_t fft_size) {
+        self.fft_size_ = fft_size;
+        self.ip_.resize(2 + std::ceil(std::sqrt(fft_size / 2.0f)));
+        self.w_.resize(fft_size / 2);
+        self.buffer_.resize(fft_size * 2);
+        const size_t size4 = fft_size / 2;
+        makewt(size4, self.ip_.data(), self.w_.data());
+    }
+
+    template<ComplexFFTResultType kType>
+    static inline void Hilbert(
+        ComplexFFT<kType>& self,
+        std::span<const float> time,
+        std::span<std::complex<float>> output
+    ) {
+        assert(time.size() == self.fft_size_);
+        assert(output.size() == self.fft_size_);
+
+        for (size_t i = 0; i < self.fft_size_; ++i) {
+            self.buffer_[2 * i] = time[i];
+            self.buffer_[2 * i + 1] = 0.0f;
+        }
+        cdft(self.fft_size_ * 2, 1, self.buffer_.data(), self.ip_.data(), self.w_.data());
+        // Z[0] = X[0]
+        self.buffer_[0] *= 0.5f;
+        self.buffer_[1] *= 0.5f;
+        // Z[N/2] = x[N/2]
+        self.buffer_[self.fft_size_] *= 0.5f;
+        self.buffer_[self.fft_size_ + 1] *= 0.5f;
+        // Z[negative frequency] = 0
+        for (size_t i = 1; i < self.fft_size_ / 2; ++i) {
+            self.buffer_[2 * i] = 0.0f;
+            self.buffer_[2 * i + 1] = 0.0f;
+        }
+        cdft(self.fft_size_ * 2, -1, self.buffer_.data(), self.ip_.data(), self.w_.data());
+        // Z[n] = 2 * X[n]
+        const float gain = 2.0f / self.fft_size_;
+        for (size_t i = 0; i < self.fft_size_; ++i) {
+            output[i].real(self.buffer_[i * 2] * gain);
+            output[i].imag(self.buffer_[i * 2 + 1] * gain);
+        }
+    }
+
+    template<ComplexFFTResultType kType>
+    static inline void Hilbert(
+        ComplexFFT<kType>&self,
+        std::span<const float> time,
+        std::span<float> real,
+        std::span<float> imag
+    ) {
+        assert(time.size() == self.fft_size_);
+        assert(real.size() == self.fft_size_);
+        assert(imag.size() == self.fft_size_);
+
+        for (size_t i = 0; i < self.fft_size_; ++i) {
+            self.buffer_[2 * i] = time[i];
+            self.buffer_[2 * i + 1] = 0.0f;
+        }
+        cdft(self.fft_size_ * 2, 1, self.buffer_.data(), self.ip_.data(), self.w_.data());
+        // Z[0] = X[0]
+        self.buffer_[0] *= 0.5f;
+        self.buffer_[1] *= 0.5f;
+        // Z[N/2] = x[N/2]
+        self.buffer_[self.fft_size_] *= 0.5f;
+        self.buffer_[self.fft_size_ + 1] *= 0.5f;
+        // Z[negative frequency] = 0
+        for (size_t i = 1; i < self.fft_size_ / 2; ++i) {
+            self.buffer_[2 * i] = 0.0f;
+            self.buffer_[2 * i + 1] = 0.0f;
+        }
+        cdft(self.fft_size_ * 2, -1, self.buffer_.data(), self.ip_.data(), self.w_.data());
+        // Z[n] = 2 * X[n]
+        const float gain = 2.0f / self.fft_size_;
+        for (size_t i = 0; i < self.fft_size_; ++i) {
+            real[i] = self.buffer_[i * 2] * gain;
+            imag[i] = self.buffer_[i * 2 + 1] * gain;
+        }
+    }
+};
+
+template<>
+void ComplexFFT<ComplexFFTResultType::kNegPiToPosPi>::Init(size_t fft_size) {
+    ComplexFFTHelper::Init(*this, fft_size);
 }
 
-void ComplexFFT::FFT(std::span<const float> time, std::span<std::complex<float>> spectral) {
+template<>
+void ComplexFFT<ComplexFFTResultType::kZeroToTwoPi>::Init(size_t fft_size) {
+    ComplexFFTHelper::Init(*this, fft_size);
+}
+
+template<>
+void ComplexFFT<ComplexFFTResultType::kNegPiToPosPi>::Hilbert(
+    std::span<const float> time,
+    std::span<std::complex<float>> output
+) {
+    ComplexFFTHelper::Hilbert(*this, time, output);
+}
+
+template<>
+void ComplexFFT<ComplexFFTResultType::kZeroToTwoPi>::Hilbert(
+    std::span<const float> time,
+    std::span<std::complex<float>> output
+) {
+    ComplexFFTHelper::Hilbert(*this, time, output);
+}
+
+template<>
+void ComplexFFT<ComplexFFTResultType::kNegPiToPosPi>::Hilbert(
+    std::span<const float> time,
+    std::span<float> real,
+    std::span<float> imag
+) {
+    ComplexFFTHelper::Hilbert(*this, time, real, imag);
+}
+
+template<>
+void ComplexFFT<ComplexFFTResultType::kZeroToTwoPi>::Hilbert(
+    std::span<const float> time,
+    std::span<float> real,
+    std::span<float> imag
+) {
+    ComplexFFTHelper::Hilbert(*this, time, real, imag);
+}
+
+template<>
+void ComplexFFT<ComplexFFTResultType::kNegPiToPosPi>::FFT(std::span<const float> time, std::span<std::complex<float>> spectral) {
     assert(time.size() == fft_size_);
     assert(spectral.size() == NumBins());
 
@@ -93,13 +249,39 @@ void ComplexFFT::FFT(std::span<const float> time, std::span<std::complex<float>>
         buffer_[2 * i + 1] = 0.0f;
     }
     cdft(fft_size_ * 2, 1, buffer_.data(), ip_.data(), w_.data());
-    for (size_t i = 0; i < fft_size_; ++i) {
-        spectral[i].real(buffer_[i * 2]);
-        spectral[i].imag(buffer_[i * 2 + 1]);
+    for (size_t i = 0; i <= fft_size_ / 2; ++i) {
+        size_t e = fft_size_ / 2 - i;
+        spectral[i].real(buffer_[e * 2]);
+        spectral[i].imag(buffer_[e * 2 + 1]);
+    }
+    for (size_t i = 0; i < fft_size_ / 2 - 1; ++i) {
+        size_t e = fft_size_ - 1 - i;
+        size_t a = fft_size_ / 2 + 1 + i;
+        spectral[a].real(buffer_[e * 2]);
+        spectral[a].imag(buffer_[e * 2 + 1]);
     }
 }
 
-void ComplexFFT::FFT(std::span<const std::complex<float>> time, std::span<std::complex<float>> spectral) {
+template<>
+void ComplexFFT<ComplexFFTResultType::kZeroToTwoPi>::FFT(std::span<const float> time, std::span<std::complex<float>> spectral) {
+    assert(time.size() == fft_size_);
+    assert(spectral.size() == NumBins());
+
+    for (size_t i = 0; i < fft_size_; ++i) {
+        buffer_[2 * i] = time[i];
+        buffer_[2 * i + 1] = 0.0f;
+    }
+    cdft(fft_size_ * 2, 1, buffer_.data(), ip_.data(), w_.data());
+    spectral[0].real(buffer_[0]);
+    spectral[0].imag(buffer_[1]);
+    for (size_t i = 1; i < fft_size_; ++i) {
+        spectral[fft_size_ - i].real(buffer_[i * 2]);
+        spectral[fft_size_ - i].imag(buffer_[i * 2 + 1]);
+    }
+}
+
+template<>
+void ComplexFFT<ComplexFFTResultType::kNegPiToPosPi>::FFT(std::span<const std::complex<float>> time, std::span<std::complex<float>> spectral) {
     assert(time.size() == fft_size_);
     assert(spectral.size() == NumBins());
 
@@ -108,18 +290,67 @@ void ComplexFFT::FFT(std::span<const std::complex<float>> time, std::span<std::c
         buffer_[2 * i + 1] = time[i].imag();
     }
     cdft(fft_size_ * 2, 1, buffer_.data(), ip_.data(), w_.data());
-    for (size_t i = 0; i < fft_size_; ++i) {
-        spectral[i].real(buffer_[i * 2]);
-        spectral[i].imag(buffer_[i * 2 + 1]);
+    for (size_t i = 0; i <= fft_size_ / 2; ++i) {
+        size_t e = fft_size_ / 2 - i;
+        spectral[i].real(buffer_[e * 2]);
+        spectral[i].imag(buffer_[e * 2 + 1]);
+    }
+    for (size_t i = 0; i < fft_size_ / 2 - 1; ++i) {
+        size_t e = fft_size_ - 1 - i;
+        size_t a = fft_size_ / 2 + 1 + i;
+        spectral[a].real(buffer_[e * 2]);
+        spectral[a].imag(buffer_[e * 2 + 1]);
     }
 }
 
-void ComplexFFT::IFFT(std::span<std::complex<float>> time, std::span<std::complex<float>> spectral) {
+template<>
+void ComplexFFT<ComplexFFTResultType::kZeroToTwoPi>::FFT(std::span<const std::complex<float>> time, std::span<std::complex<float>> spectral) {
+    assert(time.size() == fft_size_);
+    assert(spectral.size() == NumBins());
+
     for (size_t i = 0; i < fft_size_; ++i) {
-        buffer_[2 * i] = spectral[i].real();
-        buffer_[2 * i + 1] = spectral[i].imag();
+        buffer_[2 * i] = time[i].real();
+        buffer_[2 * i + 1] = time[i].imag();
     }
-    rdft(fft_size_ * 2, -1, buffer_.data(), ip_.data(), w_.data());
+    cdft(fft_size_ * 2, 1, buffer_.data(), ip_.data(), w_.data());
+    spectral[0].real(buffer_[0]);
+    spectral[0].imag(buffer_[1]);
+    for (size_t i = 1; i < fft_size_; ++i) {
+        spectral[fft_size_ - i].real(buffer_[i * 2]);
+        spectral[fft_size_ - i].imag(buffer_[i * 2 + 1]);
+    }
+}
+
+template<>
+void ComplexFFT<ComplexFFTResultType::kZeroToTwoPi>::IFFT(std::span<std::complex<float>> time, std::span<std::complex<float>> spectral) {
+    buffer_[0] = spectral[0].real();
+    buffer_[1] = spectral[1].imag();
+    for (size_t i = 1; i < fft_size_; ++i) {
+        buffer_[2 * i] = spectral[fft_size_ - i].real();
+        buffer_[2 * i + 1] = spectral[fft_size_ - i].imag();
+    }
+    cdft(fft_size_ * 2, -1, buffer_.data(), ip_.data(), w_.data());
+    const float gain = 1.0f / fft_size_;
+    for (size_t i = 0; i < fft_size_; ++i) {
+        time[i].real(buffer_[i * 2] * gain);
+        time[i].imag(buffer_[i * 2 + 1] * gain);
+    }
+}
+
+template<>
+void ComplexFFT<ComplexFFTResultType::kNegPiToPosPi>::IFFT(std::span<std::complex<float>> time, std::span<std::complex<float>> spectral) {
+    for (size_t i = 0; i <= fft_size_ / 2; ++i) {
+        size_t a = fft_size_ / 2 - i;
+        buffer_[2 * a] = spectral[i].real();
+        buffer_[2 * a + 1] = spectral[i].imag();
+    }
+    for (size_t i = 0; i < fft_size_ / 2 - 1; ++i) {
+        size_t a = fft_size_ / 2 + 1 + i;
+        size_t e = fft_size_ - 1 - i;
+        buffer_[2 * a] = spectral[e].real();
+        buffer_[2 * a + 1] = spectral[e].imag();
+    }
+    cdft(fft_size_ * 2, -1, buffer_.data(), ip_.data(), w_.data());
     const float gain = 1.0f / fft_size_;
     for (size_t i = 0; i < fft_size_; ++i) {
         time[i].real(buffer_[i * 2] * gain);

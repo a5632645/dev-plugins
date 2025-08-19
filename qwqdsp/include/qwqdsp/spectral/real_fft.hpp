@@ -11,7 +11,11 @@ public:
     
     void FFT(std::span<const float> time, std::span<std::complex<float>> spectral);
 
-    void IFFT(std::span<float> time, std::span<std::complex<float>> spectral);
+    void FFT(std::span<const float> time, std::span<float> real, std::span<float> imag);
+
+    void IFFT(std::span<float> time, std::span<const std::complex<float>> spectral);
+
+    void IFFT(std::span<float> time, std::span<const float> real, std::span<const float> imag);
 
     size_t NumBins() const {
         return fft_size_ / 2 + 1;

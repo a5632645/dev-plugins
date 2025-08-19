@@ -5,6 +5,12 @@
 #include <complex>
 
 namespace qwqdsp::spectral {
+enum class ComplexFFTResultType {
+    kNegPiToPosPi,
+    kZeroToTwoPi
+};
+
+template<ComplexFFTResultType kResultType>
 class ComplexFFT {
 public:
     void Init(size_t fft_size);
@@ -15,10 +21,16 @@ public:
 
     void IFFT(std::span<std::complex<float>> time, std::span<std::complex<float>> spectral);
 
+    void Hilbert(std::span<const float> time, std::span<std::complex<float>> output);
+
+    void Hilbert(std::span<const float> time, std::span<float> real, std::span<float> imag);
+
     size_t NumBins() const {
         return fft_size_;
     }
 private:
+    friend struct ComplexFFTHelper;
+
     size_t fft_size_{};
     std::vector<int> ip_;
     std::vector<float> w_;
