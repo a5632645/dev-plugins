@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstddef>
 #include <numbers>
+#include <numeric>
 
 namespace dsp {
 
@@ -130,11 +131,7 @@ void STFTVocoder::SetBandwidth(float bw) {
         float sinc = std::abs(x) < 1e-6 ? 1.0f : std::sin(x) / x;
         window_[i] = sinc * hann_window_[i];
     }
-    float power = 0.0f;
-    for (auto x : window_) {
-        power += x * x;
-    }
-    window_gain_ = 1.0f / std::sqrt(power);
+    window_gain_ = 2.0f / std::accumulate(window_.begin(), window_.end(), 0.0f);
 }
 
 void STFTVocoder::SetAttack(float ms) {
