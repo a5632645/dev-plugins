@@ -28,6 +28,7 @@ static inline std::array<std::span<float>, 2> Mix(int modu, int carry, juce::Aud
             std::copy(res[0].begin(), res[0].end(), res[1].begin());
             break;
         case 1:
+        case 6:
             break;
         case 2:
             AddInto(res[1], res[0]);
@@ -53,6 +54,7 @@ static inline std::array<std::span<float>, 2> Mix(int modu, int carry, juce::Aud
             }
             break;
         case 1:
+        case 6:
             std::copy(res[1].begin(), res[1].end(), res[0].begin());
             break;
             case 2:
@@ -88,6 +90,7 @@ static inline std::array<std::span<float>, 2> Mix(int modu, int carry, juce::Aud
             }
             break;
         case 1:
+        case 6:
             AddInto(res[0], res[1]);
             break;
         case 2:
@@ -120,6 +123,7 @@ static inline std::array<std::span<float>, 2> Mix(int modu, int carry, juce::Aud
             std::copy_n(buffer.getReadPointer(2), num_samples, res[0].begin());
             break;
         case 1:
+        case 6:
             std::copy_n(buffer.getReadPointer(2), num_samples, res[0].begin());
             break;
         case 2:
@@ -149,6 +153,7 @@ static inline std::array<std::span<float>, 2> Mix(int modu, int carry, juce::Aud
             std::copy_n(buffer.getReadPointer(3), num_samples, res[0].begin());
             break;
         case 1:
+        case 6:
             std::copy_n(buffer.getReadPointer(3), num_samples, res[0].begin());
             break;
         case 2:
@@ -178,6 +183,7 @@ static inline std::array<std::span<float>, 2> Mix(int modu, int carry, juce::Aud
             MixInto(res[0], buffer.getReadPointer(2), buffer.getReadPointer(3), num_samples);
             break;
         case 1:
+        case 6:
             MixInto(res[0], buffer.getReadPointer(2), buffer.getReadPointer(3), num_samples);
             break;
         case 2:

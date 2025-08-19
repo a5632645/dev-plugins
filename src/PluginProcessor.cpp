@@ -620,8 +620,10 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     output_gain_.Init(fs, samplesPerBlock);
 
     yin_process_.SetSize(2048);
-    yin_process_.SetHop(2048);
+    yin_process_.SetHop(1024);
     yin_.Init(fs, 2048);
+    yin_.SetMinPitch(80.0f);
+    yin_.SetMaxPitch(500.0f);
     sawtooth_.Init(fs);
 
     paramListeners_.CallAll();
@@ -696,8 +698,16 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             yin_process_.Advance();
         }
         // generate waveform
-        sawtooth_.SetFreq(yin_.GetPitch());
-        sawtooth_.Process(side_buffer_);
+        auto pitch = yin_.GetPitch();
+        if (pitch.non_period_ratio > 0.5f) {
+            for (auto& s : side_buffer_) {
+                s = noise_.Next();
+            }
+        }
+        else {
+            sawtooth_.SetFreq(yin_.GetPitch().pitch);
+            sawtooth_.Process(side_buffer_);
+        }
     }
 
     filter_.Process(main_buffer_);

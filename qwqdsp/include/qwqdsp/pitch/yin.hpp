@@ -7,9 +7,12 @@ namespace qwqdsp::pitch {
 class Yin {
 public:
     void Init(float fs, int size) {
+
         fs_ = fs;
         delta_corr_.resize(size);
         dicimate_ = std::round(fs / 6000.0f);
+        SetMinPitch(min_pitch_);
+        SetMaxPitch(max_pitch_);
     }
 
     void Process(std::span<float> block) {
@@ -38,9 +41,10 @@ public:
         }
 
         // step3 find tau
+        int max_ifbin = std::min(max_bin_, max_tal);
         constexpr float non_period_energy_ratio = 0.1f;
         int where = -1;
-        for (int i = 0; i < max_tal; ++i) {
+        for (int i = max_ifbin; i >= min_bin_; --i) {
             if (delta_corr_[i] < non_period_energy_ratio) {
                 where = i;
                 break;
@@ -48,7 +52,7 @@ public:
         }
         if (where == -1) {
             float min = delta_corr_.front();
-            for (int i = 0; i < max_tal; ++i) {
+            for (int i = min_bin_; i < max_ifbin; ++i) {
                 if (delta_corr_[i] < min) {
                     min = delta_corr_[i];
                     where = i;
@@ -62,19 +66,51 @@ public:
             float s0 = delta_corr_[where - 1];
             float s1 = delta_corr_[where];
             float s2 = delta_corr_[where + 1];
-            float frac = 0.5f * (s2 - s0) / (2.0f * s1 - s2 - s0 + 1e-18f);
-            preiod = where + frac;
+            if (s1 < s0 && s1 < s2) {
+                float frac = 0.5f * (s2 - s0) / (2.0f * s1 - s2 - s0 + 1e-18f);
+                preiod = where + frac;
+                pitch_.pitch = fs_ / preiod;
+                pitch_.non_period_ratio = delta_corr_[where];
+            }
+            else {
+                // 无峰值，大概是噪声或者在外面吧
+                pitch_.pitch = 0.0f;
+                pitch_.non_period_ratio = 1.0f;
+            }
         }
-        pitch_ = fs_ / preiod;
+        else {
+            // 在两侧，可能是噪声
+            pitch_.pitch = 0.0f;
+            pitch_.non_period_ratio = 1.0f;
+        }
     }
 
-    float GetPitch() const {
+    struct Result {
+        float pitch;
+        // larger means the result is like a noise
+        float non_period_ratio;
+    };
+    Result GetPitch() const {
         return pitch_;
+    }
+
+    void SetMinPitch(float min_val) {
+        min_pitch_ = min_val;
+        max_bin_ = std::round(fs_ / min_val);
+    }
+
+    void SetMaxPitch(float max_val) {
+        max_pitch_ = max_val;
+        min_bin_ = std::round(fs_ / max_val);
     }
 private:
     std::vector<float> delta_corr_;
     float fs_{};
-    float pitch_{};
+    Result pitch_{};
     int dicimate_{};
+    float min_pitch_{};
+    float max_pitch_{};
+    int min_bin_{};
+    int max_bin_{};
 };
 }

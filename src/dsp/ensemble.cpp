@@ -64,7 +64,7 @@ void Ensemble::Init(float sample_rate) {
 
 void Ensemble::SetNumVoices(int num_voices) {
     num_voices_ = num_voices;
-    gain_ = 1.0f / std::sqrt(static_cast<float>(num_voices));
+    gain_ = 2.0f / std::sqrt(static_cast<float>(num_voices));
 }
 
 void Ensemble::SetDetune(float detune) {

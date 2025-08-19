@@ -14,6 +14,7 @@
 #include "qwqdsp/segement_process.hpp"
 #include "qwqdsp/pitch/yin.hpp"
 #include "qwqdsp/osciilor/raw_saw.hpp"
+#include "qwqdsp/osciilor/noise.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -167,6 +168,7 @@ public:
     qwqdsp::SegementProcess yin_process_;
     qwqdsp::pitch::Yin yin_;
     qwqdsp::oscillor::RawSaw sawtooth_;
+    qwqdsp::oscillor::WhiteNoise noise_;
 
     dsp::Gain<1> main_gain_;
     dsp::Gain<1> side_gain_;
