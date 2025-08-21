@@ -28,6 +28,14 @@ public:
     size_t NumBins() const {
         return fft_size_;
     }
+
+    size_t FFTSize() const {
+        return fft_size_;
+    }
+
+    float FFTSizeFloat() const {
+        return static_cast<float>(fft_size_);
+    }
 private:
     friend struct ComplexFFTHelper;
 

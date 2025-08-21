@@ -20,6 +20,14 @@ public:
     size_t NumBins() const {
         return fft_size_ / 2 + 1;
     }
+
+    size_t FFTSize() const {
+        return fft_size_;
+    }
+
+    float FFTSizeFloat() const {
+        return static_cast<float>(fft_size_);
+    }
 private:
     size_t fft_size_{};
     std::vector<int> ip_;
