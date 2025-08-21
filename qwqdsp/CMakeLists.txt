@@ -6,10 +6,10 @@ target_include_directories(qwqdsp PUBLIC "./include")
 set_target_properties(qwqdsp PROPERTIES CXX_STANDARD 20)
 
 add_executable(playing
-    "./source/playing.cpp"
-    "./source/FontRGB.cpp"
-    "./source/OLEDDisplayRGB.cpp"
-    "./source/stb_image_write.c"
+    "./playing/playing.cpp"
+    "./playing/FontRGB.cpp"
+    "./playing/OLEDDisplayRGB.cpp"
+    "./playing/stb_image_write.c"
 )
 target_link_libraries(playing PUBLIC qwqdsp)
 set_target_properties(playing PROPERTIES CXX_STANDARD 20)
