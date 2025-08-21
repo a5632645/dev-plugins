@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 
 namespace qwqdsp {
 /**
@@ -17,8 +18,9 @@ struct Interpolation4 {
         return f1 * y0 + f2 * y1 + f3 * y2 + f4 * y3;
     }
 
-    // TODO: fix it
-    [[deprecated("not implement")]]
+    /**
+     * @ref https://blog.csdn.net/qq_33552519/article/details/102742715
+     */
     static float SPPCHIP(
         float y0, float y1, float y2, float y3,
         float x0, float x1, float x2, float x3,
@@ -32,10 +34,24 @@ struct Interpolation4 {
         auto h1 = x2 - x1;
         auto h2 = x3 - x2;
 
-        auto d0 = ((2 * h0 + h1) * e0 - h0 * e2) / (h0 + h1);
+        auto d0 = ((2 * h0 + h1) * e0 - h0 * e1) / (h0 + h1);
+        if (d0 * e0 < 0) {
+            d0 = 0;
+        }
+        else if (e0 * e1 < 0 && std::abs(d0) > 3.0f * std::abs(e0)) {
+            d0 = 3.0f * e0;
+        }
+
         auto d3 = ((2 * h2 + h1) * e2 - h2 * e1) / (h1 + h2);
+        if (d3 * e2 < 0) {
+            d3 = 0;
+        }
+        else if (e2 * e1 < 0 && std::abs(d3) > 3.0f * std::abs(e2)) {
+            d3 = 3.0f * e2;
+        }
+
         auto d1 = 0.0f;
-        if (e0 == 0.0f || e1 == 0.0f) {
+        if (e0 == 0.0f || e1 == 0.0f || e0 * e1 < 0) {
             d1 = 0;
         }
         else {
@@ -43,8 +59,9 @@ struct Interpolation4 {
             auto w2 = h1 + 2 * h0;
             d1 = (w1 + w2) * (e0 * e1) / (w1 * e1 + w2 * e0);
         }
+
         auto d2 = 0.0f;
-        if (e1 == 0.0f || e2 == 0.0f) {
+        if (e1 == 0.0f || e2 == 0.0f || e1 * e2 < 0) {
             d2 = 0;
         }
         else {
@@ -55,26 +72,24 @@ struct Interpolation4 {
 
         if (x < x1) {
             auto s = x - x0;
-            auto c0 = (3 * e0 - 2 * d0 - d1) / e0;
-            auto b0 = (d0 - 2 * e0 + d1) / (e0 * e0);
+            auto c0 = (3 * e0 - 2 * d0 - d1) / h0;
+            auto b0 = (d0 - 2 * e0 + d1) / (h0 * h0);
             return y0 + s * d0 + s * s * c0 + s * s * s * b0;
         }
         else if (x > x2) {
             auto s = x - x2;
-            auto c0 = (3 * e2 - 2 * d2 - d3) / e2;
-            auto b0 = (d2 - 2 * e2 + d3) / (e2 * e2);
+            auto c0 = (3 * e2 - 2 * d2 - d3) / h2;
+            auto b0 = (d2 - 2 * e2 + d3) / (h2 * h2);
             return y2 + s * d2 + s * s * c0 + s * s * s * b0;
         }
         else {
             auto s = x - x1;
-            auto c0 = (3 * e1 - 2 * d1 - d2) / e1;
-            auto b0 = (d1 - 2 * e1 + d2) / (e1 * e1);
+            auto c0 = (3 * e1 - 2 * d1 - d2) / h1;
+            auto b0 = (d1 - 2 * e1 + d2) / (h1 * h1);
             return y1 + s * d1 + s * s * c0 + s * s * s * b0;
         }
     }
 
-    // TODO: fix it
-    [[deprecated("not implement")]]
     static float Spline(
         float y0, float y1, float y2, float y3,
         float x0, float x1, float x2, float x3,
@@ -98,7 +113,7 @@ struct Interpolation4 {
             auto l = m0 * s2 + y0;
             return l + c;
         }
-        else if (x > x2) {
+        else if (x < x2) {
             auto s1 = x - x2;
             auto s2 = x - x1;
             auto c = a2 * s1 * s1 * s2 + b2 * s1 * s2 * s2;
@@ -114,30 +129,51 @@ struct Interpolation4 {
         }
     }
 
-    // TODO: fix it
-    [[deprecated("not implement")]]
     static float CatmullRomSpline(
         float y0, float y1, float y2, float y3,
         float x0, float x1, float x2, float x3,
         float x, float tension
     ) {
         tension = 1.0f - tension;
-        auto q1 = (y1 - y0) / (x1 - x0) - (y2 - y0) / (x2 - x0) + (y2 - y1) / (x2 - x1);
-        auto q2 = (y2 - y1) / (x2 - x1) - (y3 - y1) / (x3 - x1) + (y3 - y2) / (x3 - x2);
-        auto m1 = tension * (x2 - x1) * q1;
-        auto m2 = tension * (x2 - x1) * q2;
-        auto a = 2 * y1 - 2 * y2 + m1 + m2;
-        auto b = -3 * y1 + 3 * y2 - 2 * m1 - m2;
-        auto c = m1;
-        auto d = y1;
+        float t01 = std::sqrt(x1 - x0);
+        float t12 = std::sqrt(x2 - x1);
+        float t23 = std::sqrt(x3 - x2);
+        float m1 = (1.0f - tension) * (y2 - y1 + t12 * ((y1 - y0) / t01 - (y2 - y0) / (t01 + t12)));
+        float m2 = (1.0f - tension) * (y2 - y1 + t12 * ((y3 - y2) / t23 - (y3 - y1) / (t12 + t23)));
         if (x < x1) {
-
+            // auto m0 = m1;
+            auto m0 = (y1 - y0) / (x1 - x0);
+            auto a = 2.0f * (y0 - y1) + m0 + m1;
+            auto b = -3.0f * (y0 - y1) - 2.0f * m0 - m1;
+            auto c = m0;
+            auto d = y0;
+            auto s = (x - x0) / (x1 - x0);
+            return d + s * (
+                c + s * (b
+                    + s * a
+                )
+            );
         }
         else if (x > x2) {
-
+            // float m3 = m2;
+            float m3 = (y3 - y2) / (x3 - x2);
+            auto a = 2.0f * (y2 - y3) + m2 + m3;
+            auto b = -3.0f * (y2 - y3) - 2.0f * m2 - m3;
+            auto c = m2;
+            auto d = y2;
+            auto s = (x - x2) / (x3 - x2);
+            return d + s * (
+                c + s * (b
+                    + s * a
+                )
+            );
         }
         else {
-            auto s = x - x1;
+            auto a = 2.0f * (y1 - y2) + m1 + m2;
+            auto b = -3.0f * (y1 - y2) - 2.0f * m1 - m2;
+            auto c = m1;
+            auto d = y1;
+            auto s = (x - x1) / (x2 - x1);
             return d + s * (
                 c + s * (b
                     + s * a
@@ -146,7 +182,6 @@ struct Interpolation4 {
         }
     }
 
-    // TODO: fix it
     [[deprecated("not implement")]]
     static float Makima(
         float yn2, float yn1, float y0, float y1, float y2,

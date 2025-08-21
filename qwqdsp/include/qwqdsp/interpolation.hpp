@@ -27,14 +27,14 @@ struct Interpolation {
         float y0, float y1, float y2, float y3,
         float frac
     ) {
-        auto d1 = frac - 1.f;
-        auto d2 = frac - 2.f;
-        auto d3 = frac - 3.f;
+        auto d1 = frac - 1.0f;
+        auto d2 = frac - 2.0f;
+        auto d3 = frac - 3.0f;
 
-        auto c1 = -d1 * d2 * d3 / 6.f;
+        auto c1 = -d1 * d2 * d3 / 6.0f;
         auto c2 = d2 * d3 * 0.5f;
         auto c3 = -d1 * d3 * 0.5f;
-        auto c4 = d1 * d2 / 6.f;
+        auto c4 = d1 * d2 / 6.0f;
 
         return y0 * c1 + frac * (y1 * c2 + y2 * c3 + y3 * c4);
     }
