@@ -706,7 +706,9 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         }
         else {
             sawtooth_.SetFreq(yin_.GetPitch().pitch);
-            sawtooth_.Process(side_buffer_);
+            for (auto& s : side_buffer_) {
+                s = sawtooth_.Saw();
+            }
         }
     }
 

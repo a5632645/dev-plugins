@@ -13,7 +13,7 @@
 #include "qwqdsp/performance.hpp"
 #include "qwqdsp/segement_process.hpp"
 #include "qwqdsp/pitch/yin.hpp"
-#include "qwqdsp/osciilor/raw_saw.hpp"
+#include "qwqdsp/osciilor/raw_oscillor.hpp"
 #include "qwqdsp/osciilor/noise.hpp"
 
 //==============================================================================
@@ -167,7 +167,7 @@ public:
     dsp::Ensemble ensemble_;
     qwqdsp::SegementProcess yin_process_;
     qwqdsp::pitch::Yin yin_;
-    qwqdsp::oscillor::RawSaw sawtooth_;
+    qwqdsp::oscillor::RawOscillor sawtooth_;
     qwqdsp::oscillor::WhiteNoise noise_;
 
     dsp::Gain<1> main_gain_;
