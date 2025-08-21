@@ -12,7 +12,7 @@ namespace qwqdsp::segement {
 class AnalyzeSynthsisOffline {
 public:
     /**
-     * @tparam Func void(std::span<const float> block)
+     * @tparam Func void(std::span<const float> input, std::span<float> output)
      */
     template<class Func>
     void Process(
@@ -30,11 +30,11 @@ public:
                 input_wpos_ += in.size();
                 if (input_wpos_ >= size_) {
                     std::copy(input_buffer_.begin(), input_buffer_.end(), process_buffer_.begin());
+                    func(std::span<const float>{input_buffer_.data(), size_}, std::span<float>{process_buffer_.data(), size_});
                     input_wpos_ -= input_hop_;
                     for (int i = 0; i < input_wpos_; i++) {
                         input_buffer_[i] = input_buffer_[i + input_hop_];
                     }
-                    func({process_buffer_.data(), size_});
                     for (int i = 0; i < size_; i++) {
                         output_buffer_[i + write_add_end_] += process_buffer_[i];
                     }
@@ -74,7 +74,7 @@ public:
                 for (int i = 0; i < input_wpos_; i++) {
                     input_buffer_[i] = input_buffer_[i + input_hop_];
                 }
-                func({process_buffer_.data(), size_});
+                func(std::span<const float>{input_buffer_.data(), size_}, std::span<float>{process_buffer_.data(), size_});
                 for (int i = 0; i < size_; i++) {
                     output_buffer_[i + write_add_end_] += process_buffer_[i];
                 }
