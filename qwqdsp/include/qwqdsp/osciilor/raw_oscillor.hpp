@@ -24,11 +24,11 @@ public:
     }
 
     float Sine() {
-        return std::sin(phase_ * std::numbers::pi_v<float> * 2.0f);
+        return std::sin(Tick() * std::numbers::pi_v<float> * 2.0f);
     }
 
     float Cosine() {
-        return std::cos(phase_ * std::numbers::pi_v<float> * 2.0f);
+        return std::cos(Tick() * std::numbers::pi_v<float> * 2.0f);
     }
 
     float Triangle() {
