@@ -95,8 +95,11 @@ public:
         }
         ++rpos_;
     }
-private:
 
+    void SetTension(float tension) {
+        tension_ = tension;
+    }
+private:
     float a_{};
     float b_{};
     float c_{};

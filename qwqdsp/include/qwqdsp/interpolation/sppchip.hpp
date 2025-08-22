@@ -47,7 +47,6 @@ public:
         ++rpos_;
     }
 private:
-
     float GetDerivative(size_t i) const {
         if (i == 0) {
             auto y0 = ys_[i];

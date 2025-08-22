@@ -40,16 +40,21 @@
 
 int main() {
     size_t draging_obj = -1;
-    std::array<Vector2, 6> drags{
-        Vector2{100, 200},
-        {150, 200},
+    std::array<Vector2, 11> drags{
+        Vector2{50, 300},
+        {100, 300},
+        {150, 300},
         {200, 200},
-        {250, 200},
-        {300, 200},
-        {350, 200}
+        {250, 100},
+        {300, 100},
+        {350, 100},
+        {400, 100},
+        {400, 100},
+        {400, 100},
+        {400, 100},
     };
 
-    InitWindow(400, 400, "playing");
+    InitWindow(500, 500, "playing");
     SetTargetFPS(30);
     while (!WindowShouldClose()) {
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
@@ -98,7 +103,7 @@ int main() {
         Vector2 line_start = copy[0];
         for (size_t i = copy[0].x; i < copy.back().x; ++i) {
             auto y = pchip.Next(i);
-            DrawLine(line_start.x, line_start.y, i, y, GREEN);
+            DrawLine(line_start.x, line_start.y, i, y, BLUE);
             line_start.x = i;
             line_start.y = y;
         }
