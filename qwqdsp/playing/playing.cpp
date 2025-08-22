@@ -8,6 +8,9 @@
 
 #include "qwqdsp/osciilor/noise.hpp"
 #include "qwqdsp/interpolation4.hpp"
+#include "qwqdsp/interpolation/makima.hpp"
+#include "qwqdsp/interpolation/catmull_rom_spline.hpp"
+#include "qwqdsp/interpolation/sppchip.hpp"
 
 // struct Canvas {
 //     int width;
@@ -37,11 +40,13 @@
 
 int main() {
     size_t draging_obj = -1;
-    std::array<Vector2, 4> drags{
+    std::array<Vector2, 6> drags{
         Vector2{100, 200},
         {150, 200},
         {200, 200},
-        {250, 200}
+        {250, 200},
+        {300, 200},
+        {350, 200}
     };
 
     InitWindow(400, 400, "playing");
@@ -81,72 +86,41 @@ int main() {
             return max.x < now.x;
         });
 
-        {
-            auto line_start = copy[0];
-            for (size_t i = copy[0].x; i < copy[1].x; ++i) {
-                auto y = qwqdsp::Interpolation4::Lagrange3rd(
-                    copy[0].y, copy[1].y, copy[2].y, copy[3].y,
-                    copy[0].x, copy[1].x, copy[2].x, copy[3].x,
-                    i
-                );
-                DrawLine(line_start.x, line_start.y, i, y, WHITE);
-                line_start.x = i;
-                line_start.y = y;
-            }
-            for (size_t i = copy[1].x; i < copy[2].x; ++i) {
-                auto y = qwqdsp::Interpolation4::Lagrange3rd(
-                    copy[0].y, copy[1].y, copy[2].y, copy[3].y,
-                    copy[0].x, copy[1].x, copy[2].x, copy[3].x,
-                    i
-                );
-                DrawLine(line_start.x, line_start.y, i, y, WHITE);
-                line_start.x = i;
-                line_start.y = y;
-            }
-            for (size_t i = copy[2].x; i < copy[3].x; ++i) {
-                auto y = qwqdsp::Interpolation4::Lagrange3rd(
-                    copy[0].y, copy[1].y, copy[2].y, copy[3].y,
-                    copy[0].x, copy[1].x, copy[2].x, copy[3].x,
-                    i
-                );
-                DrawLine(line_start.x, line_start.y, i, y, WHITE);
-                line_start.x = i;
-                line_start.y = y;
-            }
+        std::array<float, copy.size()> xs;
+        std::array<float, copy.size()> ys;
+        for (size_t i = 0; i < copy.size(); ++i) {
+            xs[i] = copy[i].x;
+            ys[i] = copy[i].y;
         }
 
-        {
-            auto line_start = copy[0];
-            for (size_t i = copy[0].x; i < copy[1].x; ++i) {
-                auto y = qwqdsp::Interpolation4::CatmullRomSpline(
-                    copy[0].y, copy[1].y, copy[2].y, copy[3].y,
-                    copy[0].x, copy[1].x, copy[2].x, copy[3].x,
-                    i, 0.0f
-                );
-                DrawLine(line_start.x, line_start.y, i, y, RED);
-                line_start.x = i;
-                line_start.y = y;
-            }
-            for (size_t i = copy[1].x; i < copy[2].x; ++i) {
-                auto y = qwqdsp::Interpolation4::CatmullRomSpline(
-                    copy[0].y, copy[1].y, copy[2].y, copy[3].y,
-                    copy[0].x, copy[1].x, copy[2].x, copy[3].x,
-                    i, 0.0f
-                );
-                DrawLine(line_start.x, line_start.y, i, y, RED);
-                line_start.x = i;
-                line_start.y = y;
-            }
-            for (size_t i = copy[2].x; i < copy[3].x; ++i) {
-                auto y = qwqdsp::Interpolation4::CatmullRomSpline(
-                    copy[0].y, copy[1].y, copy[2].y, copy[3].y,
-                    copy[0].x, copy[1].x, copy[2].x, copy[3].x,
-                    i, 0.0f
-                );
-                DrawLine(line_start.x, line_start.y, i, y, RED);
-                line_start.x = i;
-                line_start.y = y;
-            }
+        qwqdsp::interpolation::SPPCHIP pchip;
+        pchip.Reset(xs, ys);
+        Vector2 line_start = copy[0];
+        for (size_t i = copy[0].x; i < copy.back().x; ++i) {
+            auto y = pchip.Next(i);
+            DrawLine(line_start.x, line_start.y, i, y, GREEN);
+            line_start.x = i;
+            line_start.y = y;
+        }
+
+        qwqdsp::interpolation::CatmullRomSpline spline;
+        spline.Reset(xs, ys);
+        line_start = copy[0];
+        for (size_t i = copy[0].x; i < copy.back().x; ++i) {
+            auto y = spline.Next(i);
+            DrawLine(line_start.x, line_start.y, i, y, RED);
+            line_start.x = i;
+            line_start.y = y;
+        }
+
+        qwqdsp::interpolation::Makima makima;
+        makima.Reset(xs, ys);
+        line_start = copy[0];
+        for (size_t i = copy[0].x; i < copy.back().x; ++i) {
+            auto y = makima.Next(i);
+            DrawLine(line_start.x, line_start.y, i, y, ORANGE);
+            line_start.x = i;
+            line_start.y = y;
         }
 
         EndDrawing();

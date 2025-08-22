@@ -47,11 +47,12 @@ private:
     float Get(float delay) {
         float rpos = wpos_ + buffer_.size() - delay;
         int irpos = static_cast<int>(rpos) & mask_;
-        int inext1 = (irpos + 1) & mask_;
-        int inext2 = (irpos + 2) & mask_;
+        [[maybe_unused]] int inext1 = (irpos + 1) & mask_;
+        [[maybe_unused]] int inext2 = (irpos + 2) & mask_;
         [[maybe_unused]] int inext3 = (irpos + 3) & mask_;
         [[maybe_unused]] int iprev1 = (irpos - 1) & mask_;
-        float t = rpos - static_cast<int>(rpos);
+        [[maybe_unused]] int iprev2 = (irpos - 2) & mask_;
+        [[maybe_unused]] float t = rpos - static_cast<int>(rpos);
         if constexpr (INTERPOLATION_TYPE == Interpolation::Type::None) {
             return buffer_[irpos];
         }
@@ -69,6 +70,9 @@ private:
         }
         else if constexpr (INTERPOLATION_TYPE == Interpolation::Type::CatmullRomSpline) {
             return Interpolation::CatmullRomSpline(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
+        }
+        else if constexpr (INTERPOLATION_TYPE == Interpolation::Type::Makima) {
+            return Interpolation::Makima(buffer_[iprev2], buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], buffer_[inext3], t);
         }
     }
 

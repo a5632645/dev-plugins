@@ -182,13 +182,38 @@ struct Interpolation4 {
         }
     }
 
-    [[deprecated("not implement")]]
+    /**
+     * @ref https://blogs.mathworks.com/cleve/2019/04/29/makima-piecewise-cubic-interpolation/?from=cn
+     */
     static float Makima(
-        float yn2, float yn1, float y0, float y1, float y2,
-        float xn2, float xn1, float x0, float x1, float x2,
+        float yn2, float yn1, float y0, float y1, float y2, float y3,
+        float xn2, float xn1, float x0, float x1, float x2, float x3,
         float x
     ) {
-        
+        float en2 = (yn1 - yn2) / (xn2 - xn1);
+        float en1 = (y0 - yn1) / (x0 - xn1);
+        float e0 = (y1 - y0) / (x1 - x0);
+        float e1 = (y2 - y1) / (x2 - x1);
+        float e2 = (y3 - y2) / (x3 - x2);
+        float w1 = std::abs(e1 - e0) + std::abs(e1 + e0) * 0.5f;
+        float w2 = std::abs(en1 - en2) + std::abs(en1 + en2) * 0.5f;
+        float w1x = std::abs(e2 - e1) + std::abs(e2 + e1) * 0.5f;
+        float w2x = std::abs(e0 - en1) + std::abs(e0 + en1) * 0.5f;
+        float d0 = (w1 * en1 + w2 * e0) / (w1 + w2);
+        float d1 = (w1x * e0 + w2x * e1) / (w1x + w2x);
+        [[unlikely]]
+        if (std::isnan(d0)) {
+            d0 = 0.0f;
+        }
+        [[unlikely]]
+        if (std::isnan(d1)) {
+            d1 = 0.0f;
+        }
+        float s = x - x0;
+        float h0 = x1 - x0;
+        float c0 = (3 * e0 - 2 * d0 - d1) / h0;
+        float b0 = (d0 - 2 * e0 + d1) / (h0 * h0);
+        return y0 + s * d0 + s * s * c0 + s * s * s * b0;
     }
 };
 }
