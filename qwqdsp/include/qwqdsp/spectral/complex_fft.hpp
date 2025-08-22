@@ -170,7 +170,8 @@ public:
         }
     }
 
-    void IFFT(std::span<std::complex<float>> time, std::span<std::complex<float>> spectral) {
+    template<class SPAN_TYPE>
+    void IFFT(std::span<SPAN_TYPE> time, std::span<std::complex<float>> spectral) {
         if constexpr (kUseNegPiFirst) {
             for (size_t i = 0; i <= fft_size_ / 2; ++i) {
             size_t a = fft_size_ / 2 - i;
@@ -195,12 +196,19 @@ public:
         internal::cdft(fft_size_ * 2, -1, buffer_.data(), ip_.data(), w_.data());
         const float gain = 1.0f / fft_size_;
         for (size_t i = 0; i < fft_size_; ++i) {
-            time[i].real(buffer_[i * 2] * gain);
-            time[i].imag(buffer_[i * 2 + 1] * gain);
+            if constexpr (std::is_same_v<SPAN_TYPE, std::complex<float>>) {
+                time[i].real(buffer_[i * 2] * gain);
+                time[i].imag(buffer_[i * 2 + 1] * gain);
+            }
+            else {
+                time[i] = buffer_[i * 2] * gain;
+            }
         }
     }
 
-    void IFFT(std::span<std::complex<float>> time, std::span<float> real, std::span<float> imag) {
+
+    template<class SPAN_TYPE>
+    void IFFT(std::span<SPAN_TYPE> time, std::span<float> real, std::span<float> imag) {
         if constexpr (kUseNegPiFirst) {
             for (size_t i = 0; i <= fft_size_ / 2; ++i) {
             size_t a = fft_size_ / 2 - i;
@@ -225,12 +233,18 @@ public:
         internal::cdft(fft_size_ * 2, -1, buffer_.data(), ip_.data(), w_.data());
         const float gain = 1.0f / fft_size_;
         for (size_t i = 0; i < fft_size_; ++i) {
-            time[i].real(buffer_[i * 2] * gain);
-            time[i].imag(buffer_[i * 2 + 1] * gain);
+            if constexpr (std::is_same_v<SPAN_TYPE, std::complex<float>>) {
+                time[i].real(buffer_[i * 2] * gain);
+                time[i].imag(buffer_[i * 2 + 1] * gain);
+            }
+            else {
+                time[i] = buffer_[i * 2] * gain;
+            }
         }
     }
 
-    void IFFTGainPhase(std::span<std::complex<float>> time, std::span<float> gain, std::span<float> phase) {
+    template<class SPAN_TYPE>
+    void IFFTGainPhase(std::span<SPAN_TYPE> time, std::span<float> gain, std::span<float> phase) {
         if constexpr (kUseNegPiFirst) {
             for (size_t i = 0; i <= fft_size_ / 2; ++i) {
             size_t a = fft_size_ / 2 - i;
@@ -255,8 +269,13 @@ public:
         internal::cdft(fft_size_ * 2, -1, buffer_.data(), ip_.data(), w_.data());
         const float g = 1.0f / fft_size_;
         for (size_t i = 0; i < fft_size_; ++i) {
-            time[i].real(buffer_[i * 2] * g);
-            time[i].imag(buffer_[i * 2 + 1] * g);
+            if constexpr (std::is_same_v<SPAN_TYPE, std::complex<float>>) {
+                time[i].real(buffer_[i * 2] * g);
+                time[i].imag(buffer_[i * 2 + 1] * g);
+            }
+            else {
+                time[i] = buffer_[i * 2] * g;
+            }
         }
     }
 
@@ -316,6 +335,44 @@ public:
         for (size_t i = 0; i < fft_size_; ++i) {
             real[i] = buffer_[i * 2] * gain;
             imag[i] = buffer_[i * 2 + 1] * gain;
+        }
+    }
+
+    void HilbertOption(std::span<const float> input, std::span<float> output90, bool clear_dc) {
+        assert(input.size() == fft_size_);
+        assert(output90.size() == fft_size_);
+
+        for (size_t i = 0; i < fft_size_; ++i) {
+            buffer_[2 * i] = input[i];
+            buffer_[2 * i + 1] = 0.0f;
+        }
+        internal::cdft(fft_size_ * 2, 1, buffer_.data(), ip_.data(), w_.data());
+        if (clear_dc) {
+            // Z[0] = X[0]
+            buffer_[0] = 0.0f;
+            buffer_[1] = 0.0f;
+            // Z[N/2] = x[N/2]
+            buffer_[fft_size_] = 0.0f;
+            buffer_[fft_size_ + 1] = 0.0f;
+        }
+        // Z[negative frequency] -> -b + ai
+        for (size_t i = 1; i < fft_size_ / 2; ++i) {
+            float re = buffer_[2 * i];
+            float im = buffer_[2 * i + 1];
+            buffer_[2 * i] = -im;
+            buffer_[2 * i + 1] = re;
+        }
+        // Z[n] -> b - ai
+        for (size_t i = fft_size_ / 2 + 1; i < fft_size_; ++i) {
+            float re = buffer_[2 * i];
+            float im = buffer_[2 * i + 1];
+            buffer_[2 * i] = im;
+            buffer_[2 * i + 1] = -re;
+        }
+        internal::cdft(fft_size_ * 2, -1, buffer_.data(), ip_.data(), w_.data());
+        const float gain = 1.0f / fft_size_;
+        for (size_t i = 0; i < fft_size_; ++i) {
+            output90[i] = buffer_[i * 2] * gain;
         }
     }
 
