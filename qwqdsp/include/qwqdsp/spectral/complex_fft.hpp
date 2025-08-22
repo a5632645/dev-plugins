@@ -376,6 +376,19 @@ public:
         }
     }
 
+    /**
+     * @brief 0 ~ N ---> -N/2 ~ N/2
+     */
+    template<class SPAN_TYPE>
+    void TimeDomainShift(std::span<SPAN_TYPE> block) {
+        assert(block.size() == fft_size_);
+        std::copy_n(block.begin(), fft_size_ / 2, buffer_.begin());
+        for (size_t i = 0; i < fft_size_ / 2; ++i) {
+            block[i] = block[i + fft_size_ / 2];
+        }
+        std::copy_n(buffer_.begin(), fft_size_ / 2, block.begin() + fft_size_ / 2);
+    }
+
     size_t NumBins() const {
         return fft_size_;
     }
