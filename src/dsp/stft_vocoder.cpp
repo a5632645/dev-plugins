@@ -100,7 +100,7 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
         // extract output
         int extractSize = static_cast<int>(block.size());
         for (int i = 0; i < extractSize; ++i) {
-            block[i] = main_outputBuffer_[i] / ((float)fft_size_ / hop_size_);
+            block[i] = main_outputBuffer_[i] * 4.0f;
         }
         
         // shift output buffer
@@ -125,7 +125,7 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
 void STFTVocoder::SetBandwidth(float bw) {
     bandwidth_ = bw;
     // generate sinc window
-    float f0 = bandwidth_ * fft_size_ / 1024;
+    float f0 = bandwidth_ * fft_size_ / 1024.0f;
     for (int i = 0; i < fft_size_; i++) {
         float x = (2 * std::numbers::pi_v<float> * f0 * (i - fft_size_ / 2.0f)) / fft_size_;
         float sinc = std::abs(x) < 1e-6 ? 1.0f : std::sin(x) / x;

@@ -369,7 +369,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kOutputgain, 1},
             id::kOutputgain,
-            dsp::Gain<1>::kMinDb, 40.0f, 0.0f
+            dsp::Gain<1>::kMinDb, 40.0f, -15.0f
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -448,6 +448,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                 256, 512, 1024, 2048, 4096
             };
             stft_vocoder_.SetFFTSize(kArray[idx]);
+            SetLatency();
         });
         layout.add(std::move(p));
     }
