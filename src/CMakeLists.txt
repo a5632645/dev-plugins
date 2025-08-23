@@ -98,14 +98,8 @@ target_compile_definitions(GreenVocoder
         JUCE_WEB_BROWSER=0  # If you remove this, add `NEEDS_WEB_BROWSER TRUE` to the `juce_add_plugin` call
         JUCE_USE_CURL=0     # If you remove this, add `NEEDS_CURL TRUE` to the `juce_add_plugin` call
         JUCE_VST3_CAN_REPLACE_VST2=0
+        __VOCODER_ENABLE_PERFORMANCE_DEBUG=0
 )
-
-if (CMAKE_BUILD_TYPE MATCHES Debug)
-    target_compile_definitions(GreenVocoder
-        PUBLIC
-            __VOCODER_ENABLE_PERFORMANCE_DEBUG=0
-    )
-endif()
 
 # If your target needs extra binary assets, you can add them here. The first argument is the name of
 # a new static library target that will include all the binary resources. There is an optional
