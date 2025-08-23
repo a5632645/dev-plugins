@@ -25,8 +25,13 @@ struct Helper {
         }
     }
 
-    [[deprecated("not implement")]]
     static void ZeroPhasePad(std::span<float> output, std::span<const float> input) {
+        assert(input.size() % 2 == 1); 
+        assert(output.size() >= input.size());
+        auto k = (input.size() - 1) / 2;
+        std::fill(output.begin(), output.end(), 0.0f);
+        std::copy_n(input.begin(), k, output.begin() + (output.size() - k));
+        std::copy(input.begin() + k, input.end(), output.begin());
     }
 
     static void ZeroPad(std::span<float> output, std::span<const float> input) {
