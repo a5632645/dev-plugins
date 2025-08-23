@@ -623,8 +623,8 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     yin_process_.SetSize(2048);
     yin_process_.SetHop(1024);
     yin_.Init(fs, 2048);
-    yin_.SetMinPitch(80.0f);
-    yin_.SetMaxPitch(500.0f);
+    yin_.SetMinPitch(20.0f);
+    yin_.SetMaxPitch(600.0f);
     sawtooth_.Init(fs);
 
     paramListeners_.CallAll();

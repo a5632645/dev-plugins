@@ -7,6 +7,8 @@ fix fft vocoder latency not coreect.
 修复fft声码器延迟不正确  
 fix fft vocoder volume too small.  
 修复fft声码器音量较小  
+fix yin pitch tracking code bug cause pitch error..
+修复yin音高跟踪代码中的bug导致音高错误  
 
 ## 0.0.2
 

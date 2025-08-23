@@ -36,16 +36,21 @@ public:
             delta_corr_[0] = 1;
             for (int tal = 1; tal < max_tal; ++tal) {
                 sum += delta_corr_[tal];
-                delta_corr_[tal] = delta_corr_[tal] / (sum / tal + 1e-18f);
+                if (sum != 0.0f) {
+                    delta_corr_[tal] *= tal / sum;
+                }
+                else {
+                    delta_corr_[tal] = 1.0f;
+                }
             }
         }
 
         // step3 find tau
-        int max_ifbin = std::min(max_bin_, max_tal);
-        constexpr float non_period_energy_ratio = 0.1f;
+        int max_ifbin = std::min(max_bin_, max_tal - 1);
+        constexpr float non_period_energy_ratio = 0.15f;
         int where = -1;
-        for (int i = max_ifbin; i >= min_bin_; --i) {
-            if (delta_corr_[i] < non_period_energy_ratio) {
+        for (int i = min_bin_; i < max_ifbin; ++i) {
+            if (delta_corr_[i] < non_period_energy_ratio && delta_corr_[i] < delta_corr_[i + 1]) {
                 where = i;
                 break;
             }
