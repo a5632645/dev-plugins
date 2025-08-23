@@ -1,41 +1,59 @@
 #pragma once
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <numbers>
 #include <cstdint>
+#include <complex>
 
 namespace qwqdsp {
 /**
  * @brief 查表正弦波，频率精度比计算方法较高，效率比计算方法慢一倍(SIMD256)
  */
+template<size_t kTableBits = 16>
 class TableSineOsc {
 public:
-    static constexpr uint32_t kNumBits = 16;
-    static constexpr uint32_t kSize = 1 << kNumBits;
-    static constexpr uint32_t kMask = kSize - 1;
+    static constexpr uint32_t kTableSize = 1 << kTableBits;
+    static constexpr uint32_t kFracLen = 32 - kTableBits;
+    static constexpr uint32_t kScale = std::numeric_limits<uint32_t>::max();
+    static constexpr uint32_t kShift = kFracLen;
 
     inline static const std::array kSineTable = [] {
-        std::array<float, kSize> r;
-        for (uint32_t i = 0; i < kSize; ++i) {
-            r[i] = std::sin(std::numbers::pi_v<float> * 2.0f * i / kSize);
+        std::array<float, kTableSize> r;
+        for (uint32_t i = 0; i < kTableSize; ++i) {
+            r[i] = std::sin(std::numbers::pi_v<float> * 2.0f * i / kTableSize);
         }
         return r;
     }();
 
     void SetFreq(float f, float fs) {
-        inc_ = static_cast<uint32_t>(f * static_cast<float>(std::numeric_limits<uint32_t>::max()) / fs);
+        inc_ = static_cast<uint32_t>(f * static_cast<float>(kScale) / fs);
+    }
+
+    void SetFreq(float omega) {
+        omega /= std::numbers::pi_v<float> * 2.0f;
+        inc_ = static_cast<uint32_t>(omega * static_cast<float>(kScale));
     }
 
     float Tick() {
         phase_ += inc_;
-        return kSineTable[phase_ >> 16];
+        return kSineTable[phase_ >> kShift];
+    }
+
+    float Cosine() const {
+        uint32_t t = phase_ + kScale / 4;
+        return kSineTable[t >> kShift];
+    }
+
+    std::complex<float> GetCpx() const {
+        return {Cosine(), kSineTable[phase_ >> kShift]};
     }
 
     void Reset(float phase) {
-        phase_ = static_cast<uint32_t>(phase / std::numbers::pi_v<float> / 2.0 * static_cast<float>(std::numeric_limits<uint32_t>::max()));
+        phase /= std::numbers::pi_v<float> * 2.0f;
+        phase_ = static_cast<uint32_t>(phase * static_cast<float>(kScale));
     }
-
 private:
     uint32_t phase_{};
     uint32_t inc_{};

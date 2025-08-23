@@ -14,7 +14,7 @@ cmake_minimum_required(VERSION 3.22)
 # `project()` command. `project()` sets up some helpful variables that describe source/binary
 # directories, and the current project version. This is a standard CMake command.
 
-set(MY_PROJECT_NAME "FreqShifter")
+set(MY_PROJECT_NAME "JucePlaying")
 project(${MY_PROJECT_NAME} VERSION 0.0.1)
 
 # If you've installed JUCE somehow (via a package manager, or directly using the CMake install

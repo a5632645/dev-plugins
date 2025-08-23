@@ -12,10 +12,14 @@ namespace qwqdsp {
 class VicSineOsc {
 public:
     void Reset(float phase) {
-        // u_ = 1.0f;
-        // v_ = 0.0f;
         u_ = std::cos(phase);
         v_ = std::sin(phase);
+    }
+
+    void KeepAmp() {
+        float g = 1.0f / std::sqrt(u_ * u_ + v_ * v_);
+        u_ *= g;
+        v_ *= g;
     }
 
     float Tick() {
