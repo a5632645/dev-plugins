@@ -1,12 +1,15 @@
 #pragma once
 #include <cstddef>
 #include <span>
+#include <cmath>
 #include "audio.hpp"
 
 namespace qwqdsp::segement {
 /**
  * @brief 仅支持分析的自动分块
+ * @tparam kOffline true: 会将不足的部分也处理，只能用一次. false:适合实时音频流
  */
+template<bool kOffline>
 class AnalyzeAuto {
 public:
     /**
@@ -31,6 +34,21 @@ public:
                 }
             }
         }
+        if constexpr (kOffline) {
+            while (input_wpos_ > 0) {
+                size_t need = size_ - input_wpos_;
+                std::fill_n(input_buffer_.begin() + input_wpos_, need, 0.0f);
+                input_wpos_ -= std::min(input_wpos_, hop_);
+                for (int i = 0; i < input_wpos_; i++) {
+                    input_buffer_[i] = input_buffer_[i + hop_];
+                }
+                func({input_buffer_.data(), size_});
+            }
+        }
+    }
+
+    size_t GetMinFrameSize(size_t input_size) {
+        return std::ceil(static_cast<float>(input_size) / hop_);
     }
 
     void SetSize(size_t size) {
