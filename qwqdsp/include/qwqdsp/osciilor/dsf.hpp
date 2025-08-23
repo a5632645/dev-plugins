@@ -14,9 +14,8 @@ class DSFClassic {
 public:
     std::complex<float> Tick() {
         w_osc_.Tick();
-        nw_osc_.Tick();
         w0_osc_.Tick();
-        auto up = w0_osc_.GetCpx() * (1.0f - a_pow_n_ * nw_osc_.GetCpx());
+        auto up = w0_osc_.GetCpx() * (1.0f - a_pow_n_ * w_osc_.GetNPhaseCpx(n_));
         auto down = 1.0f - a_ * w_osc_.GetCpx();
         return up / down;
     }
@@ -27,29 +26,30 @@ public:
 
     void SetWSpace(float w) {
         w_osc_.SetFreq(w);
-        nw_osc_.SetFreq(w * n_);
         w_ = w;
     }
 
     void SetN(size_t n) {
         n_ = n;
         a_pow_n_ = std::pow(a_, n);
-        nw_osc_.SetFreq(n * w_);
     }
 
     void SetAmpFactor(float a) {
-        if (a <= 1 && a >= 1 - 1e-6) {
-            a = 1 - 1e-6f;
+        if (a <= 1 && a >= 1 - 1e-5) {
+            a = 1 - 1e-5f;
         }
-        else if (a >= 1 && a <= 1 + 1e-6f) {
-            a = 1 + 1e-6f;
+        else if (a >= 1 && a <= 1 + 1e-5f) {
+            a = 1 + 1e-5f;
         }
         a_ = a;
         a_pow_n_ = std::pow(a, n_);
     }
+
+    float NormalizeGain() const {
+        return (1.0f - a_) / (1.0f - a_pow_n_);
+    }
 private:
     TableSineOsc<16> w0_osc_{};
-    TableSineOsc<16> nw_osc_{};
     TableSineOsc<16> w_osc_{};
     float w_{};
     float a_{};
@@ -68,9 +68,8 @@ class DSFComplexFactor {
 public:
     std::complex<float> Tick() {
         w_osc_.Tick();
-        nw_osc_.Tick();
         w0_osc_.Tick();
-        auto up = w0_osc_.GetCpx() * (1.0f - a_pow_n_ * nw_osc_.GetCpx());
+        auto up = w0_osc_.GetCpx() * (1.0f - a_pow_n_ * w_osc_.GetNPhaseCpx(n_));
         auto down = 1.0f - a_ * w_osc_.GetCpx();
         return up / down;
     }
@@ -81,14 +80,12 @@ public:
 
     void SetWSpace(float w) {
         w_osc_.SetFreq(w);
-        nw_osc_.SetFreq(w * n_);
         w_ = w;
     }
 
     void SetN(size_t n) {
         n_ = n;
         a_pow_n_ = std::pow(a_, n);
-        nw_osc_.SetFreq(n * w_);
     }
 
     void SetAmpGain(float a) {
@@ -110,9 +107,15 @@ public:
         a_ = s;
         a_pow_n_ = std::pow(s, n_);
     }
+
+    float NormalizeGain() const {
+        float a = std::abs(a_);
+        float apown = std::abs(a_pow_n_);
+        return (1.0f - a) / (1.0f - apown);
+        // return std::abs((1.0f - a_) / (1.0f - a_pow_n_));
+    }
 private:
     TableSineOsc<16> w0_osc_{};
-    TableSineOsc<16> nw_osc_{};
     TableSineOsc<16> w_osc_{};
     float w_{};
     float factor_gain_{};

@@ -6,6 +6,7 @@
 #include "ui/toggle_button.hpp"
 #include "ui/vertical_slider.hpp"
 #include "widget/performance.hpp"
+#include "ui/xypad.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor
@@ -28,7 +29,11 @@ private:
     AudioPluginAudioProcessor& processorRef;
     juce::TooltipWindow tooltip_window_;
 
-    ui::VerticalSlider shift_;
+    ui::VerticalSlider w0_;
+    ui::VerticalSlider w_;
+    ui::VerticalSlider n_;
+    // ui::VerticalSlider a_;
+    ui::XYPad pad_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };

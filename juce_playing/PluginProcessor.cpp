@@ -17,24 +17,14 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
                        )
+    , paramListeners_(*this)
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kShift, 1},
-            id::kShift,
-            juce::NormalisableRange<float>{-20000.0f, 20000.0f, 0.1f, true},
-            0.0f
-        );
-        paramListeners_.Add(p, [this](float f){
-            juce::ScopedLock lock{getCallbackLock()};
-            dsp_.SetShift(f);
-        });
-        layout.add(std::move(p));
-    }
-
+    dsp_.GetParams(paramListeners_, layout);
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
 }
+
+
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
 {

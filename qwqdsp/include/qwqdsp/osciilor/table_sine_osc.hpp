@@ -50,6 +50,12 @@ public:
         return {Cosine(), kSineTable[phase_ >> kShift]};
     }
 
+    std::complex<float> GetNPhaseCpx(size_t n) const {
+        uint32_t t1 = phase_ * n;
+        uint32_t t2 = t1 + kScale / 4;
+        return {kSineTable[t2 >> kShift], kSineTable[t1 >>kShift]};
+    }
+
     void Reset(float phase) {
         phase /= std::numbers::pi_v<float> * 2.0f;
         phase_ = static_cast<uint32_t>(phase * static_cast<float>(kScale));
