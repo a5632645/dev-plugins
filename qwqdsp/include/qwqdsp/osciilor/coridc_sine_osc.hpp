@@ -3,7 +3,7 @@
 #include <complex>
 #include <numbers>
 
-namespace qwqdsp {
+namespace qwqdsp::oscillor {
 /**
  * @brief Cordic正交振荡器，衰减较快，等振幅正交输出
  */

@@ -1,6 +1,7 @@
 #include "xypad.hpp"
 #include "juce_graphics/juce_graphics.h"
 #include "juce_gui_basics/juce_gui_basics.h"
+#include <cassert>
 #include <memory>
 #include <numbers>
 
@@ -87,6 +88,8 @@ void XYPad::BindParamY(juce::AudioProcessorValueTreeState& apvts, const char* id
 }
 
 void XYPad::SetMode(Mode mode) {
+    // TODO: fix polar not working
+    assert(mode != Mode::Polar);
     mode_ = mode;
     repaint();
     EvalCirclePos();

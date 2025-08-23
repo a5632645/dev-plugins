@@ -7,9 +7,19 @@
 #include <cstdint>
 #include <complex>
 
-namespace qwqdsp {
+namespace qwqdsp::oscillor {
 /**
- * @brief 查表正弦波，频率精度比计算方法较高，效率比计算方法慢一倍(SIMD256)
+ * @brief 查表正弦波，频率精度比计算方法较高，效率比计算方法在大SIMD下较慢
+ *  精度   伪影(输出=0dB，频率=250hz@48khz)
+ *   16     -102.61dB
+ *   15      -97.56dB
+ *   14      -90.31dB
+ *   13      -84.60dB
+ *   12      -78.89dB
+ *   11      -72.47dB
+ *   10      -66.59dB
+ *    9      -60.66dB
+ *    8      -54.72dB
  */
 template<size_t kTableBits = 16>
 class TableSineOsc {

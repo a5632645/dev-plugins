@@ -3,6 +3,7 @@
 #include <span>
 #include "juce_audio_processors/juce_audio_processors.h"
 #include "qwqdsp/osciilor/dsf.hpp"
+#include "qwqdsp/osciilor/table_sine_osc.hpp"
 
 struct ParamListeners;
 

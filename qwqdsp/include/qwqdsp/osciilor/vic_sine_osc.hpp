@@ -3,7 +3,7 @@
 #include <numbers>
 #include <complex>
 
-namespace qwqdsp {
+namespace qwqdsp::oscillor {
 
 /**
  * @brief Vicanek/Levine正交振荡器，等振幅正交输出，衰减慢

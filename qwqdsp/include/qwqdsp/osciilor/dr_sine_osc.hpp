@@ -3,7 +3,7 @@
 #include <complex>
 #include <numbers>
 
-namespace qwqdsp {
+namespace qwqdsp::oscillor {
 /**
  * @brief 数字谐振器正交振荡器，低频不稳定，衰减慢
  */

@@ -49,8 +49,8 @@ public:
         return (1.0f - a_) / (1.0f - a_pow_n_);
     }
 private:
-    TableSineOsc<16> w0_osc_{};
-    TableSineOsc<16> w_osc_{};
+    TableSineOsc<13> w0_osc_{};
+    TableSineOsc<13> w_osc_{};
     float w_{};
     float a_{};
     float a_pow_n_{};
@@ -112,11 +112,10 @@ public:
         float a = std::abs(a_);
         float apown = std::abs(a_pow_n_);
         return (1.0f - a) / (1.0f - apown);
-        // return std::abs((1.0f - a_) / (1.0f - a_pow_n_));
     }
 private:
-    TableSineOsc<16> w0_osc_{};
-    TableSineOsc<16> w_osc_{};
+    TableSineOsc<13> w0_osc_{};
+    TableSineOsc<13> w_osc_{};
     float w_{};
     float factor_gain_{};
     float factor_phase_{};
