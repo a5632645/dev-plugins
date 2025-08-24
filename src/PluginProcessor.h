@@ -176,6 +176,9 @@ public:
     dsp::Gain<1> side_gain_;
     dsp::Gain<2> output_gain_;
 
+    int old_latency_{};
+    std::atomic<int> latency_{};
+
     juce::AudioParameterChoice* vocoder_type_param_{};
 #ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
     qwqdsp::Performance perf_;

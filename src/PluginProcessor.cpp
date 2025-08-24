@@ -740,6 +740,11 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     ensemble_.Process(main_buffer_, side_buffer_);
     output_gain_.Process(channels);
+
+    if (latency_.load() != old_latency_) {
+        old_latency_ = latency_.load();
+        setLatencySamples(old_latency_);
+    }
 }
 
 //==============================================================================
@@ -786,7 +791,8 @@ void AudioPluginAudioProcessor::SetLatency() {
     if (shifter_enabled_->get()) {
         latency += shifter_.kNumDelay / 2;
     }
-    setLatencySamples(latency);
+    // setLatencySamples(latency);
+    latency_.store(latency);
 }
 
 //==============================================================================
