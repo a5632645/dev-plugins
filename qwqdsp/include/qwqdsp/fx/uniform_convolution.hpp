@@ -1,23 +1,36 @@
 #pragma once
+#include <algorithm>
 #include <cstddef>
 #include "qwqdsp/spectral/real_fft.hpp"
 #include "qwqdsp/segement/analyze_auto.hpp"
-#include "qwqdsp/segement/audio.hpp"
+#include "qwqdsp/segement/slice.hpp"
 #include "qwqdsp/window/helper.hpp"
 
 namespace qwqdsp::fx {
-class UnifromConvolution {
+class UniformConvolution {
 public:
     void Init(size_t latency) {
         size_t fft_size = latency * 2;
+        block_size_ = latency;
         fft_.Init(fft_size);
-        input_buffer_.resize(latency);
+        if (input_buffer_.size() < latency) {
+            input_buffer_.resize(latency);
+        }
+        if (output_buffer_.size() < fft_size * 2) {
+            output_buffer_.resize(fft_size * 2);
+        }
         process_buffer_.resize(fft_size);
-        output_buffer_.resize(fft_size * 2);
+    }
+
+    void ResetPointers() {
+        std::fill_n(output_buffer_.begin(), write_end_, 0.0f);
+        for (auto& f : input_frames_) {
+            std::fill(f.begin(), f.end(), std::complex<float>{});
+        }
         input_wpos_ = 0;
+        input_frame_wpos_ = 0;
         write_end_ = 0;
         write_add_end_ = 0;
-        block_size_ = latency;
     }
 
     void SetIR(std::span<float> ir) {
@@ -41,7 +54,7 @@ public:
     }
 
     void Process(std::span<float> block) {
-        segement::AudioMono input{block};
+        segement::Slice1D input{block};
         while (!input.IsEnd()) {
             size_t need = block_size_ - input_wpos_;
             auto in = input.GetSome(need);

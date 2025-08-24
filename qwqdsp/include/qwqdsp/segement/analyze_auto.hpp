@@ -2,12 +2,12 @@
 #include <cstddef>
 #include <span>
 #include <cmath>
-#include "audio.hpp"
+#include "slice.hpp"
 
 namespace qwqdsp::segement {
 /**
  * @brief 仅支持分析的自动分块
- * @tparam kOffline true: 会将不足的部分也处理，只能用一次. false:适合实时音频流
+ * @tparam kOffline true: 会将不足的部分也处理. false:适合实时音频流
  */
 template<bool kOffline>
 class AnalyzeAuto {
@@ -20,7 +20,7 @@ public:
         std::span<const float> block,
         Func&& func
     ) {
-        SliceMono<const float> input{block};
+        Slice1D input{block};
         while (!input.IsEnd()) {
             size_t need = size_ - input_wpos_;
             auto in = input.GetSome(need);
@@ -53,11 +53,17 @@ public:
 
     void SetSize(size_t size) {
         size_ = size;
-        input_buffer_.resize(size_);
+        if (input_buffer_.size() < size) {
+            input_buffer_.resize(size);
+        }
     }
 
     void SetHop(size_t hop) {
         hop_ = hop;
+    }
+
+    void ResetPointers() {
+        input_wpos_ = 0;
     }
 private:
     std::vector<float> input_buffer_;

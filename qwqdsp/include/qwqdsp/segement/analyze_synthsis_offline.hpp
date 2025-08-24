@@ -3,7 +3,7 @@
 #include <span>
 #include <vector>
 #include <cmath>
-#include "audio.hpp"
+#include "slice.hpp"
 
 namespace qwqdsp::segement {
 /**
@@ -16,13 +16,13 @@ public:
      */
     template<class Func>
     void Process(
-        std::span<float> in_span,
+        std::span<const float> in_span,
         std::vector<float>& output,
         Func&& func
     ) {
         // 处理音频
         {
-            AudioMono input{in_span};
+            Slice1D input{in_span};
             while (!input.IsEnd()) {
                 size_t need = size_ - input_wpos_;
                 auto in = input.GetSome(need);
@@ -118,9 +118,13 @@ public:
 
     void SetSize(size_t size) {
         size_ = size;
-        input_buffer_.resize(size_);
+        if (input_buffer_.size() < size) {
+            input_buffer_.resize(size);
+        }
+        if (output_buffer_.size() < (size + output_hop_) * 2) {
+            output_buffer_.resize((size + output_hop_) * 2);
+        }
         process_buffer_.resize(size_);
-        output_buffer_.resize((size + output_hop_) * 2);
     }
 
     void SetInputHop(size_t hop) {
@@ -129,6 +133,13 @@ public:
 
     void SetOutputHop(size_t hop) {
         output_hop_ = hop;
+    }
+
+    void ResetPointers() {
+        std::fill_n(output_buffer_.begin(), write_end_, 0.0f);
+        input_wpos_ = 0;
+        write_add_end_ = 0;
+        write_end_ = 0;
     }
 private:
     std::vector<float> input_buffer_;

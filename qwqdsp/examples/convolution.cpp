@@ -9,7 +9,7 @@ int main() {
         sin[i] = std::sin(std::numbers::pi_v<float> * 2 * i / 513.0f);
     }
 
-    qwqdsp::fx::UnifromConvolution conv;
+    qwqdsp::fx::UniformConvolution conv;
     conv.Init(256);
     conv.SetIR(sin);
 

@@ -1,7 +1,8 @@
 #pragma once
+#include <algorithm>
 #include <cstddef>
 #include <span>
-#include "audio.hpp"
+#include "slice.hpp"
 
 namespace qwqdsp::segement {
 /**
@@ -17,7 +18,7 @@ public:
         std::span<float> block,
         Func&& func
     ) {
-        AudioMono input{block};
+        Slice1D input{block};
         while (!input.IsEnd()) {
             size_t need = size_ - input_wpos_;
             auto in = input.GetSome(need);
@@ -66,13 +67,24 @@ public:
 
     void SetSize(size_t size) {
         size_ = size;
-        input_buffer_.resize(size_);
+        if (input_buffer_.size() < size) {
+            input_buffer_.resize(size);
+        }
+        if (output_buffer_.size() < (size + hop_) * 2) {
+            output_buffer_.resize((size + hop_) * 2);
+        }
         process_buffer_.resize(size_);
-        output_buffer_.resize((size + hop_) * 2);
     }
 
     void SetHop(size_t hop) {
         hop_ = hop;
+    }
+
+    void ResetPointers() {
+        std::fill_n(output_buffer_.begin(), write_end_, 0.0f);
+        input_wpos_ = 0;
+        write_end_ = 0;
+        write_add_end_ = 0;
     }
 private:
     std::vector<float> input_buffer_;

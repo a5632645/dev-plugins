@@ -3,4 +3,4 @@ build/
 .vscode/
 .cache/
 synth/
-qwqdsp/playing/raylib
+raylib/

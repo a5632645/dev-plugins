@@ -6,12 +6,12 @@
 
 namespace qwqdsp::segement {
 /**
- * @brief 切分数组
+ * @brief 切分单通道数据
  */
 template<class T>
-class SliceMono {
+class Slice1D {
 public:
-    SliceMono(std::span<T> source) 
+    Slice1D(std::span<T> source) 
         : source_(source)
         , rpos_(0)
     {}
@@ -47,12 +47,7 @@ private:
 };
 
 /**
- * @brief 切分音频
- */
-using AudioMono = SliceMono<float>;
-
-/**
- * @brief 切分多通道音频
+ * @brief 切分多通道数据
  */
 template<class VecVec>
     requires requires (VecVec v) {
@@ -61,9 +56,9 @@ template<class VecVec>
         v[0].size();
         v[0].data();
     }
-class Audio {
+class Slice2D {
 public:
-    Audio(VecVec& source) : source_(source) {
+    Slice2D(VecVec& source) : source_(source) {
         rpos_.resize(source_.size());
     }
 
