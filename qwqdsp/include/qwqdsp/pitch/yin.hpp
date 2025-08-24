@@ -50,10 +50,9 @@ public:
 
         // step3 find tau
         int max_ifbin = std::min(max_bin_, max_tal - 1);
-        constexpr float non_period_energy_ratio = 0.15f;
         int where = -1;
         for (int i = min_bin_; i < max_ifbin; ++i) {
-            if (delta_corr_[i] < non_period_energy_ratio && delta_corr_[i] < delta_corr_[i + 1]) {
+            if (delta_corr_[i] < threshold_ && delta_corr_[i] < delta_corr_[i + 1]) {
                 where = i;
                 break;
             }
@@ -111,11 +110,16 @@ public:
         max_pitch_ = max_val;
         min_bin_ = std::round(fs_ / max_val);
     }
+
+    void SetThreshold(float threshold) {
+        threshold_ = threshold;
+    }
 private:
     std::vector<float> delta_corr_;
     float fs_{};
     Result pitch_{};
     int dicimate_{};
+    float threshold_{0.15f};
     float min_pitch_{};
     float max_pitch_{};
     int min_bin_{};
