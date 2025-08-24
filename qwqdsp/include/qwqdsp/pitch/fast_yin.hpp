@@ -30,54 +30,23 @@ public:
 
         // step1 delta auto correlation
         {
-            // POWER TERM CALCULATION
-            // ... for the power terms in equation (7) in the Yin paper
             std::fill(powers_.begin(), powers_.end(), 0.0f);
-            for (size_t i = 0; i < max_tal; ++i) {
+            for (int i = 0; i < max_tal; ++i) {
                 powers_[0] += block[i] * block[i];
             }
-            // float[] powerTerms = new float[yinBuffer.length];
-            // for (int j = 0; j < yinBuffer.length; ++j) {
-            //     powerTerms[0] += audioBuffer[j] * audioBuffer[j];
-            // }
 
-            // now iteratively calculate all others (saves a few multiplications)
-            // for (int tau = 1; tau < yinBuffer.length; ++tau) {
-            //     powerTerms[tau] = powerTerms[tau-1] - audioBuffer[tau-1] * audioBuffer[tau-1] + audioBuffer[tau+yinBuffer.length] * audioBuffer[tau+yinBuffer.length];  
-            // }
-            for (size_t tau = 1; tau < max_tal; ++tau) {
+            for (int tau = 1; tau < max_tal; ++tau) {
                 powers_[tau] = powers_[tau - 1] - block[tau - 1] * block[tau - 1] + block[tau + max_tal] * block[tau + max_tal];
             }
 
-            // YIN-STYLE AUTOCORRELATION via FFT
-            // 1. data
-            // for (int j = 0; j < audioBuffer.length; ++j) {
-            //     audioBufferFFT[2*j] = audioBuffer[j];
-            //     audioBufferFFT[2*j+1] = 0;
-            // }
-            // fft.complexForward(audioBufferFFT);
             fft_.FFT(block, fft1_);
 
-            // 2. half of the data, disguised as a convolution kernel
-            // for (int j = 0; j < yinBuffer.length; ++j) {
-            //     kernel[2*j] = audioBuffer[(yinBuffer.length-1)-j];
-            //     kernel[2*j+1] = 0;
-            //     kernel[2*j+audioBuffer.length] = 0;
-            //     kernel[2*j+audioBuffer.length+1] = 0;
-            // }
-            // fft.complexForward(kernel);
-            for (size_t i = 0; i < max_tal; ++i) {
+            for (int i = 0; i < max_tal; ++i) {
                 temp_[i] = block[max_tal - 1 - i];
                 temp_[i + max_tal] = 0;
             }
             fft_.FFT(temp_, fft2_);
 
-            // 3. convolution via complex multiplication
-            // for (int j = 0; j < audioBuffer.length; ++j) {
-            //     yinStyleACF[2*j]   = audioBufferFFT[2*j]*kernel[2*j] - audioBufferFFT[2*j+1]*kernel[2*j+1]; // real
-            //     yinStyleACF[2*j+1] = audioBufferFFT[2*j+1]*kernel[2*j] + audioBufferFFT[2*j]*kernel[2*j+1]; // imaginary
-            // }
-            // fft.complexInverse(yinStyleACF, true);
             const size_t num_bins = fft_.NumBins();
             for (size_t i = 0; i < num_bins; ++i) {
                 float real = fft1_[i].real() * fft2_[i].real() - fft1_[i].imag() * fft2_[i].imag();
@@ -86,13 +55,7 @@ public:
             }
             fft_.IFFT(temp_, fft1_);
 
-            // CALCULATION OF difference function
-            // ... according to (7) in the Yin paper.
-            // for (int j = 0; j < yinBuffer.length; ++j) {
-            //     // taking only the real part
-            //     yinBuffer[j] = powerTerms[0] + powerTerms[j] - 2 * yinStyleACF[2 * (yinBuffer.length - 1 + j)];
-            // }
-            for (size_t i = 0; i < max_tal; ++i) {
+            for (int i = 0; i < max_tal; ++i) {
                 delta_corr_[i] = powers_[0] + powers_[i] - 2 * temp_[max_tal - 1 + i];
             }
         }

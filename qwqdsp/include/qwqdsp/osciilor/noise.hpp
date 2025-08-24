@@ -27,7 +27,7 @@ public:
     }
 
     float Lowpassed01() {
-        return Lowpassed01() * 0.5f - 0.5f;
+        return Lowpassed() * 0.5f - 0.5f;
     }
 
     uint32_t NextUInt() {
