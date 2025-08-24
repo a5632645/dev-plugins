@@ -45,7 +45,7 @@ public:
 private:
     float k1_{};
     float k2_{};
-    float u_{};
+    float u_{1.0f};
     float v_{};
 };
 

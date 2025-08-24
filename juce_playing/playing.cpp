@@ -37,7 +37,7 @@ void Playing::GetParams(ParamListeners& l, juce::AudioProcessorValueTreeState::P
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{"n",1},
             "n",
-            juce::NormalisableRange<float>{1.0f, 512.0f, 1.0f, 0.4f},
+            juce::NormalisableRange<float>{2.0f, 512.0f, 1.0f, 0.4f},
             4.0f
         );
         l.Add(p, [this](float v) {
@@ -61,14 +61,26 @@ void Playing::GetParams(ParamListeners& l, juce::AudioProcessorValueTreeState::P
     // }
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{"g",1},
-            "g",
-            juce::NormalisableRange<float>{0.0f, 2.0f},
-            0.5f
+            juce::ParameterID{"m",1},
+            "m",
+            juce::NormalisableRange<float>{0.0f, 10.0f},
+            0.0f
         );
         l.Add(p, [this](float v) {
-            dsf_.SetAmpGain(v);
+            dsf_.SetM(v);
             g_ = dsf_.NormalizeGain();
+        });
+        apvts.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{"gain",1},
+            "gain",
+            juce::NormalisableRange<float>{-120.0f, 60.0f},
+            -60.0f
+        );
+        l.Add(p, [this](float v) {
+            g2_ = std::pow(10.0f, v / 20.0f);
         });
         apvts.add(std::move(p));
     }
@@ -80,8 +92,8 @@ void Playing::GetParams(ParamListeners& l, juce::AudioProcessorValueTreeState::P
             0.0f
         );
         l.Add(p, [this](float v) {
-            dsf_.SetAmpPhase(v * std::numbers::pi_v<float> * 2.0f);
-            g_ = dsf_.NormalizeGain();
+            // dsf_.SetAmpPhase(v * std::numbers::pi_v<float> * 2.0f);
+            // g_ = dsf_.NormalizeGain();
         });
         apvts.add(std::move(p));
     }

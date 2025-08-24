@@ -32,7 +32,7 @@ private:
     ui::VerticalSlider w0_;
     ui::VerticalSlider w_;
     ui::VerticalSlider n_;
-    // ui::VerticalSlider a_;
+    ui::VerticalSlider g_;
     ui::XYPad pad_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)

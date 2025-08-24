@@ -2,8 +2,7 @@
 #include <cstddef>
 #include <span>
 #include "juce_audio_processors/juce_audio_processors.h"
-#include "qwqdsp/osciilor/dsf.hpp"
-#include "qwqdsp/osciilor/table_sine_osc.hpp"
+#include "qwqdsp/osciilor/dsf_special.hpp"
 
 struct ParamListeners;
 
@@ -20,13 +19,14 @@ public:
         const size_t len = left.size();
         for (size_t i = 0; i < len; ++i) {
             auto s = dsf_.Tick();
-            left[i] = s.real() * g_ * 0.5f;
-            right[i] = s.imag() * g_ * 0.5f;
+            left[i] = s.real() * g_ * g2_;
+            right[i] = s.imag() * g_ * g2_;
         }
     }
 private:
     float fs_{};
     float g_{};
-    qwqdsp::oscillor::DSFComplexFactor dsf_;
+    float g2_{};
+    qwqdsp::oscillor::DSFSpecial dsf_;
 };
 }

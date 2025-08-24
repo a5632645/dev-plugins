@@ -28,11 +28,12 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     n_.SetShortName("n");
     addAndMakeVisible(n_);
 
-    // a_.BindParameter(apvsts, "a");
-    // a_.SetShortName("a");
-    // addAndMakeVisible(a_);
+    g_.BindParameter(apvsts, "gain");
+    g_.SetShortName("gain");
+    addAndMakeVisible(g_);
+
     pad_.SetMode(ui::XYPad::Mode::XY);
-    pad_.BindParamX(apvsts, "g");
+    pad_.BindParamX(apvsts, "m");
     pad_.BindParamY(apvsts, "p");
     addAndMakeVisible(pad_);
 
@@ -55,7 +56,7 @@ void AudioPluginAudioProcessorEditor::resized() {
     w0_.setBounds(b.removeFromLeft(50));
     w_.setBounds(b.removeFromLeft(50));
     n_.setBounds(b.removeFromLeft(50));
-    // a_.setBounds(b.removeFromLeft(50));
+    g_.setBounds(b.removeFromLeft(50));
     pad_.setBounds(b.removeFromLeft(b.getHeight()));
     pad_.EvalCirclePos();
 }
