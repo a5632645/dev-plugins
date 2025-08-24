@@ -4,6 +4,9 @@
 #include <cmath>
 
 namespace qwqdsp::pitch {
+/**
+ * @ref http://recherche.ircam.fr/equipes/pcm/cheveign/ps/2002_JASA_YIN_proof.pdf
+ */
 class Yin {
 public:
     void Init(float fs, int size) {
