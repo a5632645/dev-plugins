@@ -3,10 +3,17 @@
 #include <cstddef>
 #include <vector>
 #include <cmath>
-#include "interpolation.hpp"
+#include "qwqdsp/interpolation.hpp"
 
-namespace qwqdsp {
-template<Interpolation::Type INTERPOLATION_TYPE = Interpolation::Type::Lagrange3rd>
+namespace qwqdsp::fx {
+enum class DelayLineInterp {
+    None,
+    Lagrange3rd,
+    PCHIP,
+    Linear,
+};
+
+template<DelayLineInterp INTERPOLATION_TYPE = DelayLineInterp::Lagrange3rd>
 class DelayLine {
 public:
     void Init(float max_ms, float fs) {
@@ -51,28 +58,18 @@ private:
         [[maybe_unused]] int inext2 = (irpos + 2) & mask_;
         [[maybe_unused]] int inext3 = (irpos + 3) & mask_;
         [[maybe_unused]] int iprev1 = (irpos - 1) & mask_;
-        [[maybe_unused]] int iprev2 = (irpos - 2) & mask_;
         [[maybe_unused]] float t = rpos - static_cast<int>(rpos);
-        if constexpr (INTERPOLATION_TYPE == Interpolation::Type::None) {
+        if constexpr (INTERPOLATION_TYPE == DelayLineInterp::None) {
             return buffer_[irpos];
         }
-        else if constexpr (INTERPOLATION_TYPE == Interpolation::Type::Lagrange3rd) {
+        else if constexpr (INTERPOLATION_TYPE == DelayLineInterp::Lagrange3rd) {
             return Interpolation::Lagrange3rd(buffer_[irpos], buffer_[inext1], buffer_[inext2], buffer_[inext3], t);
         }
-        else if constexpr (INTERPOLATION_TYPE == Interpolation::Type::Linear) {
+        else if constexpr (INTERPOLATION_TYPE == DelayLineInterp::Linear) {
             return Interpolation::Linear(buffer_[irpos], buffer_[inext1], t);
         }
-        else if constexpr (INTERPOLATION_TYPE == Interpolation::Type::PCHIP) {
+        else if constexpr (INTERPOLATION_TYPE == DelayLineInterp::PCHIP) {
             return Interpolation::PCHIP(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
-        }
-        else if constexpr (INTERPOLATION_TYPE == Interpolation::Type::Spline) {
-            return Interpolation::Spline(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
-        }
-        else if constexpr (INTERPOLATION_TYPE == Interpolation::Type::CatmullRomSpline) {
-            return Interpolation::CatmullRomSpline(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
-        }
-        else if constexpr (INTERPOLATION_TYPE == Interpolation::Type::Makima) {
-            return Interpolation::Makima(buffer_[iprev2], buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], buffer_[inext3], t);
         }
     }
 

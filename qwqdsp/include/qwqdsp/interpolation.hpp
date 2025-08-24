@@ -4,16 +4,6 @@
 namespace qwqdsp {
 
 struct Interpolation {
-    enum class Type {
-        None,
-        Lagrange3rd,
-        PCHIP,
-        Spline,
-        CatmullRomSpline,
-        Linear,
-        Makima
-    };
-
     /**
      * @brief 拉格朗日三次插值
      * @note  在非0和1的情况下在高频的振幅响应会超过1，不适合用于有反馈的系统

@@ -1,7 +1,7 @@
 #pragma once
 #include <complex>
 
-namespace qwqdsp {
+namespace qwqdsp::filter {
 template<class T = float>
 class IIRHilbert {
 public:
