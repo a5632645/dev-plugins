@@ -5,7 +5,7 @@
 
 namespace qwqdsp::window {
 struct Hann {
-    // 单侧，w = pi * kMainLobeWidth / N
+    // 单侧，w = 2pi * kMainLobeWidth / N
     static constexpr float kMainLobeWidth = 1.5f;
     static constexpr float k3dBWidth = 1.44f;
     static constexpr float kSideLobeAmp = -31.5f;

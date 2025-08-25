@@ -5,7 +5,7 @@
 
 namespace qwqdsp::window {
 struct Hamming {
-    // 单侧，w = pi * kMainLobeWidth / N
+    // 单侧，w = 2pi * kMainLobeWidth / N
     static constexpr float kMainLobeWidth = 1.36f;
     static constexpr float k3dBWidth = 1.3f;
     static constexpr float kSideLobeAmp = -43.2f;

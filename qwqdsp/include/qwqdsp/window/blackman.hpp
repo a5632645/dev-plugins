@@ -5,7 +5,7 @@
 
 namespace qwqdsp::window {
 struct Blackman {
-    // 单侧，w = pi * kMainLobeWidth / N
+    // 单侧，w = 2pi * kMainLobeWidth / N
     static constexpr float kMainLobeWidth = 2.0f;
     static constexpr float k3dBWidth = 1.68f;
     static constexpr float kSideLobeAmp = -92.2f;

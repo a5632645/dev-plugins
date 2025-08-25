@@ -6,7 +6,7 @@
 
 namespace qwqdsp::window {
 struct Kaiser {
-    // 单侧，w = pi * kMainLobeWidth / N
+    // 单侧，w = 2pi * kMainLobeWidth / N
     static float MainLobeWidth(float beta) {
         float a = beta / std::numbers::pi_v<float>;
         return std::sqrt(1.0f + a * a);
