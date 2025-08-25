@@ -21,7 +21,7 @@ public:
         time_.resize(fft_.NumBins());
         frequency_.resize(fft_.NumBins());
         ChangeWindow([](auto win) {
-            window::Hamming::Window(win);
+            window::Hamming::Window(win, true);
         });
     }
 
@@ -126,7 +126,7 @@ public:
         dwindow_.resize(fft_size);
         twindow_.resize(fft_size);
         ChangeWindow([](auto win, auto dwin) {
-            window::Hamming::Window(win);
+            window::Hamming::Window(win, true);
             window::Hamming::DWindow(dwin);
         });
     }

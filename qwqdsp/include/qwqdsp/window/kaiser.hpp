@@ -1,13 +1,23 @@
 #pragma once
 #include <cstddef>
+#include <numbers>
 #include <span>
 #include <cmath>
 
 namespace qwqdsp::window {
 struct Kaiser {
-    static void Window(std::span<float> window, float beta) {
+    // 单侧，w = pi * kMainLobeWidth / N
+    static float MainLobeWidth(float beta) {
+        float a = beta / std::numbers::pi_v<float>;
+        return std::sqrt(1.0f + a * a);
+    }
+
+    static void Window(std::span<float> window, float beta, bool for_analyze_not_fir) {
         const size_t N = window.size();
         auto inc = 2.0f / (N - 1.0f);
+        if (for_analyze_not_fir) {
+            inc = 2.0f / N;
+        }
         auto down = 1.0f / std::cyl_bessel_i(0, beta);
         for (size_t i = 0; i < N; ++i) {
             auto t = -1.0f + i * inc;
@@ -19,7 +29,7 @@ struct Kaiser {
     static void Window(std::span<float> window, std::span<float> dwindow, float beta) {
         constexpr auto kTimeDelta = 0.001f;
         const size_t N = window.size();
-        auto inc = 2.0f / (N - 1.0f);
+        auto inc = 2.0f / N;
         auto down = 1.0f / std::cyl_bessel_i(0, beta);
         for (size_t i = 0; i < N; ++i) {
             auto t = -1.0f + i * inc;

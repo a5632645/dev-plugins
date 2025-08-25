@@ -6,12 +6,18 @@
 
 namespace qwqdsp::window {
 struct Taylor {
+    [[deprecated("not implement")]]
+    static float MainLobeWidth(float side_lobe, size_t nbars) {
+        return 0.0f;
+    }
+
     static constexpr float sq(float x) {
         return x * x;
     }
 
     /**
      * @param side_lobe > 0
+     * @note 如果要用于分析，请使用N+1的窗然后丢弃最后一个样本
      */
     static void Window(std::span<float> window, float side_lobe, size_t nbars) {
         const double amplification = pow(10.0f, side_lobe / 20.0f);
