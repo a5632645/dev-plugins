@@ -5,3 +5,10 @@
 #include "kaiser.hpp"
 #include "taylor.hpp"
 #include "helper.hpp"
+
+/**
+ * more info
+ * @ref https://vru.vibrationresearch.com/lesson/tables-of-window-function-details/
+ * @ref https://zhuanlan.zhihu.com/p/673537350
+ * @ref https://zhuanlan.zhihu.com/p/40492149
+ */

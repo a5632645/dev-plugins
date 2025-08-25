@@ -9,11 +9,6 @@ namespace qwqdsp::window {
  * @ref http://practicalcryptography.com/miscellaneous/machine-learning/implementing-dolph-chebyshev-window/
  */
 struct Chebyshev {
-    [[deprecated("not implement")]]
-    static float MainLobeWidth(float atten) {
-        return 0.0f;
-    }
-
     /**
      * @param atten >0
      * @note 如果要用于分析，请使用N+1的窗然后丢弃最后一个样本

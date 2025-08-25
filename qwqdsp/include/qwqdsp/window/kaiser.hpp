@@ -6,11 +6,18 @@
 
 namespace qwqdsp::window {
 struct Kaiser {
-    // 单侧，w = 2pi * kMainLobeWidth / N
+    // 和分析有关的
+    // f = width / N
     static float MainLobeWidth(float beta) {
         float a = beta / std::numbers::pi_v<float>;
         return std::sqrt(1.0f + a * a);
     }
+    static constexpr float kSidelobeRolloff = -6.0f;
+    // 和滤波器设计有关的
+    // 卷积之后第一个旁瓣的大小
+    // TODO: 补充信息
+    // static constexpr float kStopband = -53.0f;
+    // static constexpr float kTransmit = 3.3f;
 
     static void Window(std::span<float> window, float beta, bool for_analyze_not_fir) {
         const size_t N = window.size();

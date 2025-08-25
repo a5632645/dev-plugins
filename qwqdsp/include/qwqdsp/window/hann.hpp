@@ -5,11 +5,15 @@
 
 namespace qwqdsp::window {
 struct Hann {
-    // 单侧，w = 2pi * kMainLobeWidth / N
-    static constexpr float kMainLobeWidth = 1.5f;
-    static constexpr float k3dBWidth = 1.44f;
-    static constexpr float kSideLobeAmp = -31.5f;
-    static constexpr float kDecay = -60.0f;
+    // 和分析有关的
+    // f = width / N
+    static constexpr float kMainlobeWidth = 3.0f;
+    static constexpr float kSidelobe = -31.5565f;
+    static constexpr float kSidelobeRolloff = -18.0f;
+    // 和滤波器设计有关的
+    // 卷积之后第一个旁瓣的大小
+    static constexpr float kStopband = -44.0f;
+    static constexpr float kTransmit = 3.1f;
 
     static void Window(std::span<float> x, bool for_analyze_not_fir) {
         const size_t N = x.size();

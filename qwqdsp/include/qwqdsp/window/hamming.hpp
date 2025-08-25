@@ -5,11 +5,15 @@
 
 namespace qwqdsp::window {
 struct Hamming {
-    // 单侧，w = 2pi * kMainLobeWidth / N
-    static constexpr float kMainLobeWidth = 1.36f;
-    static constexpr float k3dBWidth = 1.3f;
-    static constexpr float kSideLobeAmp = -43.2f;
-    static constexpr float kDecay = -20.0f;
+    // 和分析有关的
+    // f = width / N
+    static constexpr float kMainlobeWidth = 2.0f;
+    static constexpr float kSidelobe = -43.7547f;
+    static constexpr float kSidelobeRolloff = -6.0f;
+    // 和滤波器设计有关的
+    // 卷积之后第一个旁瓣的大小
+    static constexpr float kStopband = -53.0f;
+    static constexpr float kTransmit = 3.3f;
 
     static void Window(std::span<float> x, bool for_analyze_not_fir) {
         const size_t N = x.size();

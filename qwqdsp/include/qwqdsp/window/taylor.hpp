@@ -6,11 +6,6 @@
 
 namespace qwqdsp::window {
 struct Taylor {
-    [[deprecated("not implement")]]
-    static float MainLobeWidth(float side_lobe, size_t nbars) {
-        return 0.0f;
-    }
-
     static constexpr float sq(float x) {
         return x * x;
     }
