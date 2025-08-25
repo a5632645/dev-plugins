@@ -42,6 +42,10 @@ public:
     size_t NumData() const {
         return fft_.NumBins() - 1;
     }
+
+    static constexpr size_t NumData(size_t size) {
+        return RealFFT::NumBins(size) - 1;
+    }
 private:
     RealFFT fft_;
     std::vector<std::complex<float>> spectral_;
