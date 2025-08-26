@@ -95,6 +95,43 @@ public:
         }
     }
 
+    /**
+     * @param phase 可选的，不需要请传入{}
+     */
+    void FFTGainPhase(std::span<const float> time, std::span<float> gain, std::span<float> phase = {}) {
+        assert(time.size() == fft_size_);
+        assert(gain.size() == NumBins());
+        if (!phase.empty()) {
+            assert(phase.size() == NumBins());
+        }
+
+        std::copy(time.begin(), time.end(), buffer_.begin());
+        internal::rdft(fft_size_, 1, buffer_.data(), ip_.data(), w_.data());
+        if (phase.empty()) {
+            gain.front() = buffer_[0];
+            gain[fft_size_ / 2] = std::abs(buffer_[1]);
+            const size_t n = fft_size_ / 2;
+            for (size_t i = 1; i < n; ++i) {
+                float real = buffer_[i * 2];
+                float imag = -buffer_[i * 2 + 1];
+                gain[i] = std::sqrt(real * real + imag + imag + 1e-18f);
+            }
+        }
+        else {
+            gain.front() = buffer_[0];
+            phase.front() = 0.0f;
+            gain[fft_size_ / 2] = std::abs(buffer_[1]);
+            phase[fft_size_ / 2] = 0.0f;
+            const size_t n = fft_size_ / 2;
+            for (size_t i = 1; i < n; ++i) {
+                float real = buffer_[i * 2];
+                float imag = -buffer_[i * 2 + 1];
+                gain[i] = std::sqrt(real * real + imag + imag + 1e-18f);
+                phase[i] = std::atan2(imag, real);
+            }
+        }
+    }
+
     void IFFTGainPhase(std::span<float> time, std::span<const float> gain, std::span<const float> phase) {
         assert(time.size() == fft_size_);
         assert(gain.size() == NumBins());
