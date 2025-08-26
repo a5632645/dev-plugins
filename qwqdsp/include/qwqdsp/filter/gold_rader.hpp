@@ -2,6 +2,12 @@
 #include <cmath>
 
 namespace qwqdsp::filter {
+/**
+ * @brief 它和biquad不能互换
+ *                rsin * z^-1 * (b0 + b1*z^-1 + b2*z^-2)
+ * H(z) = --------------------------------------------------------
+ *         (z - 2rcos + r^2) or (z - rexp(w))(z - conj(rexp(w)))
+ */
 class GoldRader {
 public:
     float Tick(float x) {
