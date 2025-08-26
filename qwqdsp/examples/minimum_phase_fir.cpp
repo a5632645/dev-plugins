@@ -1,45 +1,54 @@
 #include "qwqdsp/spectral/real_fft.hpp"
+#include "qwqdsp/window/blackman.hpp"
+#include "qwqdsp/spectral/complex_fft.hpp"
+#include "qwqdsp/filter/window_fir.hpp"
+#include "qwqdsp/window/helper.hpp"
+#include <cstddef>
+#include <numbers>
 
 int main() {
-    constexpr size_t fft_size = 4096;
-    constexpr size_t init = qwqdsp::spectral::RealFFT::NumBins(fft_size);
-    float gain[init]{};
-    float log_gain[init]{};
-    float phases[init]{};
-    std::fill_n(gain, 500, 1.0f);
-    for (size_t i = 0; i < init; ++i) {
-        log_gain[i] = std::log(gain[i] + 1e-18f);
+    float fir[65];
+    qwqdsp::filter::WindowFIR::Lowpass(fir, std::numbers::pi_v<float> / 2);
+
+    float fir_pad[4096];
+    qwqdsp::window::Helper::ZeroPad(fir_pad, fir);
+
+    qwqdsp::spectral::ComplexFFT<false> fft;
+    fft.Init(4096);
+    constexpr size_t num_bins = fft.NumBins(4096);
+    float gains[num_bins];
+    fft.FFTGainPhase(fir_pad, gains);
+
+    float log_gains[num_bins];
+    for (size_t i = 0; i < num_bins; ++i) {
+        log_gains[i] = std::log(gains[i] + 1e-18f);
     }
 
-    qwqdsp::spectral::RealFFT fft;
-    fft.Init(fft_size);
-    float ifft0[fft_size];
-    fft.IFFT(ifft0, log_gain, phases);
-    float h[fft_size]{};
-    h[0] = 1.0f;
-    h[fft_size / 2] = 1.0f;
-    for (size_t i = 1; i < fft_size / 2; ++i) {
-        h[i] = 2.0f;
+    float phases[num_bins];
+    fft.Hilbert(log_gains, phases, true);
+
+    float ir[4096];
+    fft.IFFTGainPhase(ir, gains, phases);
+
+    float slice[128];
+    slice[0] = ir[0];
+    for (size_t i = 1; i < 128; ++i) {
+        slice[i] = ir[4096 - i];
     }
 
-    float real_gains[fft_size]{};
-    for (size_t i = 0; i < fft_size; ++i) {
-        real_gains[i] = h[i] * ifft0[i];
+    float min_phase_pad[1024];
+    float fir_pad2[1024];
+    qwqdsp::window::Helper::ZeroPad(fir_pad2, fir);
+    qwqdsp::window::Helper::ZeroPad(min_phase_pad, slice);
+    qwqdsp::spectral::RealFFT fft2;
+    constexpr size_t num_bins2 = fft2.NumBins(1024);
+    float fir_gains[num_bins2];
+    float min_phase_gains[num_bins2];
+    fft2.Init(1024);
+    fft2.FFTGainPhase(min_phase_pad, min_phase_gains);
+    fft2.FFTGainPhase(fir_pad2, fir_gains);
+    for (size_t i = 0; i < num_bins2; ++i) {
+        fir_gains[i] = 20.0f * std::log10(fir_gains[i] + 1e-6f);
+        min_phase_gains[i] = 20.0f * std::log10(min_phase_gains[i] + 1e-6f);
     }
-    float real[init];
-    float imag[init];
-    fft.FFT(real_gains, real, imag);
-
-    float impluse[fft_size];
-    fft.IFFTGainPhase(impluse, gain, imag);
-
-    float test[fft_size / 2];
-    std::copy_n(impluse, fft_size / 2, test);
-    fft.Init(fft_size / 2);
-    fft.FFT(test, {real, fft_size/4+1}, {imag, fft_size/4+1});
-    float test_gain[fft_size/4+1];
-    for (size_t i = 0; i <= fft_size/4; ++i) {
-        test_gain[i] = std::abs(std::complex{real[i], imag[i]});
-    }
-    // 使用GRAPHICAL WATCH查看
 }

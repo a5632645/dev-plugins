@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 #include <cstddef>
 #include <span>
 #include <vector>
@@ -170,6 +171,54 @@ public:
         }
     }
 
+    /**
+     * @param phase 可选的，不需要请传入{}
+     */
+    void FFTGainPhase(std::span<const float> time, std::span<float> gain, std::span<float> phase = {}) {
+        assert(time.size() == fft_size_);
+        assert(gain.size() == NumBins());
+        if (!phase.empty()) {
+            assert(phase.size() == NumBins());
+        }
+
+        for (size_t i = 0; i < fft_size_; ++i) {
+            buffer_[2 * i] = time[i];
+            buffer_[2 * i + 1] = 0;
+        }
+        internal::cdft(fft_size_ * 2, 1, buffer_.data(), ip_.data(), w_.data());
+        if constexpr (kUseNegPiFirst) {
+            for (size_t i = 0; i <= fft_size_ / 2; ++i) {
+                size_t e = fft_size_ / 2 - i;
+                float real = (buffer_[e * 2]);
+                float imag = (buffer_[e * 2 + 1]);
+                gain[i] = std::sqrt(real * real + imag * imag);
+                if (!phase.empty()) phase[i] = std::atan2(imag, real);
+            }
+            for (size_t i = 0; i < fft_size_ / 2 - 1; ++i) {
+                size_t e = fft_size_ - 1 - i;
+                size_t a = fft_size_ / 2 + 1 + i;
+                float real = (buffer_[e * 2]);
+                float imag = (buffer_[e * 2 + 1]);
+                gain[a] = std::sqrt(real * real + imag * imag);
+                if (!phase.empty()) phase[a] = std::atan2(imag, real);
+            }
+        }
+        else {
+            {
+                float real = (buffer_[0]);
+                float imag = (buffer_[1]);
+                gain[0] = std::sqrt(real * real + imag * imag);
+                if (!phase.empty()) phase[0] = std::atan2(imag, real);
+            }
+            for (size_t i = 1; i < fft_size_; ++i) {
+                float real = (buffer_[i * 2]);
+                float imag = (buffer_[i * 2 + 1]);
+                gain[fft_size_ - i] = std::sqrt(real * real + imag * imag);
+                if (!phase.empty()) phase[fft_size_ - i] = std::atan2(imag, real);
+            }
+        }
+    }
+
     template<class SPAN_TYPE>
     void IFFT(std::span<SPAN_TYPE> time, std::span<std::complex<float>> spectral) {
         if constexpr (kUseNegPiFirst) {
@@ -243,8 +292,7 @@ public:
         }
     }
 
-    template<class SPAN_TYPE>
-    void IFFTGainPhase(std::span<SPAN_TYPE> time, std::span<float> gain, std::span<float> phase) {
+    void IFFTGainPhase(std::span<float> time, std::span<float> gain, std::span<float> phase) {
         if constexpr (kUseNegPiFirst) {
             for (size_t i = 0; i <= fft_size_ / 2; ++i) {
             size_t a = fft_size_ / 2 - i;
@@ -269,13 +317,37 @@ public:
         internal::cdft(fft_size_ * 2, -1, buffer_.data(), ip_.data(), w_.data());
         const float g = 1.0f / fft_size_;
         for (size_t i = 0; i < fft_size_; ++i) {
-            if constexpr (std::is_same_v<SPAN_TYPE, std::complex<float>>) {
-                time[i].real(buffer_[i * 2] * g);
-                time[i].imag(buffer_[i * 2 + 1] * g);
+            time[i] = buffer_[i * 2] * g;
+        }
+    }
+
+    void IFFTGainPhase(std::span<std::complex<float>> time, std::span<float> gain, std::span<float> phase) {
+        if constexpr (kUseNegPiFirst) {
+            for (size_t i = 0; i <= fft_size_ / 2; ++i) {
+            size_t a = fft_size_ / 2 - i;
+                buffer_[2 * a] = gain[i] * std::cos(phase[i]);
+                buffer_[2 * a + 1] = gain[i] * std::sin(phase[i]);
             }
-            else {
-                time[i] = buffer_[i * 2] * g;
+            for (size_t i = 0; i < fft_size_ / 2 - 1; ++i) {
+                size_t a = fft_size_ / 2 + 1 + i;
+                size_t e = fft_size_ - 1 - i;
+                buffer_[2 * a] = gain[e] * std::cos(phase[e]);
+                buffer_[2 * a + 1] = gain[e] * std::cos(phase[e]);
             }
+        }
+        else {
+            buffer_[0] = gain[0];
+            buffer_[1] = gain[1];
+            for (size_t i = 1; i < fft_size_; ++i) {
+                buffer_[2 * i] = gain[fft_size_ - i] * std::cos(phase[fft_size_ - i]);
+                buffer_[2 * i + 1] = gain[fft_size_ - i] * std::sin(phase[fft_size_ - i]);
+            }
+        }
+        internal::cdft(fft_size_ * 2, -1, buffer_.data(), ip_.data(), w_.data());
+        const float g = 1.0f / fft_size_;
+        for (size_t i = 0; i < fft_size_; ++i) {
+            time[i].real(buffer_[i * 2] * g);
+            time[i].imag(buffer_[i * 2 + 1] * g);
         }
     }
 
@@ -338,7 +410,7 @@ public:
         }
     }
 
-    void HilbertOption(std::span<const float> input, std::span<float> output90, bool clear_dc) {
+    void Hilbert(std::span<const float> input, std::span<float> output90, bool clear_dc) {
         assert(input.size() == fft_size_);
         assert(output90.size() == fft_size_);
 
