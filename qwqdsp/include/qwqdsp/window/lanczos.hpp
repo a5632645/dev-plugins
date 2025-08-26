@@ -45,6 +45,20 @@ struct Lanczos {
             }
         }
     }
+
+    static void DWindow(std::span<float> x) {
+        const size_t N = x.size();
+        constexpr float pi = std::numbers::pi_v<float>;
+        for (size_t i = 0; i < N; ++i) {
+            float t = 2.0f * i / N - 1.0f;
+            if (t == 0.0f) {
+                x[i] = 0.0f;
+            }
+            else {
+                x[i] = (pi * t * std::cos(pi * t) - std::sin(pi * t)) / (pi * t * t);
+            }
+        }
+    }
 private:
     static float Sinc(float x) {
         x *= std::numbers::pi_v<float>;
