@@ -35,6 +35,26 @@ struct Blackman {
         }
     }
 
+    static void ApplyWindow(std::span<float> x, bool for_analyze_not_fir) {
+        const size_t N = x.size();
+        constexpr float twopi = std::numbers::pi_v<float> * 2;
+        constexpr float a0 = 0.42659f;
+        constexpr float a1 = 0.496562f;
+        constexpr float a2 = 0.076849f; 
+        if (for_analyze_not_fir) {
+            for (size_t n = 0; n < x.size(); ++n) {
+                const float t = n / static_cast<float>(N);
+                x[n] *= a0 - a1 * std::cos(twopi * t) + a2 * std::cos(twopi * 2 * t);
+            }
+        }
+        else {
+            for (size_t n = 0; n < x.size(); ++n) {
+                const float t = n / (N - 1.0f);
+                x[n] *= a0 - a1 * std::cos(twopi * t) + a2 * std::cos(twopi * 2 * t);
+            }
+        }
+    }
+
     static void DWindow(std::span<float> x) {
         const size_t N = x.size();
         constexpr float twopi = std::numbers::pi_v<float> * 2;

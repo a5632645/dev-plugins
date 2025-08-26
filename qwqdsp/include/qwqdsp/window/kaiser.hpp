@@ -33,6 +33,20 @@ struct Kaiser {
         }
     }
 
+    static void ApplyWindow(std::span<float> x, float beta, bool for_analyze_not_fir) {
+        const size_t N = x.size();
+        auto inc = 2.0f / (N - 1.0f);
+        if (for_analyze_not_fir) {
+            inc = 2.0f / N;
+        }
+        auto down = 1.0f / std::cyl_bessel_i(0, beta);
+        for (size_t i = 0; i < N; ++i) {
+            auto t = -1.0f + i * inc;
+            auto arg = std::sqrt(1.0 - t * t);
+            x[i] *= std::cyl_bessel_i(0, beta * arg) * down;
+        }
+    }
+
     static void Window(std::span<float> window, std::span<float> dwindow, float beta) {
         constexpr auto kTimeDelta = 0.001f;
         const size_t N = window.size();

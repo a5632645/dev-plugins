@@ -31,6 +31,22 @@ struct Hamming {
         }
     }
 
+    static void ApplyWindow(std::span<float> x, bool for_analyze_not_fir) {
+        const size_t N = x.size();
+        if (for_analyze_not_fir) {
+            for (size_t n = 0; n < N; ++n) {
+                const float t = n / static_cast<float>(N) - 0.5f;
+                x[n] *= 0.53836f + 0.46164f * std::cos(std::numbers::pi_v<float> * 2 * t);
+            }
+        }
+        else {
+            for (size_t n = 0; n < N; ++n) {
+                const float t = n / (N - 1.0f) - 0.5f;
+                x[n] *= 0.53836f + 0.46164f * std::cos(std::numbers::pi_v<float> * 2 * t);
+            }
+        }
+    }
+
     static void DWindow(std::span<float> x) {
         const size_t N = x.size();
         for (size_t n = 0; n < N; ++n) {

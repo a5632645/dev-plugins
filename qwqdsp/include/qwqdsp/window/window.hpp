@@ -5,6 +5,7 @@
 #include "kaiser.hpp"
 #include "taylor.hpp"
 #include "helper.hpp"
+#include "lanczos.hpp"
 
 /**
  * more info
