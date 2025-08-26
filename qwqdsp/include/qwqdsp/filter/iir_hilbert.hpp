@@ -5,6 +5,18 @@ namespace qwqdsp::filter {
 template<class T = float>
 class IIRHilbert {
 public:
+    void Deinit() {
+        real0_.Deinit();
+        real1_.Deinit();
+        real2_.Deinit();
+        real3_.Deinit();
+        imag0_.Deinit();
+        imag1_.Deinit();
+        imag2_.Deinit();
+        imag3_.Deinit();
+        latch_ = 0;
+    }
+
     std::complex<T> Tick(T x) {
         T real{};
         T imag{};
@@ -24,6 +36,12 @@ private:
     struct APF {
         T z0_{};
         T z1_{};
+
+        void Deinit() {
+            z0_ = 0;
+            z1_ = 0;
+        }
+
         T Tick(T x) {
             T in = x + alpha * z1_;
             T out = -alpha * in + z1_;
@@ -47,6 +65,26 @@ private:
 template<class T = float>
 class IIRHilbertDeeper {
 public:
+    void Deinit() {
+        real0_.Deinit();
+        real1_.Deinit();
+        real2_.Deinit();
+        real3_.Deinit();
+        real4_.Deinit();
+        real5_.Deinit();
+        real6_.Deinit();
+        real7_.Deinit();
+        imag0_.Deinit();
+        imag1_.Deinit();
+        imag2_.Deinit();
+        imag3_.Deinit();
+        imag4_.Deinit();
+        imag5_.Deinit();
+        imag6_.Deinit();
+        imag7_.Deinit();
+        latch_ = 0;
+    }
+
     std::complex<T> Tick(T x) {
         T real{};
         T imag{};
@@ -74,6 +112,12 @@ private:
     struct APF {
         T z0_{};
         T z1_{};
+
+        void Deinit() {
+            z0_ = 0;
+            z1_ = 0;
+        }
+
         T Tick(T x) {
             T in = x + alpha * z1_;
             T out = -alpha * in + z1_;

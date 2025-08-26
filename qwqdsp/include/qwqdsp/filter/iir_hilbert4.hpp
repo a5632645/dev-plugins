@@ -13,6 +13,16 @@ namespace qwqdsp::filter {
 template<size_t kNumFilter>
 class IIRHilbertFull {
 public:
+    void Deinit() {
+        latch_ = 0;
+        for (auto& f : real_) {
+            f.Deinit();
+        }
+        for (auto& f : imag_) {
+            f.Deinit();
+        }
+    }
+
     IIRHilbertFull() {
         for (size_t i = 0; i < kNumFilter; ++i) {
             float preal = std::exp(-std::numbers::pi_v<float> / std::exp2(2.0f * i));
@@ -39,6 +49,12 @@ private:
         float z0_{};
         float z1_{};
         float alpha_{};
+
+        void Deinit() {
+            z0_ = 0;
+            z1_ = 0;
+        }
+
         float Tick(float x) {
             float in = x + alpha_ * z1_;
             float out = -alpha_ * in + z1_;

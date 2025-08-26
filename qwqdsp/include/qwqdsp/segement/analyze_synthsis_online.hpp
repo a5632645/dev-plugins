@@ -80,7 +80,7 @@ public:
         hop_ = hop;
     }
 
-    void ResetPointers() {
+    void Deinit() {
         std::fill_n(output_buffer_.begin(), write_end_, 0.0f);
         input_wpos_ = 0;
         write_end_ = 0;

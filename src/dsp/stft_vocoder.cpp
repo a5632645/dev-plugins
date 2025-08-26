@@ -72,7 +72,7 @@ void STFTVocoder::Process(std::span<float> block, std::span<float> block2) {
         size_t num_bins = fft_.ComplexSize(fft_size_);
         for (size_t i = 0; i < num_bins; ++i) {
             float power = std::abs(real_main_[i] * real_main_[i] + imag_main_[i] * imag_main_[i]);
-            float gain = std::sqrt(power + 1e-18f) * window_gain_;
+            float gain = std::sqrt(power) * window_gain_;
             gain = Blend(gain);
 
             if (gain > gains_[i]) {

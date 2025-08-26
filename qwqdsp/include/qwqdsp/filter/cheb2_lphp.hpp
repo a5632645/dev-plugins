@@ -10,6 +10,10 @@ public:
         fs_ = fs;
     }
 
+    void Deinit() {
+        Reset();
+    }
+
     float Tick(float x) {
         for (auto& f : filters_) {
             x = f.Tick(x);

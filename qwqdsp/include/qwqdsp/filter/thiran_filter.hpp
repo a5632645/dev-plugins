@@ -7,6 +7,11 @@ namespace qwqdsp {
 template<size_t N>
 class ThiranFilter {
 public:
+    void Deinit() {
+        std::fill(x_.begin(), x_.end(), 0.0f);
+        std::fill(y_.begin(), y_.end(), 0.0f);
+    }
+
     /**
     * @return how many intergal samples need delay
     */

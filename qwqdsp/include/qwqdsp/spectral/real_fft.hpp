@@ -114,7 +114,7 @@ public:
             for (size_t i = 1; i < n; ++i) {
                 float real = buffer_[i * 2];
                 float imag = -buffer_[i * 2 + 1];
-                gain[i] = std::sqrt(real * real + imag + imag + 1e-18f);
+                gain[i] = std::sqrt(real * real + imag * imag);
             }
         }
         else {
@@ -126,7 +126,7 @@ public:
             for (size_t i = 1; i < n; ++i) {
                 float real = buffer_[i * 2];
                 float imag = -buffer_[i * 2 + 1];
-                gain[i] = std::sqrt(real * real + imag + imag + 1e-18f);
+                gain[i] = std::sqrt(real * real + imag + imag);
                 phase[i] = std::atan2(imag, real);
             }
         }

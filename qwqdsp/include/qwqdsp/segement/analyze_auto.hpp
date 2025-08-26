@@ -62,7 +62,7 @@ public:
         hop_ = hop;
     }
 
-    void ResetPointers() {
+    void Deinit() {
         input_wpos_ = 0;
     }
 private:

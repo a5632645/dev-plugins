@@ -151,7 +151,7 @@ void ChannelVocoder::ProcessBlock(std::span<float> main_v, std::span<float> side
             float carry = side_v[i];
             float main_curr = main_filters_[bin].Tick(modu);
             main_curr = main_curr * main_curr;
-            main_curr = std::sqrt(main_curr + 1e-18f);
+            main_curr = std::sqrt(main_curr);
             float main_latch = main_peaks_[bin];
             if (main_curr > main_latch) {
                 main_latch = main_latch * attack_ + (1.0f - attack_) * main_curr;

@@ -3,6 +3,10 @@
 namespace qwqdsp {
 class Biquad {
 public:
+    void Deinit() {
+        Reset();
+    }
+
     float Tick(float x) {
         auto output = x * b0_ + latch1_;
         latch1_ = x * b1_ - output * a1_ + latch2_;

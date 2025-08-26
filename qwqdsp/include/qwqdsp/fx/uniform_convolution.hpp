@@ -22,7 +22,7 @@ public:
         process_buffer_.resize(fft_size);
     }
 
-    void ResetPointers() {
+    void Deinit() {
         std::fill_n(output_buffer_.begin(), write_end_, 0.0f);
         for (auto& f : input_frames_) {
             std::fill(f.begin(), f.end(), std::complex<float>{});

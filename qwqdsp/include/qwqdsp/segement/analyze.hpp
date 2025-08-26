@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <span>
@@ -36,6 +37,10 @@ public:
         for (size_t i = 0; i < num_input_; i++) {
             buffer_[i] = buffer_[i + hop_size_];
         }
+    }
+
+    void Deinit() {
+        num_input_ = 0;
     }
 private:
     size_t size_{};

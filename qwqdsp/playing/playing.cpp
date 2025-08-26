@@ -1,40 +1,30 @@
-#include <algorithm>
-#include <array>
 #include <cstddef>
 #include <numbers>
-#include <vector>
-// #include "OLEDDisplayRGB.h"
-// #include "stb_image_write.h"
-#include <raylib.h>
-#include "AudioFile.h"
+#include <cmath>
 
+#include "qwqdsp/filter/polyphase_apf.hpp"
 #include "qwqdsp/spectral/real_fft.hpp"
 #include "qwqdsp/window/helper.hpp"
 
+
 int main() {
-    AudioFile<float> kick;
-    kick.load(R"(C:\Users\Kawai\Downloads\Music\kick2-short.wav)");
-    auto& wav = kick.samples.front();
-
-    float pad[32768];
-    qwqdsp::window::Helper::ZeroPad(pad, wav);
-    qwqdsp::spectral::RealFFT fft;
-    fft.Init(32768);
-    float imag[32768];
-    fft.Hilbert(pad, imag, true);
-
-    float env[32768];
-    for (size_t i = 0; i < 32768; ++i) {
-        env[i] = std::sqrt(pad[i] * pad[i] + imag[i] * imag[i]);
+    qwqdsp::filter::PolyphaseAPF apf;
+    apf.Init(64);
+    apf.SetNLatch(5);
+    apf.SetAlpha(0.6f);
+    float ir[4096];
+    ir[0] = apf.Tick(1.0f);
+    for (size_t i = 1; i < 4096; ++i) {
+        ir[i] = apf.Tick(0.0f);
     }
 
-    AudioFile<float>::AudioBuffer out;
-    out.resize(1);
-    out.front().resize(32768);
-    std::copy(env, env + 32768, out.front().begin());
-    AudioFile<float> outfile;
-    outfile.setAudioBuffer(out);
-    outfile.setSampleRate(kick.getSampleRate());
-    outfile.setBitDepth(32);
-    outfile.save(R"(C:\Users\Kawai\Desktop\debug\kick2-short.wav)");
+    float pad[4096];
+    qwqdsp::window::Helper::ZeroPad(pad, ir);
+    qwqdsp::spectral::RealFFT fft;
+    fft.Init(4096);
+    float gains[fft.NumBins(4096)];
+    fft.FFTGainPhase(pad, gains);
+    for (auto& x : gains) {
+        x = std::max(-100.0f, 20.0f * std::log10(x + 1e-18f));
+    }
 }

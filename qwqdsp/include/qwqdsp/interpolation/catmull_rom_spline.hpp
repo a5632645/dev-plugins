@@ -15,20 +15,27 @@ public:
     }
 
     float Next(float x) {
+        [[unlikely]]
         if (xs_.size() == 2) {
             float e0 = (ys_[1] - ys_[0]) / (xs_[1] - xs_[0]);
             return ys_[0] + e0 * (x - xs_[0]);
         }
         else {
-            while (x > xs_[rpos_]) {
-                StepNextPoint();
+            [[unlikely]]
+            if (x == xs_.back()) {
+                return ys_.back();
             }
-            auto s = (x - x0_) / (x1_ - x0_);
-            return d_ + s * (
-                c_ + s * (b_
-                    + s * a_
-                )
-            );
+            else {
+                while (x > xs_[rpos_]) {
+                    StepNextPoint();
+                }
+                auto s = (x - x0_) / (x1_ - x0_);
+                return d_ + s * (
+                    c_ + s * (b_
+                        + s * a_
+                    )
+                );
+            }
         }
     }
     

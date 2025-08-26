@@ -21,7 +21,7 @@ public:
                 output_gain[bin] = 0.0f;
             }
             else {
-                output_gain[bin] = std::sqrt(ncSum + 1e-18f) * gain;
+                output_gain[bin] = std::sqrt(ncSum) * gain;
             }
         }
     }

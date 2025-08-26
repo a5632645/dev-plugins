@@ -13,7 +13,7 @@ struct Lanczos {
     static constexpr float kSidelobeRolloff = -12.0f;
     // 和滤波器设计有关的
     // 卷积之后第一个旁瓣的大小
-    // static constexpr float kStopband = -74.0f;
+    static constexpr float kStopband = -38.55f;
     // static constexpr float kTransmit = 5.5f;
 
     static void Window(std::span<float> x, bool for_analyze_not_fir) {
