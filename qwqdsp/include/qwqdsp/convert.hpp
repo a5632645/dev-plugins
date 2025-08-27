@@ -98,4 +98,12 @@ static float DigitalBW2AnalogQ(float w, float bw) {
     auto octave = w1 / w0;
     return DigitalOctave2AnalogQ(w, octave);
 }
+
+static float Gain2Db(float gain) {
+    return 20.0f * std::log10(gain + 1e-18f);
+}
+
+static float Db2Gain(float db) {
+    return std::pow(10.0f, db / 20.0f);
+}
 } // qwqdsp::convert
