@@ -1,6 +1,7 @@
 #pragma once
 #include <complex>
 #include <cstddef>
+#include <numbers>
 #include "qwqdsp/osciilor/table_sine_osc.hpp"
 
 namespace qwqdsp::oscillor {
@@ -21,20 +22,35 @@ public:
         return up / down;
     }
 
+    /**
+     * @param w0 0~pi
+     */
     void SetW0(float w0) {
         w0_osc_.SetFreq(w0);
+        w0_ = w0;
+        CheckAlasing();
     }
 
+    /**
+     * @param w 0~pi
+     */
     void SetWSpace(float w) {
         w_osc_.SetFreq(w);
         w_ = w;
+        CheckAlasing();
     }
 
+    /**
+     * @param n >0
+     */
     void SetN(size_t n) {
-        n_ = n;
-        a_pow_n_ = std::pow(a_, n);
+        set_n_ = n;
+        CheckAlasing();
     }
 
+    /**
+     * @param a anything
+     */
     void SetAmpFactor(float a) {
         if (a <= 1 && a >= 1 - 1e-3) {
             a = 1 - 1e-3f;
@@ -43,19 +59,40 @@ public:
             a = 1 + 1e-3f;
         }
         a_ = a;
-        a_pow_n_ = std::pow(a, n_);
+        UpdateA();
     }
 
     float NormalizeGain() const {
         return (1.0f - a_) / (1.0f - a_pow_n_);
     }
 private:
+    void CheckAlasing() {
+        if (w_ == 0.0f && n_ != set_n_) {
+            n_ = set_n_;
+            UpdateA();
+        }
+        else {
+            size_t max_n = (std::numbers::pi_v<float> - w0_) / w_;
+            size_t newn = std::min(max_n, set_n_);
+            if (n_ != newn) {
+                n_ = newn;
+                UpdateA();
+            }
+        }
+    }
+
+    void UpdateA() {
+        a_pow_n_ = std::pow(a_, n_);
+    }
+
     TableSineOsc<kLookupTableFrac> w0_osc_{};
     TableSineOsc<kLookupTableFrac> w_osc_{};
     float w_{};
+    float w0_{};
     float a_{};
     float a_pow_n_{};
     size_t n_{};
+    size_t set_n_{};
 };
 
 /**
@@ -78,16 +115,19 @@ public:
 
     void SetW0(float w0) {
         w0_osc_.SetFreq(w0);
+        w0_ = w0;
+        CheckAlasing();
     }
 
     void SetWSpace(float w) {
         w_osc_.SetFreq(w);
         w_ = w;
+        CheckAlasing();
     }
 
     void SetN(size_t n) {
-        n_ = n;
-        a_pow_n_ = std::pow(a_, n);
+        set_n_ = n;
+        CheckAlasing();
     }
 
     void SetAmpGain(float a) {
@@ -100,14 +140,14 @@ public:
         factor_gain_ = a;
         auto s = std::polar(a, factor_phase_);
         a_ = s;
-        a_pow_n_ = std::pow(s, n_);
+        UpdateA();
     }
 
     void SetAmpPhase(float phase) {
         factor_phase_ = phase;
         auto s = std::polar(factor_gain_, factor_phase_);
         a_ = s;
-        a_pow_n_ = std::pow(s, n_);
+        UpdateA();
     }
 
     float NormalizeGain() const {
@@ -116,14 +156,35 @@ public:
         return (1.0f - a) / (1.0f - apown);
     }
 private:
+    void CheckAlasing() {
+        if (w_ == 0.0f && n_ != set_n_) {
+            n_ = set_n_;
+            UpdateA();
+        }
+        else {
+            size_t max_n = (std::numbers::pi_v<float> - w0_) / w_;
+            size_t newn = std::min(max_n, set_n_);
+            if (n_ != newn) {
+                n_ = newn;
+                UpdateA();
+            }
+        }
+    }
+
+    void UpdateA() {
+        a_pow_n_ = std::pow(a_, n_);
+    }
+
     TableSineOsc<kLookupTableFrac> w0_osc_{};
     TableSineOsc<kLookupTableFrac> w_osc_{};
     float w_{};
+    float w0_{};
     float factor_gain_{};
     float factor_phase_{};
     std::complex<float> a_{};
     std::complex<float> a_pow_n_{};
     size_t n_{};
+    size_t set_n_{};
 };
 
 /**

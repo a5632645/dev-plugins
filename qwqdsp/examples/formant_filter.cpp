@@ -4,7 +4,7 @@
 #include <span>
 
 #include "raylib.h"
-#include "slider.hpp"
+#include "../playing/slider.hpp"
 
 #include "qwqdsp/convert.hpp"
 #include "qwqdsp/filter/formant.hpp"
@@ -39,8 +39,8 @@ static void AudioInputCallback(void* _buffer, unsigned int frames) {
         for (size_t i = 0; i < 5; ++i) {
             sum += filters[i].Tick(x) * gains[i];
         }
-        s.l = x;
-        s.r = x;
+        s.l = sum;
+        s.r = sum;
     }
 }
 
