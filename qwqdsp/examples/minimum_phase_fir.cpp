@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <numbers>
 
+// @ref https://www.researchgate.net/publication/3317646_Design_of_Optimal_Minimum-phase_Digital_FIR_Filters_Using_Discrete_Hilbert_Transforms
 int main() {
     float fir[65];
     qwqdsp::filter::WindowFIR::Lowpass(fir, std::numbers::pi_v<float> / 2);
@@ -24,16 +25,21 @@ int main() {
         log_gains[i] = std::log(gains[i] + 1e-18f);
     }
 
-    float phases[num_bins];
-    fft.Hilbert(log_gains, phases, true);
-
+    float phases[num_bins]{};
     float ir[4096];
+    fft.IFFT<float>(ir, log_gains, phases);
+    ir[0] = 0;
+    ir[num_bins / 2] = 0;
+    for (size_t i = num_bins / 2 + 1; i < num_bins; ++i) {
+        ir[i] = -ir[i];
+    }
+
+    fft.FFT(ir, log_gains, phases);
     fft.IFFTGainPhase(ir, gains, phases);
 
-    float slice[128];
-    slice[0] = ir[0];
-    for (size_t i = 1; i < 128; ++i) {
-        slice[i] = ir[4096 - i];
+    float slice[65];
+    for (size_t i = 0; i < 65; ++i) {
+        slice[i] = ir[i];
     }
 
     float min_phase_pad[1024];
