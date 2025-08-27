@@ -36,11 +36,11 @@ public:
     }
 
     void SetAmpFactor(float a) {
-        if (a <= 1 && a >= 1 - 1e-5) {
-            a = 1 - 1e-5f;
+        if (a <= 1 && a >= 1 - 1e-3) {
+            a = 1 - 1e-3f;
         }
-        else if (a >= 1 && a <= 1 + 1e-5f) {
-            a = 1 + 1e-5f;
+        else if (a >= 1 && a <= 1 + 1e-3f) {
+            a = 1 + 1e-3f;
         }
         a_ = a;
         a_pow_n_ = std::pow(a, n_);

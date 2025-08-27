@@ -8,6 +8,7 @@ set_target_properties(qwqdsp PROPERTIES CXX_STANDARD 20)
 if (qwqdsp_have_raylib)
     add_executable(playing
         "./playing/playing.cpp"
+        "./playing/slider.cpp"
         # "./playing/FontRGB.cpp"
         # "./playing/OLEDDisplayRGB.cpp"
         # "./playing/stb_image_write.c"

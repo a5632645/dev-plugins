@@ -1,16 +1,32 @@
 #pragma once
 #include <cmath>
-#include <optional>
+#include <numbers>
 
-namespace qwqdsp {
+namespace qwqdsp::filter {
+/**
+ * @ref https://www.w3.org/TR/audio-eq-cookbook/
+ */
 struct RBJ {
     float b0;
     float b1;
     float b2;
     float a1;
     float a2;
-    std::optional<float> pole_radius;
-    std::optional<float> pole_omega;
+
+    /**
+     * 使用数字倍频程表示带宽具有一阶prewarp Q
+     */
+    static float DigitalOctave2AnalogQ(float w, float octave) {
+        auto a = std::numbers::ln2_v<float> * 0.5f * octave * w / std::sin(w);
+        return 0.5f / std::sinh(a);
+    }
+
+    static float DigitalBW2AnalogQ(float w, float bw) {
+        auto f0 = w - bw * 0.5f;
+        auto f1 = w + bw * 0.5f;
+        auto octave = f1 / f0;
+        return DigitalOctave2AnalogQ(w, octave);
+    }
 
     void Lowpass(float w, float Q) {
         auto a = std::sin(w) / (2 * Q);
@@ -26,8 +42,6 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = inva0;
-        pole_omega = w;
     }
 
     void Highpass(float w, float Q) {
@@ -44,10 +58,11 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = inva0;
-        pole_omega = w;
     }
 
+    /**
+     * G(w) = Q
+     */
     void Bandpass(float w, float Q) {
         auto a = std::sin(w) / (2 * Q);
         auto cosw = std::cos(w);
@@ -62,8 +77,25 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = inva0;
-        pole_omega = w;
+    }
+
+    /**
+     * G(w) = 0
+     */
+    void BandpassKeep0(float w, float Q) {
+        auto a = std::sin(w) / (2 * Q);
+        auto cosw = std::cos(w);
+        b0 = a;
+        b1 = 0;
+        b2 = -a;
+        a1 = -2 * cosw;
+        a2 = 1 - a;
+        float inva0 = 1.0f / (1 + a);
+        b0 *= inva0;
+        b1 *= inva0;
+        b2 *= inva0;
+        a1 *= inva0;
+        a2 *= inva0;
     }
 
     void Peak(float w, float Q, float g) {
@@ -81,9 +113,6 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        // peak doesn't support couple form because the pole will in real axis in some situation
-        pole_omega = std::nullopt;
-        pole_radius = std::nullopt;
     }
 
     void Lowshelf(float w, float Q, float g) {
@@ -102,9 +131,6 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        // shelf doesn't support couple form because the pole will in real axis in some situation
-        pole_omega = std::nullopt;
-        pole_radius = std::nullopt;
     }
 
     void HighShelf(float w, float Q, float g) {
@@ -123,9 +149,6 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        // shelf doesn't support couple form because the pole will in real axis in some situation
-        pole_omega = std::nullopt;
-        pole_radius = std::nullopt;
     }
 
     void Notch(float w, float Q) {
@@ -142,8 +165,6 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = inva0;
-        pole_omega = w;
     }
 
     void Allpass(float w, float Q) {
@@ -160,8 +181,6 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
-        pole_radius = inva0;
-        pole_omega = w;
     }
 };
 }
