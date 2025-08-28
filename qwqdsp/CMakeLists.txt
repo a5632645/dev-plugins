@@ -4,6 +4,21 @@ add_library(qwqdsp
 )
 target_include_directories(qwqdsp PUBLIC "./include")
 set_target_properties(qwqdsp PROPERTIES CXX_STANDARD 20)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(qwqdsp
+        PRIVATE
+            -Wall
+            -Wextra
+            -Wno-newline-eof
+            -Wno-c++98-compat-pedantic
+            -Wno-c++98-compat
+            -Wno-c++11-compat
+            -Wno-c++17-compat
+            -Wno-unsafe-buffer-usage
+    )
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+endif()
 
 if (qwqdsp_have_raylib)
     add_executable(playing

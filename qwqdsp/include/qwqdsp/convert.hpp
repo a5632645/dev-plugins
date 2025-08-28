@@ -2,6 +2,7 @@
 #include <numbers>
 #include <cmath>
 #include <utility>
+#include <span>
 
 namespace qwqdsp::convert {
 static constexpr float Freq2W(float f, float fs) {
@@ -105,5 +106,13 @@ static float Gain2Db(float gain) {
 
 static float Db2Gain(float db) {
     return std::pow(10.0f, db / 20.0f);
+}
+
+static void Lattice2Tf(std::span<const float> lattice, std::span<float> tf) {
+
+}
+
+static void Tf2Lattice(std::span<const float> tf, std::span<float> lattice) {
+    
 }
 } // qwqdsp::convert
