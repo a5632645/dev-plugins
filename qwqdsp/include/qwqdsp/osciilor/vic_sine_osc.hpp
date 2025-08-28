@@ -11,6 +11,11 @@ namespace qwqdsp::oscillor {
  */
 class VicSineOsc {
 public:
+    void Reset() {
+        u_ = 1.0f;
+        v_ = 0.0f;
+    }
+
     void Reset(float phase) {
         u_ = std::cos(phase);
         v_ = std::sin(phase);
@@ -33,9 +38,18 @@ public:
         return u_;
     }
 
+    float Sine() const {
+        return v_;
+    }
+
     void SetFreq(float f, float fs) {
         auto omega = f / fs * std::numbers::pi_v<float> * 2.0f;
         k1_ = std::tan(omega / 2.0f);
+        k2_ = 2 * k1_ / (1 + k1_ * k1_);
+    }
+
+    void SetFreq(float w) {
+        k1_ = std::tan(w / 2.0f);
         k2_ = 2 * k1_ / (1 + k1_ * k1_);
     }
 
