@@ -16,7 +16,7 @@ public:
     }
 
     void SetTime(float ms, float fs) noexcept {
-        total_ = static_cast<size_t>(ms * fs / 1000);
+        total_ = static_cast<size_t>(std::round(ms * fs / 1000.0f));
     }
 
     /**
