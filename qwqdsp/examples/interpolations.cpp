@@ -6,6 +6,7 @@
 #include "qwqdsp/interpolation/makima.hpp"
 #include "qwqdsp/interpolation/catmull_rom_spline.hpp"
 #include "qwqdsp/interpolation/sppchip.hpp"
+#include "qwqdsp/interpolation/linear.hpp"
 
 int main() {
     size_t draging_obj = -1;
@@ -18,12 +19,12 @@ int main() {
         {300, 100},
         {350, 100},
         {400, 100},
-        {400, 100},
-        {400, 100},
-        {400, 100},
+        {410, 100},
+        {420, 100},
+        {430, 100},
     };
 
-    InitWindow(500, 500, "playing");
+    InitWindow(500, 500, "interpolation");
     SetTargetFPS(30);
     while (!WindowShouldClose()) {
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
@@ -70,7 +71,7 @@ int main() {
         qwqdsp::interpolation::SPPCHIP pchip;
         pchip.Reset(xs, ys);
         Vector2 line_start = copy[0];
-        for (size_t i = copy[0].x; i < copy.back().x; ++i) {
+        for (size_t i = copy[0].x; i <= copy.back().x; ++i) {
             auto y = pchip.Next(i);
             DrawLine(line_start.x, line_start.y, i, y, BLUE);
             line_start.x = i;
@@ -80,7 +81,7 @@ int main() {
         qwqdsp::interpolation::CatmullRomSpline spline;
         spline.Reset(xs, ys);
         line_start = copy[0];
-        for (size_t i = copy[0].x; i < copy.back().x; ++i) {
+        for (size_t i = copy[0].x; i <= copy.back().x; ++i) {
             auto y = spline.Next(i);
             DrawLine(line_start.x, line_start.y, i, y, RED);
             line_start.x = i;
@@ -90,9 +91,19 @@ int main() {
         qwqdsp::interpolation::Makima makima;
         makima.Reset(xs, ys);
         line_start = copy[0];
-        for (size_t i = copy[0].x; i < copy.back().x; ++i) {
+        for (size_t i = copy[0].x; i <= copy.back().x; ++i) {
             auto y = makima.Next(i);
             DrawLine(line_start.x, line_start.y, i, y, ORANGE);
+            line_start.x = i;
+            line_start.y = y;
+        }
+
+        qwqdsp::interpolation::Linear linear;
+        linear.Reset(xs, ys);
+        line_start = copy[0];
+        for (size_t i = copy[0].x; i <= copy.back().x; ++i) {
+            auto y = linear.Next(i);
+            DrawLine(line_start.x, line_start.y, i, y, GREEN);
             line_start.x = i;
             line_start.y = y;
         }
