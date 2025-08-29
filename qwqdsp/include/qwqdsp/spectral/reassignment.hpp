@@ -2,6 +2,7 @@
 #include <complex>
 #include <cstddef>
 #include <numbers>
+#include <numeric>
 #include <vector>
 #include "qwqdsp/window/hamming.hpp"
 #include "qwqdsp/window/helper.hpp"
@@ -31,6 +32,7 @@ public:
     template<class Func>
     void ChangeWindow(Func&& func) {
         func(std::span<float>{window_});
+        gain_scaleback_ = std::accumulate(window_.begin(), window_.end(), 0.0f) / 2.0f;
         window::Helper::Normalize(window_);
     }
 
@@ -99,6 +101,10 @@ public:
     size_t NumData() const {
         return fft_.NumBins();
     }
+
+    float GetGainScaleback() const {
+        return gain_scaleback_;
+    }
 private:
     static float Arg(std::complex<float> z) {
         float a = std::arg(z);
@@ -106,6 +112,7 @@ private:
         return std::fmod(a, 1.0f);
     }
 
+    float gain_scaleback_{};
     RealFFT fft_;
     std::vector<float> buffer_;
     std::vector<float> window_;

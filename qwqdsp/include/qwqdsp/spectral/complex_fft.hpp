@@ -351,7 +351,7 @@ public:
         }
     }
 
-    void Hilbert(std::span<const float> time, std::span<std::complex<float>> output) {
+    void Hilbert(std::span<const float> time, std::span<std::complex<float>> output, bool clear_dc) {
         assert(time.size() == fft_size_);
         assert(output.size() == fft_size_);
 
@@ -360,12 +360,22 @@ public:
             buffer_[2 * i + 1] = 0.0f;
         }
         internal::cdft(fft_size_ * 2, 1, buffer_.data(), ip_.data(), w_.data());
-        // Z[0] = X[0]
-        buffer_[0] *= 0.5f;
-        buffer_[1] *= 0.5f;
-        // Z[N/2] = x[N/2]
-        buffer_[fft_size_] *= 0.5f;
-        buffer_[fft_size_ + 1] *= 0.5f;
+        if (clear_dc) {
+            // Z[0] = X[0]
+            buffer_[0] = 0.0f;
+            buffer_[1] = 0.0f;
+            // Z[N/2] = x[N/2]
+            buffer_[fft_size_] = 0.0f;
+            buffer_[fft_size_ + 1] = 0.0f;
+        }
+        else {
+            // Z[0] = X[0]
+            buffer_[0] *= 0.5f;
+            buffer_[1] *= 0.5f;
+            // Z[N/2] = x[N/2]
+            buffer_[fft_size_] *= 0.5f;
+            buffer_[fft_size_ + 1] *= 0.5f;
+        }
         // Z[negative frequency] = 0
         for (size_t i = 1; i < fft_size_ / 2; ++i) {
             buffer_[2 * i] = 0.0f;
@@ -411,6 +421,44 @@ public:
     }
 
     void Hilbert(std::span<const float> input, std::span<float> output90, bool clear_dc) {
+        assert(input.size() == fft_size_);
+        assert(output90.size() == fft_size_);
+
+        for (size_t i = 0; i < fft_size_; ++i) {
+            buffer_[2 * i] = input[i];
+            buffer_[2 * i + 1] = 0.0f;
+        }
+        internal::cdft(fft_size_ * 2, 1, buffer_.data(), ip_.data(), w_.data());
+        if (clear_dc) {
+            // Z[0] = X[0]
+            buffer_[0] = 0.0f;
+            buffer_[1] = 0.0f;
+            // Z[N/2] = x[N/2]
+            buffer_[fft_size_] = 0.0f;
+            buffer_[fft_size_ + 1] = 0.0f;
+        }
+        // Z[negative frequency] -> -b + ai
+        for (size_t i = 1; i < fft_size_ / 2; ++i) {
+            float re = buffer_[2 * i];
+            float im = buffer_[2 * i + 1];
+            buffer_[2 * i] = -im;
+            buffer_[2 * i + 1] = re;
+        }
+        // Z[n] -> b - ai
+        for (size_t i = fft_size_ / 2 + 1; i < fft_size_; ++i) {
+            float re = buffer_[2 * i];
+            float im = buffer_[2 * i + 1];
+            buffer_[2 * i] = im;
+            buffer_[2 * i + 1] = -re;
+        }
+        internal::cdft(fft_size_ * 2, -1, buffer_.data(), ip_.data(), w_.data());
+        const float gain = 1.0f / fft_size_;
+        for (size_t i = 0; i < fft_size_; ++i) {
+            output90[i] = buffer_[i * 2] * gain;
+        }
+    }
+
+    void Hilbert2(std::span<const float> input, std::span<float> output90, bool clear_dc) {
         assert(input.size() == fft_size_);
         assert(output90.size() == fft_size_);
 

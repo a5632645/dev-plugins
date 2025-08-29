@@ -21,8 +21,11 @@ public:
         }
         else {
             [[unlikely]]
-            if (x == xs_.back()) {
+            if (x >= xs_.back()) {
                 return ys_.back();
+            }
+            else [[unlikely]] if (x < xs_.front()) {
+                return ys_.front();
             }
             else {
                 while (x > xs_[rpos_]) {
