@@ -25,5 +25,8 @@ private:
     AudioPluginAudioProcessor& processorRef;
     juce::TooltipWindow tooltip_window_;
 
+    std::vector<std::unique_ptr<juce::Component>> controls_;
+    juce::TextButton button_add_;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };

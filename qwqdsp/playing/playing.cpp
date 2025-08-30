@@ -1,14 +1,17 @@
-#include "qwqdsp/filter/fir.hpp"
-#include "qwqdsp/filter/window_fir.hpp"
+#include "qwqdsp/misc/ampd_peak.hpp"
+#include "qwqdsp/osciilor/noise.hpp"
+#include <cmath>
+#include <numbers>
 
 int main() {
-    qwqdsp::filter::FIRTranspose fir;
-    fir.SetCoeff([](std::vector<float>& coeff) {
-        coeff.resize(65);
-        qwqdsp::filter::WindowFIR::Lowpass(coeff, std::numbers::pi_v<float> * 0.5f);
-    });
+    qwqdsp::misc::AMPDPeakFinding ampd;
+    qwqdsp::oscillor::WhiteNoise noise;
 
-    float test[70]{1.0f};
-    fir.Process(test);
-    auto c = fir.GetCoeff();
+    float test[1000]{};
+    for (size_t i = 0; i < 1000; ++i) {
+        test[i] = 0;
+    }
+
+    ampd.Init(1000);
+    auto& v = ampd.Process<float>(test);
 }

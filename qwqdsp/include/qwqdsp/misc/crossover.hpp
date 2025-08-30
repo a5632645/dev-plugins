@@ -4,7 +4,7 @@
 #include <utility>
 #include "qwqdsp/osciilor/vic_sine_osc.hpp"
 
-namespace qwqdsp {
+namespace qwqdsp::misc {
 class CrossoverGain {
 public:
     void Deinit() noexcept {

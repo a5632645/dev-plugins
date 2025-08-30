@@ -1,6 +1,7 @@
 #pragma once
 #include <complex>
 #include <cassert>
+#include <cstddef>
 #include "int_delay.hpp"
 
 namespace qwqdsp::filter {
@@ -118,9 +119,17 @@ public:
         alpha_ = a;
     }
 
+    float GetAlpha() const noexcept {
+        return alpha_;
+    }
+
     void SetNLatch(size_t n) {
         assert(n != 0);
         n_latch_ = n;
+    }
+
+    size_t GetNLatch() const noexcept {
+        return n_latch_;
     }
 
     std::complex<float> GetResponce(std::complex<float> z) const {
