@@ -11,6 +11,7 @@ MyLookAndFeel::MyLookAndFeel() {
 }
 
 juce::Font MyLookAndFeel::getTextButtonFont(juce::TextButton& button, int buttonHeight) {
+    std::ignore = button;
     auto op = juce::FontOptions{typeface_}.withHeight(std::max(12.0f, buttonHeight * 0.4f));
     return juce::Font{op};
 }
@@ -66,6 +67,9 @@ void MyLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, int width
                         float sliderPos, float minSliderPos, float maxSliderPos,
                         juce::Slider::SliderStyle style, juce::Slider& slider) 
 {
+    std::ignore = minSliderPos;
+    std::ignore = maxSliderPos;
+    
     auto b = juce::Rectangle{ x, y, width, height }.toFloat();
     if (style == juce::Slider::LinearVertical) {
         // 中间竖着的线

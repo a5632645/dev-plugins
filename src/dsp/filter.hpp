@@ -17,7 +17,6 @@ public:
     void MakeHighPass(float pitch);
     void MakeDownSample(int dicimate);
     void MakeLowpassDirect(float omega);
-    void MakeLowpass(float freq, float Q);
     void ResetLatch();
 private:
     float sample_rate_{};

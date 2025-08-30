@@ -83,9 +83,4 @@ void Filter::ResetLatch() {
     latch1_ = 0.0f;
     latch2_ = 0.0f;
 }
-
-void Filter::MakeLowpass(float freq, float Q) {
-    
-}
-
 }
