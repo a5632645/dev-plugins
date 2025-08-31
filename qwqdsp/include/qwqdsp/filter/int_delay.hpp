@@ -31,7 +31,7 @@ public:
     }
 
     /**
-     * @param delay_samples 此处不能小于1，否则为非ZDF
+     * @param delay_samples 此处不能小于1，否则为非因果滤波器（或者被绕回读取max_samples处）
      */
     float GetBeforePush(size_t delay_samples) {
         int rpos = wpos_ + buffer_.size() - delay_samples;
