@@ -1,17 +1,19 @@
-#include "qwqdsp/misc/ampd_peak.hpp"
-#include "qwqdsp/osciilor/noise.hpp"
 #include <cmath>
 #include <numbers>
 
+#include "qwqdsp/filter/median.hpp"
+
 int main() {
-    qwqdsp::misc::AMPDPeakFinding ampd;
-    qwqdsp::oscillor::WhiteNoise noise;
+    qwqdsp::filter::Median median;
+    median.Init(5);
 
-    float test[1000]{};
-    for (size_t i = 0; i < 1000; ++i) {
-        test[i] = 0;
+    float test[] = {
+        1, 1, 2, 6, 2, 3, 1, 0, 4, 1, 2, -1
+    };
+
+    size_t const size = std::size(test);
+    float output[size]{};
+    for (size_t i = 0; i < size; ++i) {
+        output[i] = median.Tick(test[i]);
     }
-
-    ampd.Init(1000);
-    auto& v = ampd.Process<float>(test);
 }
