@@ -5,15 +5,15 @@ namespace qwqdsp::filter {
 template<class T = float>
 class IIRHilbert {
 public:
-    void Deinit() {
-        real0_.Deinit();
-        real1_.Deinit();
-        real2_.Deinit();
-        real3_.Deinit();
-        imag0_.Deinit();
-        imag1_.Deinit();
-        imag2_.Deinit();
-        imag3_.Deinit();
+    void Reset() {
+        real0_.Reset();
+        real1_.Reset();
+        real2_.Reset();
+        real3_.Reset();
+        imag0_.Reset();
+        imag1_.Reset();
+        imag2_.Reset();
+        imag3_.Reset();
         latch_ = 0;
     }
 
@@ -37,7 +37,7 @@ private:
         T z0_{};
         T z1_{};
 
-        void Deinit() {
+        void Reset() {
             z0_ = 0;
             z1_ = 0;
         }
@@ -65,23 +65,23 @@ private:
 template<class T = float>
 class IIRHilbertDeeper {
 public:
-    void Deinit() {
-        real0_.Deinit();
-        real1_.Deinit();
-        real2_.Deinit();
-        real3_.Deinit();
-        real4_.Deinit();
-        real5_.Deinit();
-        real6_.Deinit();
-        real7_.Deinit();
-        imag0_.Deinit();
-        imag1_.Deinit();
-        imag2_.Deinit();
-        imag3_.Deinit();
-        imag4_.Deinit();
-        imag5_.Deinit();
-        imag6_.Deinit();
-        imag7_.Deinit();
+    void Reset() {
+        real0_.Reset();
+        real1_.Reset();
+        real2_.Reset();
+        real3_.Reset();
+        real4_.Reset();
+        real5_.Reset();
+        real6_.Reset();
+        real7_.Reset();
+        imag0_.Reset();
+        imag1_.Reset();
+        imag2_.Reset();
+        imag3_.Reset();
+        imag4_.Reset();
+        imag5_.Reset();
+        imag6_.Reset();
+        imag7_.Reset();
         latch_ = 0;
     }
 
@@ -113,7 +113,7 @@ private:
         T z0_{};
         T z1_{};
 
-        void Deinit() {
+        void Reset() {
             z0_ = 0;
             z1_ = 0;
         }

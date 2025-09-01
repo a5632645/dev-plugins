@@ -3,8 +3,9 @@
 namespace qwqdsp {
 class Biquad {
 public:
-    void Deinit() {
-        Reset();
+    void Reset() {
+        latch1_ = 0;
+        latch2_ = 0;
     }
 
     float Tick(float x) {
@@ -20,11 +21,6 @@ public:
         b2_ = b2;
         a1_ = a1;
         a2_ = a2;
-    }
-
-    void Reset() {
-        latch1_ = 0.0f;
-        latch2_ = 0.0f;
     }
 
     void Copy(const Biquad& other) {

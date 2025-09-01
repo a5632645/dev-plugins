@@ -6,7 +6,7 @@
 namespace qwqdsp::filter {
 class LatticePole {
 public:
-    void Deinit() {
+    void Reset() {
         latch_ = 0;
     }
 
@@ -36,8 +36,8 @@ public:
         delay_.Init(max_samples);
     }
 
-    void Deinit() {
-        delay_.Deinit();
+    void Reset() {
+        delay_.Reset();
     }
 
     float Tickup(float x) {

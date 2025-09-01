@@ -7,7 +7,7 @@ namespace qwqdsp {
 template<size_t N>
 class ThiranFilter {
 public:
-    void Deinit() {
+    void Reset() {
         std::fill(x_.begin(), x_.end(), 0.0f);
         std::fill(y_.begin(), y_.end(), 0.0f);
     }

@@ -4,6 +4,10 @@
 namespace qwqdsp {
 class ExpSmoother {
 public:
+    void Reset() {
+        now_ = target_;
+    }
+
     void SetTarget(float x) {
         target_ = x;
     }
@@ -24,6 +28,11 @@ private:
 
 class ConstantTimeSmoother {
 public:
+    void Reset() {
+        now_ = target_;
+        nsamples_ = 0;
+    }
+
     void SetTarget(float x) {
         target_ = x;
         delta_ = (target_ - now_) / total_samples_;
@@ -56,6 +65,11 @@ private:
 
 class ContantValueSmoother {
 public:
+    void Reset() {
+        now_ = target_;
+        end_ = true;
+    }
+
     void SetTarget(float x) {
         target_ = x;
         if (target_ < now_) {

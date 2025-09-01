@@ -8,10 +8,13 @@ class Cheb2LowHighpass {
 public:
     void Init(float fs) {
         fs_ = fs;
+        Reset();
     }
 
-    void Deinit() {
-        Reset();
+    void Reset() {
+        for (auto& f : filters_) {
+            f.Reset();
+        }
     }
 
     float Tick(float x) {
@@ -42,12 +45,6 @@ public:
         auto ffs = TraditionalDesign::TfToBiquad(zpk);
         for (size_t i = 0; i < kNumFilter; ++i) {
             filters_[i].Copy(ffs[i]);
-        }
-    }
-
-    void Reset() {
-        for (auto& f : filters_) {
-            f.Reset();
         }
     }
 private:

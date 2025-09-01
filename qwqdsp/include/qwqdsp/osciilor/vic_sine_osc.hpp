@@ -16,6 +16,10 @@ public:
         v_ = 0.0f;
     }
 
+    void Init(float phase) {
+        Reset(phase);
+    }
+
     void Reset(float phase) {
         u_ = std::cos(phase);
         v_ = std::sin(phase);

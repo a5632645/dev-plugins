@@ -13,13 +13,13 @@ namespace qwqdsp::filter {
 template<size_t kNumFilter>
 class IIRHilbertFull {
 public:
-    void Deinit() {
+    void Reset() {
         latch_ = 0;
         for (auto& f : real_) {
-            f.Deinit();
+            f.Reset();
         }
         for (auto& f : imag_) {
-            f.Deinit();
+            f.Reset();
         }
     }
 
@@ -50,7 +50,7 @@ private:
         float z1_{};
         float alpha_{};
 
-        void Deinit() {
+        void Reset() {
             z0_ = 0;
             z1_ = 0;
         }

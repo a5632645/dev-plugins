@@ -7,7 +7,7 @@
 namespace qwqdsp::misc {
 class CrossoverGain {
 public:
-    void Deinit() noexcept {
+    void Reset() noexcept {
         phase_ = 0;
     }
 
@@ -51,7 +51,7 @@ private:
 
 class CrossoverPower {
 public:
-    void Deinit() noexcept {
+    void Reset() noexcept {
         osc_.Reset();
     }
 

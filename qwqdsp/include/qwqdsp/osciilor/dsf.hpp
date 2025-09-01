@@ -14,6 +14,11 @@ namespace qwqdsp::oscillor {
 template<size_t kLookupTableFrac = 13>
 class DSFClassic {
 public:
+    void Reset() {
+        w_osc_.Reset();
+        w0_osc_.Reset();
+    }
+
     std::complex<float> Tick() {
         w_osc_.Tick();
         w0_osc_.Tick();
@@ -105,6 +110,11 @@ private:
 template<size_t kLookupTableFrac = 13>
 class DSFComplexFactor {
 public:
+    void Reset() {
+        w_osc_.Reset();
+        w0_osc_.Reset();
+    }
+    
     std::complex<float> Tick() {
         w_osc_.Tick();
         w0_osc_.Tick();

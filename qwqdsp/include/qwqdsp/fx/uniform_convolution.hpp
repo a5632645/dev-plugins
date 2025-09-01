@@ -20,9 +20,10 @@ public:
             output_buffer_.resize(fft_size * 2);
         }
         process_buffer_.resize(fft_size);
+        Reset();
     }
 
-    void Deinit() {
+    void Reset() {
         std::fill_n(output_buffer_.begin(), write_end_, 0.0f);
         for (auto& f : input_frames_) {
             std::fill(f.begin(), f.end(), std::complex<float>{});

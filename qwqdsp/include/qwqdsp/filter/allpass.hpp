@@ -13,7 +13,7 @@ namespace qwqdsp::filter {
  */
 class AllpassOrder1 {
 public:
-    void Deinit() {
+    void Reset() {
         xlatch_ = 0;
         ylatch_ = 0;
     }
@@ -51,7 +51,7 @@ private:
  */
 class AllpassOrder2 {
 public:
-    void Deinit() {
+    void Reset() {
         latch1_ = 0;
         latch2_ = 0;
     }
@@ -103,8 +103,8 @@ public:
         buffer_.Init(max_samples);
     }
 
-    void Deinit() {
-        buffer_.Deinit();
+    void Reset() {
+        buffer_.Reset();
     }
 
     float Tick(float x) {
@@ -157,9 +157,9 @@ public:
         ylatch_.Init(max_samples);
     }
 
-    void Deinit() {
-        xlatch_.Deinit();
-        ylatch_.Deinit();
+    void Reset() {
+        xlatch_.Reset();
+        ylatch_.Reset();
     }
 
     float Tick(float x) {
@@ -207,9 +207,9 @@ public:
         latch2_.Init(max_samples);
     }
 
-    void Deinit() {
-        latch1_.Deinit();
-        latch2_.Deinit();
+    void Reset() {
+        latch1_.Reset();
+        latch2_.Reset();
     }
 
     float Tick(float x) {

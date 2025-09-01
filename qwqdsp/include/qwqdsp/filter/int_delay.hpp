@@ -14,9 +14,10 @@ public:
             buffer_.resize(a);
         }
         mask_ = a - 1;
+        Reset();
     }
 
-    void Deinit() {
+    void Reset() {
         wpos_ = 0;
         std::fill(buffer_.begin(), buffer_.end(), 0.0f);
     }

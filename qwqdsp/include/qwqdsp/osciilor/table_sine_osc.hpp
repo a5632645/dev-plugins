@@ -71,6 +71,10 @@ public:
         phase /= std::numbers::pi_v<float> * 2.0f;
         phase_ = static_cast<uint32_t>(phase * static_cast<float>(kScale));
     }
+
+    void Reset() {
+        phase_ = 0;
+    }
 private:
     uint32_t phase_{};
     uint32_t inc_{};

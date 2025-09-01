@@ -9,6 +9,11 @@ namespace qwqdsp::oscillor {
 template<size_t kLookupTableFracBits = 13>
 class DSFCorrect {
 public:
+    void Reset() {
+        w_osc_.Reset();
+        w0_osc_.Reset();
+    }
+
     float Tick() {
         float const sinu = w0_osc_.Tick();
         float const cosu = w0_osc_.Cosine();
@@ -113,6 +118,11 @@ private:
 template<bool kFlipDown, size_t kLookupTableFracBits = 13>
 class DSFCorrectComplex {
 public:
+    void Reset() {
+        w_osc_.Reset();
+        w0_osc_.Reset();
+    }
+    
     float Tick() {
         float const sinu = w0_osc_.Tick();
         float const cosu = w0_osc_.Cosine();

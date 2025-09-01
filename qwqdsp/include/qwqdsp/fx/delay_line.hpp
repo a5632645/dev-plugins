@@ -32,9 +32,10 @@ public:
             buffer_.resize(a);
         }
         mask_ = a - 1;
+        Reset();
     }
 
-    void Deinit() {
+    void Reset() {
         wpos_ = 0;
         std::fill(buffer_.begin(), buffer_.end(), 0.0f);
     }
@@ -63,10 +64,6 @@ public:
         int rpos = wpos_ + buffer_.size() - delay_samples;
         int irpos = static_cast<int>(rpos) & mask_;
         return buffer_[irpos];
-    }
-
-    void Reset() {
-        std::fill(buffer_.begin(), buffer_.end(), float{});
     }
 private:
     float Get(float delay) {

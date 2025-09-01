@@ -5,15 +5,15 @@ namespace qwqdsp::filter {
 template<class T = float>
 class IIRHilbertCpx {
 public:
-    void Deinit() {
-        real0_.Deinit();
-        real1_.Deinit();
-        real2_.Deinit();
-        real3_.Deinit();
-        imag0_.Deinit();
-        imag1_.Deinit();
-        imag2_.Deinit();
-        imag3_.Deinit();
+    void Reset() {
+        real0_.Reset();
+        real1_.Reset();
+        real2_.Reset();
+        real3_.Reset();
+        imag0_.Reset();
+        imag1_.Reset();
+        imag2_.Reset();
+        imag3_.Reset();
         latch_ = 0;
     }
 
@@ -38,7 +38,7 @@ private:
         TCpx z0_{};
         TCpx z1_{};
 
-        void Deinit() {
+        void Reset() {
             z0_ = TCpx{};
             z1_ = TCpx{};
         }
@@ -67,6 +67,27 @@ template<class T = float>
 class IIRHilbertDeeperCpx {
 public:
     using TCpx = std::complex<T>;
+
+    void Reset() {
+        real0_.Reset();
+        real1_.Reset();
+        real2_.Reset();
+        real3_.Reset();
+        real4_.Reset();
+        real5_.Reset();
+        real6_.Reset();
+        real7_.Reset();
+        imag0_.Reset();
+        imag1_.Reset();
+        imag2_.Reset();
+        imag3_.Reset();
+        imag4_.Reset();
+        imag5_.Reset();
+        imag6_.Reset();
+        imag7_.Reset();
+        latch_ = 0;
+    }
+
     TCpx Tick(TCpx x) {
         TCpx real{};
         TCpx imag{};
@@ -94,6 +115,12 @@ private:
     struct APF {
         TCpx z0_{};
         TCpx z1_{};
+
+        void Reset() {
+            z0_ = TCpx{};
+            z1_ = TCpx{};
+        }
+
         TCpx Tick(TCpx x) {
             TCpx in = x + alpha * z1_;
             TCpx out = -alpha * in + z1_;

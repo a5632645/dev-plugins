@@ -12,7 +12,7 @@ namespace qwqdsp::filter {
 template <size_t kBatchSize>
 class FIRDirect {
 public:
-    void Deinit() noexcept {
+    void Reset() noexcept {
         std::fill(latch_.begin(), latch_.end(), 0.0f);
     }
 
@@ -64,7 +64,7 @@ private:
 
 class FIRTranspose {
 public:
-    void Deinit() noexcept {
+    void Reset() noexcept {
         std::fill(latch_.begin(), latch_.end(), 0.0f);
     }
 
@@ -78,6 +78,7 @@ public:
         if (latch_.size() < coeff_.size() - 1) {
             latch_.resize(coeff_.size() - 1);
         }
+        Reset();
     }
 
     float Tick(float x) noexcept {

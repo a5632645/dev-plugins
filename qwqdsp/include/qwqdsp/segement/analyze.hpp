@@ -39,7 +39,7 @@ public:
         }
     }
 
-    void Deinit() {
+    void Reset() {
         num_input_ = 0;
     }
 private:

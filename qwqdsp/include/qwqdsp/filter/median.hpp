@@ -36,20 +36,10 @@ public:
         assert(window_size > 2 && window_size % 2 == 1);
 
         buffer_.resize(window_size);
-        for(size_t i = 0; i < window_size; i++) {
-            buffer_[i].value = 0;
-            buffer_[i].next_age = &buffer_[(i + 1) % window_size];
-            buffer_[i].next_value = &buffer_[(i + 1) % window_size];
-            buffer_[(i + 1) % window_size].prev_value = &buffer_[i];
-        }
-
-        age_head_ = buffer_.data();
-        value_head_ = buffer_.data();
-        median_head_ = &buffer_[window_size / 2];
-        first_init_ = true;
+        Reset();
     }
 
-    void Deinit() noexcept {
+    void Reset() noexcept {
         size_t const window_size = buffer_.size();
         for(size_t i = 0; i < window_size; i++) {
             buffer_[i].value = 0;
