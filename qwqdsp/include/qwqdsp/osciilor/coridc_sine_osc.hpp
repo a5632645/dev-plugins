@@ -14,10 +14,6 @@ public:
         now_.imag(std::sin(phase));
     }
 
-    void Init() {
-        Reset();
-    }
-
     void Reset() {
         now_ = {1.0f, 0.0f};
     }
