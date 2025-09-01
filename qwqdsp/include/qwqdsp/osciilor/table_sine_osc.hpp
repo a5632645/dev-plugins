@@ -22,7 +22,7 @@ namespace qwqdsp::oscillor {
  *    8      -54.72dB
  */
 template<size_t kTableBits = 16>
-    requires requires {kTableBits <= 24;}
+    requires requires {kTableBits <= 16;}
 class TableSineOsc {
 public:
     static constexpr uint32_t kTableSize = 1 << kTableBits;
