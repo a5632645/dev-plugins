@@ -33,7 +33,7 @@ public:
     inline static const std::array kSineTable = [] {
         std::array<float, kTableSize> r;
         for (uint32_t i = 0; i < kTableSize; ++i) {
-            r[i] = std::sin(std::numbers::pi_v<float> * 2.0f * i / kTableSize);
+            r[i] = std::sin(std::numbers::pi_v<float> * 2.0f * static_cast<float>(i) / static_cast<float>(kTableSize));
         }
         return r;
     }();

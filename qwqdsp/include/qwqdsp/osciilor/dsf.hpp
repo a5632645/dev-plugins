@@ -52,18 +52,18 @@ public:
      * @param a anything
      */
     void SetAmpFactor(float a) {
-        if (a <= 1 && a >= 1 - 1e-3) {
-            a = 1 - 1e-3f;
+        if (a <= 1.0f && a >= 1.0f - 1e-3f) {
+            a = 1.0f - 1e-3f;
         }
-        else if (a >= 1 && a <= 1 + 1e-3f) {
-            a = 1 + 1e-3f;
+        else if (a >= 1.0f && a <= 1.0f + 1e-3f) {
+            a = 1.0f + 1e-3f;
         }
         a_ = a;
         UpdateA();
     }
 
     float NormalizeGain() const {
-        return (1.0f - a_) / (1.0f - a_pow_n_);
+        return (1.0f - std::abs(a_)) / (1.0f - std::abs(a_pow_n_));
     }
 private:
     void CheckAlasing() {
@@ -72,7 +72,7 @@ private:
             UpdateA();
         }
         else {
-            size_t max_n = (std::numbers::pi_v<float> - w0_) / w_;
+            size_t max_n = static_cast<size_t>((std::numbers::pi_v<float> - w0_) / w_);
             size_t newn = std::min(max_n, set_n_);
             if (n_ != newn) {
                 n_ = newn;
@@ -82,7 +82,7 @@ private:
     }
 
     void UpdateA() {
-        a_pow_n_ = std::pow(a_, n_);
+        a_pow_n_ = std::pow(a_, static_cast<float>(n_));
     }
 
     TableSineOsc<kLookupTableFrac> w0_osc_{};
@@ -131,11 +131,11 @@ public:
     }
 
     void SetAmpGain(float a) {
-        if (a <= 1 && a >= 1 - 1e-6) {
-            a = 1 - 1e-6f;
+        if (a <= 1.0f && a >= 1.0f - 1e-3f) {
+            a = 1.0f - 1e-3f;
         }
-        else if (a >= 1 && a <= 1 + 1e-6f) {
-            a = 1 + 1e-6f;
+        else if (a >= 1.0f && a <= 1.0f + 1e-3f) {
+            a = 1.0f + 1e-3f;
         }
         factor_gain_ = a;
         auto s = std::polar(a, factor_phase_);
@@ -172,7 +172,7 @@ private:
     }
 
     void UpdateA() {
-        a_pow_n_ = std::pow(a_, n_);
+        a_pow_n_ = std::pow(a_, static_cast<float>(n_));
     }
 
     TableSineOsc<kLookupTableFrac> w0_osc_{};
@@ -186,81 +186,4 @@ private:
     size_t n_{};
     size_t set_n_{};
 };
-
-/**
- * 这是一个特殊的DSF计算，不幸的是它总会出现意外之外的click导致无法使用
- * wolfram alpha:
- *      sum cos(km) * exp(j(w0 + wk)t), k from 0 to n
- * 它产生一个来自加法合成器才能做到的频谱
- * 第一个分音位于w0,之后间隔w一个分音，振幅呈现cos形状有一种梳状滤波器的感觉
- */
-// class DSFSpecial {
-// public:
-//     std::complex<float> Tick() {
-//         w_osc_.Tick();
-//         w0_osc_.Tick();
-//         auto up1 = m1_ * w_osc_.GetNPhaseCpx(n_ + 1)
-//             + m2_ * w_osc_.GetCpx()
-//             + m3_ * w_osc_.GetCpx()
-//             - m4_ * w_osc_.GetNPhaseCpx(n_ + 2)
-//             - m5_ * w_osc_.GetNPhaseCpx(n_ + 2)
-//             - m6_
-//             + w_osc_.GetNPhaseCpx(n_ + 1);
-//         auto up = up1 * m7_ * w0_osc_.GetCpx();
-//         auto down = (m8_ - w_osc_.GetCpx()) * (m8_ * w_osc_.GetCpx() - 1.0f) * 2.0f;
-//         auto g = std::abs(down);
-//         return up / down;
-//     }
-
-//     void SetW0(float w0) {
-//         w0_osc_.SetFreq(w0);
-//     }
-
-//     void SetWSpace(float w) {
-//         w_osc_.SetFreq(w);
-//         w_ = w;
-//     }
-
-//     void SetN(size_t n) {
-//         n_ = n;
-//         Update();
-//     }
-
-//     void SetM(float m) {
-//         m_ = m;
-//         Update();
-//     }
-
-//     float NormalizeGain() const {
-//         return 1;
-//     }
-// private:
-//     void Update() {
-//         m1_ = std::polar(1.0f, (n_ + 1) * 2 * m_);
-//         m2_ = std::polar(1.0f, m_ * n_);
-//         m3_ = std::polar(1.0f, m_ * (n_ + 2));
-//         m4_ = std::polar(1.0f, m_);
-//         m5_ = std::polar(1.0f, 2 * m_ * n_ + m_);
-//         m6_ = std::polar(2.0f, m_ * (n_ + 1));
-//         m7_ = std::polar(1.0f, -m_ * n_);
-//         m8_ = std::polar(1.0f, m_);
-//     }
-
-//     TableSineOsc<16> w0_osc_{};
-//     TableSineOsc<16> w_osc_{};
-//     float w_{};
-//     size_t n_{};
-//     float m_{};
-
-//     std::complex<float> last_out_{};
-
-//     std::complex<float> m1_{};
-//     std::complex<float> m2_{};
-//     std::complex<float> m3_{};
-//     std::complex<float> m4_{};
-//     std::complex<float> m5_{};
-//     std::complex<float> m6_{};
-//     std::complex<float> m7_{};
-//     std::complex<float> m8_{};
-// };
 }
