@@ -24,7 +24,7 @@ public:
         }
     }
 
-    std::complex<float> Tick(std::complex<float> x) {
+    std::complex<float> Tick(std::complex<float> x) noexcept {
         for (auto& f : filters_) {
             x = f.Tick(x);
         }
@@ -40,7 +40,7 @@ private:
         std::complex<float> latch1_{};
         std::complex<float> latch2_{};
 
-        std::complex<float> Tick(std::complex<float> x) {
+        std::complex<float> Tick(std::complex<float> x) noexcept {
             auto output = x * b0_ + latch1_;
             latch1_ = x * b1_ - output * a1_ + latch2_;
             latch2_ = x * b2_ - output * a2_;

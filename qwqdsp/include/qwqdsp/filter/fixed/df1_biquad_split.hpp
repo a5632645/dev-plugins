@@ -13,7 +13,15 @@ public:
     static constexpr ACCType kMax = std::numeric_limits<QTYPE>::max();
     static constexpr ACCType kMin = std::numeric_limits<QTYPE>::min();
 
-    QTYPE Tick(QTYPE x) {
+    void Reset() noexcept {
+        x1_ = 0;
+        x2_ = 0;
+        y1_ = 0;
+        y2_ = 0;
+        quantization_ = 0;
+    }
+
+    QTYPE Tick(QTYPE x) noexcept {
         ACCType bacc = x * b0_ + x1_ * b1_ + x2_ * b2_;
         ACCType aacc = (bacc >> 1) - a1_ * y1_ - a2_ * y2_ + quantization_;
         x2_ = x1_;
@@ -26,7 +34,7 @@ public:
         return std::clamp(temp, kMin, kMax);
     }
 
-    void MakeFromFloat(float b0, float b1, float b2, float a1, float a2) {
+    void MakeFromFloat(float b0, float b1, float b2, float a1, float a2) noexcept {
         {
             float maxb = 0.0f;
             if (std::abs(b0) > maxb) {

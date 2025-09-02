@@ -8,7 +8,7 @@ namespace qwqdsp::misc {
  */
 class AMPDPeakFinding {
 public:
-    void Init(size_t data_length) noexcept {
+    void Init(size_t data_length) {
         results_.reserve(data_length);
         p_data_.resize(data_length);
     }

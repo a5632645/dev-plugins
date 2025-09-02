@@ -17,7 +17,7 @@ public:
     void Process(
         std::span<float> block,
         Func&& func
-    ) {
+    ) noexcept(noexcept(func(std::declval<std::span<const float>>(), std::declval<std::span<float>>()))) {
         Slice1D input{block};
         while (!input.IsEnd()) {
             size_t need = size_ - input_wpos_;
@@ -65,7 +65,7 @@ public:
         }
     }
 
-    void SetSize(size_t size) {
+    void SetSize(size_t size) noexcept {
         size_ = size;
         if (input_buffer_.size() < size) {
             input_buffer_.resize(size);
@@ -76,11 +76,11 @@ public:
         process_buffer_.resize(size_);
     }
 
-    void SetHop(size_t hop) {
+    void SetHop(size_t hop) noexcept {
         hop_ = hop;
     }
 
-    void Reset() {
+    void Reset() noexcept {
         std::fill_n(output_buffer_.begin(), write_end_, 0.0f);
         input_wpos_ = 0;
         write_end_ = 0;

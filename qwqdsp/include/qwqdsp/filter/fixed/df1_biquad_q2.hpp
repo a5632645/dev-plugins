@@ -12,7 +12,16 @@ public:
     static constexpr ACCType kMax = std::numeric_limits<QTYPE>::max();
     static constexpr ACCType kMin = std::numeric_limits<QTYPE>::min();
 
-    QTYPE Tick(QTYPE x) {
+    void Reset() noexcept {
+        x1_ = 0;
+        x2_ = 0;
+        y1_ = 0;
+        y2_ = 0;
+        quantization_ = 0;
+        quantization2_ = 0;
+    }
+
+    QTYPE Tick(QTYPE x) noexcept {
         ACCType acc = quantization_ * 2 - quantization2_;
         acc += (ACCType)(b0_ * x);
         acc += (ACCType)(b1_ * x1_);
@@ -34,7 +43,7 @@ public:
         return y1_;
     }
 
-    void MakeFromFloat(float b0, float b1, float b2, float a1, float a2) {
+    void MakeFromFloat(float b0, float b1, float b2, float a1, float a2) noexcept {
         float maxb = 0.0f;
         if (std::abs(b0) > maxb) {
             maxb = std::abs(b0);

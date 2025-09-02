@@ -7,10 +7,10 @@ namespace qwqdsp {
 
 class Noise {
 public:
-    void Init(float fs) {
+    void Init(float fs) noexcept {
         fs_ = fs;
     }
-    void SetRate(float rate) {
+    void SetRate(float rate) noexcept {
         inc_ = rate / fs_;
     }
     void Reset() {

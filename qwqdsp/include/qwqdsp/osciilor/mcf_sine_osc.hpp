@@ -11,7 +11,7 @@ namespace qwqdsp::oscillor {
  */
 class MCFSineOsc {
 public:
-    void Reset(float f, float fs, float p) {
+    void Reset(float f, float fs, float p) noexcept {
         auto omega = f / fs * std::numbers::pi_v<float> * 2.0f;
         float phi = (std::numbers::pi_v<float> - omega) / 2.0f;
         sin0_ = std::sin(p);
@@ -20,7 +20,7 @@ public:
     }
 
     [[nodiscard("this method will update the oscillor state")]]
-    float SetFreq(float f, float fs) {
+    float SetFreq(float f, float fs) noexcept {
         auto omega = f / fs * std::numbers::pi_v<float> * 2.0f;
         auto ret = sin0_;
         sin0_ -= coeff_ * sin1_;
@@ -38,13 +38,13 @@ public:
         return sin0_;
     }
 
-    float Tick() {
+    float Tick() noexcept {
         sin0_ -= sin1_ * coeff_;
         sin1_ += sin0_ * coeff_;
         return sin0_;
     }
 private:
-    static float LimitCosConvert(float sin) {
+    static float LimitCosConvert(float sin) noexcept {
         auto e = 1.0f - sin * sin;
         if (e < 0.0f) {
             return 0.0f;

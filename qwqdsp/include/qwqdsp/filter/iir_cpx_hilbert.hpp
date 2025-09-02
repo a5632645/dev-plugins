@@ -5,7 +5,7 @@ namespace qwqdsp::filter {
 template<class T = float>
 class IIRHilbertCpx {
 public:
-    void Reset() {
+    void Reset() noexcept {
         real0_.Reset();
         real1_.Reset();
         real2_.Reset();
@@ -18,7 +18,7 @@ public:
     }
 
     using TCpx = std::complex<T>;
-    TCpx Tick(TCpx x) {
+    TCpx Tick(TCpx x) noexcept {
         TCpx real{};
         TCpx imag{};
         real = real0_.Tick(x);
@@ -38,12 +38,12 @@ private:
         TCpx z0_{};
         TCpx z1_{};
 
-        void Reset() {
+        void Reset() noexcept {
             z0_ = TCpx{};
             z1_ = TCpx{};
         }
 
-        TCpx Tick(TCpx x) {
+        TCpx Tick(TCpx x) noexcept {
             T in = x + alpha * z1_;
             T out = -alpha * in + z1_;
             z1_ = z0_;
@@ -68,7 +68,7 @@ class IIRHilbertDeeperCpx {
 public:
     using TCpx = std::complex<T>;
 
-    void Reset() {
+    void Reset() noexcept {
         real0_.Reset();
         real1_.Reset();
         real2_.Reset();
@@ -88,7 +88,7 @@ public:
         latch_ = 0;
     }
 
-    TCpx Tick(TCpx x) {
+    TCpx Tick(TCpx x) noexcept {
         TCpx real{};
         TCpx imag{};
         real = real0_.Tick(x);
@@ -116,12 +116,12 @@ private:
         TCpx z0_{};
         TCpx z1_{};
 
-        void Reset() {
+        void Reset() noexcept {
             z0_ = TCpx{};
             z1_ = TCpx{};
         }
 
-        TCpx Tick(TCpx x) {
+        TCpx Tick(TCpx x) noexcept {
             TCpx in = x + alpha * z1_;
             TCpx out = -alpha * in + z1_;
             z1_ = z0_;

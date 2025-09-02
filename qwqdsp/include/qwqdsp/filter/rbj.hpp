@@ -16,19 +16,19 @@ struct RBJ {
     /**
      * 使用数字倍频程表示带宽具有一阶prewarp Q
      */
-    static float DigitalOctave2AnalogQ(float w, float octave) {
+    static float DigitalOctave2AnalogQ(float w, float octave) noexcept {
         auto a = std::numbers::ln2_v<float> * 0.5f * octave * w / std::sin(w);
         return 0.5f / std::sinh(a);
     }
 
-    static float DigitalBW2AnalogQ(float w, float bw) {
+    static float DigitalBW2AnalogQ(float w, float bw) noexcept {
         auto f0 = w - bw * 0.5f;
         auto f1 = w + bw * 0.5f;
         auto octave = f1 / f0;
         return DigitalOctave2AnalogQ(w, octave);
     }
 
-    void Lowpass(float w, float Q) {
+    void Lowpass(float w, float Q) noexcept {
         auto a = std::sin(w) / (2 * Q);
         auto cosw = std::cos(w);
         b0 = (1 - cosw) / 2.0f;
@@ -44,7 +44,7 @@ struct RBJ {
         a2 *= inva0;
     }
 
-    void Highpass(float w, float Q) {
+    void Highpass(float w, float Q) noexcept {
         auto a = std::sin(w) / (2 * Q);
         auto cosw = std::cos(w);
         b0 = (1 + cosw) / 2.0f;
@@ -61,9 +61,9 @@ struct RBJ {
     }
 
     /**
-     * G(w) = Q
+     * |H(z=exp(jw))| = Q
      */
-    void Bandpass(float w, float Q) {
+    void Bandpass(float w, float Q) noexcept {
         auto a = std::sin(w) / (2 * Q);
         auto cosw = std::cos(w);
         b0 = Q * a;
@@ -80,9 +80,9 @@ struct RBJ {
     }
 
     /**
-     * G(w) = 0
+     * |H(z=exp(jw))| = 0
      */
-    void BandpassKeep0(float w, float Q) {
+    void BandpassKeep0(float w, float Q) noexcept {
         auto a = std::sin(w) / (2 * Q);
         auto cosw = std::cos(w);
         b0 = a;
@@ -98,7 +98,7 @@ struct RBJ {
         a2 *= inva0;
     }
 
-    void Peak(float w, float Q, float g) {
+    void Peak(float w, float Q, float g) noexcept {
         auto a = std::sin(w) / (2 * Q);
         auto cosw = std::cos(w);
         auto A = std::pow(10.0f, g / 40.0f);
@@ -115,7 +115,7 @@ struct RBJ {
         a2 *= inva0;
     }
 
-    void Lowshelf(float w, float Q, float g) {
+    void Lowshelf(float w, float Q, float g) noexcept {
         auto a = std::sin(w) / (2 * Q);
         auto cosw = std::cos(w);
         auto A = std::pow(10.0f, g / 40.0f);
@@ -133,7 +133,7 @@ struct RBJ {
         a2 *= inva0;
     }
 
-    void HighShelf(float w, float Q, float g) {
+    void HighShelf(float w, float Q, float g) noexcept {
         auto a = std::sin(w) / (2 * Q);
         auto cosw = std::cos(w);
         auto A = std::pow(10.0f, g / 40.0f);
@@ -151,7 +151,7 @@ struct RBJ {
         a2 *= inva0;
     }
 
-    void Notch(float w, float Q) {
+    void Notch(float w, float Q) noexcept {
         auto a = std::sin(w) / (2 * Q);
         auto cosw = std::cos(w);
         b0 = 1;
@@ -167,7 +167,7 @@ struct RBJ {
         a2 *= inva0;
     }
 
-    void Allpass(float w, float Q) {
+    void Allpass(float w, float Q) noexcept {
         auto a = std::sin(w) / (2 * Q);
         auto cosw = std::cos(w);
         b0 = 1 - a;

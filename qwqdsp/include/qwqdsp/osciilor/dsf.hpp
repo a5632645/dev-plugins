@@ -14,12 +14,12 @@ namespace qwqdsp::oscillor {
 template<size_t kLookupTableFrac = 13>
 class DSFClassic {
 public:
-    void Reset() {
+    void Reset() noexcept {
         w_osc_.Reset();
         w0_osc_.Reset();
     }
 
-    std::complex<float> Tick() {
+    std::complex<float> Tick() noexcept {
         w_osc_.Tick();
         w0_osc_.Tick();
         auto up = w0_osc_.GetCpx() * (1.0f - a_pow_n_ * w_osc_.GetNPhaseCpx(n_));
@@ -30,7 +30,7 @@ public:
     /**
      * @param w0 0~pi
      */
-    void SetW0(float w0) {
+    void SetW0(float w0) noexcept {
         w0_osc_.SetFreq(w0);
         w0_ = w0;
         CheckAlasing();
@@ -39,7 +39,7 @@ public:
     /**
      * @param w 0~pi
      */
-    void SetWSpace(float w) {
+    void SetWSpace(float w) noexcept {
         w_osc_.SetFreq(w);
         w_ = w;
         CheckAlasing();
@@ -48,7 +48,7 @@ public:
     /**
      * @param n >0
      */
-    void SetN(size_t n) {
+    void SetN(size_t n) noexcept {
         set_n_ = n;
         CheckAlasing();
     }
@@ -56,7 +56,7 @@ public:
     /**
      * @param a anything
      */
-    void SetAmpFactor(float a) {
+    void SetAmpFactor(float a) noexcept {
         if (a <= 1.0f && a >= 1.0f - 1e-3f) {
             a = 1.0f - 1e-3f;
         }
@@ -67,11 +67,11 @@ public:
         UpdateA();
     }
 
-    float NormalizeGain() const {
+    float NormalizeGain() const noexcept {
         return (1.0f - std::abs(a_)) / (1.0f - std::abs(a_pow_n_));
     }
 private:
-    void CheckAlasing() {
+    void CheckAlasing() noexcept {
         if (w_ == 0.0f && n_ != set_n_) {
             n_ = set_n_;
             UpdateA();
@@ -86,7 +86,7 @@ private:
         }
     }
 
-    void UpdateA() {
+    void UpdateA() noexcept {
         a_pow_n_ = std::pow(a_, static_cast<float>(n_));
     }
 
@@ -110,12 +110,12 @@ private:
 template<size_t kLookupTableFrac = 13>
 class DSFComplexFactor {
 public:
-    void Reset() {
+    void Reset() noexcept {
         w_osc_.Reset();
         w0_osc_.Reset();
     }
     
-    std::complex<float> Tick() {
+    std::complex<float> Tick() noexcept {
         w_osc_.Tick();
         w0_osc_.Tick();
         auto up = w0_osc_.GetCpx() * (1.0f - a_pow_n_ * w_osc_.GetNPhaseCpx(n_));
@@ -123,24 +123,24 @@ public:
         return up / down;
     }
 
-    void SetW0(float w0) {
+    void SetW0(float w0) noexcept {
         w0_osc_.SetFreq(w0);
         w0_ = w0;
         CheckAlasing();
     }
 
-    void SetWSpace(float w) {
+    void SetWSpace(float w) noexcept {
         w_osc_.SetFreq(w);
         w_ = w;
         CheckAlasing();
     }
 
-    void SetN(size_t n) {
+    void SetN(size_t n) noexcept {
         set_n_ = n;
         CheckAlasing();
     }
 
-    void SetAmpGain(float a) {
+    void SetAmpGain(float a) noexcept {
         if (a <= 1.0f && a >= 1.0f - 1e-3f) {
             a = 1.0f - 1e-3f;
         }
@@ -153,20 +153,20 @@ public:
         UpdateA();
     }
 
-    void SetAmpPhase(float phase) {
+    void SetAmpPhase(float phase) noexcept {
         factor_phase_ = phase;
         auto s = std::polar(factor_gain_, factor_phase_);
         a_ = s;
         UpdateA();
     }
 
-    float NormalizeGain() const {
+    float NormalizeGain() const noexcept {
         float a = std::abs(a_);
         float apown = std::abs(a_pow_n_);
         return (1.0f - a) / (1.0f - apown);
     }
 private:
-    void CheckAlasing() {
+    void CheckAlasing() noexcept {
         if (w_ == 0.0f && n_ != set_n_) {
             n_ = set_n_;
             UpdateA();
@@ -181,7 +181,7 @@ private:
         }
     }
 
-    void UpdateA() {
+    void UpdateA() noexcept {
         a_pow_n_ = std::pow(a_, static_cast<float>(n_));
     }
 

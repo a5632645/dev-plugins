@@ -17,30 +17,30 @@ public:
         Reset();
     }
 
-    void Reset() {
+    void Reset() noexcept {
         wpos_ = 0;
         std::fill(buffer_.begin(), buffer_.end(), 0.0f);
     }
 
-    void Push(float x) {
+    void Push(float x) noexcept {
         buffer_[wpos_++] = x;
         wpos_ &= mask_;
     }
 
-    float GetAfterPush(size_t delay_samples) {
+    float GetAfterPush(size_t delay_samples) noexcept {
         return Get(delay_samples + 1);
     }
 
     /**
      * @param delay_samples 此处不能小于1，否则为非因果滤波器（或者被绕回读取max_samples处）
      */
-    float GetBeforePush(size_t delay_samples) {
+    float GetBeforePush(size_t delay_samples) noexcept {
         int rpos = wpos_ + buffer_.size() - delay_samples;
         int irpos = static_cast<int>(rpos) & mask_;
         return buffer_[irpos];
     }
 private:
-    float Get(size_t delay) {
+    float Get(size_t delay) noexcept {
         size_t rpos = wpos_ + buffer_.size() - delay;
         size_t irpos = rpos & mask_;
         return buffer_[irpos];

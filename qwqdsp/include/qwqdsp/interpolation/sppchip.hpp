@@ -6,14 +6,14 @@
 namespace qwqdsp::interpolation {
 class SPPCHIP {
 public:
-    void Reset(std::span<const float> xs, std::span<const float> ys) {
+    void Reset(std::span<const float> xs, std::span<const float> ys) noexcept {
         rpos_ = 0;
         xs_ = xs;
         ys_ = ys;
         StepNextPoint();
     }
 
-    float Next(float x) {
+    float Next(float x) noexcept {
         [[unlikely]]
         if (xs_.size() == 2) {
             float e0 = (ys_[1] - ys_[0]) / (xs_[1] - xs_[0]);
@@ -41,7 +41,7 @@ public:
         }
     }
     
-    void StepNextPoint() {
+    void StepNextPoint() noexcept {
         // 起点超出插值范围
         assert(rpos_ < xs_.size() - 1);
         
@@ -57,7 +57,7 @@ public:
         ++rpos_;
     }
 private:
-    float GetDerivative(size_t i) const {
+    float GetDerivative(size_t i) const noexcept {
         if (i == 0) {
             auto y0 = ys_[i];
             auto y1 = ys_[i + 1];

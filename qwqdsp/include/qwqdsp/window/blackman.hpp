@@ -15,7 +15,7 @@ struct Blackman {
     static constexpr float kStopband = -74.0f;
     static constexpr float kTransmit = 5.5f;
 
-    static void Window(std::span<float> x, bool for_analyze_not_fir) {
+    static void Window(std::span<float> x, bool for_analyze_not_fir) noexcept {
         const size_t N = x.size();
         constexpr float twopi = std::numbers::pi_v<float> * 2;
         constexpr float a0 = 0.42659f;
@@ -35,7 +35,7 @@ struct Blackman {
         }
     }
 
-    static void ApplyWindow(std::span<float> x, bool for_analyze_not_fir) {
+    static void ApplyWindow(std::span<float> x, bool for_analyze_not_fir) noexcept {
         const size_t N = x.size();
         constexpr float twopi = std::numbers::pi_v<float> * 2;
         constexpr float a0 = 0.42659f;
@@ -55,7 +55,7 @@ struct Blackman {
         }
     }
 
-    static void DWindow(std::span<float> x) {
+    static void DWindow(std::span<float> x) noexcept {
         const size_t N = x.size();
         constexpr float twopi = std::numbers::pi_v<float> * 2;
         constexpr float a1 = 0.496562f;

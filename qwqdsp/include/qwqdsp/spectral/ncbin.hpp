@@ -10,7 +10,7 @@ public:
         spectral_.resize(fft_.NumBins());
     }
 
-    void Process(std::span<const float> time, std::span<float> output_gain) {
+    void Process(std::span<const float> time, std::span<float> output_gain) noexcept {
         fft_.FFT(time, spectral_);
         const float gain = 2.0f / fft_.FFTSizeFloat();
         for (int bin = 0; bin < fft_.FFTSize() / 2; ++bin) {
@@ -31,7 +31,7 @@ public:
         float end_bin;
         float center_bin;
     };
-    FrequencyInfo GetFrequencyInfo(size_t idx) const {
+    FrequencyInfo GetFrequencyInfo(size_t idx) const noexcept {
         FrequencyInfo info{};
         info.begin_bin = idx;
         info.end_bin = idx + 1;
@@ -39,11 +39,11 @@ public:
         return info;
     }
 
-    size_t NumData() const {
+    size_t NumData() const noexcept {
         return fft_.NumBins() - 1;
     }
 
-    static constexpr size_t NumData(size_t size) {
+    static constexpr size_t NumData(size_t size) noexcept {
         return RealFFT::NumBins(size) - 1;
     }
 private:

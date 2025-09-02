@@ -10,7 +10,6 @@ namespace qwqdsp::pitch {
 class Yin {
 public:
     void Init(float fs, int size) {
-
         fs_ = fs;
         delta_corr_.resize(size);
         dicimate_ = std::round(fs / 6000.0f);
@@ -18,7 +17,7 @@ public:
         SetMaxPitch(max_pitch_);
     }
 
-    void Process(std::span<float> block) {
+    void Process(std::span<float> block) noexcept {
         int num_samples = block.size();
         int max_tal = num_samples / 2;
 
@@ -97,21 +96,21 @@ public:
         // larger means the result is like a noise
         float non_period_ratio;
     };
-    Result GetPitch() const {
+    Result GetPitch() const noexcept {
         return pitch_;
     }
 
-    void SetMinPitch(float min_val) {
+    void SetMinPitch(float min_val) noexcept {
         min_pitch_ = min_val;
         max_bin_ = std::round(fs_ / min_val);
     }
 
-    void SetMaxPitch(float max_val) {
+    void SetMaxPitch(float max_val) noexcept {
         max_pitch_ = max_val;
         min_bin_ = std::round(fs_ / max_val);
     }
 
-    void SetThreshold(float threshold) {
+    void SetThreshold(float threshold) noexcept {
         threshold_ = threshold;
     }
 private:

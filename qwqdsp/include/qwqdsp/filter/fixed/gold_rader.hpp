@@ -19,7 +19,16 @@ public:
     static constexpr ACCType kMin = std::numeric_limits<QTYPE>::min();
     static constexpr ACCType kMask = 1 << (FRAC_LEN - 1);
 
-    QTYPE Tick(QTYPE x) {
+    void Reset() noexcept {
+        x1_ = 0;
+        x2_ = 0;
+        y1_ = 0;
+        y2_ = 0;
+        quantization2_ = 0;
+        quantization_ = 0;
+    }
+
+    QTYPE Tick(QTYPE x) noexcept {
         ACCType acc = b0_ * x + b1_ * x1_ + b2_ * x2_ + quantization_;
         x2_ = x1_;
         x1_ = x;
@@ -35,7 +44,7 @@ public:
         return std::clamp(temp >> (FRAC_LEN - bshift_), kMin, kMax);
     }
 
-    void MakeFromFloat(float b0, float b1, float b2, float pole_radius, float pole_phase) {
+    void MakeFromFloat(float b0, float b1, float b2, float pole_radius, float pole_phase) noexcept {
         rcos_ = (QTYPE)((ACCType(1) << FRAC_LEN) * pole_radius * std::cos(pole_phase));
         rsin_ = (QTYPE)((ACCType(1) << FRAC_LEN) * pole_radius * std::sin(pole_phase));
 

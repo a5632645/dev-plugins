@@ -6,22 +6,22 @@
 namespace qwqdsp::filter {
 class LatticePole {
 public:
-    void Reset() {
+    void Reset() noexcept {
         latch_ = 0;
     }
 
-    float Tickup(float x) {
+    float Tickup(float x) noexcept {
         up_going_ = x + k_ * latch_;
         return up_going_;
     }
 
-    float Tickdown(float x) {
+    float Tickdown(float x) noexcept {
         auto y = latch_ - k_ * up_going_;
         latch_ = x;
         return y;
     }
 
-    void SetReflection(float k) {
+    void SetReflection(float k) noexcept {
         k_ = k;
     }
 private:
@@ -36,27 +36,27 @@ public:
         delay_.Init(max_samples);
     }
 
-    void Reset() {
+    void Reset() noexcept {
         delay_.Reset();
     }
 
-    float Tickup(float x) {
+    float Tickup(float x) noexcept {
         latch_ = delay_.GetBeforePush(n_latch_);
         up_going_ = x + k_ * latch_;
         return up_going_;
     }
 
-    float Tickdown(float x) {
+    float Tickdown(float x) noexcept {
         auto y = latch_ - k_ * up_going_;
         delay_.Push(x);
         return y;
     }
 
-    void SetReflection(float k) {
+    void SetReflection(float k) noexcept {
         k_ = k;
     }
 
-    void SetNLatch(size_t n) {
+    void SetNLatch(size_t n) noexcept {
         assert(n != 0);
         n_latch_ = n;
     }

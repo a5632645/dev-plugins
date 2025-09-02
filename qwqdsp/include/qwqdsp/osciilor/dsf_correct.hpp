@@ -9,12 +9,12 @@ namespace qwqdsp::oscillor {
 template<size_t kLookupTableFracBits = 13>
 class DSFCorrect {
 public:
-    void Reset() {
+    void Reset() noexcept {
         w_osc_.Reset();
         w0_osc_.Reset();
     }
 
-    float Tick() {
+    float Tick() noexcept {
         float const sinu = w0_osc_.Tick();
         float const cosu = w0_osc_.Cosine();
         float const sinv = w_osc_.Tick();
@@ -39,7 +39,7 @@ public:
     /**
      * @param w0 0~pi
      */
-    void SetW0(float w0) {
+    void SetW0(float w0) noexcept {
         w0_osc_.SetFreq(w0);
         w0_ = w0;
         CheckAlasing();
@@ -48,7 +48,7 @@ public:
     /**
      * @param w 0~pi
      */
-    void SetWSpace(float w) {
+    void SetWSpace(float w) noexcept {
         w_osc_.SetFreq(w);
         w_ = w;
         CheckAlasing();
@@ -57,7 +57,7 @@ public:
     /**
      * @param n >0
      */
-    void SetN(size_t n) {
+    void SetN(size_t n) noexcept {
         set_n_ = n;
         CheckAlasing();
     }
@@ -65,7 +65,7 @@ public:
     /**
      * @param a anything
      */
-    void SetAmpFactor(float a) {
+    void SetAmpFactor(float a) noexcept {
         if (a <= 1.0f && a >= 1.0f - 1e-3f) {
             a = 1.0f - 1e-3f;
         }
@@ -76,11 +76,11 @@ public:
         UpdateA();
     }
 
-    float NormalizeGain() const {
+    float NormalizeGain() const noexcept {
         return (1.0f - std::abs(a_)) / (1.0f - std::abs(a_pow_n_));
     }
 private:
-    void CheckAlasing() {
+    void CheckAlasing() noexcept {
         if (w_ == 0.0f && n_ != set_n_) {
             n_ = set_n_;
             UpdateA();
@@ -95,7 +95,7 @@ private:
         }
     }
 
-    void UpdateA() {
+    void UpdateA() noexcept {
         a_pow_n_ = std::pow(a_, static_cast<float>(n_));
     }
 
@@ -118,12 +118,12 @@ private:
 template<bool kFlipDown, size_t kLookupTableFracBits = 13>
 class DSFCorrectComplex {
 public:
-    void Reset() {
+    void Reset() noexcept {
         w_osc_.Reset();
         w0_osc_.Reset();
     }
     
-    float Tick() {
+    float Tick() noexcept {
         float const sinu = w0_osc_.Tick();
         float const cosu = w0_osc_.Cosine();
         float const sinv = w_osc_.Tick();
@@ -160,7 +160,7 @@ public:
     /**
      * @param w0 0~pi
      */
-    void SetW0(float w0) {
+    void SetW0(float w0) noexcept {
         w0_osc_.SetFreq(w0);
         w0_ = w0;
         CheckAlasing();
@@ -169,7 +169,7 @@ public:
     /**
      * @param w 0~pi
      */
-    void SetWSpace(float w) {
+    void SetWSpace(float w) noexcept {
         w_osc_.SetFreq(w);
         w_ = w;
         CheckAlasing();
@@ -178,7 +178,7 @@ public:
     /**
      * @param n >0
      */
-    void SetN(size_t n) {
+    void SetN(size_t n) noexcept {
         set_n_ = n;
         CheckAlasing();
     }
@@ -186,7 +186,7 @@ public:
     /**
      * @param a anything
      */
-    void SetAmpFactor(float a, float phase) {
+    void SetAmpFactor(float a, float phase) noexcept {
         if (a <= 1.0f && a >= 1.0f - 1e-3f) {
             a = 1.0f - 1e-3f;
         }
@@ -197,11 +197,11 @@ public:
         UpdateA();
     }
 
-    float NormalizeGain() const {
+    float NormalizeGain() const noexcept {
         return (1.0f - std::abs(a_)) / (1.0f - std::abs(a_pow_n_));
     }
 private:
-    void CheckAlasing() {
+    void CheckAlasing() noexcept {
         if (w_ == 0.0f && n_ != set_n_) {
             n_ = set_n_;
             UpdateA();
@@ -216,7 +216,7 @@ private:
         }
     }
 
-    void UpdateA() {
+    void UpdateA() noexcept {
         a_pow_n_ = std::pow(a_, static_cast<float>(n_));
     }
 

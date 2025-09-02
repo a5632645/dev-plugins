@@ -18,7 +18,7 @@ struct Interpolation {
     static float Lagrange3rd(
         float y0, float y1, float y2, float y3,
         float frac
-    ) {
+    ) noexcept {
         auto d1 = frac - 1.0f;
         auto d2 = frac - 2.0f;
         auto d3 = frac - 3.0f;
@@ -43,7 +43,7 @@ struct Interpolation {
     static float PCHIP(
         float yn1, float y0, float y1, float y2,
         float frac
-    ) {
+    ) noexcept {
         auto d0 = (y1 - yn1) / 2.0f;
         auto d1 = (y2 - y0) / 2.0f;
         auto d = y1 - y0;
@@ -70,7 +70,7 @@ struct Interpolation {
     static float Spline(
         float yn1, float y0, float y1, float y2,
         float frac
-    ) {
+    ) noexcept {
         auto m1 = y0 - yn1;
         auto m2 = y1 - y0;
         auto m3 = y2 - y1;
@@ -100,7 +100,7 @@ struct Interpolation {
     static float CatmullRomSpline(
         float yn1, float y0, float y1, float y2,
         float frac
-    ) {
+    ) noexcept {
         auto m0 = (1.0f - tension) * 0.5f * (y1 - yn1);
         auto m1 = (1.0f - tension) * 0.5f * (y2 - y0);
 
@@ -119,7 +119,7 @@ struct Interpolation {
     static float Linear(
         float y0, float y1,
         float frac
-    ) {
+    ) noexcept {
         return y0 + frac * (y1 - y0);
     }
 
@@ -129,7 +129,7 @@ struct Interpolation {
     static float Makima(
         float yn2, float yn1, float y0, float y1, float y2, float y3,
         float frac
-    ) {
+    ) noexcept {
         float en2 = yn1 - yn2;
         float en1 = y0 - yn1;
         float e0 = y1 - y0;

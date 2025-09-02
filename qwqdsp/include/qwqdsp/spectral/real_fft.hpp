@@ -7,9 +7,9 @@
 
 namespace qwqdsp::spectral {
 namespace internal {
-void rdft(int, int, float *, int *, float *);
-void makewt(int nw, int *ip, float *w);
-void makect(int nc, int *ip, float *c);
+void rdft(int, int, float *, int *, float *) noexcept;
+void makewt(int nw, int *ip, float *w) noexcept;
+void makect(int nc, int *ip, float *c) noexcept;
 }
 class RealFFT {
 public:
@@ -23,7 +23,7 @@ public:
         internal::makect(size4, ip_.data(), w_.data() + size4);
     }
 
-    void FFT(std::span<const float> time, std::span<std::complex<float>> spectral) {
+    void FFT(std::span<const float> time, std::span<std::complex<float>> spectral) noexcept {
         assert(time.size() == fft_size_);
         assert(spectral.size() == NumBins());
 
@@ -40,7 +40,7 @@ public:
         }
     }
 
-    void FFT(std::span<const float> time, std::span<float> real, std::span<float> imag) {
+    void FFT(std::span<const float> time, std::span<float> real, std::span<float> imag) noexcept {
         assert(time.size() == fft_size_);
         assert(real.size() == NumBins());
         assert(imag.size() == NumBins());
@@ -58,7 +58,7 @@ public:
         }
     }
 
-    void IFFT(std::span<float> time, std::span<const std::complex<float>> spectral) {
+    void IFFT(std::span<float> time, std::span<const std::complex<float>> spectral) noexcept {
         assert(time.size() == fft_size_);
         assert(spectral.size() == NumBins());
 
@@ -76,7 +76,7 @@ public:
         }
     }
 
-    void IFFT(std::span<float> time, std::span<const float> real, std::span<const float> imag) {
+    void IFFT(std::span<float> time, std::span<const float> real, std::span<const float> imag) noexcept {
         assert(time.size() == fft_size_);
         assert(real.size() == NumBins());
         assert(imag.size() == NumBins());
@@ -98,7 +98,7 @@ public:
     /**
      * @param phase 可选的，不需要请传入{}
      */
-    void FFTGainPhase(std::span<const float> time, std::span<float> gain, std::span<float> phase = {}) {
+    void FFTGainPhase(std::span<const float> time, std::span<float> gain, std::span<float> phase = {}) noexcept {
         assert(time.size() == fft_size_);
         assert(gain.size() == NumBins());
         if (!phase.empty()) {
@@ -132,7 +132,7 @@ public:
         }
     }
 
-    void IFFTGainPhase(std::span<float> time, std::span<const float> gain, std::span<const float> phase) {
+    void IFFTGainPhase(std::span<float> time, std::span<const float> gain, std::span<const float> phase) noexcept {
         assert(time.size() == fft_size_);
         assert(gain.size() == NumBins());
         assert(phase.size() == NumBins());
@@ -151,7 +151,7 @@ public:
         }
     }
 
-    void Hilbert(std::span<const float> input, std::span<float> shift90, bool clear_dc) {
+    void Hilbert(std::span<const float> input, std::span<float> shift90, bool clear_dc) noexcept {
         assert(input.size() == fft_size_);
         assert(shift90.size() == fft_size_);
         std::copy(input.begin(), input.end(), buffer_.begin());
@@ -179,7 +179,7 @@ public:
     /**
      * @brief 0 ~ N ---> -N/2 ~ N/2
      */
-    void TimeDomainShift(std::span<float> block) {
+    void TimeDomainShift(std::span<float> block) noexcept {
         assert(block.size() == fft_size_);
         std::copy_n(block.begin(), fft_size_ / 2, buffer_.begin());
         for (size_t i = 0; i < fft_size_ / 2; ++i) {

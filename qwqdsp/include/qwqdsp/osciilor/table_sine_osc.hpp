@@ -38,41 +38,41 @@ public:
         return r;
     }();
 
-    void SetFreq(float f, float fs) {
+    void SetFreq(float f, float fs) noexcept {
         inc_ = static_cast<uint32_t>(f * static_cast<float>(kScale) / fs);
     }
 
-    void SetFreq(float omega) {
+    void SetFreq(float omega) noexcept {
         omega /= std::numbers::pi_v<float> * 2.0f;
         inc_ = static_cast<uint32_t>(omega * static_cast<float>(kScale));
     }
 
-    float Tick() {
+    float Tick() noexcept {
         phase_ += inc_;
         return kSineTable[phase_ >> kShift];
     }
 
-    float Cosine() const {
+    float Cosine() const noexcept {
         uint32_t t = phase_ + kScale / 4;
         return kSineTable[t >> kShift];
     }
 
-    std::complex<float> GetCpx() const {
+    std::complex<float> GetCpx() const noexcept {
         return {Cosine(), kSineTable[phase_ >> kShift]};
     }
 
-    std::complex<float> GetNPhaseCpx(size_t n) const {
+    std::complex<float> GetNPhaseCpx(size_t n) const noexcept {
         uint32_t t1 = phase_ * n;
         uint32_t t2 = t1 + kScale / 4;
         return {kSineTable[t2 >> kShift], kSineTable[t1 >>kShift]};
     }
 
-    void Reset(float phase) {
+    void Reset(float phase) noexcept {
         phase /= std::numbers::pi_v<float> * 2.0f;
         phase_ = static_cast<uint32_t>(phase * static_cast<float>(kScale));
     }
 
-    void Reset() {
+    void Reset() noexcept {
         phase_ = 0;
     }
 private:

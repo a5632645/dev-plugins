@@ -8,7 +8,7 @@ namespace qwqdsp::window {
 struct Kaiser {
     // 和分析有关的
     // f = width / N
-    static float MainLobeWidth(float beta) {
+    static float MainLobeWidth(float beta) noexcept {
         float a = beta / std::numbers::pi_v<float>;
         return std::sqrt(1.0f + a * a);
     }
@@ -19,7 +19,7 @@ struct Kaiser {
     // static constexpr float kStopband = -53.0f;
     // static constexpr float kTransmit = 3.3f;
 
-    static void Window(std::span<float> window, float beta, bool for_analyze_not_fir) {
+    static void Window(std::span<float> window, float beta, bool for_analyze_not_fir) noexcept {
         const size_t N = window.size();
         auto inc = 2.0f / (N - 1.0f);
         if (for_analyze_not_fir) {
@@ -33,7 +33,7 @@ struct Kaiser {
         }
     }
 
-    static void ApplyWindow(std::span<float> x, float beta, bool for_analyze_not_fir) {
+    static void ApplyWindow(std::span<float> x, float beta, bool for_analyze_not_fir) noexcept {
         const size_t N = x.size();
         auto inc = 2.0f / (N - 1.0f);
         if (for_analyze_not_fir) {
@@ -47,7 +47,7 @@ struct Kaiser {
         }
     }
 
-    static void Window(std::span<float> window, std::span<float> dwindow, float beta) {
+    static void Window(std::span<float> window, std::span<float> dwindow, float beta) noexcept {
         constexpr auto kTimeDelta = 0.001f;
         const size_t N = window.size();
         auto inc = 2.0f / N;
@@ -72,7 +72,7 @@ struct Kaiser {
      * @param side_lobe >0
      * @ref https://ww2.mathworks.cn/help/signal/ref/kaiser.html
      */
-    static float Beta(float side_lobe) {
+    static float Beta(float side_lobe) noexcept {
         if (side_lobe < 21.0) {
             return 0.0;
         }

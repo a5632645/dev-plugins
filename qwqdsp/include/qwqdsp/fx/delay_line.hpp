@@ -35,24 +35,24 @@ public:
         Reset();
     }
 
-    void Reset() {
+    void Reset() noexcept {
         wpos_ = 0;
         std::fill(buffer_.begin(), buffer_.end(), 0.0f);
     }
 
-    void Push(float x) {
+    void Push(float x) noexcept {
         buffer_[wpos_++] = x;
         wpos_ &= mask_;
     }
 
-    float GetAfterPush(float delay_samples) {
+    float GetAfterPush(float delay_samples) noexcept {
         return Get(delay_samples + 1);
     }
 
     /**
      * @param delay_samples 此处不能小于1，否则为非因果滤波器（或者被绕回读取max_samples处）
      */
-    float GetBeforePush(float delay_samples) {
+    float GetBeforePush(float delay_samples) noexcept {
         return Get(delay_samples);
     }
 
@@ -60,13 +60,13 @@ public:
      * @param delay_samples 此处不能小于1，否则为非因果滤波器（或者被绕回读取max_samples处）
      */
     template<std::integral T>
-    float GetBeforePush(T delay_samples) {
+    float GetBeforePush(T delay_samples) noexcept {
         int rpos = wpos_ + buffer_.size() - delay_samples;
         int irpos = static_cast<int>(rpos) & mask_;
         return buffer_[irpos];
     }
 private:
-    float Get(float delay) {
+    float Get(float delay) noexcept {
         if constexpr (INTERPOLATION_TYPE == DelayLineInterp::None) {
             float rpos = wpos_ + buffer_.size() - delay;
             int irpos = static_cast<int>(std::round(rpos)) & mask_;

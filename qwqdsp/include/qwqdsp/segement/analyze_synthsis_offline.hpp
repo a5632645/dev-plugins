@@ -19,7 +19,7 @@ public:
         std::span<const float> in_span,
         std::vector<float>& output,
         Func&& func
-    ) {
+    ) noexcept(noexcept(func(std::declval<std::span<const float>>(), std::declval<std::span<float>>()))) {
         // 处理音频
         {
             Slice1D input{in_span};
@@ -111,12 +111,12 @@ public:
         }
     }
 
-    size_t GetMinOutputSize(size_t input_size) const {
+    size_t GetMinOutputSize(size_t input_size) const noexcept {
         size_t num_frame = std::ceil(static_cast<float>(input_size) / input_hop_);
         return (num_frame - 1) * output_hop_ + size_;
     }
 
-    void SetSize(size_t size) {
+    void SetSize(size_t size) noexcept {
         size_ = size;
         if (input_buffer_.size() < size) {
             input_buffer_.resize(size);
@@ -127,15 +127,15 @@ public:
         process_buffer_.resize(size_);
     }
 
-    void SetInputHop(size_t hop) {
+    void SetInputHop(size_t hop) noexcept {
         input_hop_ = hop;
     }
 
-    void SetOutputHop(size_t hop) {
+    void SetOutputHop(size_t hop) noexcept {
         output_hop_ = hop;
     }
 
-    void Reset() {
+    void Reset() noexcept {
         std::fill_n(output_buffer_.begin(), write_end_, 0.0f);
         input_wpos_ = 0;
         write_add_end_ = 0;

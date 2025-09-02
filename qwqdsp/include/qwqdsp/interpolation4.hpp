@@ -10,7 +10,7 @@ struct Interpolation4 {
         float y0, float y1, float y2, float y3,
         float x0, float x1, float x2, float x3,
         float x
-    ) {
+    ) noexcept {
         auto f1 = (x - x1) * (x - x2) * (x - x3) / (x0 - x1) / (x0 - x2) / (x0 - x3);
         auto f2 = (x - x0) * (x - x2) * (x - x3) / (x1 - x0) / (x1 - x2) / (x1 - x3);
         auto f3 = (x - x0) * (x - x1) * (x - x3) / (x2 - x0) / (x2 - x1) / (x2 - x3);
@@ -25,7 +25,7 @@ struct Interpolation4 {
         float y0, float y1, float y2, float y3,
         float x0, float x1, float x2, float x3,
         float x
-    ) {
+    ) noexcept {
         auto e0 = (y1 - y0) / (x1 - x0);
         auto e1 = (y2 - y1) / (x2 - x1);
         auto e2 = (y3 - y2) / (x3 - x2);
@@ -94,7 +94,7 @@ struct Interpolation4 {
         float y0, float y1, float y2, float y3,
         float x0, float x1, float x2, float x3,
         float x
-    ) {
+    ) noexcept {
         auto m0 = (y1 - y0) / (x1 - x0);
         auto m1 = (y2 - y1) / (x2 - x1);
         auto m2 = (y3 - y2) / (x3 - x2);
@@ -133,7 +133,7 @@ struct Interpolation4 {
         float y0, float y1, float y2, float y3,
         float x0, float x1, float x2, float x3,
         float x, float tension
-    ) {
+    ) noexcept {
         tension = 1.0f - tension;
         float t01 = std::sqrt(x1 - x0);
         float t12 = std::sqrt(x2 - x1);
@@ -189,7 +189,7 @@ struct Interpolation4 {
         float yn2, float yn1, float y0, float y1, float y2, float y3,
         float xn2, float xn1, float x0, float x1, float x2, float x3,
         float x
-    ) {
+    ) noexcept {
         float en2 = (yn1 - yn2) / (xn2 - xn1);
         float en1 = (y0 - yn1) / (x0 - xn1);
         float e0 = (y1 - y0) / (x1 - x0);

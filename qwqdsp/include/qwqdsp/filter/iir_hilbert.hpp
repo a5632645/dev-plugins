@@ -5,7 +5,7 @@ namespace qwqdsp::filter {
 template<class T = float>
 class IIRHilbert {
 public:
-    void Reset() {
+    void Reset() noexcept {
         real0_.Reset();
         real1_.Reset();
         real2_.Reset();
@@ -17,7 +17,7 @@ public:
         latch_ = 0;
     }
 
-    std::complex<T> Tick(T x) {
+    std::complex<T> Tick(T x) noexcept {
         T real{};
         T imag{};
         real = real0_.Tick(x);
@@ -37,12 +37,12 @@ private:
         T z0_{};
         T z1_{};
 
-        void Reset() {
+        void Reset() noexcept {
             z0_ = 0;
             z1_ = 0;
         }
 
-        T Tick(T x) {
+        T Tick(T x) noexcept {
             T in = x + alpha * z1_;
             T out = -alpha * in + z1_;
             z1_ = z0_;
@@ -65,7 +65,7 @@ private:
 template<class T = float>
 class IIRHilbertDeeper {
 public:
-    void Reset() {
+    void Reset() noexcept {
         real0_.Reset();
         real1_.Reset();
         real2_.Reset();
@@ -85,7 +85,7 @@ public:
         latch_ = 0;
     }
 
-    std::complex<T> Tick(T x) {
+    std::complex<T> Tick(T x) noexcept {
         T real{};
         T imag{};
         real = real0_.Tick(x);
@@ -113,12 +113,12 @@ private:
         T z0_{};
         T z1_{};
 
-        void Reset() {
+        void Reset() noexcept {
             z0_ = 0;
             z1_ = 0;
         }
 
-        T Tick(T x) {
+        T Tick(T x) noexcept {
             T in = x + alpha * z1_;
             T out = -alpha * in + z1_;
             z1_ = z0_;

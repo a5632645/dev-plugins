@@ -6,7 +6,7 @@
 
 namespace qwqdsp::window {
 struct Taylor {
-    static constexpr float sq(float x) {
+    static constexpr float sq(float x) noexcept {
         return x * x;
     }
 
@@ -14,7 +14,7 @@ struct Taylor {
      * @param side_lobe > 0
      * @note 如果要用于分析，请使用N+1的窗然后丢弃最后一个样本
      */
-    static void Window(std::span<float> window, float side_lobe, size_t nbars) {
+    static void Window(std::span<float> window, float side_lobe, size_t nbars) noexcept {
         const double amplification = pow(10.0f, side_lobe / 20.0f);
         const double a = acosh(amplification) / std::numbers::pi_v<float>;
         const double a2 = sq(a);

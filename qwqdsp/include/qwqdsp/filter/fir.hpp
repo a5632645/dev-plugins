@@ -21,7 +21,7 @@ public:
      * @tparam Func void(std::vector<float>& coeff)
      */
     template <class Func>
-    void SetCoeff(Func&& func) noexcept {
+    void SetCoeff(Func&& func) {
         func(coeff_);
         std::reverse(coeff_.begin(), coeff_.end());
         size_t const size = coeff_.size() + kBatchSize - 1;
@@ -73,7 +73,7 @@ public:
      * @tparam Func void(std::vector<float>& coeff)
      */
     template <class Func>
-    void SetCoeff(Func&& func) noexcept {
+    void SetCoeff(Func&& func) {
         func(coeff_);
         if (latch_.size() < coeff_.size() - 1) {
             latch_.resize(coeff_.size() - 1);

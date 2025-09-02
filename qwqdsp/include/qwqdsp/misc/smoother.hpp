@@ -4,19 +4,19 @@
 namespace qwqdsp {
 class ExpSmoother {
 public:
-    void Reset() {
+    void Reset() noexcept {
         now_ = target_;
     }
 
-    void SetTarget(float x) {
+    void SetTarget(float x) noexcept {
         target_ = x;
     }
 
-    void SetSmoothTime(float ms, float fs) {
+    void SetSmoothTime(float ms, float fs) noexcept {
         a_ = std::exp(-1.0f / (fs * ms / 1000.0f));
     }
 
-    float Tick() {
+    float Tick() noexcept {
         now_ = target_ + a_ * (now_ - target_);
         return now_;
     }
@@ -28,28 +28,28 @@ private:
 
 class ConstantTimeSmoother {
 public:
-    void Reset() {
+    void Reset() noexcept {
         now_ = target_;
         nsamples_ = 0;
     }
 
-    void SetTarget(float x) {
+    void SetTarget(float x) noexcept {
         target_ = x;
         delta_ = (target_ - now_) / total_samples_;
         nsamples_ = total_samples_;
     }
 
-    void SetSmoothTime(float ms, float fs) {
+    void SetSmoothTime(float ms, float fs) noexcept {
         total_samples_ = fs * ms / 1000.0f;
         total_samples_ = total_samples_ < 1 ? 1 : total_samples_;
         delta_ = (target_ - now_) / total_samples_;
     }
 
-    bool IsEnd() const {
+    bool IsEnd() const noexcept {
         return nsamples_ == 0;
     }
 
-    float Tick() {
+    float Tick() noexcept {
         if (IsEnd()) return target_;
         now_ += delta_;
         --nsamples_;
@@ -65,12 +65,12 @@ private:
 
 class ContantValueSmoother {
 public:
-    void Reset() {
+    void Reset() noexcept {
         now_ = target_;
         end_ = true;
     }
 
-    void SetTarget(float x) {
+    void SetTarget(float x) noexcept {
         target_ = x;
         if (target_ < now_) {
             delta_ = -max_delta_;
@@ -81,15 +81,15 @@ public:
         end_ = false;
     }
 
-    void SetMaxValueMove(float x) {
+    void SetMaxValueMove(float x) noexcept {
         max_delta_ = std::abs(x);
     }
 
-    bool IsEnd() const {
+    bool IsEnd() const noexcept {
         return end_;
     }
 
-    float Tick() {
+    float Tick() noexcept {
         if (IsEnd()) return target_;
         now_ += target_;
         if (std::abs(target_ - now_) < delta_) end_ = true;

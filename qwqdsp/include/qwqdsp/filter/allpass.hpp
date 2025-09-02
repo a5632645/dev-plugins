@@ -13,12 +13,12 @@ namespace qwqdsp::filter {
  */
 class AllpassOrder1 {
 public:
-    void Reset() {
+    void Reset() noexcept {
         xlatch_ = 0;
         ylatch_ = 0;
     }
 
-    float Tick(float x) {
+    float Tick(float x) noexcept {
         auto y = xlatch_ + a_ * (x - ylatch_);
         xlatch_ = x;
         ylatch_ = y;
@@ -28,11 +28,11 @@ public:
     /**
      * @param a [-1, 1]
      */
-    void SetA(float a) {
+    void SetA(float a) noexcept {
         a_ = a;
     }
 
-    std::complex<float> GetResponce(std::complex<float> z) {
+    std::complex<float> GetResponce(std::complex<float> z) noexcept {
         auto up = a_ * z + 1.0f;
         auto down = z + a_;
         return up / down;
@@ -51,12 +51,12 @@ private:
  */
 class AllpassOrder2 {
 public:
-    void Reset() {
+    void Reset() noexcept {
         latch1_ = 0;
         latch2_ = 0;
     }
 
-    float Tick(float x) {
+    float Tick(float x) noexcept {
         auto t = a1_ * latch1_ + a2_ * (x + latch2_);
         auto y = latch2_ + t;
         latch2_ = latch1_;
@@ -64,11 +64,11 @@ public:
         return y;
     }
 
-    void SetA1(float a) {
+    void SetA1(float a) noexcept {
         a1_ = a;
     }
 
-    void SetA2(float a) {
+    void SetA2(float a) noexcept {
         a2_ = a;
     }
 
@@ -76,12 +76,12 @@ public:
      * @param w [0, pi]
      * @param radius [0, 1]
      */
-    void SetPole(float w, float radius) {
+    void SetPole(float w, float radius) noexcept {
         a1_ = -2.0f * radius * std::cos(w);
         a2_ = radius * radius;
     }
 
-    std::complex<float> GetResponce(std::complex<float> z) {
+    std::complex<float> GetResponce(std::complex<float> z) noexcept {
         auto z2 = z * z;
         auto up = a2_ * z2 +a1_ * z + 1.0f;
         auto down = z2 + a1_ * z + a2_;
@@ -103,11 +103,11 @@ public:
         buffer_.Init(max_samples);
     }
 
-    void Reset() {
+    void Reset() noexcept {
         buffer_.Reset();
     }
 
-    float Tick(float x) {
+    float Tick(float x) noexcept {
         float z1 = buffer_.GetBeforePush(n_latch_);
         float in = x + alpha_ * z1;
         float out = -alpha_ * in + z1;
@@ -115,7 +115,7 @@ public:
         return out;
     }
 
-    void SetAlpha(float a) {
+    void SetAlpha(float a) noexcept {
         alpha_ = a;
     }
 
@@ -123,7 +123,7 @@ public:
         return alpha_;
     }
 
-    void SetNLatch(size_t n) {
+    void SetNLatch(size_t n) noexcept {
         assert(n != 0);
         n_latch_ = n;
     }
@@ -132,7 +132,7 @@ public:
         return n_latch_;
     }
 
-    std::complex<float> GetResponce(std::complex<float> z) const {
+    std::complex<float> GetResponce(std::complex<float> z) const noexcept {
         auto zpow = std::pow(z, -static_cast<float>(n_latch_));
         auto up = zpow - alpha_;
         auto down = 1.0f - alpha_ * zpow;
@@ -157,12 +157,12 @@ public:
         ylatch_.Init(max_samples);
     }
 
-    void Reset() {
+    void Reset() noexcept {
         xlatch_.Reset();
         ylatch_.Reset();
     }
 
-    float Tick(float x) {
+    float Tick(float x) noexcept {
         auto y = xlatch_.GetBeforePush(n_latch_) + a_ * (x - ylatch_.GetBeforePush(n_latch_));
         xlatch_.Push(x);
         ylatch_.Push(y);
@@ -172,16 +172,16 @@ public:
     /**
      * @param a [-1, 1]
      */
-    void SetA(float a) {
+    void SetA(float a) noexcept {
         a_ = a;
     }
 
-    void SetNLatch(size_t n) {
+    void SetNLatch(size_t n) noexcept {
         assert(n != 0);
         n_latch_ = n;
     }
 
-    std::complex<float> GetResponce(std::complex<float> z) {
+    std::complex<float> GetResponce(std::complex<float> z) noexcept {
         auto const powz = std::pow(z, static_cast<float>(n_latch_));
         auto const up = a_ * powz + 1.0f;
         auto const down = powz + a_;
@@ -207,12 +207,12 @@ public:
         latch2_.Init(max_samples);
     }
 
-    void Reset() {
+    void Reset() noexcept {
         latch1_.Reset();
         latch2_.Reset();
     }
 
-    float Tick(float x) {
+    float Tick(float x) noexcept {
         auto const latch1 = latch1_.GetBeforePush(n_latch_);
         auto const latch2 = latch2_.GetBeforePush(n_latch_);
         auto const t = a1_ * latch1 + a2_ * (x + latch2);
@@ -222,11 +222,11 @@ public:
         return y;
     }
 
-    void SetA1(float a) {
+    void SetA1(float a) noexcept {
         a1_ = a;
     }
 
-    void SetA2(float a) {
+    void SetA2(float a) noexcept {
         a2_ = a;
     }
 
@@ -234,17 +234,17 @@ public:
      * @param w [0, pi]
      * @param radius [0, 1]
      */
-    void SetPole(float w, float radius) {
+    void SetPole(float w, float radius) noexcept {
         a1_ = -2.0f * radius * std::cos(w);
         a2_ = radius * radius;
     }
 
-    void SetNLatch(size_t n) {
+    void SetNLatch(size_t n) noexcept {
         assert(n != 0);
         n_latch_ = n;
     }
 
-    std::complex<float> GetResponce(std::complex<float> z) {
+    std::complex<float> GetResponce(std::complex<float> z) noexcept {
         auto const powz = std::pow(z, static_cast<float>(n_latch_));
         auto const z2 = powz * powz;
         auto const up = a2_ * z2 +a1_ * powz + 1.0f;

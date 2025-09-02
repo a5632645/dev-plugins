@@ -24,7 +24,7 @@ public:
         fft2_.resize(fft_.NumBins());
     }
 
-    void Process(std::span<const float> block) {
+    void Process(std::span<const float> block) noexcept {
         int num_samples = block.size();
         int max_tal = num_samples / 2;
 
@@ -124,21 +124,21 @@ public:
         // larger means the result is like a noise
         float non_period_ratio;
     };
-    Result GetPitch() const {
+    Result GetPitch() const noexcept {
         return pitch_;
     }
 
-    void SetMinPitch(float min_val) {
+    void SetMinPitch(float min_val) noexcept {
         min_pitch_ = min_val;
         max_bin_ = std::round(fs_ / min_val);
     }
 
-    void SetMaxPitch(float max_val) {
+    void SetMaxPitch(float max_val) noexcept {
         max_pitch_ = max_val;
         min_bin_ = std::round(fs_ / max_val);
     }
 
-    void SetThreshold(float thredshold) {
+    void SetThreshold(float thredshold) noexcept {
         threshold_ = thredshold;
     }
 private:

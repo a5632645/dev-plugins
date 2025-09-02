@@ -7,26 +7,26 @@
 // Please refer to this package when you modify this code.
 // --------------------------------------------------------------------------------
 namespace qwqdsp::spectral::internal {
-void cdft(int, int, float *, int *, float *);
-void rdft(int, int, float *, int *, float *);
-void ddct(int, int, float *, int *, float *);
-void ddst(int, int, float *, int *, float *);
-void bitrv2(int n, int *ip, float *a);
-void bitrv2conj(int n, int *ip, float *a);
-void cftfsub(int n, float *a, float *w);
-void cftbsub(int n, float *a, float *w);
-void cft1st(int n, float *a, float *w);
-void makewt(int nw, int *ip, float *w);
-void makect(int nc, int *ip, float *c);
-void dfct(int, float *, float *, int *, float *);
-void dfst(int, float *, float *, int *, float *);
-void rftfsub(int n, float *a, int nc, float *c);
-void rftbsub(int n, float *a, int nc, float *c);
-void dctsub(int n, float *a, int nc, float *c);
-void dstsub(int n, float *a, int nc, float *c);
-void cftmdl(int n, int l, float *a, float *w);
+void cdft(int, int, float *, int *, float *) noexcept;
+void rdft(int, int, float *, int *, float *) noexcept;
+void ddct(int, int, float *, int *, float *) noexcept;
+void ddst(int, int, float *, int *, float *) noexcept;
+void bitrv2(int n, int *ip, float *a) noexcept;
+void bitrv2conj(int n, int *ip, float *a) noexcept;
+void cftfsub(int n, float *a, float *w) noexcept;
+void cftbsub(int n, float *a, float *w) noexcept;
+void cft1st(int n, float *a, float *w) noexcept;
+void makewt(int nw, int *ip, float *w) noexcept;
+void makect(int nc, int *ip, float *c) noexcept;
+void dfct(int, float *, float *, int *, float *) noexcept;
+void dfst(int, float *, float *, int *, float *) noexcept;
+void rftfsub(int n, float *a, int nc, float *c) noexcept;
+void rftbsub(int n, float *a, int nc, float *c) noexcept;
+void dctsub(int n, float *a, int nc, float *c) noexcept;
+void dstsub(int n, float *a, int nc, float *c) noexcept;
+void cftmdl(int n, int l, float *a, float *w) noexcept;
 
-void cdft(int n, int isgn, float *a, int *ip, float *w)
+void cdft(int n, int isgn, float *a, int *ip, float *w) noexcept
 {
     if (n > 4) {
         if (isgn >= 0) {
@@ -42,7 +42,7 @@ void cdft(int n, int isgn, float *a, int *ip, float *w)
 }
 
 
-void rdft(int n, int isgn, float *a, int *ip, float *w)
+void rdft(int n, int isgn, float *a, int *ip, float *w) noexcept
 {
     int nw = ip[0];
     int nc = ip[1];
@@ -71,7 +71,7 @@ void rdft(int n, int isgn, float *a, int *ip, float *w)
 }
 
 
-void ddct(int n, int isgn, float *a, int *ip, float *w)
+void ddct(int n, int isgn, float *a, int *ip, float *w) noexcept
 {
     int j, nw, nc;
     float xr;
@@ -122,7 +122,7 @@ void ddct(int n, int isgn, float *a, int *ip, float *w)
 }
 
 
-void ddst(int n, int isgn, float *a, int *ip, float *w)
+void ddst(int n, int isgn, float *a, int *ip, float *w) noexcept
 {
     int j, nw, nc;
     float xr;
@@ -173,7 +173,7 @@ void ddst(int n, int isgn, float *a, int *ip, float *w)
 }
 
 
-void dfct(int n, float *a, float *t, int *ip, float *w)
+void dfct(int n, float *a, float *t, int *ip, float *w) noexcept
 {
     int j, k, l, m, mh, nw, nc;
     float xr, xi, yr, yi;
@@ -263,7 +263,7 @@ void dfct(int n, float *a, float *t, int *ip, float *w)
 }
 
 
-void dfst(int n, float *a, float *t, int *ip, float *w)
+void dfst(int n, float *a, float *t, int *ip, float *w) noexcept
 {
     int j, k, l, m, mh, nw, nc;
     float xr, xi, yr, yi;
@@ -349,9 +349,8 @@ void dfst(int n, float *a, float *t, int *ip, float *w)
 
 #include <math.h>
 
-void makewt(int nw, int *ip, float *w)
+void makewt(int nw, int *ip, float *w) noexcept
 {
-    void bitrv2(int n, int *ip, float *a);
     int j, nwh;
     float delta, x, y;
     
@@ -379,7 +378,7 @@ void makewt(int nw, int *ip, float *w)
 }
 
 
-void makect(int nc, int *ip, float *c)
+void makect(int nc, int *ip, float *c) noexcept
 {
     int j, nch;
     float delta;
@@ -401,7 +400,7 @@ void makect(int nc, int *ip, float *c)
 /* -------- child routines -------- */
 
 
-void bitrv2(int n, int *ip, float *a)
+void bitrv2(int n, int *ip, float *a) noexcept
 {
     int j, j1, k, k1, l, m, m2;
     float xr, xi, yr, yi;
@@ -501,7 +500,7 @@ void bitrv2(int n, int *ip, float *a)
 }
 
 
-void bitrv2conj(int n, int *ip, float *a)
+void bitrv2conj(int n, int *ip, float *a) noexcept
 {
     int j, j1, k, k1, l, m, m2;
     float xr, xi, yr, yi;
@@ -610,10 +609,8 @@ void bitrv2conj(int n, int *ip, float *a)
 }
 
 
-void cftfsub(int n, float *a, float *w)
+void cftfsub(int n, float *a, float *w) noexcept
 {
-    void cft1st(int n, float *a, float *w);
-    void cftmdl(int n, int l, float *a, float *w);
     int j, j1, j2, j3, l;
     float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
     
@@ -662,10 +659,8 @@ void cftfsub(int n, float *a, float *w)
 }
 
 
-void cftbsub(int n, float *a, float *w)
+void cftbsub(int n, float *a, float *w) noexcept
 {
-    void cft1st(int n, float *a, float *w);
-    void cftmdl(int n, int l, float *a, float *w);
     int j, j1, j2, j3, l;
     float x0r, x0i, x1r, x1i, x2r, x2i, x3r, x3i;
     
@@ -713,8 +708,7 @@ void cftbsub(int n, float *a, float *w)
     }
 }
 
-
-void cft1st(int n, float *a, float *w)
+void cft1st(int n, float *a, float *w) noexcept
 {
     int j, k1, k2;
     float wk1r, wk1i, wk2r, wk2i, wk3r, wk3i;
@@ -819,7 +813,7 @@ void cft1st(int n, float *a, float *w)
 }
 
 
-void cftmdl(int n, int l, float *a, float *w)
+void cftmdl(int n, int l, float *a, float *w) noexcept
 {
     int j, j1, j2, j3, k, k1, k2, m, m2;
     float wk1r, wk1i, wk2r, wk2i, wk3r, wk3i;
@@ -946,7 +940,7 @@ void cftmdl(int n, int l, float *a, float *w)
 }
 
 
-void rftfsub(int n, float *a, int nc, float *c)
+void rftfsub(int n, float *a, int nc, float *c) noexcept
 {
     int j, k, kk, ks, m;
     float wkr, wki, xr, xi, yr, yi;
@@ -971,7 +965,7 @@ void rftfsub(int n, float *a, int nc, float *c)
 }
 
 
-void rftbsub(int n, float *a, int nc, float *c)
+void rftbsub(int n, float *a, int nc, float *c) noexcept
 {
     int j, k, kk, ks, m;
     float wkr, wki, xr, xi, yr, yi;
@@ -998,7 +992,7 @@ void rftbsub(int n, float *a, int nc, float *c)
 }
 
 
-void dctsub(int n, float *a, int nc, float *c)
+void dctsub(int n, float *a, int nc, float *c) noexcept
 {
     int j, k, kk, ks, m;
     float wkr, wki, xr;
@@ -1019,7 +1013,7 @@ void dctsub(int n, float *a, int nc, float *c)
 }
 
 
-void dstsub(int n, float *a, int nc, float *c)
+void dstsub(int n, float *a, int nc, float *c) noexcept
 {
     int j, k, kk, ks, m;
     float wkr, wki, xr;

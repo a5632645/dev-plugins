@@ -2,22 +2,14 @@
 #include <cmath>
 
 namespace qwqdsp {
-struct SVF {
-    float m0{};
-    float m1{};
-    float m2{};
-    float ic2eq{};
-    float ic1eq{};
-    float a1{};
-    float a2{};
-    float a3{};
-
-    void Reset() {
+class SVF {
+public:
+    void Reset() noexcept {
         ic1eq = 0;
         ic2eq = 0;
     }
 
-    float Tick(float v0) {
+    float Tick(float v0) noexcept {
         float v3 = v0 - ic2eq;
         float v1 = a1 * ic1eq + a2 * v3;
         float v2 = ic2eq + a2 * ic1eq + a3 * v3;
@@ -27,7 +19,7 @@ struct SVF {
         return out;
     }
 
-    void MakeBell(float omega, float q, float gain) {
+    void MakeBell(float omega, float q, float gain) noexcept {
         float A = std::pow(10.0f, gain / 40.0f);
         float g = std::tan(omega / 2);
         float k = 1.0f / (q * A);
@@ -39,7 +31,7 @@ struct SVF {
         m2 = 0.0f;
     }
 
-    void MakeLowShelf(float omega, float q, float gain) {
+    void MakeLowShelf(float omega, float q, float gain) noexcept {
         float A = std::pow(10.0f, gain / 40.0f);
         float g = std::tan(omega / 2) / std::sqrt(A);
         float k = 1.0f / q;
@@ -51,7 +43,7 @@ struct SVF {
         m2 = A * A - 1;
     }
 
-    void MakeHighShelf(float omega, float q, float gain) {
+    void MakeHighShelf(float omega, float q, float gain) noexcept {
         float A = std::pow(10.0f, gain / 40.0f);
         float g = std::tan(omega / 2) * std::sqrt(A);
         float k = 1.0f / q;
@@ -63,7 +55,7 @@ struct SVF {
         m2 = 1 - A * A;
     }
 
-    void MakeLowpass(float omega, float Q) {
+    void MakeLowpass(float omega, float Q) noexcept {
         float g = std::tan(omega / 2);
         float k = 1.0f / Q;
         a1 = 1.0f / (1.0f + g * (g + k));
@@ -74,7 +66,7 @@ struct SVF {
         m2 = 1;
     }
 
-    void MakeHighpass(float omega, float Q) {
+    void MakeHighpass(float omega, float Q) noexcept {
         float g = std::tan(omega / 2);
         float k = 1.0f / Q;
         a1 = 1.0f / (1.0f + g * (g + k));
@@ -85,7 +77,7 @@ struct SVF {
         m2 = -1;
     }
 
-    void MakeBandpass(float omega, float Q) {
+    void MakeBandpass(float omega, float Q) noexcept {
         float g = std::tan(omega / 2);
         float k = 1.0f / Q;
         a1 = 1.0f / (1.0f + g * (g + k));
@@ -96,7 +88,7 @@ struct SVF {
         m2 = 0;
     }
 
-    void MakeNormalizedBandpass(float omega, float Q) {
+    void MakeNormalizedBandpass(float omega, float Q) noexcept {
         float g = std::tan(omega / 2);
         float k = 1.0f / Q;
         a1 = 1.0f / (1.0f + g * (g + k));
@@ -107,7 +99,7 @@ struct SVF {
         m2 = 0;
     }
 
-    void MakeNotch(float omega, float Q) {
+    void MakeNotch(float omega, float Q) noexcept {
         float g = std::tan(omega / 2);
         float k = 1.0f / Q;
         a1 = 1.0f / (1.0f + g * (g + k));
@@ -118,7 +110,7 @@ struct SVF {
         m2 = 0;
     }
 
-    void MakePeak(float omega, float Q) {
+    void MakePeak(float omega, float Q) noexcept {
         float g = std::tan(omega / 2);
         float k = 1.0f / Q;
         a1 = 1.0f / (1.0f + g * (g + k));
@@ -129,7 +121,7 @@ struct SVF {
         m2 = -2;
     }
 
-    void MakeAllpass(float omega, float Q) {
+    void MakeAllpass(float omega, float Q) noexcept {
         float g = std::tan(omega / 2);
         float k = 1.0f / Q;
         a1 = 1.0f / (1.0f + g * (g + k));
@@ -140,7 +132,7 @@ struct SVF {
         m2 = -0;
     }
 
-    void MakeFromBiquad(float b0, float b1, float b2, float ba1, float ba2) {
+    void MakeFromBiquad(float b0, float b1, float b2, float ba1, float ba2) noexcept {
         float v1 = std::sqrt(-1.0f - ba1 - ba2);
         float v2 = std::sqrt(-1.0f + ba1 - ba2);
         float g = v1 / v2;
@@ -152,5 +144,15 @@ struct SVF {
         a2 = g * a1;
         a3 = g * a2;
     }
+
+private:
+    float m0{};
+    float m1{};
+    float m2{};
+    float ic2eq{};
+    float ic1eq{};
+    float a1{};
+    float a2{};
+    float a3{};
 };
 }

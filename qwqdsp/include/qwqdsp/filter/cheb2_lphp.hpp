@@ -6,18 +6,18 @@ namespace qwqdsp {
 template<size_t kNumFilter>
 class Cheb2LowHighpass {
 public:
-    void Init(float fs) {
+    void Init(float fs) noexcept {
         fs_ = fs;
         Reset();
     }
 
-    void Reset() {
+    void Reset() noexcept {
         for (auto& f : filters_) {
             f.Reset();
         }
     }
 
-    float Tick(float x) {
+    float Tick(float x) noexcept {
         for (auto& f : filters_) {
             x = f.Tick(x);
         }

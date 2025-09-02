@@ -23,7 +23,7 @@ public:
         Reset();
     }
 
-    void Reset() {
+    void Reset() noexcept {
         std::fill_n(output_buffer_.begin(), write_end_, 0.0f);
         for (auto& f : input_frames_) {
             std::fill(f.begin(), f.end(), std::complex<float>{});
@@ -34,7 +34,7 @@ public:
         write_add_end_ = 0;
     }
 
-    void SetIR(std::span<float> ir) {
+    void SetIR(std::span<float> ir) noexcept {
         segement::AnalyzeAuto<true> analyze;
         analyze.SetSize(block_size_);
         analyze.SetHop(block_size_);
@@ -52,9 +52,10 @@ public:
             fft_.FFT(process_buffer_, ir_frames_[i]);
             ++i;
         });
+        Reset();
     }
 
-    void Process(std::span<float> block) {
+    void Process(std::span<float> block) noexcept {
         segement::Slice1D input{block};
         while (!input.IsEnd()) {
             size_t need = block_size_ - input_wpos_;

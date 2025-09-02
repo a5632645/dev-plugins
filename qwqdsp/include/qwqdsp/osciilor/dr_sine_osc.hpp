@@ -9,7 +9,7 @@ namespace qwqdsp::oscillor {
  */
 class DROscFull {
 public:
-    void Reset(float freq, float fs, float phase) {
+    void Reset(float freq, float fs, float phase) noexcept {
         auto omega = freq / fs * std::numbers::pi_v<float> * 2.0f;
         sin0_ = std::sin(phase);
         sin1_ = std::sin(phase + omega);
@@ -18,7 +18,7 @@ public:
         coeff_ = 2 * std::cos(omega);
     }
 
-    void SetFreq(float freq, float fs) {
+    void SetFreq(float freq, float fs) noexcept {
         auto omega = freq / fs * std::numbers::pi_v<float> * 2.0f;
         float f_cos = std::cos(omega);
         float f_sin = std::sin(omega);
@@ -27,7 +27,7 @@ public:
         coeff_ = 2 * f_cos;
     }
 
-    float Tick() {
+    float Tick() noexcept {
         auto e = coeff_ * sin1_ - sin0_;
         sin0_ = sin1_;
         sin1_ = e;
@@ -37,11 +37,11 @@ public:
         return sin0_;
     }
 
-    float cos() const {
+    float cos() const noexcept {
         return cos0_;
     }
 
-    std::complex<float> GetCpx() const {
+    std::complex<float> GetCpx() const noexcept {
         return {cos0_, sin0_};
     }
 private:

@@ -16,7 +16,7 @@ struct Lanczos {
     static constexpr float kStopband = -38.55f;
     // static constexpr float kTransmit = 5.5f;
 
-    static void Window(std::span<float> x, bool for_analyze_not_fir) {
+    static void Window(std::span<float> x, bool for_analyze_not_fir) noexcept {
         if (for_analyze_not_fir) {
             const size_t N = x.size();
             for (size_t i = 0; i < N; ++i) {
@@ -31,7 +31,7 @@ struct Lanczos {
         }
     }
 
-    static void ApplyWindow(std::span<float> x, bool for_analyze_not_fir) {
+    static void ApplyWindow(std::span<float> x, bool for_analyze_not_fir) noexcept {
         if (for_analyze_not_fir) {
             const size_t N = x.size();
             for (size_t i = 0; i < N; ++i) {
@@ -46,7 +46,7 @@ struct Lanczos {
         }
     }
 
-    static void DWindow(std::span<float> x) {
+    static void DWindow(std::span<float> x) noexcept {
         const size_t N = x.size();
         constexpr float pi = std::numbers::pi_v<float>;
         for (size_t i = 0; i < N; ++i) {
@@ -60,7 +60,7 @@ struct Lanczos {
         }
     }
 private:
-    static float Sinc(float x) {
+    static float Sinc(float x) noexcept {
         x *= std::numbers::pi_v<float>;
         if (x == 0.0f) {
             return 1.0f;

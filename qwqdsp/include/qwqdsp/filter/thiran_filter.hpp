@@ -7,7 +7,7 @@ namespace qwqdsp {
 template<size_t N>
 class ThiranFilter {
 public:
-    void Reset() {
+    void Reset() noexcept {
         std::fill(x_.begin(), x_.end(), 0.0f);
         std::fill(y_.begin(), y_.end(), 0.0f);
     }
@@ -15,7 +15,7 @@ public:
     /**
     * @return how many intergal samples need delay
     */
-    size_t Make(float delay) {
+    size_t Make(float delay) noexcept {
         delay += 0.5f;
         float frac = delay - std::floor(delay);
         float frac_thiran = frac - 0.5f;
@@ -32,7 +32,7 @@ public:
         return ret;
     }
 
-    float Tick(float x) {
+    float Tick(float x) noexcept {
         float y = x_.back();
         for (size_t i = N - 1; i != 0; --i) {
             x_[i] = x_[i - 1];
@@ -53,7 +53,7 @@ public:
         return y;
     }
 private:
-    static float NMul(size_t k, float frac) {
+    static float NMul(size_t k, float frac) noexcept {
         float s = 1.0f;
         for (size_t n = 0; n <= N; ++n) {
             s *= (frac + n) / (frac + k + n);
@@ -61,7 +61,7 @@ private:
         return s;
     }
 
-    static constexpr size_t NChoose(size_t n, size_t k) {
+    static constexpr size_t NChoose(size_t n, size_t k) noexcept {
         if (k > n) {
             return 0;
         }

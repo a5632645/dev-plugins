@@ -5,28 +5,28 @@
 namespace qwqdsp::oscillor {
 class WhiteNoise {
 public:
-    void SetSeed(uint32_t seed) {
+    void SetSeed(uint32_t seed) noexcept {
         reg_ = seed;
     }
 
-    float Next01() {
+    float Next01() noexcept {
         reg_ *= 1103515245;
         reg_ += 12345;
         return reg_ / static_cast<float>(std::numeric_limits<uint32_t>::max());
     }
 
-    float Next() {
+    float Next() noexcept {
         auto e = Next01();
         return e * 2 - 1;
     }
 
-    uint32_t NextUInt() {
+    uint32_t NextUInt() noexcept {
         reg_ *= 1103515245;
         reg_ += 12345;
         return reg_;
     }
 
-    uint32_t GetReg() const {
+    uint32_t GetReg() const noexcept {
         return reg_;
     }
 private:
