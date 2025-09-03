@@ -21,7 +21,7 @@ static void AudioInputCallback(void* _buffer, unsigned int frames) {
     };
     std::span buffer{reinterpret_cast<T*>(_buffer), frames};
     for (auto& s : buffer) {
-        s.l = dsp.Tick();
+        s.l = dsp.Triangle();
         s.r = s.l;
     }
 }
@@ -47,7 +47,7 @@ int main(void) {
     };
     dsf_bound.y += dsf_bound.height;
     w.set_bound(dsf_bound);
-    w.set_range(0.0f, 1.0f, 0.001f, 0.01f);
+    w.set_range(0.0f, 3.14f, 0.001f, 0.01f);
     w.set_bg_color(BLACK);
     w.set_fore_color(RAYWHITE);
     w.set_title("w");
@@ -67,7 +67,7 @@ int main(void) {
     };
     dsf_bound.y += dsf_bound.height;
     amp.set_bound(dsf_bound);
-    amp.set_range(0.0f, 1.0f, 0.01f, 0.5f);
+    amp.set_range(0.01f, 0.99f, 0.01f, 0.5f);
     amp.set_bg_color(BLACK);
     amp.set_fore_color(RAYWHITE);
     amp.set_title("amp");
@@ -89,3 +89,14 @@ int main(void) {
     CloseAudioDevice();
     CloseWindow();
 }
+
+// #include "qwqdsp/misc/integrator.hpp"
+
+// int main() {
+//     float input[512]{1};
+//     float test[512];
+//     qwqdsp::misc::IntegratorTrapezoidal<> inte;
+//     for (size_t i = 0; i < 512; ++i) {
+//         test[i] = inte.Tick(input[i]);
+//     }
+// }

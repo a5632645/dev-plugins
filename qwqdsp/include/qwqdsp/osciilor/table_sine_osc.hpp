@@ -38,6 +38,26 @@ public:
         return r;
     }();
 
+    // --------------------------------------------------------------------------------
+    // 提供外部计数器
+    // --------------------------------------------------------------------------------
+    static constexpr uint32_t Omega2PhaseInc(float omega) noexcept {
+        omega /= std::numbers::pi_v<float> * 2.0f;
+        return static_cast<uint32_t>(omega * static_cast<float>(kScale));
+    }
+
+    static float Sine(uint32_t phase) noexcept {
+        return kSineTable[phase >> kShift];
+    }
+
+    static float Cosine(uint32_t phase) noexcept {
+        uint32_t t = phase + kScale / 4;
+        return kSineTable[t >> kShift];
+    }
+
+    // --------------------------------------------------------------------------------
+    // 内部计数器
+    // --------------------------------------------------------------------------------
     void SetFreq(float f, float fs) noexcept {
         inc_ = static_cast<uint32_t>(f * static_cast<float>(kScale) / fs);
     }
