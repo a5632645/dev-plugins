@@ -6,13 +6,13 @@
 #include "raylib.h"
 #include "../playing/slider.hpp"
 
-#include "qwqdsp/osciilor/blit_pwm.hpp"
+#include "qwqdsp/osciilor/blit.hpp"
 
 static constexpr int kWidth = 500;
 static constexpr int kHeight = 400;
 static constexpr float kFs = 48000.0f;
 
-static qwqdsp::oscillor::BlitPWM dsp;
+static qwqdsp::oscillor::Blit dsp;
 
 static void AudioInputCallback(void* _buffer, unsigned int frames) {
     struct T {
@@ -21,7 +21,7 @@ static void AudioInputCallback(void* _buffer, unsigned int frames) {
     };
     std::span buffer{reinterpret_cast<T*>(_buffer), frames};
     for (auto& s : buffer) {
-        s.l = dsp.PWM();
+        s.l = dsp.Triangle();
         s.r = s.l;
     }
 }
@@ -73,7 +73,7 @@ int main(void) {
     amp.set_title("amp");
     Knob pwm;
     pwm.on_value_change = [](float v) {
-        dsp.SetPWM(v);
+        // dsp.SetPWM(v);
     };
     dsf_bound.y += dsf_bound.height;
     pwm.set_bound(dsf_bound);

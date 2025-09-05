@@ -1,13 +1,17 @@
 #pragma once
 #include <algorithm>
-#include "qwqdsp/osciilor/table_sine_osc.hpp"
+#include "qwqdsp/osciilor/table_sine_v2.hpp"
 #include "qwqdsp/misc/integrator.hpp"
 
 namespace qwqdsp::oscillor {
 class Blit {
 public:
     double Impluse() noexcept {
-        return TickRaw() * g_;
+        return TickRaw() * saw_blit_g_;
+    }
+
+    double OddImpluse() noexcept {
+        return TickRawOdd() * odd_blit_g_;
     }
 
     double Sawtooth() noexcept {
@@ -34,104 +38,79 @@ public:
      */
     void SetW(double w) noexcept {
         w_ = w;
-        w_osc_.SetFreq(w);
-        CheckAlasing();
+        phase_inc_ = table_.Omega2PhaseInc(w);
 
+        saw_n_ = static_cast<uint32_t>(std::floor(std::numbers::pi_v<double> / w));
+        saw_a0_ = std::pow(amp_, 1.0 / (saw_n_ + 1.0));
+        saw_blit_g_ = (1.0 - saw_a0_) / (saw_a0_ * (1.0 - amp_));
+        // 实际上后面的因子准确值是 1/pi
         saw_g_ = saw_inte_.Gain(w) * 0.3;
-
-        SetWOdd(w);
+        
+        odd_n_ = static_cast<uint32_t>(std::floor((std::numbers::pi_v<double> / w - 1) / 2));
+        odd_a0_ = std::pow(amp_, 1.0 / (odd_n_ + 1.0));
+        odd_blit_g_ = (1.0 - odd_a0_) / (1.0 - amp_);
+        square_g_ = square_inte_.Gain(w);
     }
 
     /**
      * @param a (0, 1)
      */
     void SetAmp(double a) noexcept {
-        a_ = a;
+        amp_ = a;
         UpdateA();
     }
-    
-    /**
-     * @param [1, ...]
-     */
-    void SetN(size_t n) noexcept {
-        set_n_ = n;
-        CheckAlasing();
-    }
 private:
-    void CheckAlasing() noexcept {
-        if (w_ == 0.0 && n_ != set_n_) {
-            n_ = set_n_;
-            UpdateA();
-        }
-        else {
-            size_t max_n = static_cast<size_t>((std::numbers::pi_v<float>) / w_);
-            size_t newn = std::min(max_n, set_n_);
-            if (n_ != newn) {
-                n_ = newn;
-                UpdateA();
-            }
-        }
-    }
-    
     void UpdateA() noexcept {
-        a0_ = std::pow(a_, 1.0 / (n_ + 1.0));
-        g_ = (1.0 - a0_) / (a0_ * (1.0 - a_));
+        saw_a0_ = std::pow(amp_, 1.0 / (saw_n_ + 1.0));
+        saw_blit_g_ = (1.0 - saw_a0_) / (saw_a0_ * (1.0 - amp_));
+        
+        odd_a0_ = std::pow(amp_, 1.0 / (odd_n_ + 1.0));
+        odd_blit_g_ = (1.0 - odd_a0_) / (odd_a0_ * (1.0 - amp_));
     }
 
     // 原始公式sum a0^k * cos(wk), k from 0 to n,但是移除了k=0
     double TickRaw() noexcept {
-        w_osc_.Tick();
-        double const cosv = w_osc_.Cosine();
-        double const cosnv = w_osc_.GetNPhaseCpx(n_).real();
-        double const cosvnp1v = w_osc_.GetNPhaseCpx(n_ + 1).real();
-        double const down = 1.0 + a0_ * a0_ - 2.0 * a0_ * cosv;
-        double const up = -a0_ * cosv + 1.0 + a_ * (a0_ * cosnv - cosvnp1v);
-        double const t = up / down - 1.0; // 移除k=0
-        return t;
-    }
+        phase_ += phase_inc_;
 
-    void SetWOdd(double w) noexcept {
-        u_inc_ = w_osc_.Omega2PhaseInc(w);
-        v2_inc_ = w_osc_.Omega2PhaseInc(w * 2);
-        square_g_ = square_inte_.Gain(w);
-        trianlge_g_ = square_g_ * square_g_;
+        double const up = -saw_a0_ * table_.Cosine(phase_)
+                        + 1.0
+                        + amp_ * (saw_a0_ * table_.Cosine(phase_ * saw_n_) - table_.Cosine(phase_ * (saw_n_ + 1)));
+        double const down = 1.0 + saw_a0_ * saw_a0_ - 2.0 * saw_a0_ * table_.Cosine(phase_);
+        return up / down - 1.0;
     }
 
     // sum a0^k * cos(w + 2kw), k from 0 to n
-    // TODO: 现在的n计算会导致混叠
     double TickRawOdd() noexcept {
-        double const up = -a0_ * w_osc_.Cosine(v2_phase_ - u_phase_)
-                        + w_osc_.Cosine(u_phase_)
-                        + a_ * (a0_ * w_osc_.Cosine(u_phase_ + n_ * v2_phase_) - w_osc_.Cosine(u_phase_ + (n_ + 1) * v2_phase_));
-        double const down = 1.0 + a0_ * a0_ - 2.0 * a0_ * w_osc_.Cosine(v2_phase_);
-        u_phase_ += u_inc_;
-        v2_phase_ += v2_inc_;
+        phase_ += phase_inc_;
+        double const up = -odd_a0_ * table_.Cosine(phase_)
+                        + table_.Cosine(phase_)
+                        + amp_ * (odd_a0_ * table_.Cosine(phase_ + phase_ * 2 * odd_n_) - table_.Cosine(phase_ + 2 * phase_ * (odd_n_ + 1)));
+        double const down = 1.0 + odd_a0_ * odd_a0_ - 2.0 * odd_a0_ * table_.Cosine(phase_ * 2);
         return up / down;
     }
 
     // blit
-    TableSineOsc<16> w_osc_;
+    TableSineV2<double> table_;
     double w_{};
-    size_t set_n_{};
-    size_t n_{};
-    double a0_{};
-    double a_{};
-    double g_{};
-
-    // saw integrator
+    uint32_t phase_inc_{};
+    uint32_t phase_{};
+    double amp_{};
+    
+    // saw
+    double saw_blit_g_{};
+    double saw_a0_{};
+    uint32_t saw_n_{};
     double saw_g_{};
     misc::IntegratorTrapezoidalLeak<double> saw_inte_;
 
     // sqaure
-    uint32_t u_phase_{};
-    uint32_t u_inc_{};
-    uint32_t v2_phase_{};
-    uint32_t v2_inc_{};
+    double odd_blit_g_{};
+    double odd_a0_{};
+    uint32_t odd_n_{};
     double square_g_{};
     misc::IntegratorTrapezoidalLeak<double> square_inte_;
 
     // triangle
     misc::IntegratorTrapezoidalLeak<double> triangle_inte_;
-    double trianlge_g_{};
 };
 }
