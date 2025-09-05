@@ -29,7 +29,8 @@ public:
 
     void SetPWM(double width) noexcept {
         phase_ = width * std::numbers::pi_v<double>;
-        UpdateA();
+        cp_a0_ = std::polar(a0_, phase_);
+        cp_a_ = std::polar(a_, phase_ * (n_ + 1.0));
     }
 private:
     void UpdateA() noexcept {

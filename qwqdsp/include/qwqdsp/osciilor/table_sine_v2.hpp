@@ -2,7 +2,6 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
-#include <limits>
 #include <numbers>
 #include <cstdint>
 
@@ -14,8 +13,8 @@ public:
 
     static constexpr uint32_t kTableSize = 1 << kTableBits;
     static constexpr uint32_t kFracLen = 32 - kTableBits;
-    // qwqfixme: 实际上，这里应该再+1
-    static constexpr uint32_t kScale = std::numeric_limits<uint32_t>::max();
+    static constexpr uint64_t kScale = 0x100000000;
+    static constexpr uint32_t kQuadPhase = static_cast<uint32_t>(kScale / 4);
     static constexpr uint32_t kShift = kFracLen;
 
     inline static const std::array kSineTable = [] {
@@ -35,7 +34,7 @@ public:
     }
 
     static T Cosine(uint32_t phase) noexcept {
-        uint32_t const t = phase + kScale / 4;
+        uint32_t const t = phase + kQuadPhase;
         return kSineTable[t >> kShift];
     }
 
