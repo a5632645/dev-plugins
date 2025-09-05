@@ -6,13 +6,13 @@
 #include "raylib.h"
 #include "../playing/slider.hpp"
 
-#include "qwqdsp/osciilor/blit.hpp"
+#include "qwqdsp/osciilor/blit_pwm.hpp"
 
 static constexpr int kWidth = 500;
 static constexpr int kHeight = 400;
 static constexpr float kFs = 48000.0f;
 
-static qwqdsp::oscillor::BLIT dsp;
+static qwqdsp::oscillor::BlitPWM dsp;
 
 static void AudioInputCallback(void* _buffer, unsigned int frames) {
     struct T {
@@ -21,7 +21,7 @@ static void AudioInputCallback(void* _buffer, unsigned int frames) {
     };
     std::span buffer{reinterpret_cast<T*>(_buffer), frames};
     for (auto& s : buffer) {
-        s.l = dsp.Triangle();
+        s.l = dsp.PWM();
         s.r = s.l;
     }
 }
@@ -53,7 +53,7 @@ int main(void) {
     w.set_title("w");
     Knob N;
     N.on_value_change = [](float v) {
-        dsp.SetN(v);
+        // dsp.SetN(v);
     };
     dsf_bound.y += dsf_bound.height;
     N.set_bound(dsf_bound);
@@ -71,6 +71,16 @@ int main(void) {
     amp.set_bg_color(BLACK);
     amp.set_fore_color(RAYWHITE);
     amp.set_title("amp");
+    Knob pwm;
+    pwm.on_value_change = [](float v) {
+        dsp.SetPWM(v);
+    };
+    dsf_bound.y += dsf_bound.height;
+    pwm.set_bound(dsf_bound);
+    pwm.set_range(0.01f, 0.99f, 0.01f, 0.5f);
+    pwm.set_bg_color(BLACK);
+    pwm.set_fore_color(RAYWHITE);
+    pwm.set_title("pwm");
     
     SetTargetFPS(30);
     while (!WindowShouldClose()) {
@@ -81,6 +91,7 @@ int main(void) {
             w.display();
             N.display();
             amp.display();
+            pwm.display();
         }
         EndDrawing();
     }

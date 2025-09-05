@@ -120,7 +120,7 @@ private:
 
     // saw integrator
     double saw_g_{};
-    misc::IntegratorLeak<double> saw_inte_;
+    misc::IntegratorTrapezoidalLeak<double> saw_inte_;
 
     // sqaure
     uint32_t u_phase_{};
@@ -128,10 +128,10 @@ private:
     uint32_t v2_phase_{};
     uint32_t v2_inc_{};
     double square_g_{};
-    misc::IntegratorLeak<double> square_inte_;
+    misc::IntegratorTrapezoidalLeak<double> square_inte_;
 
     // triangle
-    misc::IntegratorLeak<double> triangle_inte_;
+    misc::IntegratorTrapezoidalLeak<double> triangle_inte_;
     double trianlge_g_{};
 };
 }

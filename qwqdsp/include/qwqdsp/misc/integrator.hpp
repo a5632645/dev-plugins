@@ -23,7 +23,7 @@ private:
     float latch_{};
 };
 
-template<class T, T kLeak = 0.999>
+template<class T, T kLeak = T(0.997)>
 class IntegratorLeak {
 public:
     void Reset() noexcept {
@@ -37,7 +37,7 @@ public:
     }
 
     T Gain(T const w) const noexcept {
-        double const g2 = 1 + kLeak * kLeak - 2 * kLeak * std::cos(w);
+        T const g2 = 1 + kLeak * kLeak - 2 * kLeak * std::cos(w);
         return std::sqrt(g2);
     }
 private:
@@ -66,5 +66,31 @@ public:
 private:
     float sum_{};
     float latch_{};
+};
+
+template <class T, T kLeak = T(0.997)>
+class IntegratorTrapezoidalLeak {
+public:
+    void Reset() noexcept {
+        sum_ = 0;
+        latch_ = 0;
+    }
+
+    T Tick(T x) noexcept {
+        T const t = (x + latch_) / 2;
+        latch_ = x;
+        sum_ *= kLeak;
+        sum_ += t;
+        return sum_;
+    }
+
+    T Gain(T const w) const noexcept {
+        T const down = 1 + kLeak * kLeak - 2 * kLeak * std::cos(w);
+        T const up = 1 + std::cos(w);
+        return std::sqrt(down / up);
+    }
+private:
+    T sum_{};
+    T latch_{};
 };
 }
