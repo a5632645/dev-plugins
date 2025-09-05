@@ -4,7 +4,7 @@
 #include "qwqdsp/misc/integrator.hpp"
 
 namespace qwqdsp::oscillor {
-class BLIT {
+class Blit {
 public:
     double Impluse() noexcept {
         return TickRaw() * g_;
