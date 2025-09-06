@@ -6,15 +6,14 @@
 #include "raylib.h"
 #include "../playing/slider.hpp"
 
-#include "qwqdsp/osciilor/elliptic_sine_osc.hpp"
-#include "qwqdsp/osciilor/vic_sine_osc.hpp"
+#include "qwqdsp/osciilor/polyblep.hpp"
 #include "qwqdsp/convert.hpp"
 
 static constexpr int kWidth = 500;
 static constexpr int kHeight = 400;
 static constexpr float kFs = 48000.0f;
 
-qwqdsp::oscillor::EllipticSineOsc dsp;
+qwqdsp::oscillor::PolyBlep dsp;
 
 static void AudioInputCallback(void* _buffer, unsigned int frames) {
     struct T {
@@ -23,29 +22,33 @@ static void AudioInputCallback(void* _buffer, unsigned int frames) {
     };
     std::span buffer{reinterpret_cast<T*>(_buffer), frames};
     for (auto& s : buffer) {
-        // s.l = dsp.Tick();
-        dsp.Tick();
-        s.l = dsp.PCosine();
-        s.r = dsp.Sine();
+        s.l = dsp.Triangle();
+        s.r = s.l;
     }
 }
 
 int main(void) {
     InitWindow(kWidth, kHeight, "formant");
 
-    // dsp.SetFreq(1000, kFs);
-    dsp.Reset();
-    
     Knob w;
     w.on_value_change = [](float v) {
-        // dsp.SetPWM(v);
-        dsp.SetFreq(v);
+        dsp.SetFreq(v, kFs);
     };
     w.set_bound(0, 0, 100, 100);
-    w.set_range(0.0f, 1.00f, 0.01f, 0.5f);
+    w.set_range(0.0f, 5000.0f, 1.0f, 700.0f);
     w.set_bg_color(BLACK);
     w.set_fore_color(RAYWHITE);
     w.set_title("w");
+
+    Knob pwm;
+    pwm.on_value_change = [](float v) {
+        dsp.SetPWM(v);
+    };
+    pwm.set_bound(0, 100, 100, 100);
+    pwm.set_range(0.01f, 0.99f, 0.01f, 0.5f);
+    pwm.set_bg_color(BLACK);
+    pwm.set_fore_color(RAYWHITE);
+    pwm.set_title("pwm");
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(512);
@@ -59,6 +62,7 @@ int main(void) {
         {
             ClearBackground(BLACK);
             w.display();
+            pwm.display();
         }
         EndDrawing();
     }
