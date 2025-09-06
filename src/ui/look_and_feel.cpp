@@ -113,7 +113,45 @@ void MyLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, int width
         g.drawRect(thumb);
     }
     else if (style == juce::Slider::LinearHorizontal) {
-        
+        // 中间横着的线
+        auto track_height= b.getHeight() * 0.1f;
+        track_height = std::max(track_height, 2.0f);
+        auto track = juce::Rectangle{0.0f, 0.0f, b.getWidth(), track_height}.withCentre(b.getCentre());
+        g.setColour(slider.findColour(juce::Slider::backgroundColourId));
+        g.fillRect(track);
+        g.setColour(slider.findColour(juce::Slider::ColourIds::trackColourId));
+        g.drawRect(track);
+
+        // 两边的线
+        constexpr int nwires = 11;
+        constexpr float longer_shirk = (1.0f - 0.45f);
+        constexpr float shorter_shirk = (1.0f - 0.3f);
+        float width_span = b.getWidth() / (nwires - 1.0f);
+        float xx = b.getX();
+        g.setColour(slider.findColour(juce::Slider::ColourIds::trackColourId));
+        for (int i = 0; i < nwires; ++i) {
+            int ixx = static_cast<int>(xx);
+            if (i == 0 || i == (nwires - 1) || i == nwires / 2) {
+                g.drawVerticalLine(ixx, b.getY() + b.getHeight() * 0.5f * longer_shirk, track.getY());
+                g.drawVerticalLine(ixx, track.getBottom(), b.getBottom() - b.getHeight() * 0.5f * longer_shirk);
+            }
+            else {
+                g.drawVerticalLine(ixx, b.getY() + b.getHeight() * 0.5f * shorter_shirk, track.getY());
+                g.drawVerticalLine(ixx, track.getBottom(), b.getBottom() - b.getHeight() * 0.5f * shorter_shirk);
+            }
+            xx += width_span;
+        }
+
+        // 推子
+        auto thumb_height = b.getHeight() * 0.4f;
+        thumb_height = std::max(thumb_height, 2.0f);
+        auto thumb_width = b.getWidth() * 0.15f;
+        auto thumb = juce::Rectangle{b.getCentreX() - thumb_width * 0.5f, sliderPos - thumb_height * 0.5f, thumb_width, thumb_height};
+        g.setColour(slider.findColour(juce::Slider::ColourIds::thumbColourId)
+                                     .withAlpha(slider.isEnabled() ? 1.0f : 0.5f));
+        g.fillRect(thumb);
+        g.setColour(slider.findColour(juce::Slider::ColourIds::trackColourId));
+        g.drawRect(thumb);
     }
 }
 

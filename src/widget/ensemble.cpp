@@ -44,7 +44,8 @@ void Ensemble::resized() {
     auto b = getLocalBounds();
     {
         auto top = b.removeFromTop(20);
-        label_.setBounds(top);
+        label_.setBounds(top.removeFromLeft(60));
+        mode_.setBounds(top);
     }
     {
         num_voice_.setBounds(b.removeFromLeft(50));
@@ -52,10 +53,6 @@ void Ensemble::resized() {
         rate_.setBounds(b.removeFromLeft(50));
         spread_.setBounds(b.removeFromLeft(50));
         mix_.setBounds(b.removeFromLeft(50));
-        {
-            auto box = b.removeFromLeft(150);
-            mode_.setBounds(box.removeFromTop(30));
-        }
     }
 }
 

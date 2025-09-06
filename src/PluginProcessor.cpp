@@ -532,6 +532,69 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
 
+    // pitch tracking
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kTrackingLow, 1},
+            id::kTrackingLow,
+            20.0f, 300.0f, 80.0f
+        );
+        paramListeners_.Add(p, [this](float low) {
+            juce::ScopedLock lock{getCallbackLock()};
+            yin_.SetMinPitch(low);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kTrackingHigh, 1},
+            id::kTrackingHigh,
+            300.0f, 3000.0f, 500.0f
+        );
+        paramListeners_.Add(p, [this](float max) {
+            juce::ScopedLock lock{getCallbackLock()};
+            yin_.SetMaxPitch(max);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kTrackingPitch, 1},
+            id::kTrackingPitch,
+            -36.0f, 36.0f, 0.0f
+        );
+        paramListeners_.Add(p, [this](float pitch) {
+            juce::ScopedLock lock{getCallbackLock()};
+            frequency_mul_ = std::exp2(pitch / 12.0f);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kTrackingPwm, 1},
+            id::kTrackingPwm,
+            0.01f, 0.99f, 0.5f
+        );
+        paramListeners_.Add(p, [this](float pwm) {
+            juce::ScopedLock lock{getCallbackLock()};
+            tracking_osc_.SetPWM(pwm);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID{id::kTrackingWaveform, 1},
+            id::kTrackingWaveform,
+            juce::StringArray{
+                "saw",
+                "pwm"
+            },
+            0
+        );
+        tracking_waveform_ = p.get();
+        layout.add(std::move(p));
+    }
+
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
 }
 
@@ -625,7 +688,6 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     yin_.Init(fs, 2048);
     yin_.SetMinPitch(20.0f);
     yin_.SetMaxPitch(600.0f);
-    sawtooth_.Init(fs);
 
     paramListeners_.CallAll();
 }
@@ -707,9 +769,16 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             }
         }
         else {
-            sawtooth_.SetFreq(yin_.GetPitch().pitch);
-            for (auto& s : side_buffer_) {
-                s = sawtooth_.Saw();
+            tracking_osc_.SetFreq(yin_.GetPitch().pitch * frequency_mul_, getSampleRate());
+            if (tracking_waveform_->getIndex() == 0) {
+                for (auto& s : side_buffer_) {
+                    s = tracking_osc_.Sawtooth();
+                }
+            }
+            else {
+                for (auto& s : side_buffer_) {
+                    s = tracking_osc_.PWM();
+                }
             }
         }
     }

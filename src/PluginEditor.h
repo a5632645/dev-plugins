@@ -16,6 +16,7 @@
 #include "widget/channel_vocoder.hpp"
 #include "widget/gain.hpp"
 #include "widget/ensemble.hpp"
+#include "widget/tracking.hpp"
 #include "widget/performance.hpp"
 
 //==============================================================================
@@ -64,6 +65,7 @@ private:
     juce::Component* current_vocoder_widget_{};
 
     widget::Ensemble ensemble_;
+    widget::Tracking tracking_;
 #ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
     widget::Performance performance_;
 #endif

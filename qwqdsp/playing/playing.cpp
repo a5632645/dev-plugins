@@ -13,7 +13,7 @@ static constexpr int kWidth = 500;
 static constexpr int kHeight = 400;
 static constexpr float kFs = 48000.0f;
 
-qwqdsp::oscillor::PolyBlep dsp;
+qwqdsp::oscillor::PolyBlep<> dsp;
 
 static void AudioInputCallback(void* _buffer, unsigned int frames) {
     struct T {

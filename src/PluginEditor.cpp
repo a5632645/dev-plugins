@@ -24,6 +24,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     , rls_lpc_(p)
     , channel_vocoder_(p)
     , ensemble_(p)
+    , tracking_(p)
 #ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
     , performance_(p.perf_)
 #endif
@@ -78,6 +79,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addChildComponent(channel_vocoder_);
 
     addAndMakeVisible(ensemble_);
+    addAndMakeVisible(tracking_);
 #ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
     addAndMakeVisible(performance_);
 #endif
@@ -115,6 +117,7 @@ void AudioPluginAudioProcessorEditor::OnLanguageChanged(tooltip::Tooltips& toolt
     main_gain_.gain_slide_.OnLanguageChanged(tooltips);
     side_gain_.gain_slide_.OnLanguageChanged(tooltips);
     output_gain_.gain_slide_.OnLanguageChanged(tooltips);
+    tracking_.ChangeLang(tooltips);
 }
 
 void AudioPluginAudioProcessorEditor::resized() {
@@ -147,7 +150,9 @@ void AudioPluginAudioProcessorEditor::resized() {
     }
     {
         auto top = b.removeFromBottom(120);
-        ensemble_.setBounds(top);
+        ensemble_.setBounds(top.removeFromLeft(250));
+        top.removeFromLeft(10);
+        tracking_.setBounds(top);
 #ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
         performance_.setBounds(ensemble_.getBounds().removeFromRight(300).removeFromBottom(50));
 #endif

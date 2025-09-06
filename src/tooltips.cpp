@@ -72,6 +72,17 @@ void Tooltips::MakeEnglishTooltips() {
     labels_[id::kEnsembleMode] = "MODE";
     tooltips_[id::kEnsembleMode] = "ensemble mode";
 
+    labels_[id::kTrackingHigh] = "HIGH";
+    tooltips_[id::kTrackingHigh] = "HIGH";
+    labels_[id::kTrackingLow] = "LOW";
+    tooltips_[id::kTrackingLow] = "LOW";
+    labels_[id::kTrackingPitch] = "PITCH";
+    tooltips_[id::kTrackingPitch] = "PITCH";
+    labels_[id::kTrackingPwm] = "PWM";
+    tooltips_[id::kTrackingPwm] = "PWM";
+    labels_[id::kTrackingWaveform] = "WAVE";
+    tooltips_[id::kTrackingWaveform] = "WAVE";
+
     labels_[id::kChannelVocoderNBands] = "BANDS";
     tooltips_[id::kChannelVocoderNBands] = "numbers of bands";
     labels_[id::kChannelVocoderFreqBegin] = "FBEGIN";

@@ -12,9 +12,8 @@
 #include "dsp/channel_vocoder.hpp"
 #include "qwqdsp/performance.hpp"
 #include "qwqdsp/segement_process.hpp"
-#include "qwqdsp/pitch/yin.hpp"
 #include "qwqdsp/pitch/fast_yin.hpp"
-#include "qwqdsp/osciilor/raw_oscillor.hpp"
+#include "qwqdsp/osciilor/polyblep.hpp"
 #include "qwqdsp/osciilor/noise.hpp"
 
 //==============================================================================
@@ -166,11 +165,13 @@ public:
     dsp::STFTVocoder stft_vocoder_;
     dsp::ChannelVocoder channel_vocoder_;
     dsp::Ensemble ensemble_;
+
     qwqdsp::SegementProcess yin_process_;
-    // qwqdsp::pitch::Yin yin_;
     qwqdsp::pitch::FastYin yin_;
-    qwqdsp::oscillor::RawOscillor sawtooth_;
+    qwqdsp::oscillor::PolyBlep<float, false> tracking_osc_;
     qwqdsp::oscillor::WhiteNoise noise_;
+    juce::AudioParameterChoice* tracking_waveform_{};
+    float frequency_mul_{};
 
     dsp::Gain<1> main_gain_;
     dsp::Gain<1> side_gain_;
