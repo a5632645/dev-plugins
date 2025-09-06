@@ -1,5 +1,4 @@
 #pragma once
-#include <algorithm>
 #include "qwqdsp/osciilor/table_sine_v2.hpp"
 #include "qwqdsp/misc/integrator.hpp"
 
