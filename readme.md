@@ -16,9 +16,9 @@ Real time music vocoder based on variable methods.
 > [!NOTE]
 > This project is still under development.
 
-## GUI
+## GUI(master version)
 
-![GUI](resouce/gui2.png)
+![GUI](resouce/gui3.png)
 
 ## Build
 
@@ -30,3 +30,7 @@ cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build . --target GreenVocoder_VST3
 ```
+
+## PullRequest
+
+I am glad to see someone want to help me develop this plugin.  
