@@ -3,6 +3,11 @@
 
 ## master
 
+pitch tracking oscillator now using polyblep antialasing.  
+音高跟踪振荡器现在使用多项式blep抗混叠  
+more options for pitch tracking oscillator.  
+音高跟踪振荡器现在有更多选项  
+
 ## 0.0.3
 
 fix fft vocoder latency not coreect.  
