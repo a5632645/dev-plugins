@@ -10,7 +10,6 @@
 #include "dsp/gain.hpp"
 #include "dsp/ensemble.hpp"
 #include "dsp/channel_vocoder.hpp"
-#include "qwqdsp/performance.hpp"
 #include "qwqdsp/segement_process.hpp"
 #include "qwqdsp/pitch/fast_yin.hpp"
 #include "qwqdsp/osciilor/polyblep.hpp"
@@ -184,9 +183,6 @@ public:
     std::atomic<int> latency_{};
 
     juce::AudioParameterChoice* vocoder_type_param_{};
-#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
-    qwqdsp::Performance perf_;
-#endif
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)

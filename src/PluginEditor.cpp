@@ -9,7 +9,6 @@
 #include "tooltips.hpp"
 #include "widget/channel_vocoder.hpp"
 #include "widget/ensemble.hpp"
-#include "widget/performance.hpp"
 #include "widget/stft_vocoder.hpp"
 
 //==============================================================================
@@ -25,9 +24,6 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     , channel_vocoder_(p)
     , ensemble_(p)
     , tracking_(p)
-#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
-    , performance_(p.perf_)
-#endif
 {
     setLookAndFeel(&myLookAndFeel_);
     tooltip_window_.setLookAndFeel(&myLookAndFeel_);
@@ -80,9 +76,6 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
 
     addAndMakeVisible(ensemble_);
     addAndMakeVisible(tracking_);
-#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
-    addAndMakeVisible(performance_);
-#endif
 
     setSize (575, 550);
     startTimerHz(30);
@@ -153,9 +146,6 @@ void AudioPluginAudioProcessorEditor::resized() {
         ensemble_.setBounds(top.removeFromLeft(250));
         top.removeFromLeft(10);
         tracking_.setBounds(top);
-#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
-        performance_.setBounds(ensemble_.getBounds().removeFromRight(300).removeFromBottom(50));
-#endif
     }
     {
         burg_lpc_.setBounds(b);
@@ -172,9 +162,6 @@ void AudioPluginAudioProcessorEditor::timerCallback() {
     main_gain_.repaint();
     side_gain_.repaint();
     output_gain_.repaint();
-#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
-    performance_.Update();
-#endif
 }
 
 void AudioPluginAudioProcessorEditor::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) {

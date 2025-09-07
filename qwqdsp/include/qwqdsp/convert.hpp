@@ -107,12 +107,4 @@ static inline float Gain2Db(float gain) noexcept {
 static inline float Db2Gain(float db) noexcept {
     return std::pow(10.0f, db / 20.0f);
 }
-
-static inline void Lattice2Tf(std::span<const float> lattice, std::span<float> tf) noexcept {
-
-}
-
-static inline void Tf2Lattice(std::span<const float> tf, std::span<float> lattice) noexcept {
-    
-}
 } // qwqdsp::convert

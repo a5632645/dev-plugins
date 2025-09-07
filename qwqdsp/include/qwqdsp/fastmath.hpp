@@ -4,7 +4,9 @@
 
 namespace qwqdsp::fastmath {
 /**
- * @param x [-pi/2, pi/2]
+ * @brief 作为振荡器使用约有-70dB左右的伪影
+ * @param x [-pi, pi]
+ * @ref https://www.cnblogs.com/sun11086/archive/2009/03/20/1417944.html
  */
 template<class T>
 static constexpr T Sin(T x) noexcept {

@@ -733,9 +733,6 @@ bool AudioPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
-#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
-    [[maybe_unused]] auto _ = perf_.Count();
-#endif
     std::ignore = midiMessages;
 
     juce::ScopedNoDenormals noDenormals;

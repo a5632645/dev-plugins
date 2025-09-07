@@ -17,7 +17,6 @@
 #include "widget/gain.hpp"
 #include "widget/ensemble.hpp"
 #include "widget/tracking.hpp"
-#include "widget/performance.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessorEditor final : public juce::AudioProcessorEditor
@@ -66,9 +65,6 @@ private:
 
     widget::Ensemble ensemble_;
     widget::Tracking tracking_;
-#ifdef __VOCODER_ENABLE_PERFORMANCE_DEBUG
-    widget::Performance performance_;
-#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };
