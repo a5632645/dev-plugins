@@ -15,6 +15,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
             -Wno-c++11-compat
             -Wno-c++17-compat
             -Wno-unsafe-buffer-usage
+            -Wno-documentation-unknown-command
     )
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -41,6 +42,7 @@ if (qwqdsp_have_raylib)
                 -Wno-c++11-compat
                 -Wno-c++17-compat
                 -Wno-unsafe-buffer-usage
+                -Wno-documentation-unknown-command
         )
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
