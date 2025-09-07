@@ -684,10 +684,9 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     output_gain_.Init(fs, samplesPerBlock);
 
     yin_process_.SetSize(2048);
-    yin_process_.SetHop(1024);
+    yin_process_.SetHop(1536);
     yin_.Init(fs, 2048);
-    yin_.SetMinPitch(20.0f);
-    yin_.SetMaxPitch(600.0f);
+    pitch_filter_.Reset();
 
     paramListeners_.CallAll();
 }
@@ -762,14 +761,17 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             yin_process_.Advance();
         }
         // generate waveform
-        auto pitch = yin_.GetPitch();
-        if (pitch.non_period_ratio > 0.5f) {
+        auto const pred_pitch = yin_.GetPitch();
+        if (pred_pitch.non_period_ratio > 0.5f) {
             for (auto& s : side_buffer_) {
                 s = noise_.Next();
             }
         }
         else {
-            tracking_osc_.SetFreq(yin_.GetPitch().pitch * frequency_mul_, getSampleRate());
+            auto const pitch = pitch_filter_.Tick(pred_pitch, [](auto const& a, auto const& b) {
+                return a.pitch <=> b.pitch;
+            });
+            tracking_osc_.SetFreq(pitch.pitch * frequency_mul_, getSampleRate());
             if (tracking_waveform_->getIndex() == 0) {
                 for (auto& s : side_buffer_) {
                     s = tracking_osc_.Sawtooth();

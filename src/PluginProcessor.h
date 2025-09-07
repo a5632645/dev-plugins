@@ -15,6 +15,7 @@
 #include "qwqdsp/pitch/fast_yin.hpp"
 #include "qwqdsp/osciilor/polyblep.hpp"
 #include "qwqdsp/osciilor/noise.hpp"
+#include "qwqdsp/filter/median.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -168,6 +169,7 @@ public:
 
     qwqdsp::SegementProcess yin_process_;
     qwqdsp::pitch::FastYin yin_;
+    qwqdsp::filter::Median<qwqdsp::pitch::FastYin::Result, 3> pitch_filter_;
     qwqdsp::oscillor::PolyBlep<float, false> tracking_osc_;
     qwqdsp::oscillor::WhiteNoise noise_;
     juce::AudioParameterChoice* tracking_waveform_{};
