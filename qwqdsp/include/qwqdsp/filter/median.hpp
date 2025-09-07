@@ -25,12 +25,14 @@ SOFTWARE.
 #pragma once
 #include <vector>
 #include <cassert>
+#include <array>
 
 namespace qwqdsp::filter {
 /**
  * @ref https://github.com/accabog/MedianFilter
  */
-class Median {
+template<class T> requires std::is_arithmetic_v<T>
+class MedianDynamic {
 public:
     void Init(size_t window_size) {
         assert(window_size > 2 && window_size % 2 == 1);
@@ -42,7 +44,7 @@ public:
     void Reset() noexcept {
         size_t const window_size = buffer_.size();
         for(size_t i = 0; i < window_size; i++) {
-            buffer_[i].value = 0;
+            buffer_[i].value = T{};
             buffer_[i].next_age = &buffer_[(i + 1) % window_size];
             buffer_[i].next_value = &buffer_[(i + 1) % window_size];
             buffer_[(i + 1) % window_size].prev_value = &buffer_[i];
@@ -54,7 +56,7 @@ public:
         first_init_ = true;
     }
 
-    float Tick(float x) noexcept {
+    T Tick(T x) noexcept {
         [[unlikely]]
         if (first_init_) {
             first_init_ = false;
@@ -72,8 +74,8 @@ public:
             median_head_ = median_head_->prev_value;
         }
 
-        auto* newNode = age_head_;
-        newNode->value = x;
+        auto* new_node = age_head_;
+        new_node->value = x;
 
         age_head_->next_value->prev_value = age_head_->prev_value;
         age_head_->prev_value->next_value = age_head_->next_value;
@@ -86,17 +88,73 @@ public:
             {
                 if(i == 0)
                 {
-                    value_head_ = newNode;
+                    value_head_ = new_node;
                 }
                 break;
             }
             it = it->next_value;
         }
 
-        it->prev_value->next_value = newNode;
-        newNode->prev_value = it->prev_value;
-        it->prev_value = newNode;
-        newNode->next_value = it;
+        it->prev_value->next_value = new_node;
+        new_node->prev_value = it->prev_value;
+        it->prev_value = new_node;
+        new_node->next_value = it;
+
+        if(i >= (buffer_.size() / 2)) {
+            median_head_ = median_head_->next_value;
+        }
+
+        return median_head_->value;
+    }
+
+
+    /**
+     * @tparam Func bool less_than(T const& a, T const & b)
+     */
+    template<class Func>
+    T Tick(T x, Func&& less_func) noexcept(noexcept(less_func(std::declval<T>(), std::declval<T>()))) {
+        [[unlikely]]
+        if (first_init_) {
+            first_init_ = false;
+            for (auto& node : buffer_) {
+                node.value = x;
+            }
+            return x;
+        }
+
+        if(age_head_ == value_head_) {
+            age_head_ = value_head_->next_value;
+        }
+
+        if((age_head_ == median_head_) || (age_head_->value > median_head_->value)) {
+            median_head_ = median_head_->prev_value;
+        }
+
+        auto* new_node = age_head_;
+        new_node->value = x;
+
+        age_head_->next_value->prev_value = age_head_->prev_value;
+        age_head_->prev_value->next_value = age_head_->next_value;
+        age_head_ = age_head_->next_age;
+
+        auto* it = value_head_;
+        size_t i = 0;
+        for(;i < buffer_.size() - 1; i++) {
+            if(less_func(x, it->value))
+            {
+                if(i == 0)
+                {
+                    value_head_ = new_node;
+                }
+                break;
+            }
+            it = it->next_value;
+        }
+
+        it->prev_value->next_value = new_node;
+        new_node->prev_value = it->prev_value;
+        it->prev_value = new_node;
+        new_node->next_value = it;
 
         if(i >= (buffer_.size() / 2)) {
             median_head_ = median_head_->next_value;
@@ -106,13 +164,158 @@ public:
     }
 private:
     struct MedianNode {
-        float value;
+        T value;
         struct MedianNode *next_age;
         struct MedianNode *next_value;
         struct MedianNode *prev_value;
     };
 
     std::vector<MedianNode> buffer_;
+    MedianNode *age_head_{};
+    MedianNode *value_head_{};
+    MedianNode *median_head_{};
+    bool first_init_{};
+};
+
+template<class T, size_t kWindowSize>
+class Median {
+public:
+    static_assert(kWindowSize > 2 && kWindowSize % 2 == 1);
+    static_assert(std::is_arithmetic<T>::value);
+
+    Median() {
+        Reset();
+    }
+
+    void Reset() noexcept {
+        size_t const window_size = buffer_.size();
+        for(size_t i = 0; i < window_size; i++) {
+            buffer_[i].value = T{};
+            buffer_[i].next_age = &buffer_[(i + 1) % window_size];
+            buffer_[i].next_value = &buffer_[(i + 1) % window_size];
+            buffer_[(i + 1) % window_size].prev_value = &buffer_[i];
+        }
+
+        age_head_ = buffer_.data();
+        value_head_ = buffer_.data();
+        median_head_ = &buffer_[window_size / 2];
+        first_init_ = true;
+    }
+
+    /**
+     * @tparam Func bool less_than(T const& a, T const & b)
+     */
+    template<class Func>
+    T Tick(T x, Func&& less_func) noexcept(noexcept(less_func(std::declval<T>(), std::declval<T>()))) {
+        [[unlikely]]
+        if (first_init_) {
+            first_init_ = false;
+            for (auto& node : buffer_) {
+                node.value = x;
+            }
+            return x;
+        }
+
+        if(age_head_ == value_head_) {
+            age_head_ = value_head_->next_value;
+        }
+
+        if((age_head_ == median_head_) || (age_head_->value > median_head_->value)) {
+            median_head_ = median_head_->prev_value;
+        }
+
+        auto* new_node = age_head_;
+        new_node->value = x;
+
+        age_head_->next_value->prev_value = age_head_->prev_value;
+        age_head_->prev_value->next_value = age_head_->next_value;
+        age_head_ = age_head_->next_age;
+
+        auto* it = value_head_;
+        size_t i = 0;
+        for(;i < buffer_.size() - 1; i++) {
+            if(less_func(x, it->value))
+            {
+                if(i == 0)
+                {
+                    value_head_ = new_node;
+                }
+                break;
+            }
+            it = it->next_value;
+        }
+
+        it->prev_value->next_value = new_node;
+        new_node->prev_value = it->prev_value;
+        it->prev_value = new_node;
+        new_node->next_value = it;
+
+        if(i >= (buffer_.size() / 2)) {
+            median_head_ = median_head_->next_value;
+        }
+
+        return median_head_->value;
+    }
+
+    T Tick(T x) noexcept {
+        [[unlikely]]
+        if (first_init_) {
+            first_init_ = false;
+            for (auto& node : buffer_) {
+                node.value = x;
+            }
+            return x;
+        }
+
+        if(age_head_ == value_head_) {
+            age_head_ = value_head_->next_value;
+        }
+
+        if((age_head_ == median_head_) || (age_head_->value > median_head_->value)) {
+            median_head_ = median_head_->prev_value;
+        }
+
+        auto* new_node = age_head_;
+        new_node->value = x;
+
+        age_head_->next_value->prev_value = age_head_->prev_value;
+        age_head_->prev_value->next_value = age_head_->next_value;
+        age_head_ = age_head_->next_age;
+
+        auto* it = value_head_;
+        size_t i = 0;
+        for(;i < buffer_.size() - 1; i++) {
+            if(x < it->value)
+            {
+                if(i == 0)
+                {
+                    value_head_ = new_node;
+                }
+                break;
+            }
+            it = it->next_value;
+        }
+
+        it->prev_value->next_value = new_node;
+        new_node->prev_value = it->prev_value;
+        it->prev_value = new_node;
+        new_node->next_value = it;
+
+        if(i >= (buffer_.size() / 2)) {
+            median_head_ = median_head_->next_value;
+        }
+
+        return median_head_->value;
+    }
+private:
+    struct MedianNode {
+        T value;
+        struct MedianNode *next_age;
+        struct MedianNode *next_value;
+        struct MedianNode *prev_value;
+    };
+
+    std::array<MedianNode, kWindowSize> buffer_;
     MedianNode *age_head_{};
     MedianNode *value_head_{};
     MedianNode *median_head_{};

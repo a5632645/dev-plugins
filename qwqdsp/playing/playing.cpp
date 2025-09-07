@@ -1,73 +1,12 @@
-#include <algorithm>
-#include <array>
-#include <cstddef>
-#include <span>
+#include "qwqdsp/filter/median.hpp"
 
-#include "raylib.h"
-#include "../playing/slider.hpp"
-
-#include "qwqdsp/osciilor/polyblep.hpp"
-#include "qwqdsp/convert.hpp"
-
-static constexpr int kWidth = 500;
-static constexpr int kHeight = 400;
-static constexpr float kFs = 48000.0f;
-
-qwqdsp::oscillor::PolyBlep<> dsp;
-
-static void AudioInputCallback(void* _buffer, unsigned int frames) {
-    struct T {
-        float l;
-        float r;
-    };
-    std::span buffer{reinterpret_cast<T*>(_buffer), frames};
-    for (auto& s : buffer) {
-        s.l = dsp.Triangle();
-        s.r = s.l;
+int main() {
+    qwqdsp::filter::Median<double, 3> m;
+    double test[9] = { 1.0f, 4.0f, 1.0f, 0.0f, 2.0f, 2.0f, 2.0f, 1.0f, 1.0f };
+    double out[9];
+    for (size_t i = 0; i < 9; ++i) {
+        out[i] = m.Tick(test[i], [](double a, double b) noexcept {
+            return a < b;
+        });
     }
-}
-
-int main(void) {
-    InitWindow(kWidth, kHeight, "formant");
-
-    Knob w;
-    w.on_value_change = [](float v) {
-        dsp.SetFreq(v, kFs);
-    };
-    w.set_bound(0, 0, 100, 100);
-    w.set_range(0.0f, 5000.0f, 1.0f, 700.0f);
-    w.set_bg_color(BLACK);
-    w.set_fore_color(RAYWHITE);
-    w.set_title("w");
-
-    Knob pwm;
-    pwm.on_value_change = [](float v) {
-        dsp.SetPWM(v);
-    };
-    pwm.set_bound(0, 100, 100, 100);
-    pwm.set_range(0.01f, 0.99f, 0.01f, 0.5f);
-    pwm.set_bg_color(BLACK);
-    pwm.set_fore_color(RAYWHITE);
-    pwm.set_title("pwm");
-
-    InitAudioDevice();
-    SetAudioStreamBufferSizeDefault(512);
-    AudioStream stream = LoadAudioStream(48000, 32, 2);
-    SetAudioStreamCallback(stream, AudioInputCallback);
-    PlayAudioStream(stream);
-    
-    SetTargetFPS(30);
-    while (!WindowShouldClose()) {
-        BeginDrawing();
-        {
-            ClearBackground(BLACK);
-            w.display();
-            pwm.display();
-        }
-        EndDrawing();
-    }
-
-    UnloadAudioStream(stream);
-    CloseAudioDevice();
-    CloseWindow();
 }
