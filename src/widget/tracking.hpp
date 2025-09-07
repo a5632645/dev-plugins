@@ -20,5 +20,6 @@ private:
     ui::VerticalSlider pitch_;
     ui::VerticalSlider pwm_;
     ui::CombBox waveform_;
+    ui::VerticalSlider noise_;
 };
 }

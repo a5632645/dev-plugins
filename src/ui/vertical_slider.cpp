@@ -83,14 +83,28 @@ void VerticalSlider::BindParameter(juce::AudioProcessorValueTreeState& apvts, co
 
 void VerticalSlider::resized() {
     auto b = getLocalBounds();
-    auto e = b.removeFromBottom(20);
-    label_.setBounds(e);
-    slider_.setBounds(b);
+    if (horizontal_) {
+        auto bb = juce::TextLayout::getStringBounds(getLookAndFeel().getLabelFont(label_), label_.getText());
+        label_.setBounds(b.removeFromLeft(bb.getWidth() * 1.5f));
+        slider_.setBounds(b);
+    }
+    else {
+        auto e = b.removeFromBottom(20);
+        label_.setBounds(e);
+        slider_.setBounds(b);
+    }
 }
 
 void VerticalSlider::OnLanguageChanged(tooltip::Tooltips& tooltips) {
     short_name_ = tooltips.Label(id_);
     label_.setText(short_name_, juce::NotificationType::dontSendNotification);
     slider_.setTooltip(tooltips.Tooltip(id_));
+}
+
+void VerticalSlider::SetHorizontal(bool hor) {
+    horizontal_ = hor;
+    slider_.setSliderStyle(hor ? juce::Slider::SliderStyle::LinearHorizontal
+                               : juce::Slider::SliderStyle::LinearVertical);
+    resized();
 }
 }

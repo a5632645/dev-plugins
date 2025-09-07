@@ -36,10 +36,13 @@ public:
     T PWM() noexcept {
         phase_ += phase_inc_;
         phase_ -= std::floor(phase_);
-        T const t = phase_ < pwm_ ? 1 : -1;
-        T const phase2 = phase_ + 1 - pwm_;
+        T const t = phase_ * 2 - 1;
+        T const saw1 = t - 2 * Blep(phase_, phase_inc_);
+        T const phase2 = phase_ + pwm_;
         T const phase2_wrap = phase2 - std::floor(phase2);
-        return t + 2 * (Blep(phase_, phase_inc_) - Blep(phase2_wrap, phase_inc_));
+        T const t2 = phase2_wrap * 2 - 1;
+        T const saw2 = t2 - 2 * Blep(phase2_wrap, phase_inc_);
+        return saw1 - saw2;
     }
 
     T Triangle() noexcept {

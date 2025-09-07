@@ -143,10 +143,10 @@ void MyLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, int width
         }
 
         // 推子
-        auto thumb_height = b.getHeight() * 0.4f;
+        auto thumb_height = b.getHeight() * 0.6f;
         thumb_height = std::max(thumb_height, 2.0f);
         auto thumb_width = b.getWidth() * 0.15f;
-        auto thumb = juce::Rectangle{b.getCentreX() - thumb_width * 0.5f, sliderPos - thumb_height * 0.5f, thumb_width, thumb_height};
+        auto thumb = juce::Rectangle{0.0f, 0.0f, thumb_width, thumb_height}.withCentre({sliderPos, b.getCentreY()});
         g.setColour(slider.findColour(juce::Slider::ColourIds::thumbColourId)
                                      .withAlpha(slider.isEnabled() ? 1.0f : 0.5f));
         g.fillRect(thumb);

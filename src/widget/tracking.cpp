@@ -23,6 +23,10 @@ Tracking::Tracking(AudioPluginAudioProcessor& p) {
     waveform_.BindParam(apvts, id::kTrackingWaveform);
     addAndMakeVisible(waveform_);
 
+    noise_.SetHorizontal(true);
+    noise_.BindParameter(apvts, id::kTrackingNoise);
+    addAndMakeVisible(noise_);
+
     addAndMakeVisible(label_);
 }
 
@@ -32,6 +36,7 @@ void Tracking::ChangeLang(tooltip::Tooltips& t) {
     pitch_.OnLanguageChanged(t);
     pwm_.OnLanguageChanged(t);
     waveform_.OnLanguageChanged(t);
+    noise_.OnLanguageChanged(t);
 }
 
 void Tracking::resized() {
@@ -41,6 +46,7 @@ void Tracking::resized() {
     fmax_.setBounds(b.removeFromLeft(50));
     pitch_.setBounds(b.removeFromLeft(50));
     pwm_.setBounds(b.removeFromLeft(50));
-    waveform_.setBounds(b.removeFromTop(30));
+    waveform_.setBounds(b.removeFromTop(25));
+    noise_.setBounds(b.removeFromTop(30));
 }
 }

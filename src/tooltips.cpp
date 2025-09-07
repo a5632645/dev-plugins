@@ -73,15 +73,17 @@ void Tooltips::MakeEnglishTooltips() {
     tooltips_[id::kEnsembleMode] = "ensemble mode";
 
     labels_[id::kTrackingHigh] = "HIGH";
-    tooltips_[id::kTrackingHigh] = "HIGH";
+    tooltips_[id::kTrackingHigh] = "pitch frequency top";
     labels_[id::kTrackingLow] = "LOW";
-    tooltips_[id::kTrackingLow] = "LOW";
+    tooltips_[id::kTrackingLow] = "pitch frequency bottom";
     labels_[id::kTrackingPitch] = "PITCH";
-    tooltips_[id::kTrackingPitch] = "PITCH";
+    tooltips_[id::kTrackingPitch] = "oscillator pitch detune";
     labels_[id::kTrackingPwm] = "PWM";
-    tooltips_[id::kTrackingPwm] = "PWM";
+    tooltips_[id::kTrackingPwm] = "oscillator pulse width";
     labels_[id::kTrackingWaveform] = "WAVE";
-    tooltips_[id::kTrackingWaveform] = "WAVE";
+    tooltips_[id::kTrackingWaveform] = "oscillator waveform";
+    labels_[id::kTrackingNoise] = "NT";
+    tooltips_[id::kTrackingNoise] = "noise threshould";
 
     labels_[id::kChannelVocoderNBands] = "BANDS";
     tooltips_[id::kChannelVocoderNBands] = "numbers of bands";
@@ -118,6 +120,7 @@ void Tooltips::MakeEnglishTooltips() {
     labels_[id::kSideChannelConfig] = "Carry Channel";
 }
 
+#define JSTR(X) juce::String::fromUTF8(X)
 void Tooltips::MakeChineseTooltips() {
     tooltips_.clear();
     labels_.clear();
@@ -177,6 +180,19 @@ void Tooltips::MakeChineseTooltips() {
     tooltips_[id::kEnsembleNumVoices] = juce::String::fromUTF8("合唱器的声音数量");
     labels_[id::kEnsembleMode] = juce::String::fromUTF8("模式");
     tooltips_[id::kEnsembleMode] = juce::String::fromUTF8("合唱器的模式");
+
+    labels_[id::kTrackingHigh] = JSTR("最大音高");
+    tooltips_[id::kTrackingHigh] = JSTR("最大音高范围");
+    labels_[id::kTrackingLow] = JSTR("最小音高");
+    tooltips_[id::kTrackingLow] = JSTR("最小音高范围");
+    labels_[id::kTrackingPitch] = JSTR("偏移");
+    tooltips_[id::kTrackingPitch] = JSTR("振荡器音高偏移");
+    labels_[id::kTrackingPwm] = "PWM";
+    tooltips_[id::kTrackingPwm] = JSTR("振荡器脉冲宽度");
+    labels_[id::kTrackingWaveform] = JSTR("波形");
+    tooltips_[id::kTrackingWaveform] = JSTR("振荡器波形");
+    labels_[id::kTrackingNoise] = JSTR("阈值");
+    tooltips_[id::kTrackingNoise] = JSTR("噪声阈值");
 
     labels_[id::kChannelVocoderNBands] = juce::String::fromUTF8("带数");
     tooltips_[id::kChannelVocoderNBands] = juce::String::fromUTF8("多少个带通滤波器");

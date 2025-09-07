@@ -173,6 +173,7 @@ public:
     qwqdsp::oscillor::PolyBlep<float, false> tracking_osc_;
     qwqdsp::oscillor::WhiteNoise noise_;
     juce::AudioParameterChoice* tracking_waveform_{};
+    juce::AudioParameterFloat* tracking_noise_{};
     float frequency_mul_{};
 
     dsp::Gain<1> main_gain_;

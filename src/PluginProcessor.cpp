@@ -582,6 +582,15 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
     {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kTrackingNoise, 1},
+            id::kTrackingNoise,
+            0.01f, 0.99f, 0.6f
+        );
+        tracking_noise_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
         auto p = std::make_unique<juce::AudioParameterChoice>(
             juce::ParameterID{id::kTrackingWaveform, 1},
             id::kTrackingWaveform,
@@ -762,7 +771,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         }
         // generate waveform
         auto const pred_pitch = yin_.GetPitch();
-        if (pred_pitch.non_period_ratio > 0.5f) {
+        if (pred_pitch.non_period_ratio > tracking_noise_->get()) {
             for (auto& s : side_buffer_) {
                 s = noise_.Next();
             }
@@ -854,7 +863,9 @@ void AudioPluginAudioProcessor::SetLatency() {
     int latency = 0;
     switch (vocoder_type_param_->getIndex()) {
     case eVocoderType_STFTVocoder:
-        latency += stft_vocoder_.GetFFTSize();
+        if (stft_vocoder_.GetFFTSize() > getBlockSize()) {
+            latency += stft_vocoder_.GetFFTSize();
+        }
         break;
     default:
         break;

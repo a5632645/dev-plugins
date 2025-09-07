@@ -19,14 +19,16 @@ public:
     ~VerticalSlider() override;
     void BindParameter(juce::AudioProcessorValueTreeState& apvts, const char* id);
     void resized() override;
-    MyPopmenuSlider slider_;
-
     void OnLanguageChanged(tooltip::Tooltips& tooltips);
+    void SetHorizontal(bool hor);
+
+    MyPopmenuSlider slider_;
 private:
     juce::String short_name_;
     juce::Label label_;
     const char* id_;
     std::unique_ptr<juce::SliderParameterAttachment> attach_;
+    bool horizontal_{false};
 };
 
 }
