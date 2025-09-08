@@ -17,7 +17,9 @@
   - [ ] FIR希尔伯特变换
 
 - [ ] 振荡器抗混叠
-  - [ ] BLIT
-  - [ ] BLEP
-  - [ ] BLAMP
+  - [x] BLIT
+  - [x] BLEP
+  - [x] BLAMP
   - [ ] DPW
+  - [ ] 优化BLIT的噪声
+  - [x] BLEP硬同步

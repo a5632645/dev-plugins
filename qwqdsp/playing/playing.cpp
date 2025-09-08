@@ -1,57 +1,84 @@
 #include <algorithm>
-#include <raylib.h>
-#include <numbers>
-#include <cmath>
-#include <string>
+#include <array>
+#include <cstddef>
+#include <span>
 
-#include "qwqdsp/fastmath/math.hpp"
-#include "qwqdsp/fastmath/sin.hpp"
+#include "raylib.h"
+#include "../playing/slider.hpp"
 
-static constexpr float jmap(float x, float xmin, float xmax, float ymin, float ymax) noexcept {
-    return (x - xmin) / (xmax - xmin) * (ymax - ymin) + ymin;
+#include "qwqdsp/osciilor/polyblep.hpp"
+#include "qwqdsp/convert.hpp"
+
+static constexpr int kWidth = 500;
+static constexpr int kHeight = 400;
+static constexpr float kFs = 48000.0f;
+
+static qwqdsp::oscillor::PolyBlep<float, false> dsp;
+
+static void AudioInputCallback(void* _buffer, unsigned int frames) {
+    struct T {
+        float l;
+        float r;
+    };
+    std::span buffer{reinterpret_cast<T*>(_buffer), frames};
+    for (auto& s : buffer) {
+        s.l = dsp.SawtoothSync();
+        s.r = s.l;
+    }
 }
 
-int main() {
-    InitWindow(1280, 720, "remez");
-    SetTargetFPS(30);
+int main(void) {
+    InitWindow(kWidth, kHeight, "blep");
 
+    Knob w;
+    w.on_value_change = [](float v) {
+        dsp.SetFreq(v, kFs);
+    };
+    w.set_bound(0, 0, 100, 100);
+    w.set_range(0.0f, 5000.0f, 1.0f, 700.0f);
+    w.set_bg_color(BLACK);
+    w.set_fore_color(RAYWHITE);
+    w.set_title("w");
+
+    Knob pwm;
+    pwm.on_value_change = [](float v) {
+        dsp.SetPWM(v);
+    };
+    pwm.set_bound(0, 100, 100, 100);
+    pwm.set_range(0.01f, 0.99f, 0.01f, 0.5f);
+    pwm.set_bg_color(BLACK);
+    pwm.set_fore_color(RAYWHITE);
+    pwm.set_title("pwm");
+
+    Knob sync;
+    sync.on_value_change = [](float v) {
+        dsp.SetHardSync(v);
+    };
+    sync.set_bound(0, 200, 100, 100);
+    sync.set_range(1.0f, 4.0f, 0.01f, 1.0f);
+    sync.set_bg_color(BLACK);
+    sync.set_fore_color(RAYWHITE);
+    sync.set_title("sync");
+
+    InitAudioDevice();
+    SetAudioStreamBufferSizeDefault(512);
+    AudioStream stream = LoadAudioStream(48000, 32, 2);
+    SetAudioStreamCallback(stream, AudioInputCallback);
+    PlayAudioStream(stream);
+    
+    SetTargetFPS(30);
     while (!WindowShouldClose()) {
         BeginDrawing();
-
-        ClearBackground(BLACK);
-        float x1 = 0;
-        float y1 = 0;
-        float x2 = 0;
-        float y2 = 0;
-        float differences[1280];
-        for (int i = 0; i < 1280; ++i) {
-            float const x = i / 1280.0f * std::numbers::pi_v<float>;
-            float xy1 = qwqdsp::fastmath::Exp2(x);
-            float xy2 = std::exp2(x);
-            float newy1 = jmap(xy1, -2, 2, 720, 0);
-            float newy2 = jmap(xy2, -2, 2, 720, 0);
-            DrawLine(x1, y1, i, newy1, WHITE);
-            DrawLine(x2, y2, i, newy2, RED);
-            x1 = i;
-            x2 = x1;
-            y1 = newy1;
-            y2 = newy2;
-            differences[i] = std::abs(xy1 - xy2);
+        {
+            ClearBackground(BLACK);
+            w.display();
+            pwm.display();
+            sync.display();
         }
-        float const max = *std::max_element(differences, differences + 1280);
-        DrawText(std::to_string(max).c_str(), 0, 0, 20, WHITE);
-        x1 = 0;
-        y1 = 0;
-        for (size_t i = 0; i < 1280; ++i) {
-            float const v = differences[i] / max;
-            float y = jmap(v, 0, 1.5, 720, 0);
-            DrawLine(x1, y1, i, y, GREEN);
-            x1 = i;
-            y1 = y;
-        }
-
         EndDrawing();
     }
 
+    UnloadAudioStream(stream);
+    CloseAudioDevice();
     CloseWindow();
 }
