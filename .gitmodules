@@ -13,3 +13,6 @@
 [submodule "simde"]
 	path = simde
 	url = https://github.com/simd-everywhere/simde.git
+[submodule "qwqdsp"]
+	path = qwqdsp
+	url = https://github.com/a5632645/qwqdsp.git
