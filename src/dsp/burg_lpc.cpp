@@ -63,7 +63,7 @@ float BurgLPC::ProcessSingle(float x, float exci) {
             l_iir[i] = l_iir[i + 1] + iir_k_[lpc_order_ - i - 1] * x_iir_[i + 1];
         }
         float out_iir = x_iir_[lpc_order_];
-        out_iir = std::clamp(out_iir, -4.0f, 4.0f);
+        out_iir = std::clamp(out_iir, -10.0f, 10.0f);
         l_iir[lpc_order_] = out_iir;
 
         upsample_latch_ = out_iir;

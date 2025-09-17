@@ -21,5 +21,6 @@ private:
     ui::VerticalSlider pwm_;
     ui::CombBox waveform_;
     ui::VerticalSlider noise_;
+    ui::VerticalSlider glide_;
 };
 }

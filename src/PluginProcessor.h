@@ -2,19 +2,26 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <vector>
-#include "dsp/filter.hpp"
+
 #include "dsp/burg_lpc.hpp"
 #include "dsp/pitch_shifter.hpp"
 #include "dsp/rls_lpc.hpp"
 #include "dsp/stft_vocoder.hpp"
-#include "dsp/gain.hpp"
-#include "dsp/ensemble.hpp"
 #include "dsp/channel_vocoder.hpp"
-#include "qwqdsp/segement_process.hpp"
-#include "qwqdsp/pitch/fast_yin.hpp"
+
+#include "dsp/filter.hpp"
+#include "dsp/ensemble.hpp"
+#include "dsp/gain.hpp"
+
 #include "qwqdsp/osciilor/polyblep.hpp"
 #include "qwqdsp/osciilor/noise.hpp"
+
 #include "qwqdsp/filter/median.hpp"
+#include "qwqdsp/pitch/fast_yin.hpp"
+#include "qwqdsp/fx/resample_iir_dynamic.hpp"
+#include "qwqdsp/fx/resample_coeffs.h"
+#include "qwqdsp/segement/analyze.hpp"
+#include "qwqdsp/misc/smoother.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -166,14 +173,23 @@ public:
     dsp::ChannelVocoder channel_vocoder_;
     dsp::Ensemble ensemble_;
 
-    qwqdsp::SegementProcess yin_process_;
+    // pitch tracking
+    qwqdsp::fx::ResampleIIRDynamic<qwqdsp::fx::coeff::FastCoeffs<float>, 127> yin_resample_;
+    qwqdsp::segement::Analyze<8192> yin_segement_;
     qwqdsp::pitch::FastYin yin_;
     qwqdsp::filter::Median<qwqdsp::pitch::FastYin::Result, 3> pitch_filter_;
+    std::array<float, 8192> osc_buffer_{};
+    size_t osc_wpos_{};
+    float osc_want_write_frac_{};
+    
+    // tracking oscillator
     qwqdsp::oscillor::PolyBlep<float, false> tracking_osc_;
     qwqdsp::oscillor::WhiteNoise noise_;
     juce::AudioParameterChoice* tracking_waveform_{};
     juce::AudioParameterFloat* tracking_noise_{};
     float frequency_mul_{};
+    qwqdsp::misc::ExpSmoother pitch_glide_;
+    bool first_init_{};
 
     dsp::Gain<1> main_gain_;
     dsp::Gain<1> side_gain_;

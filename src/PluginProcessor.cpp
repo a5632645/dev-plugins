@@ -585,7 +585,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kTrackingNoise, 1},
             id::kTrackingNoise,
-            0.01f, 0.99f, 0.6f
+            0.0f, 1.0f, 0.6f
         );
         tracking_noise_ = p.get();
         layout.add(std::move(p));
@@ -601,6 +601,19 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             0
         );
         tracking_waveform_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kTrackingGlide, 1},
+            id::kTrackingGlide,
+            juce::NormalisableRange<float>{0.0f, 1000.0f, 1.0f, 0.4f},
+            20.0f
+        );
+        paramListeners_.Add(p, [this](float bw) {
+            juce::ScopedLock lock{getCallbackLock()};
+            pitch_glide_.SetSmoothTime(bw, getSampleRate());
+        });
         layout.add(std::move(p));
     }
 
@@ -692,10 +705,18 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     side_gain_.Init(fs, samplesPerBlock);
     output_gain_.Init(fs, samplesPerBlock);
 
-    yin_process_.SetSize(2048);
-    yin_process_.SetHop(1536);
-    yin_.Init(fs, 2048);
+    yin_resample_.Init(sampleRate);
+    yin_resample_.Set(sampleRate, 8000.0f);
+    yin_resample_.Reset();
+    yin_segement_.SetHop(256);
+    yin_segement_.SetSize(512);
+    yin_segement_.Reset();
+    yin_.Init(8000.0f, 512);
     pitch_filter_.Reset();
+    osc_wpos_ = 0;
+    osc_want_write_frac_ = 0;
+    pitch_glide_.Reset();
+    first_init_ = true;
 
     paramListeners_.CallAll();
 }
@@ -758,37 +779,125 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     auto& main_buffer_ = channels[0];
     auto& side_buffer_ = channels[1];
     if (side_ch == 6) {
-        // the pitch tracking oscillor
-        yin_process_.Push(main_buffer_);
-        if (yin_process_.CanProcess()) {
-            yin_.Process(yin_process_.GetBlock());
-        }
-        while (yin_process_.CanProcess()) {
-            yin_process_.Advance();
-        }
-        // generate waveform
-        auto const pred_pitch = yin_.GetPitch();
-        if (pred_pitch.non_period_ratio > tracking_noise_->get()) {
-            for (auto& s : side_buffer_) {
-                s = noise_.Next();
+        // pitch tracking step
+        // 1. downsample to 8000 hz
+        // 2. burg lpc remove formant
+        // 3. yin detect pitch
+        // 4. median filter
+        // 5. generate waveform
+        auto burg_lp = [this](std::span<float> x) {
+            float eb[512]{};
+            for (size_t i = 0; i < x.size(); ++i) {
+                x[i] = x[i] + noise_.Next() * 1e-5f;
+                eb[i] = x[i];
+            }
+            // poles
+            for (int p = 0; p < 4; ++p) {
+                float lag{};
+                float up{};
+                float down{};
+                for (size_t i = 0; i < x.size(); ++i) {
+                    up += x[i] * lag;
+                    down += x[i] * x[i];
+                    down += lag * lag;
+                    lag = eb[i];
+                }
+                float k = -2.0f * up / down;
+
+                lag = 0;
+                for (size_t i = 0; i < x.size(); ++i) {
+                    float const upgo = x[i] + lag * k;
+                    float const downgo = lag + x[i] * k;
+                    lag = eb[i];
+                    x[i] = upgo;
+                    eb[i] = downgo;
+                }
+            }
+        };
+
+        std::array<float, 512> temp{};
+        size_t num_write = 0;
+        auto it = main_buffer_.begin();
+        while (it != main_buffer_.end()) {
+            [[unlikely]]
+            while (yin_resample_.IsReady()) {
+                temp[num_write++] = yin_resample_.Read();
+                [[unlikely]]
+                if (num_write == 512) {
+                    num_write = 0;
+                    // burg_lp(temp);
+                    yin_segement_.Push(temp);
+                }
+            }
+            [[likely]]
+            while (!yin_resample_.IsReady()) {
+                yin_resample_.Push(*it);
+                ++it;
+                [[unlikely]]
+                if (it == main_buffer_.end()) {
+                    break;
+                }
             }
         }
-        else {
-            auto const pitch = pitch_filter_.Tick(pred_pitch, [](auto const& a, auto const& b) {
-                return a.pitch <=> b.pitch;
-            });
-            tracking_osc_.SetFreq(pitch.pitch * frequency_mul_, getSampleRate());
-            if (tracking_waveform_->getIndex() == 0) {
-                for (auto& s : side_buffer_) {
-                    s = tracking_osc_.Sawtooth();
+
+        // burg_lp({temp.data(), num_write});
+        yin_segement_.Push({temp.data(), num_write});
+
+        qwqdsp::pitch::FastYin::Result pitch{};
+        float const noise_threshold = tracking_noise_->get();
+        while (yin_segement_.CanProcess()) {
+            yin_.Process(yin_segement_.GetBlock());
+            yin_segement_.Advance();
+
+            pitch = yin_.GetPitch();
+            float const want_write = yin_segement_.GetHop() * getSampleRate() / 8000.0f + osc_want_write_frac_;
+            size_t const iwant = static_cast<size_t>(want_write);
+            {
+                float t;
+                osc_want_write_frac_ = std::modf(want_write, &t);
+            }
+            size_t const can_write = std::min(osc_buffer_.size() - osc_wpos_, iwant);
+            if (pitch.non_period_ratio > noise_threshold) {
+                for (size_t i = 0; i < can_write; ++i) {
+                    osc_buffer_[osc_wpos_++] = noise_.Next();
                 }
             }
             else {
-                for (auto& s : side_buffer_) {
-                    s = tracking_osc_.PWM();
+                pitch = pitch_filter_.Tick(pitch, [](auto const& a, auto const& b) {
+                    return a.pitch <=> b.pitch;
+                });
+                
+                [[unlikely]]
+                if (first_init_) {
+                    pitch_glide_.SetTargetImmediately(pitch.pitch * frequency_mul_);
+                }
+                else {
+                    pitch_glide_.SetTarget(pitch.pitch * frequency_mul_);
+                }
+                
+                if (tracking_waveform_->getIndex() == 0) {
+                    for (size_t i = 0; i < can_write; ++i) {
+                        tracking_osc_.SetFreq(pitch_glide_.Tick(), getSampleRate());
+                        osc_buffer_[osc_wpos_++] = tracking_osc_.Sawtooth();
+                    }
+                }
+                else {
+                    for (size_t i = 0; i < can_write; ++i) {
+                        tracking_osc_.SetFreq(pitch_glide_.Tick(), getSampleRate());
+                        osc_buffer_[osc_wpos_++] = tracking_osc_.PWM();
+                    }
                 }
             }
         }
+        
+        size_t const cancopy = std::min(osc_wpos_, side_buffer_.size());
+        std::copy_n(osc_buffer_.begin(), cancopy, side_buffer_.begin());
+        std::fill(side_buffer_.begin() + cancopy, side_buffer_.end(), float{});
+        size_t const drag = osc_wpos_ - cancopy;
+        for (size_t i = 0; i < drag; ++i) {
+            osc_buffer_[i] = osc_buffer_[i + cancopy];
+        }
+        osc_wpos_ -= cancopy;
     }
 
     filter_.Process(main_buffer_);
@@ -823,6 +932,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         old_latency_ = latency_.load();
         setLatencySamples(old_latency_);
     }
+
+    first_init_ = false;
 }
 
 //==============================================================================

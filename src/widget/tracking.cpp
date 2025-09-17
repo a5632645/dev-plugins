@@ -27,6 +27,10 @@ Tracking::Tracking(AudioPluginAudioProcessor& p) {
     noise_.BindParameter(apvts, id::kTrackingNoise);
     addAndMakeVisible(noise_);
 
+    glide_.SetHorizontal(true);
+    glide_.BindParameter(apvts, id::kTrackingGlide);
+    addAndMakeVisible(glide_);
+
     addAndMakeVisible(label_);
 }
 
@@ -37,6 +41,7 @@ void Tracking::ChangeLang(tooltip::Tooltips& t) {
     pwm_.OnLanguageChanged(t);
     waveform_.OnLanguageChanged(t);
     noise_.OnLanguageChanged(t);
+    glide_.OnLanguageChanged(t);
 }
 
 void Tracking::resized() {
@@ -48,5 +53,6 @@ void Tracking::resized() {
     pwm_.setBounds(b.removeFromLeft(50));
     waveform_.setBounds(b.removeFromTop(25));
     noise_.setBounds(b.removeFromTop(30));
+    glide_.setBounds(b.removeFromTop(30));
 }
 }

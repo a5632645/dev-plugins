@@ -72,6 +72,7 @@ static constexpr auto kTrackingPitch = "track_pitch";
 static constexpr auto kTrackingWaveform = "track_waveform";
 static constexpr auto kTrackingPwm = "track_pwm";
 static constexpr auto kTrackingNoise = "track_noise";
+static constexpr auto kTrackingGlide = "track_glide";
 
 // --------------------------------------------------------------------------------
 // gui others

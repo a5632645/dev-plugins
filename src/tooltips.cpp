@@ -84,6 +84,8 @@ void Tooltips::MakeEnglishTooltips() {
     tooltips_[id::kTrackingWaveform] = "oscillator waveform";
     labels_[id::kTrackingNoise] = "NT";
     tooltips_[id::kTrackingNoise] = "noise threshould";
+    labels_[id::kTrackingGlide] = "GL";
+    tooltips_[id::kTrackingGlide] = "pitch glide";
 
     labels_[id::kChannelVocoderNBands] = "BANDS";
     tooltips_[id::kChannelVocoderNBands] = "numbers of bands";
@@ -193,6 +195,8 @@ void Tooltips::MakeChineseTooltips() {
     tooltips_[id::kTrackingWaveform] = JSTR("振荡器波形");
     labels_[id::kTrackingNoise] = JSTR("阈值");
     tooltips_[id::kTrackingNoise] = JSTR("噪声阈值");
+    labels_[id::kTrackingGlide] = "GLIDE";
+    tooltips_[id::kTrackingGlide] = "pitch glide";
 
     labels_[id::kChannelVocoderNBands] = juce::String::fromUTF8("带数");
     tooltips_[id::kChannelVocoderNBands] = juce::String::fromUTF8("多少个带通滤波器");
