@@ -43,10 +43,7 @@ private:
 
     std::array<float, kNumPoles> lattice_k_{};
     std::array<float, kNumPoles> iir_k_{};
-    std::array<float, kNumPoles> eb_latch_{};
-    std::array<float, kNumPoles + 1> eb_out_{};
-    std::array<float, kNumPoles + 1> ef_out_{};
-    std::array<float, kNumPoles + 1> eb_out_latch_{};
+    std::array<float, kNumPoles> eb_lag_{};
     std::array<float, kNumPoles> ebsum_{};
     std::array<float, kNumPoles> efsum_{};
     std::array<float, kNumPoles + 1> x_iir_{};

@@ -29,18 +29,21 @@ float BurgLPC::ProcessSingle(float x, float exci) {
         float noise = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f) * 1e-5f;
         filt_x += noise;
 
-        ef_out_[0] = filt_x;
-        eb_out_[0] = filt_x;
+        float ef = filt_x;
+        float eb = filt_x;
         for (int i = 0; i < lpc_order_; ++i) {
-            float up = ef_out_[i] * eb_out_latch_[i];
-            float down = ef_out_[i] * ef_out_[i] + eb_out_latch_[i] * eb_out_latch_[i];
-            efsum_[i] = forget_ * efsum_[i] + up;
-            ebsum_[i] = forget_ * ebsum_[i] + down;
+            efsum_[i] *= forget_;
+            ebsum_[i] *= forget_;
+            efsum_[i] += ef * eb_lag_[i];
+            ebsum_[i] += ef * ef;
+            ebsum_[i] += eb_lag_[i] * eb_lag_[i];
             lattice_k_[i] = -2.0f * efsum_[i] / ebsum_[i];
-            ef_out_[i + 1] = ef_out_[i] + lattice_k_[i] * eb_latch_[i];
-            eb_out_[i + 1] = eb_latch_[i] + lattice_k_[i] * ef_out_[i];
-            eb_latch_[i] = eb_out_[i];
-            eb_out_latch_[i] = eb_out_[i];
+            float const k = lattice_k_[i];
+            float const upgo = ef + k * eb_lag_[i];
+            float const downgo = eb_lag_[i] + k * ef;
+            eb_lag_[i] = eb;
+            ef = upgo;
+            eb = downgo;
         }
 
         for (int i = 0; i < lpc_order_; ++i) {
@@ -48,7 +51,7 @@ float BurgLPC::ProcessSingle(float x, float exci) {
         }
 
         // iir part
-        float recusial = ef_out_[lpc_order_];
+        float recusial = ef;
         float gain = std::sqrt(recusial * recusial + 1e-10f);
         gain = gain_smooth_.Process(gain);
         x_iir_[0] = filt_side * gain;
@@ -84,10 +87,6 @@ void BurgLPC::SetLPCOrder(int order) {
     lpc_order_ = order;
     std::fill_n(lattice_k_.begin(), order, 0.0f);
     std::fill_n(iir_k_.begin(), order, 0.0f);
-    std::fill_n(eb_latch_.begin(), order, 0.0f);
-    std::fill_n(eb_out_.begin(), order + 1, 0.0f);
-    std::fill_n(ef_out_.begin(), order + 1, 0.0f);
-    std::fill_n(eb_out_latch_.begin(), order + 1, 0.0f);
     std::fill_n(ebsum_.begin(), order, 0.0f);
     std::fill_n(efsum_.begin(), order, 0.0f);
     std::fill_n(x_iir_.begin(), order + 1, 0.0f);
