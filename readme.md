@@ -18,7 +18,7 @@ Real time music vocoder based on variable methods.
 
 ## GUI(master version)
 
-![GUI](resouce/gui3.png)
+![GUI](resouce/gui4.png)
 
 ## Build
 
