@@ -8,5 +8,5 @@ add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
 
 add_subdirectory(eigen)
 add_subdirectory(JUCE)
-add_subdirectory(dspdev)
+add_subdirectory(qwqdsp)
 add_subdirectory(src)
