@@ -58,10 +58,10 @@ void BurgLPC::paint(juce::Graphics& g) {
     g.fillRect(bb);
     auto current_font = g.getCurrentFont();
 
-    constexpr float top_line_db = 30.0f;
-    constexpr float last_line_db = -30.0f;
-    constexpr float bound_top_db = 35.0f;
-    constexpr float bound_bottom_db = -45.0f;
+    constexpr float top_line_db = 80.0f;
+    constexpr float last_line_db = -20.0f;
+    constexpr float bound_top_db = 85.0f;
+    constexpr float bound_bottom_db = -25.0f;
     constexpr float freq_begin = 20.0f;
     constexpr float freq_pow = 3.0f; // 20k
     auto convert_db_to_y = [y = bb.getY(), h = bb.getHeight()](float db) ->float {
@@ -125,13 +125,23 @@ void BurgLPC::paint(juce::Graphics& g) {
 
     // lattice to tf
     std::array<float, dsp::BurgLPC::kNumPoles> lattice_buff;
-    std::array<float, dsp::BurgLPC::kNumPoles> transfer_function;
+    std::array<float, dsp::BurgLPC::kNumPoles + 1> upgoing{1};
+    std::array<float, dsp::BurgLPC::kNumPoles + 1> downgoing{1};
+
     processor_.burg_lpc_.CopyLatticeCoeffient(lattice_buff);
-    int order = processor_.burg_lpc_.GetOrder();
-    for (int i = 0; i < order; ++i) {
-        transfer_function[i] = lattice_buff[i];
-        for (int j = 0; j < i - 1; ++j) {
-            transfer_function[j] = transfer_function[j] - lattice_buff[i] * transfer_function[i - j];
+    size_t order = processor_.burg_lpc_.GetOrder();
+
+    for (size_t kidx = 0; kidx < order; ++kidx) {
+        for (size_t i = kidx + 1; i != 0; --i) {
+            downgoing[i] = downgoing[i - 1];
+        }
+        downgoing[0] = 0;
+
+        for (size_t i = 0; i < kidx + 2; ++i) {
+            float up = upgoing[i] + lattice_buff[kidx] * downgoing[i];
+            float down = downgoing[i] + lattice_buff[kidx] * upgoing[i];
+            upgoing[i] = up;
+            downgoing[i] = down;
         }
     }
 
@@ -148,9 +158,9 @@ void BurgLPC::paint(juce::Graphics& g) {
         mul_begin *= mul_val;
 
         auto z_responce = std::complex{1.0f, 0.0f};
-        for (int i = 0; i < order; ++i) {
+        for (size_t i = 0; i < order; ++i) {
             auto z = std::polar(1.0f, -omega * (i + 1));
-            z_responce -= transfer_function[i] * z;
+            z_responce += upgoing[i + 1] * z;
         }
         z_responce = 1.0f / z_responce;
         if (std::isnan(z_responce.real()) || std::isnan(z_responce.imag())) {
