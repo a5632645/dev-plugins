@@ -17,40 +17,20 @@ public:
 
     void resized() override {
         auto b = getLocalBounds();
-        auto e = b.removeFromRight(50);
-        gain_slide_.setBounds(e);
+        gain_slide_.setBounds(b);
     }
 
     void paint(juce::Graphics& g) override {
-        auto b = getLocalBounds();
-        b.removeFromRight(50);
-        auto e = b.toFloat();
-        e.reduce(3, 3);
-        
-        g.setColour(juce::Colours::black);
-        g.fillRect(e);
-
         int nchannel = gain_.GetNumChannels();
-        auto box = e.withWidth(e.getWidth() / nchannel);
+        float total = 0.0f;
         for (int channel = 0; channel < nchannel; ++channel) {
-            float peak = gain_.GetPeak(channel);
-            float db = 20.0f * std::log10(peak + 1e-10f);
-            db = std::clamp(db, kMinDb, kMaxDb);
-            float norm = (db - kMinDb) / (kMaxDb - kMinDb);
-            float h = e.getHeight() * norm;
-            if (peak > 1.0f) {
-                g.setColour(juce::Colours::orange);
-            }
-            else {
-                g.setColour(juce::Colours::green);
-            }
-            auto bbox = box;
-            g.fillRect(bbox.removeFromBottom(h));
-    
-            g.setColour(juce::Colours::white);
-            g.drawRect(box);
-            box.translate(box.getWidth(), 0.0f);
+            total += gain_.GetPeak(channel);
         }
+        total /= nchannel;
+
+        auto b = getLocalBounds();
+        g.setColour(total > 1.0f ? juce::Colours::orange : juce::Colours::green);
+        g.drawRect(b);
     }
     
     ui::VerticalSlider gain_slide_;

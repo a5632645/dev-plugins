@@ -24,12 +24,8 @@ void Tooltips::MakeEnglishTooltips() {
     tooltips_[id::kOutputgain] = "control the output gain";
     labels_[id::kVocoderType] = "TYPE";
     tooltips_[id::kVocoderType] = "change the vocoder type";
-    labels_[id::kEmphasisPitch] = "HSHELF";
-    tooltips_[id::kEmphasisPitch] = "set modulator high shelf filter cutoff pitch";
-    labels_[id::kEmphasisGain] = "GAIN";
-    tooltips_[id::kEmphasisGain] = "set modulator high shelf filter gain";
-    labels_[id::kEmphasisS] = "SLOPE";
-    tooltips_[id::kEmphasisS] = "set modulator high shelf filter slope";
+    labels_[id::kPreLowpass] = "LP";
+    tooltips_[id::kPreLowpass] = "set main lowpass filter, 48db/oct";
     labels_[id::kShiftPitch] = "PITCH";
     tooltips_[id::kShiftPitch] = "set main pitch shifter, this cause formant shift like effects";
 
@@ -135,12 +131,8 @@ void Tooltips::MakeChineseTooltips() {
     tooltips_[id::kOutputgain] = juce::String::fromUTF8("输出增益");
     labels_[id::kVocoderType] = juce::String::fromUTF8("类型");
     tooltips_[id::kVocoderType] = juce::String::fromUTF8("更改声码器类型");
-    labels_[id::kEmphasisPitch] = juce::String::fromUTF8("高架");
-    tooltips_[id::kEmphasisPitch] = juce::String::fromUTF8("调制源高架滤波器截止音高");
-    labels_[id::kEmphasisGain] = juce::String::fromUTF8("增益");
-    tooltips_[id::kEmphasisGain] = juce::String::fromUTF8("调制源高架滤波器增益");
-    labels_[id::kEmphasisS] = juce::String::fromUTF8("斜率");
-    tooltips_[id::kEmphasisS] = juce::String::fromUTF8("调制源高架滤波器斜率");
+    labels_[id::kPreLowpass] = JSTR("低通");
+    tooltips_[id::kPreLowpass] = JSTR("调制源低通滤波器");
     labels_[id::kShiftPitch] = juce::String::fromUTF8("音高");
     tooltips_[id::kShiftPitch] = juce::String::fromUTF8("调制源音高移动,这会导致共振峰移动的效果");
 
@@ -195,8 +187,8 @@ void Tooltips::MakeChineseTooltips() {
     tooltips_[id::kTrackingWaveform] = JSTR("振荡器波形");
     labels_[id::kTrackingNoise] = JSTR("阈值");
     tooltips_[id::kTrackingNoise] = JSTR("噪声阈值");
-    labels_[id::kTrackingGlide] = "GLIDE";
-    tooltips_[id::kTrackingGlide] = "pitch glide";
+    labels_[id::kTrackingGlide] = JSTR("滑动");
+    tooltips_[id::kTrackingGlide] = JSTR("音高平滑时间");
 
     labels_[id::kChannelVocoderNBands] = juce::String::fromUTF8("带数");
     tooltips_[id::kChannelVocoderNBands] = juce::String::fromUTF8("多少个带通滤波器");

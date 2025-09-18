@@ -22,6 +22,7 @@
 #include "qwqdsp/fx/resample_coeffs.h"
 #include "qwqdsp/segement/analyze.hpp"
 #include "qwqdsp/misc/smoother.hpp"
+#include "qwqdsp/filter/biquad.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -156,16 +157,14 @@ public:
     } paramListeners_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
 
-    juce::AudioParameterFloat* filter_pitch_;
-    juce::AudioParameterFloat* filter_gain_;
-    juce::AudioParameterFloat* filter_s_;
     juce::AudioParameterFloat* lpc_pitch_;
     juce::AudioParameterFloat* lpc_detune_;
     juce::AudioParameterBool* shifter_enabled_;
     juce::AudioParameterInt* main_channel_config_;
     juce::AudioParameterInt* side_channel_config_;
 
-    dsp::Filter filter_;
+    float pre_emphasis_{};
+    std::array<qwqdsp::filter::Biquad, 4> pre_lowpass_;
     dsp::PitchShifter shifter_;
     dsp::BurgLPC burg_lpc_;
     dsp::RLSLPC rls_lpc_;

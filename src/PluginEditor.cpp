@@ -1,15 +1,8 @@
-#include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "juce_core/juce_core.h"
-#include "juce_core/system/juce_PlatformDefs.h"
-#include "juce_events/juce_events.h"
-#include "juce_graphics/juce_graphics.h"
-#include "juce_gui_basics/juce_gui_basics.h"
+#include "PluginProcessor.h"
+
 #include "param_ids.hpp"
 #include "tooltips.hpp"
-#include "widget/channel_vocoder.hpp"
-#include "widget/ensemble.hpp"
-#include "widget/stft_vocoder.hpp"
 
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
@@ -30,13 +23,8 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     
     auto& apvts = *p.value_tree_;
 
-    addAndMakeVisible(filter_);
-    em_pitch_.BindParameter(apvts, id::kEmphasisPitch);
-    addAndMakeVisible(em_pitch_);
-    em_gain_.BindParameter(apvts, id::kEmphasisGain);
-    addAndMakeVisible(em_gain_);
-    em_s_.BindParameter(apvts, id::kEmphasisS);
-    addAndMakeVisible(em_s_);
+    pre_lowpass_.BindParameter(apvts, id::kPreLowpass);
+    addAndMakeVisible(pre_lowpass_);
 
     addAndMakeVisible(shifter_);
     shift_enable_.BindParameter(apvts, id::kEnableShifter);
@@ -94,12 +82,9 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
 }
 
 void AudioPluginAudioProcessorEditor::OnLanguageChanged(tooltip::Tooltips& tooltips) {
-    filter_.setText(tooltips.Label(id::kFilterTitle), juce::dontSendNotification);
     main_channel_selector_.SetLabelName(tooltips.Label(id::kMainChannelConfig));
     side_channel_selector_.SetLabelName(tooltips.Label(id::kSideChannelConfig));
-    em_pitch_.OnLanguageChanged(tooltips);
-    em_gain_.OnLanguageChanged(tooltips);
-    em_s_.OnLanguageChanged(tooltips);
+    pre_lowpass_.OnLanguageChanged(tooltips);
     shift_pitch_.OnLanguageChanged(tooltips);
     vocoder_type_.OnLanguageChanged(tooltips);
     stft_vocoder_.OnLanguageChanged(tooltips);
@@ -117,35 +102,41 @@ void AudioPluginAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
     {
         auto title_box = b.removeFromTop(20);
-        filter_.setBounds(title_box);
         auto top = b.removeFromTop(100);
-        em_pitch_.setBounds(top.removeFromLeft(50));
-        em_gain_.setBounds(top.removeFromLeft(50));
-        em_s_.setBounds(top.removeFromLeft(50));
+        pre_lowpass_.setBounds(top.removeFromLeft(50));
         shift_pitch_.setBounds(top.removeFromLeft(50));
         {
             title_box.removeFromLeft(shift_pitch_.getX());
             shift_enable_.setBounds(title_box.removeFromLeft(25));
             shifter_.setBounds(title_box);
-            language_box_.setBounds(title_box.removeFromRight(100));
         }
-        main_gain_.setBounds(top.removeFromLeft(50 + 20));
-        side_gain_.setBounds(top.removeFromLeft(50 + 20));
-        output_gain_.setBounds(top.removeFromLeft(50 + 40));
+        main_gain_.setBounds(top.removeFromLeft(50));
+        side_gain_.setBounds(top.removeFromLeft(50));
+        output_gain_.setBounds(top.removeFromLeft(50));
         {
-            auto half_top = top.removeFromTop(top.getHeight() / 2);
-            main_channel_selector_.setBounds(half_top);
-            side_channel_selector_.setBounds(top);
+            auto tracking_b = top;
+            tracking_b.setY(tracking_b.getY() - 20);
+            tracking_b.setHeight(tracking_b.getHeight() + 20);
+            tracking_.setBounds(tracking_b);
         }
     }
     {
         vocoder_type_.setBounds(b.removeFromTop(30));
     }
     {
-        auto top = b.removeFromBottom(120);
-        ensemble_.setBounds(top.removeFromLeft(250));
-        top.removeFromLeft(10);
-        tracking_.setBounds(top);
+        auto bottom = b.removeFromBottom(120);
+        ensemble_.setBounds(bottom.removeFromLeft(250));
+        {
+            bottom.removeFromLeft(8);
+            auto select_b = bottom.removeFromLeft(200);
+            auto half_top = select_b.removeFromTop(select_b.getHeight() / 2);
+            main_channel_selector_.setBounds(half_top);
+            side_channel_selector_.setBounds(select_b);
+        }
+        {
+            bottom.removeFromLeft(8);
+            language_box_.setBounds(bottom.removeFromTop(25));
+        }
     }
     {
         burg_lpc_.setBounds(b);

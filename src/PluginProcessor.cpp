@@ -1,16 +1,13 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "dsp/channel_vocoder.hpp"
-#include "dsp/ensemble.hpp"
-#include "dsp/rls_lpc.hpp"
-#include "juce_audio_processors/juce_audio_processors.h"
-#include "juce_core/juce_core.h"
-#include "juce_core/system/juce_PlatformDefs.h"
-#include "juce_data_structures/juce_data_structures.h"
-#include "param_ids.hpp"
+
 #include <array>
 #include <memory>
+
+#include "param_ids.hpp"
 #include "channel_mix.hpp"
+#include "qwqdsp/convert.hpp"
+#include "qwqdsp/filter/rbj.hpp"
 
 static const juce::StringArray kVocoderNames{
     "Burg-LPC",
@@ -39,40 +36,33 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
-    auto filter_callback = [this](float) {
-        juce::ScopedLock lock{getCallbackLock()};
-        float st = filter_pitch_->get();
-        float freq = std::exp2((st - 69.0f) / 12.0f) * 440.0f;
-        filter_.MakeHighShelf(filter_gain_->get(), freq, filter_s_->get());
-    };
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kEmphasisGain, 1},
-            id::kEmphasisGain,
-            0.0f, 40.0f, 20.0f
+            juce::ParameterID{id::kPreLowpass, 1},
+            id::kPreLowpass,
+            qwqdsp::convert::Freq2Pitch(1000.0f), 135.1f, 135.0f
         );
-        filter_gain_ = p.get();
-        paramListeners_.Add(p, filter_callback);
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kEmphasisPitch, 1},
-            id::kEmphasisPitch,
-            0.0f, 135.0f, 80.0f
-        );
-        filter_pitch_ = p.get();
-        paramListeners_.Add(p, filter_callback);
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kEmphasisS, 1},
-            id::kEmphasisS,
-            0.5f, 1.0f, 0.707f
-        );
-        filter_s_ = p.get();
-        paramListeners_.Add(p, filter_callback);
+        paramListeners_.Add(p, [this](float pitch) {
+            juce::ScopedLock lock{getCallbackLock()};
+            if (pitch > 135.0f) {
+                for (auto& f : pre_lowpass_) {
+                    f.Set(1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+                }
+            }
+            else {
+                float const freq = qwqdsp::convert::Pitch2Freq(pitch);
+                float const w = qwqdsp::convert::Freq2W(freq, getSampleRate());
+                qwqdsp::filter::RBJ design;
+                design.Lowpass(w, 0.50979558f);
+                pre_lowpass_[0].Set(design.b0, design.b1, design.b2, design.a1, design.a2);
+                design.Lowpass(w, 0.60134489f);
+                pre_lowpass_[1].Set(design.b0, design.b1, design.b2, design.a1, design.a2);
+                design.Lowpass(w, 0.89997622f);
+                pre_lowpass_[2].Set(design.b0, design.b1, design.b2, design.a1, design.a2);
+                design.Lowpass(w, 2.5629154f);
+                pre_lowpass_[3].Set(design.b0, design.b1, design.b2, design.a1, design.a2);
+            }
+        });
         layout.add(std::move(p));
     }
     {
@@ -345,7 +335,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kMainGain, 1},
             id::kMainGain,
-            dsp::Gain<1>::kMinDb, 20.0f, 0.0f
+            dsp::Gain<1>::kMinDb, 40.0f, 0.0f
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -357,7 +347,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kSideGain, 1},
             id::kSideGain,
-            dsp::Gain<1>::kMinDb, 20.0f, 0.0f
+            dsp::Gain<1>::kMinDb, 40.0f, 0.0f
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -369,7 +359,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kOutputgain, 1},
             id::kOutputgain,
-            dsp::Gain<1>::kMinDb, 40.0f, -15.0f
+            dsp::Gain<1>::kMinDb, 40.0f, 0.0f
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -695,7 +685,6 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
 {
     float fs = static_cast<float>(sampleRate);
     burg_lpc_.Init(fs);
-    filter_.Init(fs);
     rls_lpc_.Init(fs);
     stft_vocoder_.Init(fs);
     channel_vocoder_.Init(fs);
@@ -778,6 +767,36 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     auto channels = Mix(main_ch, side_ch, buffer);
     auto& main_buffer_ = channels[0];
     auto& side_buffer_ = channels[1];
+
+    auto burg_lp = [this](std::span<float> x) {
+        float eb[512]{};
+        for (size_t i = 0; i < x.size(); ++i) {
+            x[i] = x[i] + noise_.Next() * 1e-5f;
+            eb[i] = x[i];
+        }
+        // poles
+        for (int p = 0; p < 2; ++p) {
+            float lag{};
+            float up{};
+            float down{};
+            for (size_t i = 0; i < x.size(); ++i) {
+                up += x[i] * lag;
+                down += x[i] * x[i];
+                down += lag * lag;
+                lag = eb[i];
+            }
+            float k = -2.0f * up / down;
+
+            lag = 0;
+            for (size_t i = 0; i < x.size(); ++i) {
+                float const upgo = x[i] + lag * k;
+                float const downgo = lag + x[i] * k;
+                lag = eb[i];
+                x[i] = upgo;
+                eb[i] = downgo;
+            }
+        }
+    };
     if (side_ch == 6) {
         // pitch tracking step
         // 1. downsample to 8000 hz
@@ -785,35 +804,6 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         // 3. yin detect pitch
         // 4. median filter
         // 5. generate waveform
-        auto burg_lp = [this](std::span<float> x) {
-            float eb[512]{};
-            for (size_t i = 0; i < x.size(); ++i) {
-                x[i] = x[i] + noise_.Next() * 1e-5f;
-                eb[i] = x[i];
-            }
-            // poles
-            for (int p = 0; p < 4; ++p) {
-                float lag{};
-                float up{};
-                float down{};
-                for (size_t i = 0; i < x.size(); ++i) {
-                    up += x[i] * lag;
-                    down += x[i] * x[i];
-                    down += lag * lag;
-                    lag = eb[i];
-                }
-                float k = -2.0f * up / down;
-
-                lag = 0;
-                for (size_t i = 0; i < x.size(); ++i) {
-                    float const upgo = x[i] + lag * k;
-                    float const downgo = lag + x[i] * k;
-                    lag = eb[i];
-                    x[i] = upgo;
-                    eb[i] = downgo;
-                }
-            }
-        };
 
         std::array<float, 512> temp{};
         size_t num_write = 0;
@@ -900,7 +890,17 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         osc_wpos_ -= cancopy;
     }
 
-    filter_.Process(main_buffer_);
+    for (auto& f : main_buffer_) {
+        float const out = f - 0.68f * pre_emphasis_;
+        pre_emphasis_ = f;
+        f = out;
+    }
+    for (auto& f : pre_lowpass_) {
+        for (auto& s : main_buffer_) {
+            s = f.Tick(s);
+        }
+    }
+
     if (shifter_enabled_->get()) {
         shifter_.Process(main_buffer_);
     }

@@ -1,6 +1,5 @@
 #pragma once
 #include "PluginProcessor.h"
-#include "juce_graphics/juce_graphics.h"
 #include "juce_gui_basics/juce_gui_basics.h"
 
 #include "tooltips.hpp"
@@ -41,10 +40,7 @@ private:
     AudioPluginAudioProcessor& processorRef;
     juce::TooltipWindow tooltip_window_;
 
-    juce::Label filter_;
-    ui::VerticalSlider em_pitch_;
-    ui::VerticalSlider em_gain_;
-    ui::VerticalSlider em_s_;
+    ui::VerticalSlider pre_lowpass_;
     juce::Label shifter_{"", "Enable"};
     ui::ToggleButton shift_enable_;
     ui::VerticalSlider shift_pitch_;
