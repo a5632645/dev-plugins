@@ -52,7 +52,7 @@ void Tracking::resized() {
     pitch_.setBounds(b.removeFromLeft(50));
     pwm_.setBounds(b.removeFromLeft(50));
     waveform_.setBounds(b.removeFromTop(25));
-    noise_.setBounds(b.removeFromTop(30));
-    glide_.setBounds(b.removeFromTop(30));
+    noise_.setBounds(b.removeFromTop(25));
+    glide_.setBounds(b.removeFromTop(25));
 }
 }

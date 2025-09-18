@@ -85,7 +85,7 @@ void VerticalSlider::resized() {
     auto b = getLocalBounds();
     if (horizontal_) {
         auto bb = juce::TextLayout::getStringBounds(getLookAndFeel().getLabelFont(label_), label_.getText());
-        label_.setBounds(b.removeFromLeft(bb.getWidth() * 1.5f));
+        label_.setBounds(b.removeFromLeft(bb.getWidth() * 2.0f));
         slider_.setBounds(b);
     }
     else {
@@ -99,6 +99,7 @@ void VerticalSlider::OnLanguageChanged(tooltip::Tooltips& tooltips) {
     short_name_ = tooltips.Label(id_);
     label_.setText(short_name_, juce::NotificationType::dontSendNotification);
     slider_.setTooltip(tooltips.Tooltip(id_));
+    resized();
 }
 
 void VerticalSlider::SetHorizontal(bool hor) {
