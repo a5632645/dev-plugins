@@ -764,23 +764,9 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         }
     }
 
-    auto channels = Mix(0, 1, buffer);
+    auto channels = Mix(main_ch, side_ch, buffer);
     auto& main_buffer_ = channels[0];
     auto& side_buffer_ = channels[1];
-    ensemble_.Process(main_buffer_, side_buffer_);
-    output_gain_.Process(channels);
-
-    if (latency_.load() != old_latency_) {
-        old_latency_ = latency_.load();
-        setLatencySamples(old_latency_);
-    }
-
-    first_init_ = false;
-    return;
-
-    // auto channels = Mix(main_ch, side_ch, buffer);
-    // auto& main_buffer_ = channels[0];
-    // auto& side_buffer_ = channels[1];
 
     auto burg_lp = [this](std::span<float> x) {
         float eb[512]{};
