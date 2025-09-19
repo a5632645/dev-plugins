@@ -47,19 +47,21 @@ void Ensemble::Init(float sample_rate) {
     sample_rate_ = sample_rate;
     int min_delay_len = static_cast<int>(4.0f + kMaxTime / 1000.0f * sample_rate);
 
-    int power = 1;
-    while (power < min_delay_len) {
-        power *= 2;
-    }
-    buffer_.resize(power);
-    buffer_len_mask_ = power - 1;
+    delay_.Init(min_delay_len);
+
+    // int power = 1;
+    // while (power < min_delay_len) {
+    //     power *= 2;
+    // }
+    // buffer_.resize(power);
+    // buffer_len_mask_ = power - 1;
 
     for (auto& n : noises_) {
         n.Init(sample_rate);
         n.Reset();
     }
 
-    buffer_wpos_ = 0;
+    // buffer_wpos_ = 0;
 }
 
 void Ensemble::SetNumVoices(int num_voices) {
@@ -96,7 +98,8 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
         int size = static_cast<int>(block.size());
         for (int i = 0; i < size; ++i) {
             float in = block[i];
-            buffer_[buffer_wpos_] = in;
+            // buffer_[buffer_wpos_] = in;
+            delay_.Push(in);
     
             float wet_left = 0.0f;
             float wet_right = 0.0f;
@@ -106,30 +109,31 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
     
                 float sin = std::cos(voice_phase * std::numbers::pi_v<float> * 2.0f);
                 sin = sin * 0.5f + 0.5f;
-                float delay = sin * current_delay_len_ + 3; // give some delay to avoid read future value
+                float delay = sin * current_delay_len_ + 11; // give some delay to avoid read future value
                 
-                float rpos = buffer_wpos_ + buffer_.size() - delay;
-                int irpos = static_cast<int>(rpos) & buffer_len_mask_;
-                int inext1 = (irpos + 1) & buffer_len_mask_;
-                int inext2 = (irpos + 2) & buffer_len_mask_;
-                int inext3 = (irpos + 3) & buffer_len_mask_;
-                float t = rpos - static_cast<int>(rpos);
+                // float rpos = buffer_wpos_ + buffer_.size() - delay;
+                // int irpos = static_cast<int>(rpos) & buffer_len_mask_;
+                // int inext1 = (irpos + 1) & buffer_len_mask_;
+                // int inext2 = (irpos + 2) & buffer_len_mask_;
+                // int inext3 = (irpos + 3) & buffer_len_mask_;
+                // float t = rpos - static_cast<int>(rpos);
     
-                float p1 = buffer_[irpos];
-                float p2 = buffer_[inext1];
-                float p3 = buffer_[inext2];
-                float p4 = buffer_[inext3];
+                // float p1 = buffer_[irpos];
+                // float p2 = buffer_[inext1];
+                // float p3 = buffer_[inext2];
+                // float p4 = buffer_[inext3];
                 
-                auto d1 = t - 1.f;
-                auto d2 = t - 2.f;
-                auto d3 = t - 3.f;
+                // auto d1 = t - 1.f;
+                // auto d2 = t - 2.f;
+                // auto d3 = t - 3.f;
 
-                auto c1 = -d1 * d2 * d3 / 6.f;
-                auto c2 = d2 * d3 * 0.5f;
-                auto c3 = -d1 * d3 * 0.5f;
-                auto c4 = d1 * d2 / 6.f;
+                // auto c1 = -d1 * d2 * d3 / 6.f;
+                // auto c2 = d2 * d3 * 0.5f;
+                // auto c3 = -d1 * d3 * 0.5f;
+                // auto c4 = d1 * d2 / 6.f;
 
-                float v = p1 * c1 + t * (p2 * c2 + p3 * c3 + p4 * c4);
+                // float v = p1 * c1 + t * (p2 * c2 + p3 * c3 + p4 * c4);
+                float v = delay_.GetAfterPush(delay);
     
                 float pan = pans[voice] * spread_;
                 wet_left += v * (1.0f - pan) / 2.0f;
@@ -138,8 +142,8 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
             block[i] = std::lerp(in, wet_left * gain_, mix_);
             right[i] = std::lerp(in, wet_right * gain_, mix_);
     
-            ++buffer_wpos_;
-            buffer_wpos_ &= buffer_len_mask_;
+            // ++buffer_wpos_;
+            // buffer_wpos_ &= buffer_len_mask_;
             lfo_phase_ += lfo_freq_;
             lfo_phase_ -= std::floor(lfo_phase_);
         }
@@ -148,36 +152,38 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
         int size = static_cast<int>(block.size());
         for (int i = 0; i < size; ++i) {
             float in = block[i];
-            buffer_[buffer_wpos_] = in;
+            delay_.Push(in);
+            // buffer_[buffer_wpos_] = in;
     
             float wet_left = 0.0f;
             float wet_right = 0.0f;
             for (int voice = 0; voice < num_voices_; ++voice) {
                 float norm_len = noises_[voice].Tick();
-                float delay = norm_len * current_delay_len_ + 3; // give some delay to avoid read future value
+                float delay = norm_len * current_delay_len_ + 11; // give some delay to avoid read future value
                 
-                float rpos = buffer_wpos_ + buffer_.size() - delay;
-                int irpos = static_cast<int>(rpos) & buffer_len_mask_;
-                int inext1 = (irpos + 1) & buffer_len_mask_;
-                int inext2 = (irpos + 2) & buffer_len_mask_;
-                int inext3 = (irpos + 3) & buffer_len_mask_;
-                float t = rpos - static_cast<int>(rpos);
+                // float rpos = buffer_wpos_ + buffer_.size() - delay;
+                // int irpos = static_cast<int>(rpos) & buffer_len_mask_;
+                // int inext1 = (irpos + 1) & buffer_len_mask_;
+                // int inext2 = (irpos + 2) & buffer_len_mask_;
+                // int inext3 = (irpos + 3) & buffer_len_mask_;
+                // float t = rpos - static_cast<int>(rpos);
     
-                float p1 = buffer_[irpos];
-                float p2 = buffer_[inext1];
-                float p3 = buffer_[inext2];
-                float p4 = buffer_[inext3];
+                // float p1 = buffer_[irpos];
+                // float p2 = buffer_[inext1];
+                // float p3 = buffer_[inext2];
+                // float p4 = buffer_[inext3];
                 
-                auto d1 = t - 1.f;
-                auto d2 = t - 2.f;
-                auto d3 = t - 3.f;
+                // auto d1 = t - 1.f;
+                // auto d2 = t - 2.f;
+                // auto d3 = t - 3.f;
 
-                auto c1 = -d1 * d2 * d3 / 6.f;
-                auto c2 = d2 * d3 * 0.5f;
-                auto c3 = -d1 * d3 * 0.5f;
-                auto c4 = d1 * d2 / 6.f;
+                // auto c1 = -d1 * d2 * d3 / 6.f;
+                // auto c2 = d2 * d3 * 0.5f;
+                // auto c3 = -d1 * d3 * 0.5f;
+                // auto c4 = d1 * d2 / 6.f;
 
-                float v = p1 * c1 + t * (p2 * c2 + p3 * c3 + p4 * c4);
+                // float v = p1 * c1 + t * (p2 * c2 + p3 * c3 + p4 * c4);
+                float v = delay_.GetAfterPush(delay);
     
                 float pan = pans[voice] * spread_;
                 wet_left += v * (1.0f - pan) / 2.0f;
@@ -186,8 +192,8 @@ void Ensemble::Process(std::span<float> block, std::span<float> right) {
             block[i] = std::lerp(in, wet_left * gain_, mix_);
             right[i] = std::lerp(in, wet_right * gain_, mix_);
     
-            ++buffer_wpos_;
-            buffer_wpos_ &= buffer_len_mask_;
+            // ++buffer_wpos_;
+            // buffer_wpos_ &= buffer_len_mask_;
             lfo_phase_ += lfo_freq_;
             lfo_phase_ -= std::floor(lfo_phase_);
         }

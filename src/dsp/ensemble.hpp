@@ -1,13 +1,9 @@
-/*
- * TODO: 
- *       add delay controls
-*/
-
 #pragma once
 #include <cstddef>
 #include <span>
 #include <vector>
 #include "qwqdsp/noise.hpp"
+#include "qwqdsp/fx/delay_line.hpp"
 
 namespace dsp {
 
@@ -48,9 +44,10 @@ private:
     float current_delay_len_{};
     float gain_{};
     
-    std::vector<float> buffer_;
-    size_t buffer_wpos_{};
-    size_t buffer_len_mask_{};
+    qwqdsp::fx::DelayLine<qwqdsp::fx::DelayLineInterp::Kaiser21> delay_;
+    // std::vector<float> buffer_;
+    // size_t buffer_wpos_{};
+    // size_t buffer_len_mask_{};
     qwqdsp::Noise noises_[kMaxVoices];
 };
 
