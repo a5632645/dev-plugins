@@ -13,7 +13,6 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
                      #if ! JucePlugin_IsMidiEffect
                       #if ! JucePlugin_IsSynth
                        .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                       .withInput("Sidechain", juce::AudioChannelSet::stereo(), true)
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
@@ -66,7 +65,7 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
             juce::ParameterID{"phase", 1},
             "phase",
             juce::NormalisableRange<float>{0.0f, 1.0f, 0.01f},
-            0.25f
+            0.03f
         );
         param_listener_.Add(p, [this](float phase) {
             juce::ScopedLock _{getCallbackLock()};
@@ -80,7 +79,7 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{"cutoff", 1},
             "cutoff",
-            juce::NormalisableRange<float>{0.01f, 3.0f, 0.01f},
+            juce::NormalisableRange<float>{0.1415926f, 3.0f, 0.01f},
             std::numbers::pi_v<float> / 2
         );
         param_listener_.Add(p, [this](float cutoff) {
@@ -94,8 +93,8 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{"coeff_len", 1},
             "coeff_len",
-            juce::NormalisableRange<float>{2.0f, static_cast<float>(kMaxCoeffLen), 1.0f},
-            1.0f
+            juce::NormalisableRange<float>{4.0f, static_cast<float>(kMaxCoeffLen), 1.0f},
+            8.0f
         );
         param_listener_.Add(p, [this](float coeff_len) {
             juce::ScopedLock _{getCallbackLock()};
@@ -129,6 +128,19 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
             minum_phase_ = minum_phase;
             UpdateCoeff();
             UpdateFeedback();
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{"highpass", 1},
+            "highpass",
+            false
+        );
+        param_listener_.Add(p, [this](bool highpass) {
+            juce::ScopedLock _{getCallbackLock()};
+            highpass_ = highpass;
+            UpdateCoeff();
         });
         layout.add(std::move(p));
     }
@@ -185,9 +197,49 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         layout.add(std::move(p));
     }
 
+    // barberpole
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{"barber_phase", 1},
+            "barber_phase",
+            juce::NormalisableRange<float>{0.0f, 1.0f, 0.01f},
+            0.0f
+        );
+        param_listener_.Add(p, [this](float barber_phase) {
+            juce::ScopedLock _{getCallbackLock()};
+            barber_phase_smoother_.SetTarget(barber_phase);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{"barber_speed", 1},
+            "barber_speed",
+            juce::NormalisableRange<float>{-10.0f, 10.0f, 0.01f},
+            0.0f
+        );
+        param_listener_.Add(p, [this](float barber_speed) {
+            juce::ScopedLock _{getCallbackLock()};
+            barber_phase_inc_ = barber_speed / getSampleRate();
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{"barber_enable", 1},
+            "barber_enable",
+            false
+        );
+        param_listener_.Add(p, [this](bool barber_enable) {
+            juce::ScopedLock _{getCallbackLock()};
+            barber_enable_ = barber_enable;
+        });
+        layout.add(std::move(p));
+    }
+
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
 
-    complex_fft_.Init(kMaxCoeffLen * kFFTOversample);
+    complex_fft_.Init(kFFTSize);
 }
 
 SteepFlangerAudioProcessor::~SteepFlangerAudioProcessor()
@@ -268,6 +320,7 @@ void SteepFlangerAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     delay_right_.Init(samples_need * kMaxCoeffLen);
     left_delay_smoother_.SetSmoothTime(20.0f, sampleRate);
     right_delay_smoother_.SetSmoothTime(20.0f, sampleRate);
+    barber_phase_smoother_.SetSmoothTime(20.0f, sampleRate);
     param_listener_.CallAll();
 }
 
@@ -343,31 +396,68 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         right_delay_smoother_.SetTarget(delay);
 
         // fir polyphase filtering
-        for (size_t i = 0; i < num_process; ++i) {
-            delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
-
-            float sum = 0;
-            float const num_notch = left_delay_smoother_.Tick();
-            for (size_t i = 0; i < coeff_len_; ++i) {
-                sum += coeffs_[i] * delay_left_.GetAfterPush(i * num_notch);
+        if (!barber_enable_) {
+            for (size_t i = 0; i < num_process; ++i) {
+                delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
+    
+                float sum = 0;
+                float const num_notch = left_delay_smoother_.Tick();
+                for (size_t i = 0; i < coeff_len_; ++i) {
+                    sum += coeffs_[i] * delay_left_.GetAfterPush(i * num_notch);
+                }
+    
+                left_fb_ = left_damp_.Tick(sum);
+                *left_ptr = sum;
+                ++left_ptr;
             }
-
-            left_fb_ = left_damp_.Tick(sum);
-            *left_ptr = sum;
-            ++left_ptr;
+            for (size_t i = 0; i < num_process; ++i) {
+                delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
+    
+                float sum = 0;
+                float const num_notch = right_delay_smoother_.Tick();
+                for (size_t i = 0; i < coeff_len_; ++i) {
+                    sum += coeffs_[i] * delay_right_.GetAfterPush(i * num_notch);
+                }
+    
+                right_fb_ = right_damp_.Tick(sum);
+                *right_ptr = sum;
+                ++right_ptr;
+            }
         }
-        for (size_t i = 0; i < num_process; ++i) {
-            delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
-
-            float sum = 0;
-            float const num_notch = right_delay_smoother_.Tick();
-            for (size_t i = 0; i < coeff_len_; ++i) {
-                sum += coeffs_[i] * delay_right_.GetAfterPush(i * num_notch);
+        else {
+            for (size_t i = 0; i < num_process; ++i) {
+                delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
+                delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
+    
+                barber_phase_ += barber_phase_inc_;
+                barber_phase_ -= std::floor(barber_phase_);
+                float barber = barber_phase_ + barber_phase_smoother_.Tick();
+                barber -= std::floor(barber);
+    
+                float const left_num_notch = left_delay_smoother_.Tick();
+                float const right_num_notch = right_delay_smoother_.Tick();
+                auto const left_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
+                auto const right_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
+                std::complex<float> left_rotation_coeff = 1;
+                std::complex<float> right_rotation_coeff = 1;
+                std::complex<float> left_sum = 0;
+                std::complex<float> right_sum = 0;
+                for (size_t i = 0; i < coeff_len_; ++i) {
+                    left_sum += left_rotation_coeff * coeffs_[i] * delay_left_.GetAfterPush(i * left_num_notch);
+                    right_sum += right_rotation_coeff * coeffs_[i] * delay_right_.GetAfterPush(i * right_num_notch);
+                    left_rotation_coeff *= left_rotation_mul;
+                    right_rotation_coeff *= right_rotation_mul;
+                }
+                
+                float const left_out = left_hilbert_.Tick(left_sum).real();
+                float const right_out = right_hilbert_.Tick(right_sum).real();
+                left_fb_ = left_damp_.Tick(left_out);
+                right_fb_ = right_damp_.Tick(right_out);
+                *left_ptr = left_out;
+                *right_ptr = right_out;
+                ++left_ptr;
+                ++right_ptr;
             }
-
-            right_fb_ = right_damp_.Tick(sum);
-            *right_ptr = sum;
-            ++right_ptr;
         }
     }
 }
@@ -411,20 +501,24 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 
 
 void SteepFlangerAudioProcessor::UpdateCoeff() {
-    if (coeff_len_ == 2) {
-        coeffs_[0] = 0.5f;
-        coeffs_[1] = 0.5f;
-        return;
+    if (highpass_) {
+        coeff_len_ |= 1;
     }
+    
     std::span<float> kernel{coeffs_.data(), coeff_len_};
-    qwqdsp::filter::WindowFIR::Lowpass(kernel, cutoff_w_);
+    if (highpass_) {
+        qwqdsp::filter::WindowFIR::Highpass(kernel, cutoff_w_);
+    }
+    else {
+        qwqdsp::filter::WindowFIR::Lowpass(kernel, cutoff_w_);
+    }
     float const beta = qwqdsp::window::Kaiser::Beta(side_lobe_);
     qwqdsp::window::Kaiser::ApplyWindow(kernel, beta, false);
 
     if (minum_phase_) {
-        float pad[kMaxCoeffLen * kFFTOversample]{};
+        float pad[kFFTSize]{};
         std::copy(kernel.begin(), kernel.end(), pad);
-        constexpr size_t num_bins = complex_fft_.NumBins(kMaxCoeffLen * kFFTOversample);
+        constexpr size_t num_bins = complex_fft_.NumBins(kFFTSize);
         float gains[num_bins]{};
         complex_fft_.FFTGainPhase(pad, gains);
 

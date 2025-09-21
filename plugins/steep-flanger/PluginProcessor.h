@@ -5,6 +5,7 @@
 #include "qwqdsp/misc/smoother.hpp"
 #include "qwqdsp/spectral/complex_fft.hpp"
 #include "qwqdsp/filter/biquad.hpp"
+#include "qwqdsp/filter/iir_cpx_hilbert.hpp"
 
 struct JuceParamListener{
     struct FloatStore : public juce::AudioProcessorParameter::Listener {
@@ -140,8 +141,8 @@ public:
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
 
 
-    static constexpr size_t kMaxCoeffLen = 64;
-    static constexpr size_t kFFTOversample = 16;
+    static constexpr size_t kMaxCoeffLen = 65;
+    static constexpr size_t kFFTSize = 1024;
     qwqdsp::fx::DelayLine<> delay_left_;
     qwqdsp::fx::DelayLine<> delay_right_;
     qwqdsp::misc::ExpSmoother left_delay_smoother_;
@@ -167,7 +168,16 @@ public:
     qwqdsp::filter::Biquad left_damp_;
     qwqdsp::filter::Biquad right_damp_;
 
+    // barberpole
+    bool barber_enable_{};
+    float barber_phase_{};
+    float barber_phase_inc_{};
+    qwqdsp::filter::IIRHilbertDeeperCpx<> left_hilbert_;
+    qwqdsp::filter::IIRHilbertDeeperCpx<> right_hilbert_;
+    qwqdsp::misc::ExpSmoother barber_phase_smoother_;
+
     bool minum_phase_{};
+    bool highpass_{};
     qwqdsp::spectral::ComplexFFT<true> complex_fft_;
 
     void UpdateCoeff();

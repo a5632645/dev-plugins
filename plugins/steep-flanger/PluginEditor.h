@@ -265,6 +265,8 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
 private:
+    juce::Label plugin_title_;
+
     juce::Label lfo_title_{"lfo", "lfo"};
     Dial delay_{"delay"};
     Dial depth_{"depth"};
@@ -276,12 +278,18 @@ private:
     Dial coeff_len_{"steep"};
     Dial side_lobe_{"side_lobe"};
     Switch minum_phase_{"minum_phase"};
+    Switch highpass_{"highpass"};
 
     juce::Label feedback_title_{"feedback", "feedback"};
     Switch fb_enable_{"feedback"};
     Dial fb_value_{"feedback"};
     Dial fb_damp_{"damp"};
     juce::TextButton panic_;
+
+    juce::Label barber_title_{"barberpole", "barberpole"};
+    Switch barber_enable_{"barberpole"};
+    Dial barber_phase_{"phase"};
+    Dial barber_speed_{"speed"};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SteepFlangerAudioProcessorEditor)
 };
