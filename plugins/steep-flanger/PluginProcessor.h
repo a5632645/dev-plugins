@@ -3,6 +3,8 @@
 
 #include "qwqdsp/fx/delay_line.hpp"
 #include "qwqdsp/misc/smoother.hpp"
+#include "qwqdsp/spectral/complex_fft.hpp"
+#include "qwqdsp/filter/biquad.hpp"
 
 struct JuceParamListener{
     struct FloatStore : public juce::AudioProcessorParameter::Listener {
@@ -139,15 +141,38 @@ public:
 
 
     static constexpr size_t kMaxCoeffLen = 64;
-    static constexpr size_t kMaxNumNotchs = 1000;
+    static constexpr size_t kFFTOversample = 16;
     qwqdsp::fx::DelayLine<> delay_left_;
     qwqdsp::fx::DelayLine<> delay_right_;
-    qwqdsp::misc::ExpSmoother notch_smoother_;
+    qwqdsp::misc::ExpSmoother left_delay_smoother_;
+    qwqdsp::misc::ExpSmoother right_delay_smoother_;
     std::array<float, kMaxCoeffLen> coeffs_;
     size_t coeff_len_{};
     float side_lobe_{20};
     float cutoff_w_{};
+
+    // lfo
+    float phase_{};
+    float phase_inc_{};
+    float delay_samples_{};
+    float depth_samples_{};
+    float phase_shift_{};
+
+    // feedback
+    float feedback_value_{};
+    float feedback_mul_{};
+    bool feedback_enable_{};
+    float left_fb_{};
+    float right_fb_{};
+    qwqdsp::filter::Biquad left_damp_;
+    qwqdsp::filter::Biquad right_damp_;
+
+    bool minum_phase_{};
+    qwqdsp::spectral::ComplexFFT<true> complex_fft_;
+
     void UpdateCoeff();
+    void UpdateFeedback();
+    void Panic();
 
 
 private:
