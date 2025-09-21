@@ -578,4 +578,6 @@ void SteepFlangerAudioProcessor::Panic() {
     right_fb_ = 0;
     delay_left_.Reset();
     delay_right_.Reset();
+    left_hilbert_.Reset();
+    right_hilbert_.Reset();
 }
