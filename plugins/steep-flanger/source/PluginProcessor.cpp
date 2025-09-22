@@ -515,6 +515,14 @@ void SteepFlangerAudioProcessor::UpdateCoeff() {
     float const beta = qwqdsp::window::Kaiser::Beta(side_lobe_);
     qwqdsp::window::Kaiser::ApplyWindow(kernel, beta, false);
 
+    PostCoeffsProcessing();
+
+    editor_update_.UpdateGui();
+}
+
+void SteepFlangerAudioProcessor::PostCoeffsProcessing() {
+    std::span<float> kernel{coeffs_.data(), coeff_len_};
+
     if (minum_phase_) {
         float pad[kFFTSize]{};
         std::copy(kernel.begin(), kernel.end(), pad);
@@ -542,13 +550,13 @@ void SteepFlangerAudioProcessor::UpdateCoeff() {
             kernel[i] = pad[i];
         }
     }
-    
+
     if (!feedback_enable_) {
         float energy = 0;
         for (auto x : kernel) {
             energy += x * x;
         }
-        float g = 1.0f / std::sqrt(energy);
+        float g = 1.0f / std::sqrt(energy + 1e-18f);
         for (auto& x : kernel) {
             x *= g;
         }
@@ -580,4 +588,14 @@ void SteepFlangerAudioProcessor::Panic() {
     delay_right_.Reset();
     left_hilbert_.Reset();
     right_hilbert_.Reset();
+}
+
+
+
+void EditorUpdate::handleAsyncUpdate() {
+    auto* ptr = editor_.load();
+    if (ptr != nullptr) {
+        auto* editor = static_cast<SteepFlangerAudioProcessorEditor*>(ptr);
+        editor->UpdateGui();
+    }
 }

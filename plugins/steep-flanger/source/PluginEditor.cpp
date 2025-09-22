@@ -1,8 +1,158 @@
 #include "PluginEditor.h"
 #include "PluginProcessor.h"
 
+#include "qwqdsp/convert.hpp"
+
+static juce::Colour const green_bg{139,148,135};
+static juce::Colour const black_bg{22, 27, 32};
+static juce::Colour const line_fore{214, 72, 0};
+
+// ---------------------------------------- time prev ----------------------------------------
+
+void TimeView::UpdateGui() {
+    {
+        juce::ScopedLock _{p_.getCallbackLock()};
+        std::copy_n(p_.coeffs_.begin(), p_.coeff_len_, coeff_buffer_.begin());
+    }
+    if (p_.coeff_len_ != 0) {
+        coeff_buffer_[p_.coeff_len_] = coeff_buffer_[p_.coeff_len_ - 1];
+    }
+    repaint();
+}
+
+void TimeView::paint(juce::Graphics& g) {
+    g.fillAll(green_bg);
+
+    // get time view bound
+    auto b = getLocalBounds();
+    b.removeFromTop(title_.getHeight());
+    b.reduce(4, 4);
+    auto bf = b.toFloat();
+    g.setColour(black_bg);
+    g.fillRect(b);
+    
+    // draw lines
+    g.setColour(line_fore);
+    float lasty = juce::jmap(coeff_buffer_[0], -1.0f, 1.0f, bf.getBottom(), bf.getY());
+    float lastx = bf.getX();
+    for (int x = 0; x < b.getWidth(); ++x) {
+        size_t const idx = static_cast<size_t>(static_cast<float>(x * p_.coeff_len_) / static_cast<float>(b.getWidth()));
+        float const val = coeff_buffer_[idx];
+        float const y = juce::jmap(val, -1.0f, 1.0f, bf.getBottom(), bf.getY());
+        float const xx = x + bf.getX();
+        g.drawLine(lastx, lasty, xx, y);
+        lastx = xx;
+        lasty = y;
+    }
+}
+
+void TimeView::mouseDrag(const juce::MouseEvent& e) {
+    // get time view bound
+    auto b = getLocalBounds();
+    b.removeFromTop(title_.getHeight());
+    b.reduce(4, 4);
+
+    auto pos = e.getPosition();
+    if (b.contains(pos)) {
+        auto bf = b.toFloat();
+        size_t idx = (pos.getX() - bf.getX()) * p_.coeff_len_ / bf.getWidth();
+        idx = std::min(idx, p_.coeff_len_ - 1);
+
+        float val = juce::jmap(static_cast<float>(pos.y), bf.getY(), bf.getBottom(), 1.0f, -1.0f);
+        coeff_buffer_[idx] = val;
+        custom_coeff_[idx] = val;
+
+        repaint();
+        static_cast<SteepFlangerAudioProcessorEditor*>(getParentComponent())->UpdateGuiFromTimeView();
+    }
+}
+
+void TimeView::mouseUp(const juce::MouseEvent& e) {
+    SendCoeffs();
+}
+
+void TimeView::SendCoeffs() {
+    {
+        juce::ScopedLock _{p_.getCallbackLock()};
+        std::copy_n(custom_coeff_.begin(), p_.coeff_len_, p_.coeffs_.begin());
+        p_.PostCoeffsProcessing();
+    }
+    p_.editor_update_.UpdateGui();
+}
+
+// ---------------------------------------- spectral view ----------------------------------------
+
+void SpectralView::paint(juce::Graphics& g) {
+    g.fillAll(green_bg);
+
+    // get time view bound
+    auto b = getLocalBounds();
+    b.removeFromTop(title_.getHeight());
+    b.reduce(2, 8);
+    auto text_bound = b.removeFromLeft(36).toFloat();
+    auto bf = b.toFloat();
+    g.setColour(black_bg);
+    g.fillRect(b);
+    
+    // draw texts
+    constexpr size_t kNumLines = 5;
+    float const centerx = text_bound.getCentreX();
+    g.setColour(juce::Colours::white);
+    g.setFont(juce::Font{12});
+    for (size_t i = 0; i < kNumLines; ++i) {
+        float const centery = text_bound.getY() + i * text_bound.getHeight() / (kNumLines - 1.0f);
+        juce::Rectangle<float> text{0.0, 0.0, text_bound.getWidth(), 12.0f};
+        text = text.withCentre({centerx, centery});
+        float const val = max_db_ - i * (max_db_ - min_db_) / (kNumLines - 1.0f);
+        g.drawText(juce::String{val, 1}, text, juce::Justification::right);
+    }
+
+    // draw lines
+    g.setColour(line_fore);
+    float lasty = juce::jmap(gains_[0], bf.getBottom(), bf.getY());
+    float lastx = bf.getX();
+    for (int x = 0; x < b.getWidth(); ++x) {
+        size_t idx = static_cast<size_t>(static_cast<float>(x * gains_.size()) / static_cast<float>(b.getWidth()));
+        idx = std::min(idx, gains_.size() - 1);
+        float const val = gains_[idx];
+        float const y = juce::jmap(val, bf.getBottom(), bf.getY());
+        float const xx = x + bf.getX();
+        g.drawLine(lastx, lasty, xx, y);
+        lastx = xx;
+        lasty = y;
+    }
+}
+
+void SpectralView::UpdateGui() {
+    std::array<float, kGainFFTSize> fft_buffer{};
+    std::copy_n(time_.coeff_buffer_.begin(), time_.p_.coeff_len_, fft_buffer.begin());
+    fft_.FFTGainPhase(fft_buffer, gains_);
+
+    for (auto& x : gains_) {
+        x = qwqdsp::convert::Gain2Db(x);
+        x = std::max(x, -100.0f);
+    }
+
+    auto[pmin, pmax] = std::minmax_element(gains_.begin(), gains_.end());
+    float const min = *pmin;
+    float const max = *pmax;
+    float const scale = 1.0f / (max - min + 1e-6f);
+    for (auto& x : gains_) {
+        x = (x - min) * scale;
+    }
+    max_db_ = max;
+    min_db_ = min;
+
+    repaint();
+}
+
+// ---------------------------------------- editor ----------------------------------------
+
 SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlangerAudioProcessor& p)
     : AudioProcessorEditor (&p)
+    , p_(p)
+    , timeview_(p)
+    , spectralview_(timeview_)
 {
     auto& apvts = *p.value_tree_;
 
@@ -31,6 +181,15 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     addAndMakeVisible(fir_title_);
     highpass_.BindParam(apvts, "highpass");
     addAndMakeVisible(highpass_);
+    custom_.onStateChange = [this] {
+        if (custom_.getToggleState()) {
+            setSize(600, 294 + 200);
+        }
+        else {
+            setSize(600, 294);
+        }
+    };
+    addAndMakeVisible(custom_);
 
     fb_enable_.BindParam(apvts, "fb_enable");
     addAndMakeVisible(fb_enable_);
@@ -54,10 +213,16 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     barber_enable_.BindParam(apvts, "barber_enable");
     addAndMakeVisible(barber_enable_);
 
-    setSize (600, 292);
+    addAndMakeVisible(timeview_);
+    addAndMakeVisible(spectralview_);
+
+    setSize(600, 296);
+
+    p.editor_update_.OnEditorCreate(this);
 }
 
 SteepFlangerAudioProcessorEditor::~SteepFlangerAudioProcessorEditor() {
+    p_.editor_update_.OnEditorDestory();
 }
 
 //==============================================================================
@@ -70,8 +235,7 @@ void SteepFlangerAudioProcessorEditor::paint (juce::Graphics& g) {
         g.setColour(juce::Colour{193,193,166});
         g.fillRect(title_block);
     }
-    juce::Colour bg{139,148,135};
-    g.setColour(bg);
+    g.setColour(green_bg);
     {
         auto topblock = b.removeFromTop(125);
         {
@@ -118,8 +282,9 @@ void SteepFlangerAudioProcessorEditor::resized() {
             auto fir_block = topblock.removeFromLeft(80 * 4);
             {
                 auto fir_title = fir_block.removeFromTop(25);
-                minum_phase_.setBounds(fir_title.removeFromRight(100).reduced(4, 0));
-                highpass_.setBounds(fir_title.removeFromRight(100).reduced(4, 0));
+                minum_phase_.setBounds(fir_title.removeFromRight(100).reduced(2, 0));
+                highpass_.setBounds(fir_title.removeFromRight(70).reduced(2, 0));
+                custom_.setBounds(fir_title.removeFromRight(60).reduced(2, 0));
                 fir_title_.setBounds(fir_title);
             }
             cutoff_.setBounds(fir_block.removeFromLeft(80));;
@@ -151,5 +316,15 @@ void SteepFlangerAudioProcessorEditor::resized() {
             auto e = bottom_block.removeFromLeft(100);
             barber_enable_.setBounds(e.withSizeKeepingCentre(e.getWidth(), 25));
         }
+    }
+    b.removeFromTop(8);
+    if (custom_.getToggleState()) {
+        auto graphic_block = b.removeFromTop(200);
+        auto time_block = graphic_block.removeFromLeft(graphic_block.getWidth() / 2);
+        time_block.removeFromRight(4);
+        timeview_.setBounds(time_block);
+        auto spectral_block = graphic_block;
+        spectral_block.removeFromRight(4);
+        spectralview_.setBounds(spectral_block);
     }
 }

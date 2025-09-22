@@ -2,6 +2,10 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include "qwqdsp/spectral/real_fft.hpp"
+
+#include "shared.hpp"
+
 // ---------------------------------------- dial ----------------------------------------
 
 class CustomLookAndFeel : public juce::LookAndFeel_V4 {
@@ -251,9 +255,84 @@ private:
     std::unique_ptr<juce::ButtonParameterAttachment> attach_;
 };
 
-// ---------------------------------------- editor ----------------------------------------
-
 class SteepFlangerAudioProcessor;
+
+// ---------------------------------------- time prev ----------------------------------------
+class TimeView : public juce::Component {
+public:
+    TimeView(SteepFlangerAudioProcessor& p)
+        : p_(p)
+    {
+        addAndMakeVisible(title_);
+        reload_.onClick = [this] {
+            SendCoeffs();
+        };
+        reload_.setButtonText("reload");
+        addAndMakeVisible(reload_);
+    }
+
+    void paint(juce::Graphics& g) override;
+
+    void mouseDown(const juce::MouseEvent& e) override {
+        mouseDrag(e);
+    }
+
+    void mouseDrag(const juce::MouseEvent& e) override;
+
+    void mouseUp(const juce::MouseEvent& e) override;
+
+    void SendCoeffs();
+
+    void resized() override {
+        auto b = getLocalBounds();
+        auto top = b.removeFromTop(title_.getFont().getHeight() * 1.5f);
+        reload_.setBounds(top.removeFromRight(80));
+        title_.setBounds(top);
+    }
+
+    void UpdateGui();
+
+private:
+    SteepFlangerAudioProcessor& p_;
+    juce::Label title_{"", "Time view"};
+    juce::TextButton reload_;
+    std::array<float, kMaxCoeffLen + 1> coeff_buffer_{};
+    std::array<float, kMaxCoeffLen + 1> custom_coeff_{};
+
+    friend class SpectralView;
+};
+
+class SpectralView : public juce::Component {
+public:
+    SpectralView(TimeView& time)
+        : time_(time)
+    {
+        addAndMakeVisible(title_);
+        fft_.Init(kGainFFTSize);
+    }
+
+    void paint(juce::Graphics& g) override;
+
+    void resized() override {
+        auto b = getLocalBounds();
+        title_.setBounds(b.removeFromTop(title_.getFont().getHeight()));
+    }
+
+    void UpdateGui();
+
+private:
+    static constexpr size_t kGainFFTSize = 1024;
+    static constexpr size_t kGainNumBins = qwqdsp::spectral::RealFFT::NumBins(kGainFFTSize);
+
+    TimeView& time_;
+    juce::Label title_{"", "Responce"};
+    std::array<float, kGainNumBins> gains_{};
+    float max_db_{};
+    float min_db_{};
+    qwqdsp::spectral::RealFFT fft_;
+};
+
+// ---------------------------------------- editor ----------------------------------------
 
 //==============================================================================
 class SteepFlangerAudioProcessorEditor final : public juce::AudioProcessorEditor {
@@ -264,7 +343,18 @@ public:
     //==============================================================================
     void paint (juce::Graphics&) override;
     void resized() override;
+
+    void UpdateGui() {
+        timeview_.UpdateGui();
+        spectralview_.UpdateGui();
+    }
+
+    void UpdateGuiFromTimeView() {
+        spectralview_.UpdateGui();
+    }
 private:
+    SteepFlangerAudioProcessor& p_;
+
     juce::Label plugin_title_;
 
     juce::Label lfo_title_{"lfo", "lfo"};
@@ -279,6 +369,7 @@ private:
     Dial side_lobe_{"side_lobe"};
     Switch minum_phase_{"minum_phase"};
     Switch highpass_{"highpass"};
+    Switch custom_{"custom"};
 
     juce::Label feedback_title_{"feedback", "feedback"};
     Switch fb_enable_{"feedback"};
@@ -290,6 +381,9 @@ private:
     Switch barber_enable_{"barberpole"};
     Dial barber_phase_{"phase"};
     Dial barber_speed_{"speed"};
+
+    TimeView timeview_;
+    SpectralView spectralview_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SteepFlangerAudioProcessorEditor)
 };

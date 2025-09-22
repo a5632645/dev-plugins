@@ -7,6 +7,8 @@
 #include "qwqdsp/filter/biquad.hpp"
 #include "qwqdsp/filter/iir_cpx_hilbert.hpp"
 
+#include "shared.hpp"
+
 struct JuceParamListener{
     struct FloatStore : public juce::AudioProcessorParameter::Listener {
         std::function<void(float)> func;
@@ -97,6 +99,34 @@ struct JuceParamListener{
     }
 };
 
+class EditorUpdate : public juce::AsyncUpdater {
+public:
+    void UpdateGui() {
+        if (juce::MessageManager::getInstance()->isThisTheMessageThread()) {
+            cancelPendingUpdate();
+            handleAsyncUpdate();
+        }
+        else {
+            triggerAsyncUpdate();
+        }
+    }
+
+    void handleAsyncUpdate() override;
+
+    void OnEditorCreate(juce::AudioProcessorEditor* editor) {
+        editor_ = editor;
+        cancelPendingUpdate();
+        UpdateGui();
+    }
+
+    void OnEditorDestory() {
+        editor_ = nullptr;
+        cancelPendingUpdate();
+    }
+private:
+    std::atomic<juce::AudioProcessorEditor*> editor_;
+};
+
 //==============================================================================
 class SteepFlangerAudioProcessor final : public juce::AudioProcessor
 {
@@ -141,8 +171,6 @@ public:
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
 
 
-    static constexpr size_t kMaxCoeffLen = 65;
-    static constexpr size_t kFFTSize = 1024;
     qwqdsp::fx::DelayLine<> delay_left_;
     qwqdsp::fx::DelayLine<> delay_right_;
     qwqdsp::misc::ExpSmoother left_delay_smoother_;
@@ -178,12 +206,14 @@ public:
 
     bool minum_phase_{};
     bool highpass_{};
-    qwqdsp::spectral::ComplexFFT<true> complex_fft_;
+    qwqdsp::spectral::ComplexFFT<false> complex_fft_;
+
+    EditorUpdate editor_update_;
 
     void UpdateCoeff();
+    void PostCoeffsProcessing();
     void UpdateFeedback();
     void Panic();
-
 
 private:
     //==============================================================================
