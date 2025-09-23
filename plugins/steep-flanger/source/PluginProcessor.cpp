@@ -481,16 +481,39 @@ juce::AudioProcessorEditor* SteepFlangerAudioProcessor::createEditor()
 void SteepFlangerAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     if (auto state = value_tree_->copyState().createXml()) {
+        auto custom_coeffs = state->createNewChildElement("CUSTOM_COEFFS");
+        custom_coeffs->setAttribute("USING", is_using_custom_);
+        auto data = custom_coeffs->createNewChildElement("DATA");
+        for (size_t i = 0; i < kMaxCoeffLen; ++i) {
+            auto time = data->createNewChildElement("ITEM");
+            time->setAttribute("TIME", custom_coeffs_[i]);
+            time->setAttribute("SPECTRAL", custom_spectral_gains[i]);
+        }
         copyXmlToBinary(*state, destData);
     }
 }
 
 void SteepFlangerAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    auto state = juce::ValueTree::fromXml(*getXmlFromBinary(data, sizeInBytes));
+    auto xml = *getXmlFromBinary(data, sizeInBytes);
+    auto state = juce::ValueTree::fromXml(xml);
     if (state.isValid()) {
         value_tree_->replaceState(state);
+        auto coeffs = xml.getChildByName("CUSTOM_COEFFS");
+        if (coeffs) {
+            is_using_custom_ = coeffs->getBoolAttribute("USING", false);
+            auto data = coeffs->getChildByName("DATA");
+            if (data) {
+                auto it = data->getChildIterator();
+                for (size_t i = 0; auto item : it) {
+                    custom_coeffs_[i] = item->getDoubleAttribute("TIME");
+                    custom_spectral_gains[i] = item->getDoubleAttribute("SPECTRAL");
+                    ++i;
+                }
+            }
+        }
     }
+    editor_update_.UpdateGui();
 }
 
 //==============================================================================
