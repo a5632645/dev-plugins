@@ -2,10 +2,7 @@
 #include "PluginProcessor.h"
 
 #include "qwqdsp/convert.hpp"
-
-static juce::Colour const green_bg{139,148,135};
-static juce::Colour const black_bg{22, 27, 32};
-static juce::Colour const line_fore{214, 72, 0};
+#include "qwqdsp/osciilor/mcf_sine_osc.hpp"
 
 // ---------------------------------------- time prev ----------------------------------------
 
@@ -23,7 +20,7 @@ void TimeView::UpdateGui() {
 void TimeView::paint(juce::Graphics& g) {
     g.fillAll(green_bg);
 
-    // get time view bound
+    // 获取图表bound
     auto b = getLocalBounds();
     b.removeFromTop(title_.getHeight());
     b.reduce(4, 4);
@@ -31,7 +28,8 @@ void TimeView::paint(juce::Graphics& g) {
     g.setColour(black_bg);
     g.fillRect(b);
     
-    // draw lines
+    g.reduceClipRegion(b);
+    // 绘制实际使用的，如果是mouseUp后就是实际的
     g.setColour(line_fore);
     float lasty = juce::jmap(coeff_buffer_[0], -1.0f, 1.0f, bf.getBottom(), bf.getY());
     float lastx = bf.getX();
@@ -44,27 +42,48 @@ void TimeView::paint(juce::Graphics& g) {
         lastx = xx;
         lasty = y;
     }
+
+    if (display_custom_.getToggleState()) {
+        // 绘制自定义波形
+        g.setColour(active_bg);
+        lasty = juce::jmap(p_.custom_coeffs_[0], -1.0f, 1.0f, bf.getBottom(), bf.getY());
+        lastx = bf.getX();
+        for (int x = 0; x < b.getWidth(); ++x) {
+            size_t const idx = static_cast<size_t>(static_cast<float>(x * p_.coeff_len_) / static_cast<float>(b.getWidth()));
+            float const val = p_.custom_coeffs_[idx];
+            float const y = juce::jmap(val, -1.0f, 1.0f, bf.getBottom(), bf.getY());
+            float const xx = x + bf.getX();
+            g.drawLine(lastx, lasty, xx, y);
+            lastx = xx;
+            lasty = y;
+        }
+    }
 }
 
 void TimeView::mouseDrag(const juce::MouseEvent& e) {
-    // get time view bound
+    // 获取图表bound
     auto b = getLocalBounds();
     b.removeFromTop(title_.getHeight());
     b.reduce(4, 4);
 
     auto pos = e.getPosition();
-    if (b.contains(pos)) {
-        auto bf = b.toFloat();
-        size_t idx = (pos.getX() - bf.getX()) * p_.coeff_len_ / bf.getWidth();
-        idx = std::min(idx, p_.coeff_len_ - 1);
+    pos.x = std::clamp(pos.x, b.getX(), b.getRight());
+    pos.y = std::clamp(pos.y, b.getY(), b.getBottom());
 
-        float val = juce::jmap(static_cast<float>(pos.y), bf.getY(), bf.getBottom(), 1.0f, -1.0f);
-        coeff_buffer_[idx] = val;
-        custom_coeff_[idx] = val;
+    auto bf = b.toFloat();
+    size_t idx = (pos.getX() - bf.getX()) * p_.coeff_len_ / bf.getWidth();
+    idx = std::min(idx, p_.coeff_len_ - 1);
 
-        repaint();
-        static_cast<SteepFlangerAudioProcessorEditor*>(getParentComponent())->UpdateGuiFromTimeView();
+    float val = juce::jmap(static_cast<float>(pos.y), bf.getY(), bf.getBottom(), 1.0f, -1.0f);
+    if (e.mods.isRightButtonDown()) {
+        val = 0;
     }
+    
+    coeff_buffer_[idx] = val;
+    p_.custom_coeffs_[idx] = val;
+
+    repaint();
+    static_cast<SteepFlangerAudioProcessorEditor*>(getParentComponent())->UpdateGuiFromTimeView();
 }
 
 void TimeView::mouseUp(const juce::MouseEvent& e) {
@@ -74,10 +93,16 @@ void TimeView::mouseUp(const juce::MouseEvent& e) {
 void TimeView::SendCoeffs() {
     {
         juce::ScopedLock _{p_.getCallbackLock()};
-        std::copy_n(custom_coeff_.begin(), p_.coeff_len_, p_.coeffs_.begin());
+        std::copy_n(p_.custom_coeffs_.begin(), p_.coeff_len_, p_.coeffs_.begin());
+        p_.is_using_custom_ = true;
         p_.PostCoeffsProcessing();
     }
     p_.editor_update_.UpdateGui();
+}
+
+void TimeView::ClearCustomCoeffs() {
+    std::fill(p_.custom_coeffs_.begin(), p_.custom_coeffs_.end(), float{});
+    repaint();
 }
 
 // ---------------------------------------- spectral view ----------------------------------------
@@ -85,7 +110,7 @@ void TimeView::SendCoeffs() {
 void SpectralView::paint(juce::Graphics& g) {
     g.fillAll(green_bg);
 
-    // get time view bound
+    // 获取图表bound
     auto b = getLocalBounds();
     b.removeFromTop(title_.getHeight());
     b.reduce(2, 8);
@@ -94,7 +119,7 @@ void SpectralView::paint(juce::Graphics& g) {
     g.setColour(black_bg);
     g.fillRect(b);
     
-    // draw texts
+    // 绘制频谱音量数字
     constexpr size_t kNumLines = 5;
     float const centerx = text_bound.getCentreX();
     g.setColour(juce::Colours::white);
@@ -107,7 +132,7 @@ void SpectralView::paint(juce::Graphics& g) {
         g.drawText(juce::String{val, 1}, text, juce::Justification::right);
     }
 
-    // draw lines
+    // 绘制超采样频谱
     g.setColour(line_fore);
     float lasty = juce::jmap(gains_[0], bf.getBottom(), bf.getY());
     float lastx = bf.getX();
@@ -115,6 +140,20 @@ void SpectralView::paint(juce::Graphics& g) {
         size_t idx = static_cast<size_t>(static_cast<float>(x * gains_.size()) / static_cast<float>(b.getWidth()));
         idx = std::min(idx, gains_.size() - 1);
         float const val = gains_[idx];
+        float const y = juce::jmap(val, bf.getBottom(), bf.getY());
+        float const xx = x + bf.getX();
+        g.drawLine(lastx, lasty, xx, y);
+        lastx = xx;
+        lasty = y;
+    }
+
+    // 绘制自定义频谱
+    g.setColour(active_bg);
+    lasty = juce::jmap(time_.p_.custom_spectral_gains[0], bf.getBottom(), bf.getY());
+    lastx = bf.getX();
+    for (int x = 0; x < b.getWidth(); ++x) {
+        size_t const idx = static_cast<size_t>(static_cast<float>(x * time_.p_.coeff_len_) / static_cast<float>(b.getWidth()));
+        float const val = time_.p_.custom_spectral_gains[idx];
         float const y = juce::jmap(val, bf.getBottom(), bf.getY());
         float const xx = x + bf.getX();
         g.drawLine(lastx, lasty, xx, y);
@@ -146,6 +185,60 @@ void SpectralView::UpdateGui() {
     repaint();
 }
 
+void SpectralView::mouseDrag(const juce::MouseEvent& e) {
+    // 获取图表bound
+    auto b = getLocalBounds();
+    b.removeFromTop(title_.getHeight());
+    b.reduce(2, 8);
+    b.removeFromLeft(36).toFloat();
+    auto bf = b.toFloat();
+
+    auto pos = e.getPosition();
+    pos.x = std::clamp(pos.x, b.getX(), b.getRight());
+    pos.y = std::clamp(pos.y, b.getY(), b.getBottom());
+
+    size_t const coeff_len = time_.p_.coeff_len_;
+    size_t idx = (pos.getX() - bf.getX()) * coeff_len / bf.getWidth();
+    idx = std::min(idx, coeff_len - 1);
+
+    float val = juce::jmap(static_cast<float>(pos.y), bf.getY(), bf.getBottom(), 1.0f, 0.0f);
+    if (e.mods.isRightButtonDown()) {
+        val = 0;
+    }
+    
+    time_.p_.custom_spectral_gains[idx] = val;
+
+    // 加法合成
+    std::array<qwqdsp::oscillor::MCFSineOsc, kMaxCoeffLen> oscs;
+    std::array<float, kMaxCoeffLen> true_gains;
+    for (size_t i = 0; i < coeff_len; ++i) {
+        oscs[i].Reset(i * std::numbers::pi_v<float> / coeff_len, static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+        float const db = std::lerp(-101.0f, 0.0f, time_.p_.custom_spectral_gains[i]);
+        if (db < -100.0f) {
+            true_gains[i] = 0;
+        }
+        else {
+            true_gains[i] = qwqdsp::convert::Db2Gain(db);
+        }
+    }
+    
+    for (size_t tidx = 0; tidx < coeff_len; ++tidx) {
+        float sum{};
+        for (size_t fidx = 0; fidx < coeff_len; ++fidx) {
+            sum += true_gains[fidx] * oscs[fidx].Tick();
+        }
+        time_.coeff_buffer_[tidx] = sum;
+        time_.p_.custom_coeffs_[tidx] = sum;
+    }
+
+    UpdateGui();
+    time_.repaint();
+}
+
+void SpectralView::mouseUp(const juce::MouseEvent& e) {
+    time_.SendCoeffs();
+}
+
 // ---------------------------------------- editor ----------------------------------------
 
 SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlangerAudioProcessor& p)
@@ -160,6 +253,7 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     plugin_title_.setFont(juce::Font{28});
     addAndMakeVisible(plugin_title_);
 
+    addAndMakeVisible(lfo_title_);
     delay_.BindParam(apvts, "delay");
     addAndMakeVisible(delay_);
     depth_.BindParam(apvts, "depth");
@@ -168,7 +262,12 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     addAndMakeVisible(speed_);
     phase_.BindParam(apvts, "phase");
     addAndMakeVisible(phase_);
-    addAndMakeVisible(lfo_title_);
+    lfo_reset_phase_.setButtonText("reset phase");
+    lfo_reset_phase_.onClick = [this] {
+        juce::ScopedLock _{p_.getCallbackLock()};
+        p_.phase_ = 0;
+    };
+    addAndMakeVisible(lfo_reset_phase_);
 
     cutoff_.BindParam(apvts, "cutoff");
     addAndMakeVisible(cutoff_);
@@ -184,9 +283,13 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     custom_.onStateChange = [this] {
         if (custom_.getToggleState()) {
             setSize(600, 294 + 200);
+            timeview_.setVisible(true);
+            spectralview_.setVisible(true);
         }
         else {
             setSize(600, 294);
+            timeview_.setVisible(false);
+            spectralview_.setVisible(false);
         }
     };
     addAndMakeVisible(custom_);
@@ -212,12 +315,19 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     addAndMakeVisible(barber_speed_);
     barber_enable_.BindParam(apvts, "barber_enable");
     addAndMakeVisible(barber_enable_);
+    barber_reset_phase_.setButtonText("reset phase");
+    barber_reset_phase_.onClick = [this] {
+        juce::ScopedLock _{p_.getCallbackLock()};
+        p_.barber_phase_ = 0;
+    };
+    addAndMakeVisible(barber_reset_phase_);
 
     addAndMakeVisible(timeview_);
     addAndMakeVisible(spectralview_);
 
     setSize(600, 296);
 
+    custom_.setToggleState(p.is_using_custom_, juce::sendNotificationSync);
     p.editor_update_.OnEditorCreate(this);
 }
 
@@ -271,7 +381,9 @@ void SteepFlangerAudioProcessorEditor::resized() {
         auto topblock = b.removeFromTop(125);
         {
             auto lfo_block = topblock.removeFromLeft(80 * 4);
-            lfo_title_.setBounds(lfo_block.removeFromTop(25));
+            auto lfo_block_top = lfo_block.removeFromTop(25);
+            lfo_reset_phase_.setBounds(lfo_block_top.removeFromRight(100).reduced(1, 1));
+            lfo_title_.setBounds(lfo_block_top);
             delay_.setBounds(lfo_block.removeFromLeft(80));;
             depth_.setBounds(lfo_block.removeFromLeft(80));
             speed_.setBounds(lfo_block.removeFromLeft(80));
@@ -314,7 +426,9 @@ void SteepFlangerAudioProcessorEditor::resized() {
             barber_phase_.setBounds(bottom_block.removeFromLeft(80));
             barber_speed_.setBounds(bottom_block.removeFromLeft(80));
             auto e = bottom_block.removeFromLeft(100);
-            barber_enable_.setBounds(e.withSizeKeepingCentre(e.getWidth(), 25));
+            auto barber_enable_block = e.removeFromTop(e.getHeight() / 2);
+            barber_enable_.setBounds(barber_enable_block.withSizeKeepingCentre(e.getWidth(), 25));
+            barber_reset_phase_.setBounds(e.withSizeKeepingCentre(e.getWidth(), 25));
         }
     }
     b.removeFromTop(8);

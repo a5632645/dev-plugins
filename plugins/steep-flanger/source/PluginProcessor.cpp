@@ -85,6 +85,7 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         param_listener_.Add(p, [this](float cutoff) {
             juce::ScopedLock _{getCallbackLock()};
             cutoff_w_ = cutoff;
+            is_using_custom_ = false;
             UpdateCoeff();
         });
         layout.add(std::move(p));
@@ -113,6 +114,7 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         param_listener_.Add(p, [this](float side_lobe) {
             juce::ScopedLock _{getCallbackLock()};
             side_lobe_ = side_lobe;
+            is_using_custom_ = false;
             UpdateCoeff();
         });
         layout.add(std::move(p));
@@ -140,6 +142,7 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         param_listener_.Add(p, [this](bool highpass) {
             juce::ScopedLock _{getCallbackLock()};
             highpass_ = highpass;
+            is_using_custom_ = false;
             UpdateCoeff();
         });
         layout.add(std::move(p));
@@ -501,19 +504,21 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 
 
 void SteepFlangerAudioProcessor::UpdateCoeff() {
-    if (highpass_) {
-        coeff_len_ |= 1;
+    if (!is_using_custom_) {
+        if (highpass_) {
+            coeff_len_ |= 1;
+        }
+        
+        std::span<float> kernel{coeffs_.data(), coeff_len_};
+        if (highpass_) {
+            qwqdsp::filter::WindowFIR::Highpass(kernel, cutoff_w_);
+        }
+        else {
+            qwqdsp::filter::WindowFIR::Lowpass(kernel, cutoff_w_);
+        }
+        float const beta = qwqdsp::window::Kaiser::Beta(side_lobe_);
+        qwqdsp::window::Kaiser::ApplyWindow(kernel, beta, false);
     }
-    
-    std::span<float> kernel{coeffs_.data(), coeff_len_};
-    if (highpass_) {
-        qwqdsp::filter::WindowFIR::Highpass(kernel, cutoff_w_);
-    }
-    else {
-        qwqdsp::filter::WindowFIR::Lowpass(kernel, cutoff_w_);
-    }
-    float const beta = qwqdsp::window::Kaiser::Beta(side_lobe_);
-    qwqdsp::window::Kaiser::ApplyWindow(kernel, beta, false);
 
     PostCoeffsProcessing();
 
@@ -523,13 +528,15 @@ void SteepFlangerAudioProcessor::UpdateCoeff() {
 void SteepFlangerAudioProcessor::PostCoeffsProcessing() {
     std::span<float> kernel{coeffs_.data(), coeff_len_};
 
-    if (minum_phase_) {
-        float pad[kFFTSize]{};
+    float pad[kFFTSize]{};
+    constexpr size_t num_bins = complex_fft_.NumBins(kFFTSize);
+    std::array<float, num_bins> gains{};
+    if (minum_phase_ || feedback_enable_) {
         std::copy(kernel.begin(), kernel.end(), pad);
-        constexpr size_t num_bins = complex_fft_.NumBins(kFFTSize);
-        float gains[num_bins]{};
         complex_fft_.FFTGainPhase(pad, gains);
+    }
 
+    if (minum_phase_) {
         float log_gains[num_bins]{};
         for (size_t i = 0; i < num_bins; ++i) {
             log_gains[i] = std::log(gains[i] + 1e-18f);
@@ -561,6 +568,13 @@ void SteepFlangerAudioProcessor::PostCoeffsProcessing() {
             x *= g;
         }
     }
+    else {
+        float const max_spectral_gain = *std::max_element(gains.begin(), gains.end());
+        float const gain = 1.0f / (max_spectral_gain + 1e-10f);
+        for (auto& x : kernel) {
+            x *= gain;
+        }
+    }
 }
 
 void SteepFlangerAudioProcessor::UpdateFeedback() {
@@ -569,6 +583,9 @@ void SteepFlangerAudioProcessor::UpdateFeedback() {
     }
     else {
         float abs_db = std::abs(feedback_value_);
+        if (minum_phase_) {
+            abs_db = std::max(abs_db, 4.1f);
+        }
         float abs_gain = qwqdsp::convert::Db2Gain(-abs_db);
         abs_gain = std::min(abs_gain, 0.95f);
         if (feedback_value_ > 0) {

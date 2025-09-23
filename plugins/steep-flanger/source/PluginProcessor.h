@@ -175,7 +175,9 @@ public:
     qwqdsp::fx::DelayLine<> delay_right_;
     qwqdsp::misc::ExpSmoother left_delay_smoother_;
     qwqdsp::misc::ExpSmoother right_delay_smoother_;
-    std::array<float, kMaxCoeffLen> coeffs_;
+    std::array<float, kMaxCoeffLen> coeffs_{};
+    std::array<float, kMaxCoeffLen> custom_coeffs_{};
+    std::array<float, kMaxCoeffLen> custom_spectral_gains{};
     size_t coeff_len_{};
     float side_lobe_{20};
     float cutoff_w_{};
@@ -206,6 +208,7 @@ public:
 
     bool minum_phase_{};
     bool highpass_{};
+    bool is_using_custom_{};
     qwqdsp::spectral::ComplexFFT<false> complex_fft_;
 
     EditorUpdate editor_update_;

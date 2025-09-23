@@ -6,6 +6,19 @@
 
 #include "shared.hpp"
 
+// #889487 ableton live9的浅绿色，亮度80
+static juce::Colour const green_bg{139,148,135};
+// #161820 ableton live9的图表黑色背景
+static juce::Colour const black_bg{22, 27, 32};
+// #d64800 ableton live9的图表，红色
+static juce::Colour const line_fore{214, 72, 0};
+// #c6cd00 ableton live9的开关背景，黄绿色
+static juce::Colour const active_bg{198, 205, 0};
+// #778592 ableton live9开关关闭背景，灰色
+static juce::Colour const inactive_bg{119,133,146};
+// #202022 不知道是什么东西
+static juce::Colour const grey_bg{0x20, 0x20, 0x22};
+
 // ---------------------------------------- dial ----------------------------------------
 
 class CustomLookAndFeel : public juce::LookAndFeel_V4 {
@@ -221,7 +234,7 @@ private:
     std::unique_ptr<juce::ComboBoxParameterAttachment> attach_;
 };
 
-// ---------------------------------------- on/off ----------------------------------------
+// ---------------------------------------- switch ----------------------------------------
 
 class Switch : public juce::ToggleButton {
 public:
@@ -255,6 +268,27 @@ private:
     std::unique_ptr<juce::ButtonParameterAttachment> attach_;
 };
 
+// ---------------------------------------- flat button ----------------------------------------
+class FlatButton : public juce::TextButton {
+public:
+    void paint(juce::Graphics& g) override {
+        g.fillAll(line_fore);
+        auto b = getLocalBounds();
+        g.setColour(black_bg);
+        if (isDown()) {
+            g.drawHorizontalLine(0, 0, b.getRight());
+            g.drawHorizontalLine(1, 0, b.getRight());
+            g.drawVerticalLine(0, 0, b.getBottom());
+            g.drawVerticalLine(1, 0, b.getBottom());
+        }
+        else {
+            g.drawRect(b);
+        }
+        g.setColour(juce::Colours::white);
+        g.drawText(getButtonText(), b, juce::Justification::centred);
+    }
+};
+
 class SteepFlangerAudioProcessor;
 
 // ---------------------------------------- time prev ----------------------------------------
@@ -269,6 +303,18 @@ public:
         };
         reload_.setButtonText("reload");
         addAndMakeVisible(reload_);
+
+        clear_.onClick = [this] {
+            ClearCustomCoeffs();
+        };
+        clear_.setButtonText("clear");
+        addAndMakeVisible(clear_);
+
+        display_custom_.setToggleState(true, juce::dontSendNotification);
+        addAndMakeVisible(display_custom_);
+        display_custom_.onStateChange = [this] {
+            repaint();
+        };
     }
 
     void paint(juce::Graphics& g) override;
@@ -283,10 +329,14 @@ public:
 
     void SendCoeffs();
 
+    void ClearCustomCoeffs();
+
     void resized() override {
         auto b = getLocalBounds();
         auto top = b.removeFromTop(title_.getFont().getHeight() * 1.5f);
-        reload_.setBounds(top.removeFromRight(80));
+        reload_.setBounds(top.removeFromRight(70).reduced(1, 1));
+        clear_.setBounds(top.removeFromRight(70).reduced(1, 1));
+        display_custom_.setBounds(top.removeFromRight(70).reduced(1, 1));
         title_.setBounds(top);
     }
 
@@ -295,9 +345,10 @@ public:
 private:
     SteepFlangerAudioProcessor& p_;
     juce::Label title_{"", "Time view"};
-    juce::TextButton reload_;
+    FlatButton reload_;
+    FlatButton clear_;
+    Switch display_custom_{"show ctm"};
     std::array<float, kMaxCoeffLen + 1> coeff_buffer_{};
-    std::array<float, kMaxCoeffLen + 1> custom_coeff_{};
 
     friend class SpectralView;
 };
@@ -319,6 +370,14 @@ public:
     }
 
     void UpdateGui();
+
+    void mouseDown(const juce::MouseEvent& e) override {
+        mouseDrag(e);
+    }
+
+    void mouseDrag(const juce::MouseEvent& e) override;
+
+    void mouseUp(const juce::MouseEvent& e) override;
 
 private:
     static constexpr size_t kGainFFTSize = 1024;
@@ -362,6 +421,7 @@ private:
     Dial depth_{"depth"};
     Dial speed_{"speed"};
     Dial phase_{"phase"};
+    FlatButton lfo_reset_phase_;
 
     juce::Label fir_title_{"fir", "fir"};
     Dial cutoff_{"cutoff"};
@@ -375,12 +435,13 @@ private:
     Switch fb_enable_{"feedback"};
     Dial fb_value_{"feedback"};
     Dial fb_damp_{"damp"};
-    juce::TextButton panic_;
+    FlatButton panic_;
 
     juce::Label barber_title_{"barberpole", "barberpole"};
     Switch barber_enable_{"barberpole"};
     Dial barber_phase_{"phase"};
     Dial barber_speed_{"speed"};
+    FlatButton barber_reset_phase_;
 
     TimeView timeview_;
     SpectralView spectralview_;
