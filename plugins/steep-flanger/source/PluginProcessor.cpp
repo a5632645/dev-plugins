@@ -480,6 +480,7 @@ juce::AudioProcessorEditor* SteepFlangerAudioProcessor::createEditor()
 //==============================================================================
 void SteepFlangerAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
+    suspendProcessing(true);
     if (auto state = value_tree_->copyState().createXml()) {
         auto custom_coeffs = state->createNewChildElement("CUSTOM_COEFFS");
         custom_coeffs->setAttribute("USING", is_using_custom_);
@@ -491,10 +492,12 @@ void SteepFlangerAudioProcessor::getStateInformation (juce::MemoryBlock& destDat
         }
         copyXmlToBinary(*state, destData);
     }
+    suspendProcessing(false);
 }
 
 void SteepFlangerAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
+    suspendProcessing(true);
     auto xml = *getXmlFromBinary(data, sizeInBytes);
     auto state = juce::ValueTree::fromXml(xml);
     if (state.isValid()) {
@@ -511,9 +514,14 @@ void SteepFlangerAudioProcessor::setStateInformation (const void* data, int size
                     ++i;
                 }
             }
+
+            if (is_using_custom_) {
+                std::copy(custom_coeffs_.begin(), custom_coeffs_.end(), coeffs_.begin());
+            }
         }
+        editor_update_.UpdateGui();
     }
-    editor_update_.UpdateGui();
+    suspendProcessing(false);
 }
 
 //==============================================================================
