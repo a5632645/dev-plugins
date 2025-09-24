@@ -574,7 +574,7 @@ void SteepFlangerAudioProcessor::PostCoeffsProcessing() {
         }
 
         float phases[num_bins]{};
-        complex_fft_.IFFT<float>(pad, log_gains, phases);
+        complex_fft_.IFFT(pad, log_gains, phases);
         pad[0] = 0;
         pad[num_bins / 2] = 0;
         for (size_t i = num_bins / 2 + 1; i < num_bins; ++i) {
