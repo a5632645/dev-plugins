@@ -209,7 +209,7 @@ public:
     bool minum_phase_{};
     bool highpass_{};
     bool is_using_custom_{};
-    qwqdsp::spectral::ComplexFFT<false> complex_fft_;
+    qwqdsp::spectral::ComplexFFT complex_fft_;
 
     EditorUpdate editor_update_;
 
