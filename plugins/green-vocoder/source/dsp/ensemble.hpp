@@ -44,7 +44,7 @@ private:
     float current_delay_len_{};
     float gain_{};
     
-    qwqdsp::fx::DelayLine<qwqdsp::fx::DelayLineInterp::Kaiser21> delay_;
+    qwqdsp::fx::DelayLine<qwqdsp::fx::DelayLineInterp::Lagrange3rd> delay_;
     // std::vector<float> buffer_;
     // size_t buffer_wpos_{};
     // size_t buffer_len_mask_{};

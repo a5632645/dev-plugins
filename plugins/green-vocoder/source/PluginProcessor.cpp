@@ -849,7 +849,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             size_t const can_write = std::min(osc_buffer_.size() - osc_wpos_, iwant);
             if (pitch.non_period_ratio > noise_threshold) {
                 for (size_t i = 0; i < can_write; ++i) {
-                    osc_buffer_[osc_wpos_++] = noise_.Next();
+                    osc_buffer_[osc_wpos_++] = noise_.Next() * pitch.non_period_ratio;
                 }
             }
             else {
