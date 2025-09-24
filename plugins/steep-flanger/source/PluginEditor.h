@@ -12,6 +12,8 @@ static juce::Colour const green_bg{139,148,135};
 static juce::Colour const black_bg{22, 27, 32};
 // #d64800 ableton live9的图表，红色
 static juce::Colour const line_fore{214, 72, 0};
+// #cc5100 ableton live9的旋钮颜色，红色
+static juce::Colour const dial_fore{204, 81, 0};
 // #c6cd00 ableton live9的开关背景，黄绿色
 static juce::Colour const active_bg{198, 205, 0};
 // #778592 ableton live9开关关闭背景，灰色
@@ -38,14 +40,12 @@ public:
         // Draw path of the slider backgound (in darker background colour)
         juce::Path backgroundArc;
         backgroundArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, rotaryStartAngle, rotaryEndAngle, true);
-        juce::Colour myColour = findColour(0x1005700);
-        myColour = myColour.darker(.8f);
-        g.setColour(myColour);
+        g.setColour(black_bg);
         g.strokePath(backgroundArc, juce::PathStrokeType(3.f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         // Draw path of slider foreground (in white)
         juce::Path foregroundArc;
         foregroundArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, rotaryStartAngle, angle, true);
-        g.setColour(juce::Colours::white);
+        g.setColour(dial_fore);
         g.strokePath(foregroundArc, juce::PathStrokeType(3.f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
         // Pointer
@@ -54,7 +54,7 @@ public:
         auto pointerThickness = 3.0f;
         p.addRectangle(-pointerThickness * 0.5f, -radius, pointerThickness, pointerLength);
         p.applyTransform(juce::AffineTransform::rotation(angle).translated(centreX, centreY));
-        g.setColour(juce::Colours::white);
+        g.setColour(black_bg);
         g.fillPath(p);
     }
 
