@@ -694,13 +694,10 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     side_gain_.Init(fs, samplesPerBlock);
     output_gain_.Init(fs, samplesPerBlock);
 
-    yin_resample_.Init(sampleRate);
-    yin_resample_.Set(sampleRate, 8000.0f);
-    yin_resample_.Reset();
-    yin_segement_.SetHop(256);
-    yin_segement_.SetSize(512);
+    yin_segement_.SetHop(512);
+    yin_segement_.SetSize(2048);
     yin_segement_.Reset();
-    yin_.Init(8000.0f, 512);
+    yin_.Init(sampleRate, 2048);
     pitch_filter_.Reset();
     osc_wpos_ = 0;
     osc_want_write_frac_ = 0;
@@ -799,39 +796,12 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     };
     if (side_ch == 6) {
         // pitch tracking step
-        // 1. downsample to 8000 hz
-        // 2. burg lpc remove formant
-        // 3. yin detect pitch
-        // 4. median filter
-        // 5. generate waveform
-
-        std::array<float, 512> temp{};
-        size_t num_write = 0;
-        auto it = main_buffer_.begin();
-        while (it != main_buffer_.end()) {
-            [[unlikely]]
-            while (yin_resample_.IsReady()) {
-                temp[num_write++] = yin_resample_.Read();
-                [[unlikely]]
-                if (num_write == 512) {
-                    num_write = 0;
-                    // burg_lp(temp);
-                    yin_segement_.Push(temp);
-                }
-            }
-            [[likely]]
-            while (!yin_resample_.IsReady()) {
-                yin_resample_.Push(*it);
-                ++it;
-                [[unlikely]]
-                if (it == main_buffer_.end()) {
-                    break;
-                }
-            }
-        }
+        // 1. yin detect pitch
+        // 2. median filter
+        // 3. generate waveform
 
         // burg_lp({temp.data(), num_write});
-        yin_segement_.Push({temp.data(), num_write});
+        yin_segement_.Push(main_buffer_);
 
         qwqdsp::pitch::FastYin::Result pitch{};
         float const noise_threshold = tracking_noise_->get();
@@ -840,7 +810,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             yin_segement_.Advance();
 
             pitch = yin_.GetPitch();
-            float const want_write = yin_segement_.GetHop() * getSampleRate() / 8000.0f + osc_want_write_frac_;
+            float const want_write = yin_segement_.GetHop() + osc_want_write_frac_;
             size_t const iwant = static_cast<size_t>(want_write);
             {
                 float t;

@@ -18,8 +18,6 @@
 
 #include "qwqdsp/filter/median.hpp"
 #include "qwqdsp/pitch/fast_yin.hpp"
-#include "qwqdsp/fx/resample_iir_dynamic.hpp"
-#include "qwqdsp/fx/resample_coeffs.h"
 #include "qwqdsp/segement/analyze.hpp"
 #include "qwqdsp/misc/smoother.hpp"
 #include "qwqdsp/filter/biquad.hpp"
@@ -173,7 +171,6 @@ public:
     dsp::Ensemble ensemble_;
 
     // pitch tracking
-    qwqdsp::fx::ResampleIIRDynamic<qwqdsp::fx::coeff::FastCoeffs<float>, 127> yin_resample_;
     qwqdsp::segement::Analyze<8192> yin_segement_;
     qwqdsp::pitch::FastYin yin_;
     qwqdsp::filter::Median<qwqdsp::pitch::FastYin::Result, 3> pitch_filter_;
