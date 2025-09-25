@@ -481,7 +481,7 @@ juce::AudioProcessorEditor* SteepFlangerAudioProcessor::createEditor()
 void SteepFlangerAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     suspendProcessing(true);
-    if (auto state = value_tree_->copyState().createXml()) {
+    if (auto state = value_tree_->copyState().createXml(); state != nullptr) {
         auto custom_coeffs = state->createNewChildElement("CUSTOM_COEFFS");
         custom_coeffs->setAttribute("USING", is_using_custom_);
         auto data = custom_coeffs->createNewChildElement("DATA");
@@ -513,10 +513,10 @@ void SteepFlangerAudioProcessor::setStateInformation (const void* data, int size
                     custom_spectral_gains[i] = item->getDoubleAttribute("SPECTRAL");
                     ++i;
                 }
-            }
 
-            if (is_using_custom_) {
-                std::copy(custom_coeffs_.begin(), custom_coeffs_.end(), coeffs_.begin());
+                if (is_using_custom_) {
+                    UpdateCoeff();
+                }
             }
         }
         editor_update_.UpdateGui();
@@ -549,6 +549,9 @@ void SteepFlangerAudioProcessor::UpdateCoeff() {
         }
         float const beta = qwqdsp::window::Kaiser::Beta(side_lobe_);
         qwqdsp::window::Kaiser::ApplyWindow(kernel, beta, false);
+    }
+    else {
+        std::copy_n(custom_coeffs_.begin(), coeff_len_, coeffs_.begin());
     }
 
     PostCoeffsProcessing();

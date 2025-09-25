@@ -93,9 +93,8 @@ void TimeView::mouseUp(const juce::MouseEvent& e) {
 void TimeView::SendCoeffs() {
     {
         juce::ScopedLock _{p_.getCallbackLock()};
-        std::copy_n(p_.custom_coeffs_.begin(), p_.coeff_len_, p_.coeffs_.begin());
         p_.is_using_custom_ = true;
-        p_.PostCoeffsProcessing();
+        p_.UpdateCoeff();
     }
     p_.editor_update_.UpdateGui();
 }
