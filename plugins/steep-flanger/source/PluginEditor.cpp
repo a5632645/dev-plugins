@@ -83,7 +83,16 @@ void TimeView::mouseDrag(const juce::MouseEvent& e) {
     p_.custom_coeffs_[idx] = val;
 
     repaint();
-    static_cast<SteepFlangerAudioProcessorEditor*>(getParentComponent())->UpdateGuiFromTimeView();
+    if (auto* parent = getParentComponent(); parent != nullptr) {
+        static_cast<SteepFlangerAudioProcessorEditor*>(parent)->UpdateGuiFromTimeView();
+    }
+}
+
+void TimeView::RepaintTimeAndSpectralView() {
+    repaint();
+    if (auto* parent = getParentComponent(); parent != nullptr) {
+        static_cast<SteepFlangerAudioProcessorEditor*>(parent)->repaint();
+    }
 }
 
 void TimeView::mouseUp(const juce::MouseEvent& e) {
@@ -147,17 +156,19 @@ void SpectralView::paint(juce::Graphics& g) {
     }
 
     // 绘制自定义频谱
-    g.setColour(active_bg);
-    lasty = juce::jmap(time_.p_.custom_spectral_gains[0], bf.getBottom(), bf.getY());
-    lastx = bf.getX();
-    for (int x = 0; x < b.getWidth(); ++x) {
-        size_t const idx = static_cast<size_t>(static_cast<float>(x * time_.p_.coeff_len_) / static_cast<float>(b.getWidth()));
-        float const val = time_.p_.custom_spectral_gains[idx];
-        float const y = juce::jmap(val, bf.getBottom(), bf.getY());
-        float const xx = x + bf.getX();
-        g.drawLine(lastx, lasty, xx, y);
-        lastx = xx;
-        lasty = y;
+    if (time_.display_custom_.getToggleState()) {
+        g.setColour(active_bg);
+        lasty = juce::jmap(time_.p_.custom_spectral_gains[0], bf.getBottom(), bf.getY());
+        lastx = bf.getX();
+        for (int x = 0; x < b.getWidth(); ++x) {
+            size_t const idx = static_cast<size_t>(static_cast<float>(x * time_.p_.coeff_len_) / static_cast<float>(b.getWidth()));
+            float const val = time_.p_.custom_spectral_gains[idx];
+            float const y = juce::jmap(val, bf.getBottom(), bf.getY());
+            float const xx = x + bf.getX();
+            g.drawLine(lastx, lasty, xx, y);
+            lastx = xx;
+            lasty = y;
+        }
     }
 }
 

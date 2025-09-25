@@ -313,7 +313,7 @@ public:
         display_custom_.setToggleState(true, juce::dontSendNotification);
         addAndMakeVisible(display_custom_);
         display_custom_.onStateChange = [this] {
-            repaint();
+            RepaintTimeAndSpectralView();
         };
     }
 
@@ -343,6 +343,8 @@ public:
     void UpdateGui();
 
 private:
+    void RepaintTimeAndSpectralView();
+
     SteepFlangerAudioProcessor& p_;
     juce::Label title_{"", "Time view"};
     FlatButton reload_;
