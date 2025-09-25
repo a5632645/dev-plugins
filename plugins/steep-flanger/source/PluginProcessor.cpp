@@ -534,7 +534,7 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 right_current_delay.x[2] = right_num_notch * 2;
                 right_current_delay.x[3] = right_num_notch * 3;
                 Vec4 left_delay_inc = Vec4::FromSingle(left_num_notch * 4);
-                Vec4 right_delay_inc = Vec4::FromSingle(left_num_notch * 4);
+                Vec4 right_delay_inc = Vec4::FromSingle(right_num_notch * 4);
                 
                 Vec4 barber_w;
                 barber_w.x[0] = barber * std::numbers::pi_v<float> * 2 * 4;
@@ -557,7 +557,7 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 auto coeff_it = coeffs_.data();
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
                     Vec4 left_taps_out = delay_left_.GetAfterPush(left_current_delay);
-                    Vec4 right_taps_out = delay_left_.GetAfterPush(right_current_delay);
+                    Vec4 right_taps_out = delay_right_.GetAfterPush(right_current_delay);
                     left_current_delay += left_delay_inc;
                     right_current_delay += right_delay_inc;
 
