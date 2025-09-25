@@ -357,6 +357,40 @@ bool SteepFlangerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layo
   #endif
 }
 
+// ---------------------------------------- 简单的SIMD 复数，为了旋转 ----------------------------------------
+struct Vec4Complex {
+    Vec4 re;
+    Vec4 im;
+
+    static constexpr Vec4Complex FromSingle(float re, float im) noexcept {
+        Vec4Complex r;
+        r.re = Vec4::FromSingle(re);
+        r.im = Vec4::FromSingle(im);
+        return r;
+    }
+
+    static Vec4Complex FromPolar(Vec4 w) noexcept {
+        Vec4Complex r;
+        r.re.x[0] = std::cos(w.x[0]);
+        r.re.x[1] = std::cos(w.x[1]);
+        r.re.x[2] = std::cos(w.x[2]);
+        r.re.x[3] = std::cos(w.x[3]);
+        r.im.x[0] = std::sin(w.x[0]);
+        r.im.x[1] = std::sin(w.x[1]);
+        r.im.x[2] = std::sin(w.x[2]);
+        r.im.x[3] = std::sin(w.x[3]);
+        return r;
+    }
+
+    constexpr Vec4Complex& operator*=(const Vec4Complex& a) {
+        Vec4 new_re = re * a.re - im * a.im;
+        Vec4 new_im = re * a.im + im * a.re;
+        re = new_re;
+        im = new_im;
+        return *this;
+    }
+};
+
 void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
@@ -405,9 +439,31 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     
                 float sum = 0;
                 float const num_notch = left_delay_smoother_.Tick();
-                for (size_t i = 0; i < coeff_len_; ++i) {
-                    sum += coeffs_[i] * delay_left_.GetAfterPush(i * num_notch);
+                // for (size_t i = 0; i < coeff_len_; ++i) {
+                //     sum += coeffs_[i] * delay_left_.GetAfterPush(i * num_notch);
+                // }
+                Vec4 current_delay;
+                current_delay.x[0] = 0;
+                current_delay.x[1] = num_notch;
+                current_delay.x[2] = num_notch * 2;
+                current_delay.x[3] = num_notch * 3;
+                Vec4 delay_inc = Vec4::FromSingle(num_notch * 4);
+                auto coeff_it = coeffs_.data();
+                for (size_t i = 0; i < coeff_len_div_4_; ++i) {
+                    Vec4 taps_out = delay_left_.GetAfterPush(current_delay);
+                    current_delay += delay_inc;
+                    Vec4 vec_coeffs;
+                    vec_coeffs.x[0] = *coeff_it++;
+                    vec_coeffs.x[1] = *coeff_it++;
+                    vec_coeffs.x[2] = *coeff_it++;
+                    vec_coeffs.x[3] = *coeff_it++;
+                    taps_out *= vec_coeffs;
+                    sum += taps_out.x[0];
+                    sum += taps_out.x[1];
+                    sum += taps_out.x[2];
+                    sum += taps_out.x[3];
                 }
+                delay_left_.PushFinish();
     
                 left_fb_ = left_damp_.Tick(sum);
                 *left_ptr = sum;
@@ -418,9 +474,31 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     
                 float sum = 0;
                 float const num_notch = right_delay_smoother_.Tick();
-                for (size_t i = 0; i < coeff_len_; ++i) {
-                    sum += coeffs_[i] * delay_right_.GetAfterPush(i * num_notch);
+                // for (size_t i = 0; i < coeff_len_; ++i) {
+                //     sum += coeffs_[i] * delay_right_.GetAfterPush(i * num_notch);
+                // }
+                Vec4 current_delay;
+                current_delay.x[0] = 0;
+                current_delay.x[1] = num_notch;
+                current_delay.x[2] = num_notch * 2;
+                current_delay.x[3] = num_notch * 3;
+                Vec4 delay_inc = Vec4::FromSingle(num_notch * 4);
+                auto coeff_it = coeffs_.data();
+                for (size_t i = 0; i < coeff_len_div_4_; ++i) {
+                    Vec4 taps_out = delay_right_.GetAfterPush(current_delay);
+                    current_delay += delay_inc;
+                    Vec4 vec_coeffs;
+                    vec_coeffs.x[0] = *coeff_it++;
+                    vec_coeffs.x[1] = *coeff_it++;
+                    vec_coeffs.x[2] = *coeff_it++;
+                    vec_coeffs.x[3] = *coeff_it++;
+                    taps_out *= vec_coeffs;
+                    sum += taps_out.x[0];
+                    sum += taps_out.x[1];
+                    sum += taps_out.x[2];
+                    sum += taps_out.x[3];
                 }
+                delay_right_.PushFinish();
     
                 right_fb_ = right_damp_.Tick(sum);
                 *right_ptr = sum;
@@ -431,7 +509,7 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             for (size_t i = 0; i < num_process; ++i) {
                 delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
                 delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
-    
+
                 barber_phase_ += barber_phase_inc_;
                 barber_phase_ -= std::floor(barber_phase_);
                 float barber = barber_phase_ + barber_phase_smoother_.Tick();
@@ -439,21 +517,95 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     
                 float const left_num_notch = left_delay_smoother_.Tick();
                 float const right_num_notch = right_delay_smoother_.Tick();
-                auto const left_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
-                auto const right_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
-                std::complex<float> left_rotation_coeff = 1;
-                std::complex<float> right_rotation_coeff = 1;
-                std::complex<float> left_sum = 0;
-                std::complex<float> right_sum = 0;
-                for (size_t i = 0; i < coeff_len_; ++i) {
-                    left_sum += left_rotation_coeff * coeffs_[i] * delay_left_.GetAfterPush(i * left_num_notch);
-                    right_sum += right_rotation_coeff * coeffs_[i] * delay_right_.GetAfterPush(i * right_num_notch);
+                // auto const left_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
+                // auto const right_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
+                // std::complex<float> left_rotation_coeff = 1;
+                // std::complex<float> right_rotation_coeff = 1;
+                // std::complex<float> left_sum = 0;
+                // std::complex<float> right_sum = 0;
+                Vec4 left_current_delay;
+                Vec4 right_current_delay;
+                left_current_delay.x[0] = 0;
+                left_current_delay.x[1] = left_num_notch;
+                left_current_delay.x[2] = left_num_notch * 2;
+                left_current_delay.x[3] = left_num_notch * 3;
+                right_current_delay.x[0] = 0;
+                right_current_delay.x[1] = right_num_notch;
+                right_current_delay.x[2] = right_num_notch * 2;
+                right_current_delay.x[3] = right_num_notch * 3;
+                Vec4 left_delay_inc = Vec4::FromSingle(left_num_notch * 4);
+                Vec4 right_delay_inc = Vec4::FromSingle(left_num_notch * 4);
+                
+                Vec4 barber_w;
+                barber_w.x[0] = barber * std::numbers::pi_v<float> * 2 * 4;
+                barber_w.x[1] = barber * std::numbers::pi_v<float> * 2 * 4;
+                barber_w.x[2] = barber * std::numbers::pi_v<float> * 2 * 4;
+                barber_w.x[3] = barber * std::numbers::pi_v<float> * 2 * 4;
+                Vec4Complex left_rotation_mul = Vec4Complex::FromPolar(barber_w);
+                Vec4Complex right_rotation_mul = left_rotation_mul;
+                barber_w.x[0] = barber * std::numbers::pi_v<float> * 2 * 0;
+                barber_w.x[1] = barber * std::numbers::pi_v<float> * 2 * 1;
+                barber_w.x[2] = barber * std::numbers::pi_v<float> * 2 * 2;
+                barber_w.x[3] = barber * std::numbers::pi_v<float> * 2 * 3;
+                Vec4Complex left_rotation_coeff = Vec4Complex::FromPolar(barber_w);
+                Vec4Complex right_rotation_coeff = left_rotation_coeff;
+
+                float left_re_sum = 0;
+                float left_im_sum = 0;
+                float right_re_sum = 0;
+                float right_im_sum = 0;
+                auto coeff_it = coeffs_.data();
+                for (size_t i = 0; i < coeff_len_div_4_; ++i) {
+                    Vec4 left_taps_out = delay_left_.GetAfterPush(left_current_delay);
+                    Vec4 right_taps_out = delay_left_.GetAfterPush(right_current_delay);
+                    left_current_delay += left_delay_inc;
+                    right_current_delay += right_delay_inc;
+
+                    Vec4 vec_coeffs;
+                    vec_coeffs.x[0] = *coeff_it++;
+                    vec_coeffs.x[1] = *coeff_it++;
+                    vec_coeffs.x[2] = *coeff_it++;
+                    vec_coeffs.x[3] = *coeff_it++;
+
+                    left_taps_out *= vec_coeffs;
+                    Vec4 temp = left_taps_out * left_rotation_coeff.re;
+                    left_re_sum += temp.x[0];
+                    left_re_sum += temp.x[1];
+                    left_re_sum += temp.x[2];
+                    left_re_sum += temp.x[3];
+                    temp = left_taps_out * left_rotation_coeff.im;
+                    left_im_sum += temp.x[0];
+                    left_im_sum += temp.x[1];
+                    left_im_sum += temp.x[2];
+                    left_im_sum += temp.x[3];
+
+                    right_taps_out *= vec_coeffs;
+                    temp = right_taps_out * right_rotation_coeff.re;
+                    right_re_sum += temp.x[0];
+                    right_re_sum += temp.x[1];
+                    right_re_sum += temp.x[2];
+                    right_re_sum += temp.x[3];
+                    temp = right_taps_out * right_rotation_coeff.im;
+                    right_im_sum += temp.x[0];
+                    right_im_sum += temp.x[1];
+                    right_im_sum += temp.x[2];
+                    right_im_sum += temp.x[3];
+
                     left_rotation_coeff *= left_rotation_mul;
                     right_rotation_coeff *= right_rotation_mul;
                 }
+                delay_left_.PushFinish();
+                delay_right_.PushFinish();
+                // for (size_t i = 0; i < coeff_len_; ++i) {
+                //     left_sum += left_rotation_coeff * coeffs_[i] * delay_left_.GetAfterPush(i * left_num_notch);
+                //     right_sum += right_rotation_coeff * coeffs_[i] * delay_right_.GetAfterPush(i * right_num_notch);
+                //     left_rotation_coeff *= left_rotation_mul;
+                //     right_rotation_coeff *= right_rotation_mul;
+                // }
                 
-                float const left_out = left_hilbert_.Tick(left_sum).real();
-                float const right_out = right_hilbert_.Tick(right_sum).real();
+                // 为什么这个不能只统计RE进行实数滤波，明明APF都是实数没有复数系数desu
+                float const left_out = left_hilbert_.Tick({left_re_sum, left_im_sum}).real();
+                float const right_out = right_hilbert_.Tick({right_re_sum, right_im_sum}).real();
                 left_fb_ = left_damp_.Tick(left_out);
                 right_fb_ = right_damp_.Tick(right_out);
                 *left_ptr = left_out;
@@ -552,6 +704,12 @@ void SteepFlangerAudioProcessor::UpdateCoeff() {
     }
     else {
         std::copy_n(custom_coeffs_.begin(), coeff_len_, coeffs_.begin());
+    }
+
+    coeff_len_div_4_ = (coeff_len_ + 3) / 4;
+    size_t const idxend = coeff_len_div_4_ * 4;
+    for (size_t i = coeff_len_; i < idxend; ++i) {
+        coeffs_[i] = 0;
     }
 
     PostCoeffsProcessing();
