@@ -280,10 +280,10 @@ public:
         while (a < max_samples) {
             a *= 2;
         }
+        mask_ = a - 1;
         if (buffer_.size() < a) {
             buffer_.resize(a);
         }
-        mask_ = a - 1;
         Reset();
     }
 
@@ -292,57 +292,57 @@ public:
         std::fill(buffer_.begin(), buffer_.end(), 0.0f);
     }
 
-    void Push(float x) noexcept {
-        buffer_[wpos_] = x;
-    }
+    // void Push(float x) noexcept {
+    //     buffer_[wpos_] = x;
+    // }
 
-    void PushFinish() noexcept {
-        ++wpos_;
-        wpos_ &= mask_;
-    }
+    // void PushFinish() noexcept {
+    //     ++wpos_;
+    //     wpos_ &= mask_;
+    // }
 
-    Vec4 GetAfterPush(Vec4 delay_samples) noexcept {
-        Vec4 frpos = Vec4::FromSingle(wpos_ + buffer_.size()) - delay_samples;
-        Vec4i32 rpos = frpos.ToInt();
-        Vec4i32 mask = Vec4i32::FromSingle(mask_);
-        Vec4i32 irpos = rpos & mask;
-        Vec4i32 inext1 = (rpos + Vec4i32::FromSingle(1)) & mask;
-        Vec4i32 inext2 = (rpos + Vec4i32::FromSingle(2)) & mask;
-        Vec4i32 inext3 = (rpos + Vec4i32::FromSingle(3)) & mask;
-        Vec4 frac = frpos.Frac();
+    // Vec4 GetAfterPush(Vec4 delay_samples) noexcept {
+    //     Vec4 frpos = Vec4::FromSingle(wpos_ + buffer_.size()) - delay_samples;
+    //     Vec4i32 rpos = frpos.ToInt();
+    //     Vec4i32 mask = Vec4i32::FromSingle(mask_);
+    //     Vec4i32 irpos = rpos & mask;
+    //     Vec4i32 inext1 = (rpos + Vec4i32::FromSingle(1)) & mask;
+    //     Vec4i32 inext2 = (rpos + Vec4i32::FromSingle(2)) & mask;
+    //     Vec4i32 inext3 = (rpos + Vec4i32::FromSingle(3)) & mask;
+    //     Vec4 frac = frpos.Frac();
 
-        Vec4 y0;
-        y0.x[0] = buffer_[irpos.x[0]];
-        y0.x[1] = buffer_[irpos.x[1]];
-        y0.x[2] = buffer_[irpos.x[2]];
-        y0.x[3] = buffer_[irpos.x[3]];
-        Vec4 y1;
-        y1.x[0] = buffer_[inext1.x[0]];
-        y1.x[1] = buffer_[inext1.x[1]];
-        y1.x[2] = buffer_[inext1.x[2]];
-        y1.x[3] = buffer_[inext1.x[3]];
-        Vec4 y2;
-        y2.x[0] = buffer_[inext2.x[0]];
-        y2.x[1] = buffer_[inext2.x[1]];
-        y2.x[2] = buffer_[inext2.x[2]];
-        y2.x[3] = buffer_[inext2.x[3]];
-        Vec4 y3;
-        y3.x[0] = buffer_[inext3.x[0]];
-        y3.x[1] = buffer_[inext3.x[1]];
-        y3.x[2] = buffer_[inext3.x[2]];
-        y3.x[3] = buffer_[inext3.x[3]];
+    //     Vec4 y0;
+    //     y0.x[0] = buffer_[irpos.x[0]];
+    //     y0.x[1] = buffer_[irpos.x[1]];
+    //     y0.x[2] = buffer_[irpos.x[2]];
+    //     y0.x[3] = buffer_[irpos.x[3]];
+    //     Vec4 y1;
+    //     y1.x[0] = buffer_[inext1.x[0]];
+    //     y1.x[1] = buffer_[inext1.x[1]];
+    //     y1.x[2] = buffer_[inext1.x[2]];
+    //     y1.x[3] = buffer_[inext1.x[3]];
+    //     Vec4 y2;
+    //     y2.x[0] = buffer_[inext2.x[0]];
+    //     y2.x[1] = buffer_[inext2.x[1]];
+    //     y2.x[2] = buffer_[inext2.x[2]];
+    //     y2.x[3] = buffer_[inext2.x[3]];
+    //     Vec4 y3;
+    //     y3.x[0] = buffer_[inext3.x[0]];
+    //     y3.x[1] = buffer_[inext3.x[1]];
+    //     y3.x[2] = buffer_[inext3.x[2]];
+    //     y3.x[3] = buffer_[inext3.x[3]];
 
-        Vec4 d1 = frac - Vec4::FromSingle(1.0f);
-        Vec4 d2 = frac - Vec4::FromSingle(2.0f);
-        Vec4 d3 = frac - Vec4::FromSingle(3.0f);
+    //     Vec4 d1 = frac - Vec4::FromSingle(1.0f);
+    //     Vec4 d2 = frac - Vec4::FromSingle(2.0f);
+    //     Vec4 d3 = frac - Vec4::FromSingle(3.0f);
 
-        auto c1 = d1 * d2 * d3 / Vec4::FromSingle(-6.0f);
-        auto c2 = d2 * d3 * Vec4::FromSingle(0.5f);
-        auto c3 = d1 * d3 * Vec4::FromSingle(-0.5f);
-        auto c4 = d1 * d2 / Vec4::FromSingle(6.0f);
+    //     auto c1 = d1 * d2 * d3 / Vec4::FromSingle(-6.0f);
+    //     auto c2 = d2 * d3 * Vec4::FromSingle(0.5f);
+    //     auto c3 = d1 * d3 * Vec4::FromSingle(-0.5f);
+    //     auto c4 = d1 * d2 / Vec4::FromSingle(6.0f);
 
-        return y0 * c1 + frac * (y1 * c2 + y2 * c3 + y3 * c4);
-    }
+    //     return y0 * c1 + frac * (y1 * c2 + y2 * c3 + y3 * c4);
+    // }
 
     Vec4 GetRaw(Vec4 frpos) noexcept {
         // Vec4 frpos = Vec4::FromSingle(wpos_ + buffer_.size()) - delay_samples;
@@ -483,6 +483,8 @@ public:
     qwqdsp::filter::IIRHilbertDeeperCpx<> right_hilbert_;
     qwqdsp::misc::ExpSmoother barber_phase_smoother_;
     qwqdsp::oscillor::VicSineOsc barber_oscillator_;
+    size_t barber_osc_keep_amp_counter_{};
+    size_t barber_osc_keep_amp_need_{};
 
     bool minum_phase_{};
     bool highpass_{};
