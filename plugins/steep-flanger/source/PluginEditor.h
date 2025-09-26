@@ -304,6 +304,12 @@ public:
         reload_.setButtonText("reload");
         addAndMakeVisible(reload_);
 
+        copy_.onClick = [this] {
+            CopyCoeffesToCustom();
+        };
+        copy_.setButtonText("copy");
+        addAndMakeVisible(copy_);
+
         clear_.onClick = [this] {
             ClearCustomCoeffs();
         };
@@ -329,13 +335,16 @@ public:
 
     void SendCoeffs();
 
+    void CopyCoeffesToCustom();
+
     void ClearCustomCoeffs();
 
     void resized() override {
         auto b = getLocalBounds();
         auto top = b.removeFromTop(title_.getFont().getHeight() * 1.5f);
-        reload_.setBounds(top.removeFromRight(70).reduced(1, 1));
-        clear_.setBounds(top.removeFromRight(70).reduced(1, 1));
+        reload_.setBounds(top.removeFromRight(60).reduced(1, 1));
+        copy_.setBounds(top.removeFromRight(50).reduced(1, 1));
+        clear_.setBounds(top.removeFromRight(50).reduced(1, 1));
         display_custom_.setBounds(top.removeFromRight(70).reduced(1, 1));
         title_.setBounds(top);
     }
@@ -348,6 +357,7 @@ private:
     SteepFlangerAudioProcessor& p_;
     juce::Label title_{"", "Time view"};
     FlatButton reload_;
+    FlatButton copy_;
     FlatButton clear_;
     Switch display_custom_{"show ctm"};
     std::array<float, kMaxCoeffLen + 1> coeff_buffer_{};

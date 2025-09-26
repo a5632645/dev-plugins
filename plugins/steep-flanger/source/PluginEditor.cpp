@@ -108,6 +108,15 @@ void TimeView::SendCoeffs() {
     p_.editor_update_.UpdateGui();
 }
 
+void TimeView::CopyCoeffesToCustom() {
+    {
+        juce::ScopedLock _{p_.getCallbackLock()};
+        std::copy_n(p_.coeffs_.begin(), p_.coeff_len_, p_.custom_coeffs_.begin());
+    }
+    std::copy(p_.custom_coeffs_.begin(), p_.custom_coeffs_.end(), coeff_buffer_.begin());
+    repaint();
+}
+
 void TimeView::ClearCustomCoeffs() {
     std::fill(p_.custom_coeffs_.begin(), p_.custom_coeffs_.end(), float{});
     repaint();
