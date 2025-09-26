@@ -1,5 +1,6 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <cstdlib>
 
 #include "qwqdsp/misc/smoother.hpp"
 #include "qwqdsp/spectral/complex_fft.hpp"
@@ -244,6 +245,10 @@ struct alignas(16) Vec4 {
         r.x[3] = static_cast<int>(x[3]);
         return r;
     }
+
+    constexpr float ReduceAdd() const noexcept {
+        return x[0] + x[1] + x[2] + x[3];
+    }
 };
 
 static constexpr Vec4 operator+(const Vec4& a, const Vec4& b) {
@@ -267,6 +272,116 @@ static constexpr Vec4 operator/(const Vec4& a, const Vec4& b) {
     return r;
 }
 
+// copied from https://github.com/AutoPas/AutoPas/blob/0ea349ddb6c6048e1d00b753864e2c6fedd5b74a/src/autopas/utils/AlignedAllocator.h#L29
+// add MSVC & others
+template <class T, size_t Alignment>
+class AlignedAllocator {
+public:
+    // needed for compatibility with stl::allocator
+    /// value type
+    using value_type = T;
+    /// pointer type
+    using pointer = T *;
+    /// const pointer type
+    using const_pointer = const T *;
+    /// reference type
+    using reference = T &;
+    /// const reference type
+    using const_reference = const T &;
+    /// size type
+    using size_type = size_t;
+
+    /**
+    * Equivalent allocator for other types
+    * Class whose member other is an alias of allocator for type U.
+    * (from cplusplus.com)
+    * @tparam U
+    */
+    template <class U>
+    struct rebind {
+        /// other
+        using other = AlignedAllocator<U, Alignment>;
+    };
+
+    /**
+    * \brief Default empty constructor
+    */
+    AlignedAllocator() = default;
+
+    /**
+    * \brief Copy constructor
+    */
+    template <class U>
+    AlignedAllocator(const AlignedAllocator<U, Alignment> &) {}
+
+    /**
+    * \brief Default destructor
+    */
+    ~AlignedAllocator() = default;
+
+    /**
+    * \brief Returns maximum possible value of n, with which we can call
+    * allocate(n)
+    * \return maximum size possible to allocate
+    */
+    size_t max_size() const noexcept { return (std::numeric_limits<size_t>::max() - size_t(Alignment)) / sizeof(T); }
+
+    /**
+    * \brief Allocate aligned memory for n objects of type T
+    * \param n size to allocate
+    * \return Pointer to the allocated memory
+    */
+    T *allocate(std::size_t n) {
+        void* ptr{};
+#ifdef _MSC_VER
+        ptr = _aligned_malloc(n * sizeof(T), Alignment);
+#else
+        ptr = std::aligned_alloc(Alignment, n * sizeof(T));
+#endif
+        if (ptr == nullptr) {
+            throw std::bad_alloc{};
+        }
+        return reinterpret_cast<T*>(ptr);
+    }
+
+    /**
+    * \brief Deallocate memory pointed to by ptr
+    * \param ptr pointer to deallocate
+    */
+    void deallocate(T *ptr, std::size_t /*n*/) {
+#ifdef _MSC_VER
+        _aligned_free(ptr);
+#else
+        free(ptr);
+#endif
+    }
+
+    /**
+    * \brief Construct object of type U at already allocated memory, pointed to
+    * by p
+    * \param p pointer to the object
+    * \param args arguments for the construction
+    */
+    template <class U, class... Args>
+    void construct(U *p, Args &&...args) {
+#if _HAS_CXX20
+        std::construct_at(p, std::forward<Args...>(args)...);
+#else // ^^^ _HAS_CXX20 / !_HAS_CXX20 vvv
+        ::new (static_cast<void*>(p)) U(std::forward<Args...>(args)...);
+#endif // ^^^ !_HAS_CXX20 ^^^
+    }
+
+    /**
+    * \brief Destroy object pointed to by p, but does not deallocate the memory
+    * \param p pointer to the object that should be destroyed
+    */
+    template <class U>
+    void destroy(U *p) {
+        p->~U();
+    }
+};
+
+
 class Vec4DelayLine {
 public:
     void Init(float max_ms, float fs) {
@@ -281,6 +396,9 @@ public:
             a *= 2;
         }
         mask_ = a - 1;
+        delay_length_ = a;
+
+        a += 4;
         if (buffer_.size() < a) {
             buffer_.resize(a);
         }
@@ -349,31 +467,72 @@ public:
         Vec4i32 rpos = frpos.ToInt();
         Vec4i32 mask = Vec4i32::FromSingle(mask_);
         Vec4i32 irpos = rpos & mask;
-        Vec4i32 inext1 = (rpos + Vec4i32::FromSingle(1)) & mask;
-        Vec4i32 inext2 = (rpos + Vec4i32::FromSingle(2)) & mask;
-        Vec4i32 inext3 = (rpos + Vec4i32::FromSingle(3)) & mask;
+        // Vec4i32 inext1 = (rpos + Vec4i32::FromSingle(1)) & mask;
+        // Vec4i32 inext2 = (rpos + Vec4i32::FromSingle(2)) & mask;
+        // Vec4i32 inext3 = (rpos + Vec4i32::FromSingle(3)) & mask;
         Vec4 frac = frpos.Frac();
 
+        Vec4 interp0;
+        interp0.x[0] = buffer_[irpos.x[0]];
+        interp0.x[1] = buffer_[irpos.x[0] + 1];
+        interp0.x[2] = buffer_[irpos.x[0] + 2];
+        interp0.x[3] = buffer_[irpos.x[0] + 3];
+        Vec4 interp1;
+        interp1.x[0] = buffer_[irpos.x[1]];
+        interp1.x[1] = buffer_[irpos.x[1] + 1];
+        interp1.x[2] = buffer_[irpos.x[1] + 2];
+        interp1.x[3] = buffer_[irpos.x[1] + 3];
+        Vec4 interp2;
+        interp2.x[0] = buffer_[irpos.x[2]];
+        interp2.x[1] = buffer_[irpos.x[2] + 1];
+        interp2.x[2] = buffer_[irpos.x[2] + 2];
+        interp2.x[3] = buffer_[irpos.x[2] + 3];
+        Vec4 interp3;
+        interp3.x[0] = buffer_[irpos.x[3]];
+        interp3.x[1] = buffer_[irpos.x[3] + 1];
+        interp3.x[2] = buffer_[irpos.x[3] + 2];
+        interp3.x[3] = buffer_[irpos.x[3] + 3];
+
+        // Vec4 y0;
+        // y0.x[0] = buffer_[irpos.x[0]];
+        // y0.x[1] = buffer_[irpos.x[1]];
+        // y0.x[2] = buffer_[irpos.x[2]];
+        // y0.x[3] = buffer_[irpos.x[3]];
+        // Vec4 y1;
+        // y1.x[0] = buffer_[inext1.x[0]];
+        // y1.x[1] = buffer_[inext1.x[1]];
+        // y1.x[2] = buffer_[inext1.x[2]];
+        // y1.x[3] = buffer_[inext1.x[3]];
+        // Vec4 y2;
+        // y2.x[0] = buffer_[inext2.x[0]];
+        // y2.x[1] = buffer_[inext2.x[1]];
+        // y2.x[2] = buffer_[inext2.x[2]];
+        // y2.x[3] = buffer_[inext2.x[3]];
+        // Vec4 y3;
+        // y3.x[0] = buffer_[inext3.x[0]];
+        // y3.x[1] = buffer_[inext3.x[1]];
+        // y3.x[2] = buffer_[inext3.x[2]];
+        // y3.x[3] = buffer_[inext3.x[3]];
         Vec4 y0;
-        y0.x[0] = buffer_[irpos.x[0]];
-        y0.x[1] = buffer_[irpos.x[1]];
-        y0.x[2] = buffer_[irpos.x[2]];
-        y0.x[3] = buffer_[irpos.x[3]];
+        y0.x[0] = interp0.x[0];
+        y0.x[1] = interp1.x[0];
+        y0.x[2] = interp2.x[0];
+        y0.x[3] = interp3.x[0];
         Vec4 y1;
-        y1.x[0] = buffer_[inext1.x[0]];
-        y1.x[1] = buffer_[inext1.x[1]];
-        y1.x[2] = buffer_[inext1.x[2]];
-        y1.x[3] = buffer_[inext1.x[3]];
+        y1.x[0] = interp0.x[1];
+        y1.x[1] = interp1.x[1];
+        y1.x[2] = interp2.x[1];
+        y1.x[3] = interp3.x[1];
         Vec4 y2;
-        y2.x[0] = buffer_[inext2.x[0]];
-        y2.x[1] = buffer_[inext2.x[1]];
-        y2.x[2] = buffer_[inext2.x[2]];
-        y2.x[3] = buffer_[inext2.x[3]];
+        y2.x[0] = interp0.x[2];
+        y2.x[1] = interp1.x[2];
+        y2.x[2] = interp2.x[2];
+        y2.x[3] = interp3.x[2];
         Vec4 y3;
-        y3.x[0] = buffer_[inext3.x[0]];
-        y3.x[1] = buffer_[inext3.x[1]];
-        y3.x[2] = buffer_[inext3.x[2]];
-        y3.x[3] = buffer_[inext3.x[3]];
+        y3.x[0] = interp0.x[3];
+        y3.x[1] = interp1.x[3];
+        y3.x[2] = interp2.x[3];
+        y3.x[3] = interp3.x[3];
 
         Vec4 d1 = frac - Vec4::FromSingle(1.0f);
         Vec4 d2 = frac - Vec4::FromSingle(2.0f);
@@ -399,7 +558,8 @@ public:
     }
 
     // 给优化开洞(
-    std::vector<float> buffer_;
+    std::vector<float, AlignedAllocator<float, 16>> buffer_;
+    size_t delay_length_{};
     size_t wpos_{};
     size_t mask_{};
 };

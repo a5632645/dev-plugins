@@ -412,8 +412,6 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         buffer.clear (i, 0, buffer.getNumSamples());
 
     size_t const len = buffer.getNumSamples();
-    // std::span<float> left{buffer.getWritePointer(0), len};
-    // std::span<float> right{buffer.getWritePointer(1), len};
     auto* left_ptr = buffer.getWritePointer(0);
     auto* right_ptr = buffer.getWritePointer(1);
 
@@ -448,6 +446,14 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             for (size_t i = 0; i < num_process; ++i) {
                 // delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
                 delay_left_.buffer_[wpos] += left_fb_ * feedback_mul_;
+
+                {
+                    // 拷贝前四个元素到末尾
+                    // 在读取[delay.delay_length_-1,delay.delay_length)处的值时拉格朗日插值需要前三个元素
+                    // 所以实际上只需要拷贝3个即可
+                    __m128 first4 = _mm_load_ps(&delay_left_.buffer_[0]);
+                    _mm_store_ps(&delay_left_.buffer_[delay_left_.delay_length_], first4);
+                }
     
                 float sum = 0;
                 float const num_notch = left_delay_smoother_.Tick();
@@ -460,7 +466,7 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 current_delay.x[2] = num_notch * 2;
                 current_delay.x[3] = num_notch * 3;
                 Vec4 delay_inc = Vec4::FromSingle(num_notch * 4);
-                Vec4 temp_vec = Vec4::FromSingle(wpos + delay_left_.buffer_.size());
+                Vec4 temp_vec = Vec4::FromSingle(wpos + delay_left_.delay_length_);
                 auto coeff_it = coeffs_.data();
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
                     // Vec4 taps_out = delay_left_.GetAfterPush(current_delay);
@@ -491,6 +497,11 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             for (size_t i = 0; i < num_process; ++i) {
                 // delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
                 delay_right_.buffer_[wpos] += right_fb_ * feedback_mul_;
+
+                {
+                    __m128 first4 = _mm_load_ps(&delay_right_.buffer_[0]);
+                    _mm_store_ps(&delay_right_.buffer_[delay_right_.delay_length_], first4);
+                }
     
                 float sum = 0;
                 float const num_notch = right_delay_smoother_.Tick();
@@ -503,7 +514,7 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 current_delay.x[2] = num_notch * 2;
                 current_delay.x[3] = num_notch * 3;
                 Vec4 delay_inc = Vec4::FromSingle(num_notch * 4);
-                Vec4 temp_vec = Vec4::FromSingle(wpos + delay_left_.buffer_.size());
+                Vec4 temp_vec = Vec4::FromSingle(wpos + delay_left_.delay_length_);
                 auto coeff_it = coeffs_.data();
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
                     // Vec4 taps_out = delay_right_.GetAfterPush(current_delay);
@@ -540,6 +551,13 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 // delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
                 delay_left_.buffer_[wpos] += left_fb_ * feedback_mul_;
                 delay_right_.buffer_[wpos] += right_fb_ * feedback_mul_;
+
+                {
+                    __m128 first4 = _mm_load_ps(&delay_left_.buffer_[0]);
+                    _mm_store_ps(&delay_left_.buffer_[delay_left_.delay_length_], first4);
+                    first4 = _mm_load_ps(&delay_right_.buffer_[0]);
+                    _mm_store_ps(&delay_right_.buffer_[delay_right_.delay_length_], first4);
+                }
 
                 float const left_num_notch = left_delay_smoother_.Tick();
                 float const right_num_notch = right_delay_smoother_.Tick();
@@ -613,7 +631,7 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 float right_re_sum = 0;
                 float right_im_sum = 0;
                 auto coeff_it = coeffs_.data();
-                Vec4 temp_vec = Vec4::FromSingle(wpos + delay_left_.buffer_.size());
+                Vec4 temp_vec = Vec4::FromSingle(wpos + delay_left_.delay_length_);
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
                     // Vec4 left_taps_out = delay_left_.GetAfterPush(left_current_delay);
                     // Vec4 right_taps_out = delay_right_.GetAfterPush(right_current_delay);
