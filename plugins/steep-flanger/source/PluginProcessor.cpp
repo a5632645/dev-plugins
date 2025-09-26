@@ -223,7 +223,7 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         );
         param_listener_.Add(p, [this](float barber_speed) {
             juce::ScopedLock _{getCallbackLock()};
-            barber_phase_inc_ = barber_speed / getSampleRate();
+            barber_oscillator_.SetFreq(barber_speed, getSampleRate());
         });
         layout.add(std::move(p));
     }
@@ -318,13 +318,16 @@ void SteepFlangerAudioProcessor::changeProgramName (int index, const juce::Strin
 //==============================================================================
 void SteepFlangerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    float const samples_need = sampleRate * 35.0f / 1000.0f;
-    delay_left_.Init(samples_need * kMaxCoeffLen);
-    delay_right_.Init(samples_need * kMaxCoeffLen);
+    float const samples_need = sampleRate * 30.0f / 1000.0f;
+    delay_left_.Init(samples_need * kMaxCoeffLen + 256 + 4);
+    delay_right_.Init(samples_need * kMaxCoeffLen + 256 + 4);
     left_delay_smoother_.SetSmoothTime(20.0f, sampleRate);
     right_delay_smoother_.SetSmoothTime(20.0f, sampleRate);
     barber_phase_smoother_.SetSmoothTime(20.0f, sampleRate);
+    barber_oscillator_.Reset();
     param_listener_.CallAll();
+
+    measurer.reset(sampleRate, samplesPerBlock);
 }
 
 void SteepFlangerAudioProcessor::releaseResources()
@@ -394,227 +397,291 @@ struct Vec4Complex {
 void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
-    std::ignore = midiMessages;
+    {
 
-    juce::ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels  = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
-
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, buffer.getNumSamples());
-
-    size_t const len = buffer.getNumSamples();
-    // std::span<float> left{buffer.getWritePointer(0), len};
-    // std::span<float> right{buffer.getWritePointer(1), len};
-    auto* left_ptr = buffer.getWritePointer(0);
-    auto* right_ptr = buffer.getWritePointer(1);
-
-    size_t cando = len;
-    while (cando != 0) {
-        size_t num_process = std::min<size_t>(64, cando);
-        cando -= num_process;
-
-        // update lfo
-        phase_ += phase_inc_ * num_process;
-        float right_phase = phase_ + phase_shift_;
-        {
-            float t;
-            phase_ = std::modf(phase_, &t);
-            right_phase = std::modf(right_phase, &t);
-        }
-        float lfo_sine = qwqdsp::polymath::SinPi(phase_ * std::numbers::pi_v<float>);
-        float delay = delay_samples_ + lfo_sine * depth_samples_;
-        delay = std::max(0.0f, delay);
-        left_delay_smoother_.SetTarget(delay);
-
-        lfo_sine = qwqdsp::polymath::SinPi(right_phase * std::numbers::pi_v<float>);
-        delay = delay_samples_ + lfo_sine * depth_samples_;
-        delay = std::max(0.0f, delay);
-        right_delay_smoother_.SetTarget(delay);
-
-        // fir polyphase filtering
-        if (!barber_enable_) {
-            for (size_t i = 0; i < num_process; ++i) {
-                delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
+        juce::AudioProcessLoadMeasurer::ScopedTimer _{measurer};
     
-                float sum = 0;
-                float const num_notch = left_delay_smoother_.Tick();
-                // for (size_t i = 0; i < coeff_len_; ++i) {
-                //     sum += coeffs_[i] * delay_left_.GetAfterPush(i * num_notch);
-                // }
-                Vec4 current_delay;
-                current_delay.x[0] = 0;
-                current_delay.x[1] = num_notch;
-                current_delay.x[2] = num_notch * 2;
-                current_delay.x[3] = num_notch * 3;
-                Vec4 delay_inc = Vec4::FromSingle(num_notch * 4);
-                auto coeff_it = coeffs_.data();
-                for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    Vec4 taps_out = delay_left_.GetAfterPush(current_delay);
-                    current_delay += delay_inc;
-                    Vec4 vec_coeffs;
-                    vec_coeffs.x[0] = *coeff_it++;
-                    vec_coeffs.x[1] = *coeff_it++;
-                    vec_coeffs.x[2] = *coeff_it++;
-                    vec_coeffs.x[3] = *coeff_it++;
-                    taps_out *= vec_coeffs;
-                    sum += taps_out.x[0];
-                    sum += taps_out.x[1];
-                    sum += taps_out.x[2];
-                    sum += taps_out.x[3];
-                }
-                delay_left_.PushFinish();
+        std::ignore = midiMessages;
     
-                left_fb_ = left_damp_.Tick(sum);
-                *left_ptr = sum;
-                ++left_ptr;
+        juce::ScopedNoDenormals noDenormals;
+        auto totalNumInputChannels  = getTotalNumInputChannels();
+        auto totalNumOutputChannels = getTotalNumOutputChannels();
+    
+        for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+            buffer.clear (i, 0, buffer.getNumSamples());
+    
+        size_t const len = buffer.getNumSamples();
+        // std::span<float> left{buffer.getWritePointer(0), len};
+        // std::span<float> right{buffer.getWritePointer(1), len};
+        auto* left_ptr = buffer.getWritePointer(0);
+        auto* right_ptr = buffer.getWritePointer(1);
+    
+        size_t cando = len;
+        while (cando != 0) {
+            size_t num_process = std::min<size_t>(256, cando);
+            cando -= num_process;
+    
+            // update lfo
+            phase_ += phase_inc_ * num_process;
+            float right_phase = phase_ + phase_shift_;
+            {
+                float t;
+                phase_ = std::modf(phase_, &t);
+                right_phase = std::modf(right_phase, &t);
             }
-            for (size_t i = 0; i < num_process; ++i) {
-                delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
+            float lfo_sine = qwqdsp::polymath::SinPi(phase_ * std::numbers::pi_v<float>);
+            float delay = delay_samples_ + lfo_sine * depth_samples_;
+            delay = std::max(0.0f, delay);
+            left_delay_smoother_.SetTarget(delay);
     
-                float sum = 0;
-                float const num_notch = right_delay_smoother_.Tick();
-                // for (size_t i = 0; i < coeff_len_; ++i) {
-                //     sum += coeffs_[i] * delay_right_.GetAfterPush(i * num_notch);
-                // }
-                Vec4 current_delay;
-                current_delay.x[0] = 0;
-                current_delay.x[1] = num_notch;
-                current_delay.x[2] = num_notch * 2;
-                current_delay.x[3] = num_notch * 3;
-                Vec4 delay_inc = Vec4::FromSingle(num_notch * 4);
-                auto coeff_it = coeffs_.data();
-                for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    Vec4 taps_out = delay_right_.GetAfterPush(current_delay);
-                    current_delay += delay_inc;
-                    Vec4 vec_coeffs;
-                    vec_coeffs.x[0] = *coeff_it++;
-                    vec_coeffs.x[1] = *coeff_it++;
-                    vec_coeffs.x[2] = *coeff_it++;
-                    vec_coeffs.x[3] = *coeff_it++;
-                    taps_out *= vec_coeffs;
-                    sum += taps_out.x[0];
-                    sum += taps_out.x[1];
-                    sum += taps_out.x[2];
-                    sum += taps_out.x[3];
+            lfo_sine = qwqdsp::polymath::SinPi(right_phase * std::numbers::pi_v<float>);
+            delay = delay_samples_ + lfo_sine * depth_samples_;
+            delay = std::max(0.0f, delay);
+            right_delay_smoother_.SetTarget(delay);
+    
+            // fir polyphase filtering
+            if (!barber_enable_) {
+                delay_left_.PushBlockNotChangeWpos({left_ptr, num_process});
+                size_t wpos = delay_left_.wpos_;
+                size_t const mask = delay_left_.mask_;
+                for (size_t i = 0; i < num_process; ++i) {
+                    // delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
+                    delay_left_.buffer_[wpos] += left_fb_ * feedback_mul_;
+        
+                    float sum = 0;
+                    float const num_notch = left_delay_smoother_.Tick();
+                    // for (size_t i = 0; i < coeff_len_; ++i) {
+                    //     sum += coeffs_[i] * delay_left_.GetAfterPush(i * num_notch);
+                    // }
+                    Vec4 current_delay;
+                    current_delay.x[0] = 0;
+                    current_delay.x[1] = num_notch;
+                    current_delay.x[2] = num_notch * 2;
+                    current_delay.x[3] = num_notch * 3;
+                    Vec4 delay_inc = Vec4::FromSingle(num_notch * 4);
+                    Vec4 temp_vec = Vec4::FromSingle(wpos + delay_left_.buffer_.size());
+                    auto coeff_it = coeffs_.data();
+                    for (size_t i = 0; i < coeff_len_div_4_; ++i) {
+                        // Vec4 taps_out = delay_left_.GetAfterPush(current_delay);
+                        Vec4 taps_out = delay_left_.GetRaw(temp_vec - current_delay);
+                        current_delay += delay_inc;
+                        Vec4 vec_coeffs;
+                        vec_coeffs.x[0] = *coeff_it++;
+                        vec_coeffs.x[1] = *coeff_it++;
+                        vec_coeffs.x[2] = *coeff_it++;
+                        vec_coeffs.x[3] = *coeff_it++;
+                        taps_out *= vec_coeffs;
+                        sum += taps_out.x[0];
+                        sum += taps_out.x[1];
+                        sum += taps_out.x[2];
+                        sum += taps_out.x[3];
+                    }
+                    ++wpos;
+                    wpos &= mask;
+        
+                    left_fb_ = left_damp_.Tick(sum);
+                    *left_ptr = sum;
+                    ++left_ptr;
                 }
-                delay_right_.PushFinish();
+                delay_left_.wpos_ = wpos;
     
-                right_fb_ = right_damp_.Tick(sum);
-                *right_ptr = sum;
-                ++right_ptr;
+                delay_right_.PushBlockNotChangeWpos({right_ptr, num_process});
+                wpos = delay_right_.wpos_;
+                for (size_t i = 0; i < num_process; ++i) {
+                    // delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
+                    delay_right_.buffer_[wpos] += right_fb_ * feedback_mul_;
+        
+                    float sum = 0;
+                    float const num_notch = right_delay_smoother_.Tick();
+                    // for (size_t i = 0; i < coeff_len_; ++i) {
+                    //     sum += coeffs_[i] * delay_right_.GetAfterPush(i * num_notch);
+                    // }
+                    Vec4 current_delay;
+                    current_delay.x[0] = 0;
+                    current_delay.x[1] = num_notch;
+                    current_delay.x[2] = num_notch * 2;
+                    current_delay.x[3] = num_notch * 3;
+                    Vec4 delay_inc = Vec4::FromSingle(num_notch * 4);
+                    Vec4 temp_vec = Vec4::FromSingle(wpos + delay_left_.buffer_.size());
+                    auto coeff_it = coeffs_.data();
+                    for (size_t i = 0; i < coeff_len_div_4_; ++i) {
+                        // Vec4 taps_out = delay_right_.GetAfterPush(current_delay);
+                        Vec4 taps_out = delay_right_.GetRaw(temp_vec - current_delay);
+                        current_delay += delay_inc;
+                        Vec4 vec_coeffs;
+                        vec_coeffs.x[0] = *coeff_it++;
+                        vec_coeffs.x[1] = *coeff_it++;
+                        vec_coeffs.x[2] = *coeff_it++;
+                        vec_coeffs.x[3] = *coeff_it++;
+                        taps_out *= vec_coeffs;
+                        sum += taps_out.x[0];
+                        sum += taps_out.x[1];
+                        sum += taps_out.x[2];
+                        sum += taps_out.x[3];
+                    }
+                    // delay_right_.PushFinish();
+                    ++wpos;
+                    wpos &= mask;
+        
+                    right_fb_ = right_damp_.Tick(sum);
+                    *right_ptr = sum;
+                    ++right_ptr;
+                }
+                delay_right_.wpos_ = wpos;
             }
-        }
-        else {
-            for (size_t i = 0; i < num_process; ++i) {
-                delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
-                delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
-
-                barber_phase_ += barber_phase_inc_;
-                barber_phase_ -= std::floor(barber_phase_);
-                float barber = barber_phase_ + barber_phase_smoother_.Tick();
-                barber -= std::floor(barber);
+            else {
+                delay_left_.PushBlockNotChangeWpos({left_ptr, num_process});
+                delay_right_.PushBlockNotChangeWpos({right_ptr, num_process});
+                size_t wpos = delay_left_.wpos_;
+                size_t const mask = delay_left_.mask_;
+                for (size_t i = 0; i < num_process; ++i) {
+                    // delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
+                    // delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
+                    delay_left_.buffer_[wpos] += left_fb_ * feedback_mul_;
+                    delay_right_.buffer_[wpos] += right_fb_ * feedback_mul_;
     
-                float const left_num_notch = left_delay_smoother_.Tick();
-                float const right_num_notch = right_delay_smoother_.Tick();
-                // auto const left_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
-                // auto const right_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
-                // std::complex<float> left_rotation_coeff = 1;
-                // std::complex<float> right_rotation_coeff = 1;
-                // std::complex<float> left_sum = 0;
-                // std::complex<float> right_sum = 0;
-                Vec4 left_current_delay;
-                Vec4 right_current_delay;
-                left_current_delay.x[0] = 0;
-                left_current_delay.x[1] = left_num_notch;
-                left_current_delay.x[2] = left_num_notch * 2;
-                left_current_delay.x[3] = left_num_notch * 3;
-                right_current_delay.x[0] = 0;
-                right_current_delay.x[1] = right_num_notch;
-                right_current_delay.x[2] = right_num_notch * 2;
-                right_current_delay.x[3] = right_num_notch * 3;
-                Vec4 left_delay_inc = Vec4::FromSingle(left_num_notch * 4);
-                Vec4 right_delay_inc = Vec4::FromSingle(right_num_notch * 4);
-                
-                Vec4 barber_w;
-                barber_w.x[0] = barber * std::numbers::pi_v<float> * 2 * 4;
-                barber_w.x[1] = barber * std::numbers::pi_v<float> * 2 * 4;
-                barber_w.x[2] = barber * std::numbers::pi_v<float> * 2 * 4;
-                barber_w.x[3] = barber * std::numbers::pi_v<float> * 2 * 4;
-                Vec4Complex left_rotation_mul = Vec4Complex::FromPolar(barber_w);
-                Vec4Complex right_rotation_mul = left_rotation_mul;
-                barber_w.x[0] = barber * std::numbers::pi_v<float> * 2 * 0;
-                barber_w.x[1] = barber * std::numbers::pi_v<float> * 2 * 1;
-                barber_w.x[2] = barber * std::numbers::pi_v<float> * 2 * 2;
-                barber_w.x[3] = barber * std::numbers::pi_v<float> * 2 * 3;
-                Vec4Complex left_rotation_coeff = Vec4Complex::FromPolar(barber_w);
-                Vec4Complex right_rotation_coeff = left_rotation_coeff;
+                    float const left_num_notch = left_delay_smoother_.Tick();
+                    float const right_num_notch = right_delay_smoother_.Tick();
+                    // auto const left_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
+                    // auto const right_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
+                    // std::complex<float> left_rotation_coeff = 1;
+                    // std::complex<float> right_rotation_coeff = 1;
+                    // std::complex<float> left_sum = 0;
+                    // std::complex<float> right_sum = 0;
+                    Vec4 left_current_delay;
+                    Vec4 right_current_delay;
+                    left_current_delay.x[0] = 0;
+                    left_current_delay.x[1] = left_num_notch;
+                    left_current_delay.x[2] = left_num_notch * 2;
+                    left_current_delay.x[3] = left_num_notch * 3;
+                    right_current_delay.x[0] = 0;
+                    right_current_delay.x[1] = right_num_notch;
+                    right_current_delay.x[2] = right_num_notch * 2;
+                    right_current_delay.x[3] = right_num_notch * 3;
+                    Vec4 left_delay_inc = Vec4::FromSingle(left_num_notch * 4);
+                    Vec4 right_delay_inc = Vec4::FromSingle(right_num_notch * 4);
 
-                float left_re_sum = 0;
-                float left_im_sum = 0;
-                float right_re_sum = 0;
-                float right_im_sum = 0;
-                auto coeff_it = coeffs_.data();
-                for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    Vec4 left_taps_out = delay_left_.GetAfterPush(left_current_delay);
-                    Vec4 right_taps_out = delay_right_.GetAfterPush(right_current_delay);
-                    left_current_delay += left_delay_inc;
-                    right_current_delay += right_delay_inc;
+                    // barber_phase_ += barber_phase_inc_;
+                    // barber_phase_ -= std::floor(barber_phase_);
+                    // float barber = barber_phase_ + barber_phase_smoother_.Tick();
+                    // barber -= std::floor(barber);
+                    
+                    // Vec4 barber_w;
+                    // barber_w.x[0] = barber * std::numbers::pi_v<float> * 2 * 0;
+                    // barber_w.x[1] = barber * std::numbers::pi_v<float> * 2 * 1;
+                    // barber_w.x[2] = barber * std::numbers::pi_v<float> * 2 * 2;
+                    // barber_w.x[3] = barber * std::numbers::pi_v<float> * 2 * 3;
+                    // Vec4Complex left_rotation_coeff = Vec4Complex::FromPolar(barber_w);
+                    // Vec4Complex right_rotation_coeff = left_rotation_coeff;
+                    // barber_w.x[0] = barber * std::numbers::pi_v<float> * 2 * 4;
+                    // barber_w.x[1] = barber * std::numbers::pi_v<float> * 2 * 4;
+                    // barber_w.x[2] = barber * std::numbers::pi_v<float> * 2 * 4;
+                    // barber_w.x[3] = barber * std::numbers::pi_v<float> * 2 * 4;
+                    // Vec4Complex left_rotation_mul = Vec4Complex::FromPolar(barber_w);
+                    // Vec4Complex right_rotation_mul = left_rotation_mul;
 
-                    Vec4 vec_coeffs;
-                    vec_coeffs.x[0] = *coeff_it++;
-                    vec_coeffs.x[1] = *coeff_it++;
-                    vec_coeffs.x[2] = *coeff_it++;
-                    vec_coeffs.x[3] = *coeff_it++;
-
-                    left_taps_out *= vec_coeffs;
-                    Vec4 temp = left_taps_out * left_rotation_coeff.re;
-                    left_re_sum += temp.x[0];
-                    left_re_sum += temp.x[1];
-                    left_re_sum += temp.x[2];
-                    left_re_sum += temp.x[3];
-                    temp = left_taps_out * left_rotation_coeff.im;
-                    left_im_sum += temp.x[0];
-                    left_im_sum += temp.x[1];
-                    left_im_sum += temp.x[2];
-                    left_im_sum += temp.x[3];
-
-                    right_taps_out *= vec_coeffs;
-                    temp = right_taps_out * right_rotation_coeff.re;
-                    right_re_sum += temp.x[0];
-                    right_re_sum += temp.x[1];
-                    right_re_sum += temp.x[2];
-                    right_re_sum += temp.x[3];
-                    temp = right_taps_out * right_rotation_coeff.im;
-                    right_im_sum += temp.x[0];
-                    right_im_sum += temp.x[1];
-                    right_im_sum += temp.x[2];
-                    right_im_sum += temp.x[3];
-
-                    left_rotation_coeff *= left_rotation_mul;
-                    right_rotation_coeff *= right_rotation_mul;
+                    auto const addition_rotation = std::polar(1.0f, barber_phase_smoother_.Tick() * std::numbers::pi_v<float> * 2);
+                    barber_oscillator_.Tick();
+                    auto const rotation_once = barber_oscillator_.GetCpx() * addition_rotation;
+                    auto const rotation_2 = rotation_once * rotation_once;
+                    auto const rotation_3 = rotation_once * rotation_2;
+                    auto const rotation_4 = rotation_2 * rotation_2;
+                    Vec4Complex left_rotation_coeff;
+                    left_rotation_coeff.re.x[0] = 1;
+                    left_rotation_coeff.re.x[1] = rotation_once.real();
+                    left_rotation_coeff.re.x[2] = rotation_2.real();
+                    left_rotation_coeff.re.x[3] = rotation_3.real();
+                    left_rotation_coeff.im.x[0] = 0;
+                    left_rotation_coeff.im.x[1] = rotation_once.imag();
+                    left_rotation_coeff.im.x[2] = rotation_2.imag();
+                    left_rotation_coeff.im.x[3] = rotation_3.imag();
+                    Vec4Complex right_rotation_coeff = left_rotation_coeff;
+                    Vec4Complex left_rotation_mul;
+                    left_rotation_mul.re.x[0] = rotation_4.real();
+                    left_rotation_mul.re.x[1] = rotation_4.real();
+                    left_rotation_mul.re.x[2] = rotation_4.real();
+                    left_rotation_mul.re.x[3] = rotation_4.real();
+                    left_rotation_mul.im.x[0] = rotation_4.imag();
+                    left_rotation_mul.im.x[1] = rotation_4.imag();
+                    left_rotation_mul.im.x[2] = rotation_4.imag();
+                    left_rotation_mul.im.x[3] = rotation_4.imag();
+                    Vec4Complex right_rotation_mul = left_rotation_mul;
+    
+                    float left_re_sum = 0;
+                    float left_im_sum = 0;
+                    float right_re_sum = 0;
+                    float right_im_sum = 0;
+                    auto coeff_it = coeffs_.data();
+                    Vec4 temp_vec = Vec4::FromSingle(wpos + delay_left_.buffer_.size());
+                    for (size_t i = 0; i < coeff_len_div_4_; ++i) {
+                        // Vec4 left_taps_out = delay_left_.GetAfterPush(left_current_delay);
+                        // Vec4 right_taps_out = delay_right_.GetAfterPush(right_current_delay);
+                        Vec4 left_taps_out = delay_left_.GetRaw(temp_vec - left_current_delay);
+                        Vec4 right_taps_out = delay_right_.GetRaw(temp_vec - right_current_delay);
+                        left_current_delay += left_delay_inc;
+                        right_current_delay += right_delay_inc;
+    
+                        Vec4 vec_coeffs;
+                        vec_coeffs.x[0] = *coeff_it++;
+                        vec_coeffs.x[1] = *coeff_it++;
+                        vec_coeffs.x[2] = *coeff_it++;
+                        vec_coeffs.x[3] = *coeff_it++;
+    
+                        left_taps_out *= vec_coeffs;
+                        Vec4 temp = left_taps_out * left_rotation_coeff.re;
+                        left_re_sum += temp.x[0];
+                        left_re_sum += temp.x[1];
+                        left_re_sum += temp.x[2];
+                        left_re_sum += temp.x[3];
+                        temp = left_taps_out * left_rotation_coeff.im;
+                        left_im_sum += temp.x[0];
+                        left_im_sum += temp.x[1];
+                        left_im_sum += temp.x[2];
+                        left_im_sum += temp.x[3];
+    
+                        right_taps_out *= vec_coeffs;
+                        temp = right_taps_out * right_rotation_coeff.re;
+                        right_re_sum += temp.x[0];
+                        right_re_sum += temp.x[1];
+                        right_re_sum += temp.x[2];
+                        right_re_sum += temp.x[3];
+                        temp = right_taps_out * right_rotation_coeff.im;
+                        right_im_sum += temp.x[0];
+                        right_im_sum += temp.x[1];
+                        right_im_sum += temp.x[2];
+                        right_im_sum += temp.x[3];
+    
+                        left_rotation_coeff *= left_rotation_mul;
+                        right_rotation_coeff *= right_rotation_mul;
+                    }
+                    ++wpos;
+                    wpos &= mask;
+                    // delay_left_.PushFinish();
+                    // delay_right_.PushFinish();
+                    // for (size_t i = 0; i < coeff_len_; ++i) {
+                    //     left_sum += left_rotation_coeff * coeffs_[i] * delay_left_.GetAfterPush(i * left_num_notch);
+                    //     right_sum += right_rotation_coeff * coeffs_[i] * delay_right_.GetAfterPush(i * right_num_notch);
+                    //     left_rotation_coeff *= left_rotation_mul;
+                    //     right_rotation_coeff *= right_rotation_mul;
+                    // }
+                    
+                    // 为什么这个不能只统计RE进行实数滤波，明明APF都是实数没有复数系数desu
+                    float const left_out = left_hilbert_.Tick({left_re_sum, left_im_sum}).real();
+                    float const right_out = right_hilbert_.Tick({right_re_sum, right_im_sum}).real();
+                    left_fb_ = left_damp_.Tick(left_out);
+                    right_fb_ = right_damp_.Tick(right_out);
+                    *left_ptr = left_out;
+                    *right_ptr = right_out;
+                    ++left_ptr;
+                    ++right_ptr;
                 }
-                delay_left_.PushFinish();
-                delay_right_.PushFinish();
-                // for (size_t i = 0; i < coeff_len_; ++i) {
-                //     left_sum += left_rotation_coeff * coeffs_[i] * delay_left_.GetAfterPush(i * left_num_notch);
-                //     right_sum += right_rotation_coeff * coeffs_[i] * delay_right_.GetAfterPush(i * right_num_notch);
-                //     left_rotation_coeff *= left_rotation_mul;
-                //     right_rotation_coeff *= right_rotation_mul;
-                // }
-                
-                // 为什么这个不能只统计RE进行实数滤波，明明APF都是实数没有复数系数desu
-                float const left_out = left_hilbert_.Tick({left_re_sum, left_im_sum}).real();
-                float const right_out = right_hilbert_.Tick({right_re_sum, right_im_sum}).real();
-                left_fb_ = left_damp_.Tick(left_out);
-                right_fb_ = right_damp_.Tick(right_out);
-                *left_ptr = left_out;
-                *right_ptr = right_out;
-                ++left_ptr;
-                ++right_ptr;
+                delay_left_.wpos_ = wpos;
+                delay_right_.wpos_ = wpos;
             }
         }
     }
+
+    measurer.getLoadAsPercentage();
 }
 
 //==============================================================================

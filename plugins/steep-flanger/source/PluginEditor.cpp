@@ -328,7 +328,7 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     barber_reset_phase_.setButtonText("reset phase");
     barber_reset_phase_.onClick = [this] {
         juce::ScopedLock _{p_.getCallbackLock()};
-        p_.barber_phase_ = 0;
+        p_.barber_oscillator_.Reset();
     };
     addAndMakeVisible(barber_reset_phase_);
 
@@ -339,6 +339,8 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
 
     custom_.setToggleState(p.is_using_custom_, juce::sendNotificationSync);
     p.editor_update_.OnEditorCreate(this);
+
+    startTimerHz(10);
 }
 
 SteepFlangerAudioProcessorEditor::~SteepFlangerAudioProcessorEditor() {
@@ -451,4 +453,14 @@ void SteepFlangerAudioProcessorEditor::resized() {
         spectral_block.removeFromRight(4);
         spectralview_.setBounds(spectral_block);
     }
+}
+
+void SteepFlangerAudioProcessorEditor::timerCallback() {
+    static double a = 0;
+
+    auto cpu_percent = p_.measurer.getLoadAsPercentage();
+    a = a * 0.9f + 0.1f * cpu_percent;
+    juce::String s;
+    s << "[cpu]: " << a << "%";
+    juce::Logger::getCurrentLogger()->writeToLog(s);
 }

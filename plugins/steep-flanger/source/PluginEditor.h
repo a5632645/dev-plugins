@@ -396,7 +396,7 @@ private:
 // ---------------------------------------- editor ----------------------------------------
 
 //==============================================================================
-class SteepFlangerAudioProcessorEditor final : public juce::AudioProcessorEditor {
+class SteepFlangerAudioProcessorEditor final : public juce::AudioProcessorEditor, public juce::Timer {
 public:
     explicit SteepFlangerAudioProcessorEditor (SteepFlangerAudioProcessor&);
     ~SteepFlangerAudioProcessorEditor() override;
@@ -413,6 +413,8 @@ public:
     void UpdateGuiFromTimeView() {
         spectralview_.UpdateGui();
     }
+
+    void timerCallback() override;
 private:
     SteepFlangerAudioProcessor& p_;
 

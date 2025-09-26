@@ -1,11 +1,11 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#include "qwqdsp/fx/delay_line.hpp"
 #include "qwqdsp/misc/smoother.hpp"
 #include "qwqdsp/spectral/complex_fft.hpp"
 #include "qwqdsp/filter/biquad.hpp"
 #include "qwqdsp/filter/iir_cpx_hilbert.hpp"
+#include "qwqdsp/osciilor/vic_sine_osc.hpp"
 
 #include "shared.hpp"
 
@@ -271,7 +271,7 @@ class Vec4DelayLine {
 public:
     void Init(float max_ms, float fs) {
         float d = max_ms * fs / 1000.0f;
-        size_t i = static_cast<size_t>(std::ceil(d) + 4.0f);
+        size_t i = static_cast<size_t>(std::ceil(d));
         Init(i);
     }
 
@@ -344,7 +344,61 @@ public:
         return y0 * c1 + frac * (y1 * c2 + y2 * c3 + y3 * c4);
     }
 
-private:
+    Vec4 GetRaw(Vec4 frpos) noexcept {
+        // Vec4 frpos = Vec4::FromSingle(wpos_ + buffer_.size()) - delay_samples;
+        Vec4i32 rpos = frpos.ToInt();
+        Vec4i32 mask = Vec4i32::FromSingle(mask_);
+        Vec4i32 irpos = rpos & mask;
+        Vec4i32 inext1 = (rpos + Vec4i32::FromSingle(1)) & mask;
+        Vec4i32 inext2 = (rpos + Vec4i32::FromSingle(2)) & mask;
+        Vec4i32 inext3 = (rpos + Vec4i32::FromSingle(3)) & mask;
+        Vec4 frac = frpos.Frac();
+
+        Vec4 y0;
+        y0.x[0] = buffer_[irpos.x[0]];
+        y0.x[1] = buffer_[irpos.x[1]];
+        y0.x[2] = buffer_[irpos.x[2]];
+        y0.x[3] = buffer_[irpos.x[3]];
+        Vec4 y1;
+        y1.x[0] = buffer_[inext1.x[0]];
+        y1.x[1] = buffer_[inext1.x[1]];
+        y1.x[2] = buffer_[inext1.x[2]];
+        y1.x[3] = buffer_[inext1.x[3]];
+        Vec4 y2;
+        y2.x[0] = buffer_[inext2.x[0]];
+        y2.x[1] = buffer_[inext2.x[1]];
+        y2.x[2] = buffer_[inext2.x[2]];
+        y2.x[3] = buffer_[inext2.x[3]];
+        Vec4 y3;
+        y3.x[0] = buffer_[inext3.x[0]];
+        y3.x[1] = buffer_[inext3.x[1]];
+        y3.x[2] = buffer_[inext3.x[2]];
+        y3.x[3] = buffer_[inext3.x[3]];
+
+        Vec4 d1 = frac - Vec4::FromSingle(1.0f);
+        Vec4 d2 = frac - Vec4::FromSingle(2.0f);
+        Vec4 d3 = frac - Vec4::FromSingle(3.0f);
+
+        auto c1 = d1 * d2 * d3 / Vec4::FromSingle(-6.0f);
+        auto c2 = d2 * d3 * Vec4::FromSingle(0.5f);
+        auto c3 = d1 * d3 * Vec4::FromSingle(-0.5f);
+        auto c4 = d1 * d2 / Vec4::FromSingle(6.0f);
+
+        return y0 * c1 + frac * (y1 * c2 + y2 * c3 + y3 * c4);
+    }
+
+    void PushBlockNotChangeWpos(std::span<float> block) {
+        size_t const can = buffer_.size() - wpos_;
+        if (can < block.size()) {
+            std::copy_n(block.begin(), can, buffer_.begin() + wpos_);
+            std::copy(block.begin() + can, block.end(), buffer_.begin());
+        }
+        else {
+            std::copy(block.begin(), block.end(), buffer_.begin() + wpos_);
+        }
+    }
+
+    // 给优化开洞(
     std::vector<float> buffer_;
     size_t wpos_{};
     size_t mask_{};
@@ -425,11 +479,10 @@ public:
 
     // barberpole
     bool barber_enable_{};
-    float barber_phase_{};
-    float barber_phase_inc_{};
     qwqdsp::filter::IIRHilbertDeeperCpx<> left_hilbert_;
     qwqdsp::filter::IIRHilbertDeeperCpx<> right_hilbert_;
     qwqdsp::misc::ExpSmoother barber_phase_smoother_;
+    qwqdsp::oscillor::VicSineOsc barber_oscillator_;
 
     bool minum_phase_{};
     bool highpass_{};
@@ -437,6 +490,7 @@ public:
     qwqdsp::spectral::ComplexFFT complex_fft_;
 
     EditorUpdate editor_update_;
+    juce::AudioProcessLoadMeasurer measurer;
 
     void UpdateCoeff();
     void PostCoeffsProcessing();
