@@ -349,7 +349,9 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     custom_.setToggleState(p.is_using_custom_, juce::sendNotificationSync);
     p.editor_update_.OnEditorCreate(this);
 
+#if HAVE_MEASUREMENT
     startTimerHz(10);
+#endif
 }
 
 SteepFlangerAudioProcessorEditor::~SteepFlangerAudioProcessorEditor() {
@@ -464,6 +466,7 @@ void SteepFlangerAudioProcessorEditor::resized() {
     }
 }
 
+#if HAVE_MEASUREMENT
 void SteepFlangerAudioProcessorEditor::timerCallback() {
     static double a = 0;
 
@@ -473,3 +476,4 @@ void SteepFlangerAudioProcessorEditor::timerCallback() {
     s << "[cpu]: " << a << "%";
     juce::Logger::getCurrentLogger()->writeToLog(s);
 }
+#endif

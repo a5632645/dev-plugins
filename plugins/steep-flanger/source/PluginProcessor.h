@@ -652,7 +652,9 @@ public:
     qwqdsp::spectral::ComplexFFT complex_fft_;
 
     EditorUpdate editor_update_;
+#if HAVE_MEASUREMENT
     juce::AudioProcessLoadMeasurer measurer;
+#endif
 
     void UpdateCoeff();
     void PostCoeffsProcessing();

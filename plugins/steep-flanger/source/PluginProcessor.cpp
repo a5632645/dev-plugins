@@ -330,7 +330,9 @@ void SteepFlangerAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     barber_osc_keep_amp_need_ = sampleRate * 60 * 5;
     param_listener_.CallAll();
 
+#if HAVE_MEASUREMENT
     measurer.reset(sampleRate, samplesPerBlock);
+#endif
 }
 
 void SteepFlangerAudioProcessor::releaseResources()
@@ -400,7 +402,9 @@ struct Vec4Complex {
 void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
+#if HAVE_MEASUREMENT
     juce::AudioProcessLoadMeasurer::ScopedTimer _{measurer};
+#endif
 
     std::ignore = midiMessages;
 
