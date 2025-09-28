@@ -3,5 +3,4 @@ build/
 .vscode/
 .cache/
 synth/
-raylib/
 test.ipynb

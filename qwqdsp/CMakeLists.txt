@@ -1,3 +1,23 @@
+cmake_minimum_required(VERSION 3.11)
+project(qwqdsp)
+
+set(qwqdsp_have_raylib TRUE)
+if (NOT TARGET raylib)
+    find_package(raylib QUIET)
+    if(NOT raylib_FOUND)
+        message(STATUS "attemps build are disabled")
+        set(qwqdsp_have_raylib FALSE)
+    endif()
+endif()
+
+find_package(IPP)
+set(qwqdsp_have_ipp ${IPP_FOUND})
+
+if(NOT TARGET eigen)
+    message(FATAL_ERROR "need a eigen target")
+endif()
+
+
 include(cmake/warnings.cmake)
 
 add_library(qwqdsp
@@ -26,8 +46,8 @@ endif()
 
 if (qwqdsp_have_raylib)
     add_executable(playing
-        "./playing/playing.cpp"
-        "./playing/slider.cpp"
+        "playing/playing.cpp"
+        "playing/slider.cpp"
         # "./playing/FontRGB.cpp"
         # "./playing/OLEDDisplayRGB.cpp"
         # "./playing/stb_image_write.c"

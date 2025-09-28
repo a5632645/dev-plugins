@@ -16,3 +16,6 @@
 [submodule "qwqdsp"]
 	path = qwqdsp
 	url = https://github.com/a5632645/qwqdsp.git
+[submodule "raylib"]
+	path = raylib
+	url = https://github.com/raysan5/raylib.git
