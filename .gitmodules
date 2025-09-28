@@ -1,21 +1,9 @@
-[submodule "dsp"]
-	path = dsp
-	url = https://github.com/Signalsmith-Audio/dsp.git
 [submodule "eigen"]
 	path = eigen
 	url = https://gitlab.com/libeigen/eigen.git
 [submodule "JUCE"]
 	path = JUCE
 	url = https://github.com/juce-framework/JUCE.git
-[submodule "LibPyin"]
-	path = LibPyin
-	url = https://github.com/xstreck1/LibPyin.git
-[submodule "simde"]
-	path = simde
-	url = https://github.com/simd-everywhere/simde.git
-[submodule "qwqdsp"]
-	path = qwqdsp
-	url = https://github.com/a5632645/qwqdsp.git
 [submodule "raylib"]
 	path = raylib
 	url = https://github.com/raysan5/raylib.git
