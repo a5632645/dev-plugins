@@ -1,0 +1,22 @@
+cmake_minimum_required(VERSION 3.11)
+project(qwqdsp)
+
+find_package(raylib QUIET)
+set(qwqdsp_have_raylib TRUE)
+if(NOT raylib_FOUND)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/raylib")
+        add_subdirectory(raylib)
+    else()
+        set(qwqdsp_have_raylib FALSE)
+    endif()
+endif()
+
+find_package(IPP)
+set(qwqdsp_have_ipp ${IPP_FOUND})
+
+if(TARGET eigen)
+    message(STATUS "Target eigen already exists, skipping adding subdirectory")
+else()
+    add_subdirectory(eigen)
+endif()
+add_subdirectory(qwqdsp)

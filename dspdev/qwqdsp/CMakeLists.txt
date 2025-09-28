@@ -1,0 +1,40 @@
+include(cmake/warnings.cmake)
+
+add_library(qwqdsp
+    STATIC
+        "source/oouras.cpp"
+        "source/resample_iir.cpp"
+        "source/resample_iir_dynamic.cpp"
+        "source/fir_design.cpp"
+        "source/real_fft.cpp"
+        "source/complex_fft.cpp"
+        "source/ipp_init.cpp"
+)
+qwqdsp_set_warning(qwqdsp)
+
+target_include_directories(qwqdsp PUBLIC "./include")
+
+set_target_properties(qwqdsp PROPERTIES CXX_STANDARD 20)
+
+target_link_libraries(qwqdsp PUBLIC Eigen3::Eigen)
+if (qwqdsp_have_ipp)
+    target_link_libraries(qwqdsp PUBLIC IPP::ipps)
+    target_compile_definitions(qwqdsp PUBLIC QWQDSP_HAVE_IPP)
+endif()
+
+
+
+if (qwqdsp_have_raylib)
+    add_executable(playing
+        "./playing/playing.cpp"
+        "./playing/slider.cpp"
+        # "./playing/FontRGB.cpp"
+        # "./playing/OLEDDisplayRGB.cpp"
+        # "./playing/stb_image_write.c"
+    )
+    target_link_libraries(playing PUBLIC qwqdsp raylib)
+    set_target_properties(playing PROPERTIES CXX_STANDARD 20)
+    qwqdsp_set_warning(playing)
+
+    add_subdirectory(attemps)
+endif()

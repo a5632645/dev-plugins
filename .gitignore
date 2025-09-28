@@ -4,4 +4,4 @@ build/
 .cache/
 synth/
 raylib/
-dspdev/
+test.ipynb
