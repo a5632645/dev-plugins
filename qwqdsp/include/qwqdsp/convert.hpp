@@ -2,7 +2,6 @@
 #include <numbers>
 #include <cmath>
 #include <utility>
-#include <span>
 
 namespace qwqdsp::convert {
 static inline constexpr float Freq2W(float f, float fs) noexcept {
@@ -101,7 +100,12 @@ static inline float DigitalBW2AnalogQ(float w, float bw) noexcept {
 }
 
 static inline float Gain2Db(float gain) noexcept {
-    return 20.0f * std::log10(gain + 1e-18f);
+    if (gain > 1e-10f) {
+        return 20.0f * std::log10(gain);
+    }
+    else {
+        return -200.0f;
+    }
 }
 
 static inline float Db2Gain(float db) noexcept {
