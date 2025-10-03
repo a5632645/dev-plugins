@@ -20,7 +20,16 @@ public:
             return 0;
         }
         else {
-            return std::exp(-1.0f / (fs * ms / 1000.0f));
+            return std::exp(-1.0f / samples);
+        }
+    }
+
+    static float GetSmoothFactor(float samples) noexcept {
+        if (samples < 1.0f) {
+            return 0;
+        }
+        else {
+            return std::exp(-1.0f / samples);
         }
     }
 
@@ -53,17 +62,13 @@ class Compressor {
 public:
     void Init(float fs) noexcept {
         env_release_factor_ = ARExpSmoother::GetSmoothFactor(5.0f, fs);
-        env2_factor_ = ARExpSmoother::GetSmoothFactor(1.0f, fs);
-        x_delay_ = 1.0f * fs / 1000.0f * 2;
-        delay_.Init(x_delay_);
+        rms_factor_ = ARExpSmoother::GetSmoothFactor(10.0f, fs);
         Reset();
     }
 
     void Reset() noexcept {
         smoother_.Reset();
         env_lag_ = 0;
-        env2_lag_ = 0;
-        delay_.Reset();
     }
 
     void Process(std::span<float> block) noexcept {
@@ -77,23 +82,40 @@ public:
                 env_lag_ += (1 - env_release_factor_) * envx;
             }
 
-            env2_lag_ *= env2_factor_;
-            env2_lag_ += (1 - env2_factor_) * env_lag_;
-
             float apply_gain = 1;
-            if (env2_lag_ < threshould_) {
+            if (env_lag_ < threshould_) {
                 // passthrogh
             }
             else {
-                float const env_db = qwqdsp::convert::Gain2Db(env2_lag_);
+                float const env_db = qwqdsp::convert::Gain2Db(env_lag_);
                 float const compress_db = GetCompressDb(env_db);
                 float const apply_db = compress_db - env_db;
                 apply_gain = qwqdsp::convert::Db2Gain(apply_db);
             }
 
             apply_gain = smoother_.Tick(apply_gain);
-            delay_.Push(x);
-            x = delay_.GetAfterPush(x_delay_);
+            x *= apply_gain;
+        }
+    }
+
+    void ProcessRMS(std::span<float> block) noexcept {
+        for (auto& x : block) {
+            float const s = x * x;
+            rms_lag_ *= rms_factor_;
+            rms_lag_ += (1 - rms_factor_) * s;
+
+            float apply_gain = 1;
+            if (rms_lag_ < threshould_) {
+                // passthrogh
+            }
+            else {
+                float const env_db = qwqdsp::convert::Gain2Db(rms_lag_);
+                float const compress_db = GetCompressDb(env_db);
+                float const apply_db = compress_db - env_db;
+                apply_gain = qwqdsp::convert::Db2Gain(apply_db);
+            }
+
+            apply_gain = smoother_.Tick(apply_gain);
             x *= apply_gain;
         }
     }
@@ -135,15 +157,14 @@ private:
 
     float env_lag_{};
     float env_release_factor_{};
-    float env2_lag_{};
-    float env2_factor_{};
     float threshould_db_{}; // -24
     float threshould_{};
     ARExpSmoother smoother_;
     float attack_ms_{};
     float release_ms_{};
-    qwqdsp::filter::IntDelay delay_;
-    size_t x_delay_{};
+
+    float rms_lag_{};
+    float rms_factor_{};
 };
 
 

@@ -200,7 +200,7 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     float* right_ptr = buffer.getWritePointer(1);
     std::span<float> left_block{left_ptr, len};
 
-    dsp_.Process({left_ptr, len});
+    dsp_.ProcessRMS({left_ptr, len});
     for (size_t i = 0; i < len; ++i) {
         jassert(!(std::isnan(left_ptr[i]) || std::isinf(left_ptr[i])));
         right_ptr[i] = left_ptr[i];
