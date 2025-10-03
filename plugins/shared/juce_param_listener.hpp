@@ -1,4 +1,5 @@
 #pragma once
+#include <juce_audio_processors/juce_audio_processors.h>
 
 struct JuceParamListener{
     struct FloatStore : public juce::AudioProcessorParameter::Listener {

@@ -2,8 +2,8 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 
-// #889487 ableton live9的浅绿色，亮度80
-static juce::Colour const green_bg{139,148,135};
+// #99a196 ableton live9的浅绿色，亮度90
+static juce::Colour const green_bg{153,161,150};
 // #161820 ableton live9的图表黑色背景
 static juce::Colour const black_bg{22, 27, 32};
 // #d64800 ableton live9的图表，红色
@@ -14,6 +14,8 @@ static juce::Colour const dial_fore{204, 81, 0};
 static juce::Colour const active_bg{198, 205, 0};
 // #778592 ableton live9开关关闭背景，灰色
 static juce::Colour const inactive_bg{119,133,146};
+// #f5b126 ableton live9的滑块前景，橙色
+static juce::Colour const orange_fore{0xf5,0xb1,0x26};
 
 // ---------------------------------------- dial ----------------------------------------
 
