@@ -1,4 +1,6 @@
 #pragma once
+#include <juce_gui_basics/juce_gui_basics.h>
+#include <juce_audio_processors/juce_audio_processors.h>
 
 // #889487 ableton live9的浅绿色，亮度80
 static juce::Colour const green_bg{139,148,135};
@@ -12,8 +14,6 @@ static juce::Colour const dial_fore{204, 81, 0};
 static juce::Colour const active_bg{198, 205, 0};
 // #778592 ableton live9开关关闭背景，灰色
 static juce::Colour const inactive_bg{119,133,146};
-// #202022 不知道是什么东西
-static juce::Colour const grey_bg{0x20, 0x20, 0x22};
 
 // ---------------------------------------- dial ----------------------------------------
 
@@ -55,7 +55,7 @@ public:
     // Slider textbox
     void drawLabel(juce::Graphics& g, juce::Label& label) override
     {
-        g.setColour(juce::Colours::white);
+        g.setColour(black_bg);
 
         juce::String text = label.getText();
         int width = label.getWidth();
@@ -125,6 +125,7 @@ public:
 
         label.setText(title, juce::dontSendNotification);
         label.setJustificationType(juce::Justification::centredBottom);
+        label.setColour(juce::Label::ColourIds::textColourId, juce::Colours::black);
         addAndMakeVisible(label);
     }
 
@@ -282,3 +283,7 @@ public:
         g.drawText(getButtonText(), b, juce::Justification::centred);
     }
 };
+
+static void SetLableBlack(juce::Label& lable) {
+    lable.setColour(juce::Label::ColourIds::textColourId, black_bg);
+}
