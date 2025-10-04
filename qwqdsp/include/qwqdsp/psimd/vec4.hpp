@@ -53,6 +53,14 @@ struct alignas(16) Vec4i32 {
         x[3] &= v.x[3];
         return *this;
     }
+
+    constexpr Vec4i32& FMA(const Vec4i32& mul, const Vec4i32& add) {
+        x[0] = x[0] * mul.x[0] + add.x[0];
+        x[1] = x[1] * mul.x[1] + add.x[1];
+        x[2] = x[2] * mul.x[2] + add.x[2];
+        x[3] = x[3] * mul.x[3] + add.x[3];
+        return *this;
+    }
 };
 
 static constexpr Vec4i32 operator+(const Vec4i32& a, const Vec4i32& b) {
@@ -147,6 +155,14 @@ struct alignas(16) Vec4f32 {
 
     constexpr float ReduceAdd() const noexcept {
         return x[0] + x[1] + x[2] + x[3];
+    }
+
+    constexpr Vec4f32& FMA(const Vec4f32& mul, const Vec4f32& add) {
+        x[0] = x[0] * mul.x[0] + add.x[0];
+        x[1] = x[1] * mul.x[1] + add.x[1];
+        x[2] = x[2] * mul.x[2] + add.x[2];
+        x[3] = x[3] * mul.x[3] + add.x[3];
+        return *this;
     }
 };
 

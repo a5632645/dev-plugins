@@ -126,6 +126,26 @@ struct alignas(64) Vec16i32 {
         x[15] += v.x[15];
         return *this;
     }
+
+    constexpr Vec16i32& FMA(const Vec16i32& mul, const Vec16i32& add) {
+        x[0]  = x[0]  * mul.x[0]  + add.x[0];
+        x[1]  = x[1]  * mul.x[1]  + add.x[1];
+        x[2]  = x[2]  * mul.x[2]  + add.x[2];
+        x[3]  = x[3]  * mul.x[3]  + add.x[3];
+        x[4]  = x[4]  * mul.x[4]  + add.x[4];
+        x[5]  = x[5]  * mul.x[5]  + add.x[5];
+        x[6]  = x[6]  * mul.x[6]  + add.x[6];
+        x[7]  = x[7]  * mul.x[7]  + add.x[7];
+        x[8]  = x[8]  * mul.x[8]  + add.x[8];
+        x[9]  = x[9]  * mul.x[9]  + add.x[9];
+        x[10] = x[10] * mul.x[10] + add.x[10];
+        x[11] = x[11] * mul.x[11] + add.x[11];
+        x[12] = x[12] * mul.x[12] + add.x[12];
+        x[13] = x[13] * mul.x[13] + add.x[13];
+        x[14] = x[14] * mul.x[14] + add.x[14];
+        x[15] = x[15] * mul.x[15] + add.x[15];
+        return *this;
+    }
 };
 
 static constexpr Vec16i32 operator+(const Vec16i32& a, const Vec16i32& b) {
@@ -302,6 +322,26 @@ struct alignas(64) Vec16f32 {
 
     constexpr float ReduceAdd() const noexcept {
         return x[0] + x[1] + x[2] + x[3] + x[4] + x[5] + x[6] + x[7] + x[8] + x[9] + x[10] + x[11] + x[12] + x[13] + x[14] + x[15];
+    }
+
+    constexpr Vec16f32& FMA(const Vec16f32& mul, const Vec16f32& add) {
+        x[0]  = x[0]  * mul.x[0]  + add.x[0];
+        x[1]  = x[1]  * mul.x[1]  + add.x[1];
+        x[2]  = x[2]  * mul.x[2]  + add.x[2];
+        x[3]  = x[3]  * mul.x[3]  + add.x[3];
+        x[4]  = x[4]  * mul.x[4]  + add.x[4];
+        x[5]  = x[5]  * mul.x[5]  + add.x[5];
+        x[6]  = x[6]  * mul.x[6]  + add.x[6];
+        x[7]  = x[7]  * mul.x[7]  + add.x[7];
+        x[8]  = x[8]  * mul.x[8]  + add.x[8];
+        x[9]  = x[9]  * mul.x[9]  + add.x[9];
+        x[10] = x[10] * mul.x[10] + add.x[10];
+        x[11] = x[11] * mul.x[11] + add.x[11];
+        x[12] = x[12] * mul.x[12] + add.x[12];
+        x[13] = x[13] * mul.x[13] + add.x[13];
+        x[14] = x[14] * mul.x[14] + add.x[14];
+        x[15] = x[15] * mul.x[15] + add.x[15];
+        return *this;
     }
 };
 

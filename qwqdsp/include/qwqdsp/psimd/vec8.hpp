@@ -77,6 +77,18 @@ struct alignas(32) Vec8i32 {
         x[7] &= v.x[7];
         return *this;
     }
+
+    constexpr Vec8i32& FMA(const Vec8i32& mul, const Vec8i32& add) {
+        x[0] = x[0] * mul.x[0] + add.x[0];
+        x[1] = x[1] * mul.x[1] + add.x[1];
+        x[2] = x[2] * mul.x[2] + add.x[2];
+        x[3] = x[3] * mul.x[3] + add.x[3];
+        x[4] = x[4] * mul.x[4] + add.x[4];
+        x[5] = x[5] * mul.x[5] + add.x[5];
+        x[6] = x[6] * mul.x[6] + add.x[6];
+        x[7] = x[7] * mul.x[7] + add.x[7];
+        return *this;
+    }
 };
 
 static constexpr Vec8i32 operator+(const Vec8i32& a, const Vec8i32& b) {
@@ -198,6 +210,18 @@ struct alignas(32) Vec8f32 {
 
     constexpr float ReduceAdd() const noexcept {
         return x[0] + x[1] + x[2] + x[3] + x[4] + x[5] + x[6] + x[7];
+    }
+
+    constexpr Vec8f32& FMA(const Vec8f32& mul, const Vec8f32& add) {
+        x[0] = x[0] * mul.x[0] + add.x[0];
+        x[1] = x[1] * mul.x[1] + add.x[1];
+        x[2] = x[2] * mul.x[2] + add.x[2];
+        x[3] = x[3] * mul.x[3] + add.x[3];
+        x[4] = x[4] * mul.x[4] + add.x[4];
+        x[5] = x[5] * mul.x[5] + add.x[5];
+        x[6] = x[6] * mul.x[6] + add.x[6];
+        x[7] = x[7] * mul.x[7] + add.x[7];
+        return *this;
     }
 };
 
