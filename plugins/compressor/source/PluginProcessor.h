@@ -8,6 +8,7 @@
 #include "qwqdsp/convert.hpp"
 #include "qwqdsp/filter/int_delay.hpp"
 
+// ---------------------------------------- simple ----------------------------------------
 class ARExpSmoother {
 public:
     void Reset() noexcept {
@@ -167,6 +168,111 @@ private:
     float rms_factor_{};
 };
 
+// ---------------------------------------- vital's ----------------------------------------
+class VitalCompressor {
+public:
+    void Init(float fs) noexcept {
+        fs_ = fs;
+    }
+
+    void Reset() noexcept {
+        up_rms_ = 0;
+        down_rms_ = 0;
+    }
+
+    void Process(std::span<float> block) noexcept {
+        float attack_samples = attack_ms_ * fs_ / 1000.0f;
+        float release_samples = release_ms_ * fs_ / 1000.0f;
+        attack_samples = std::max(attack_samples, 5.0f);
+        release_samples = std::max(release_samples, 5.0f);
+
+        float const attack_scale = 1.0f / (attack_samples + 1.0f);
+        float const release_scale = 1.0f / (release_samples + 1.0f);
+
+        float up_rms_threshold = qwqdsp::convert::Db2Gain(up_threshold_db_);
+        float down_rms_threshold = qwqdsp::convert::Db2Gain(down_threshold_db_);
+        up_rms_threshold *= up_rms_threshold;
+        down_rms_threshold *= down_rms_threshold;
+
+        for (auto& x : block) {
+            float const rms = x * x;
+            // this is
+            //              x^2 + rms_state * L
+            // rms_state = ---------------------
+            //                      1 + L
+            // L = num_samples
+            if (rms > up_rms_) {
+                up_rms_ = (rms + up_rms_ * attack_samples) * attack_scale;
+            }
+            else {
+                up_rms_ = (rms + up_rms_ * release_samples) * release_scale;
+            }
+            if (rms > down_rms_) {
+                down_rms_ = (rms + down_rms_ * attack_samples) * attack_scale;
+            }
+            else {
+                down_rms_ = (rms + down_rms_ * release_samples) * release_scale;
+            }
+
+            // mag_delta always >= 1
+            // ratio > 0
+            // this will like a log function
+            // so louder mul smaller
+            up_rms_ = std::max(up_rms_, up_rms_threshold);
+            float const up_mag_delta = up_rms_threshold / up_rms_;
+            float const up_mul = std::pow(up_mag_delta, up_ratio_);
+
+            // mag_delta always <= 1
+            // ratio > 0 like a x^high_order function
+            // ratio < 0 like a 1/x function
+            // so smaller mul louder
+            down_rms_ = std::min(down_rms_, down_rms_threshold);
+            float const down_mag_delta = down_rms_threshold / down_rms_;
+            float const down_mul = std::pow(down_mag_delta, down_ratio_);
+
+            float const gain = std::clamp(up_mul * down_mul, 0.0f, 32.0f);
+            x *= gain;
+        }
+    }
+
+    // settings
+    // 0~0.5
+    void SetUpRatio(float ratio) noexcept {
+        up_ratio_ = ratio;
+    }
+    // -0.5~0.5
+    void SetDownRatio(float ratio) noexcept {
+        down_ratio_ = ratio;
+    }
+    // -100~12
+    void SetUpThreshold(float db) noexcept {
+        up_threshold_db_ = db;
+    }
+    // -100~12
+    void SetDownThreshold(float db) noexcept {
+        down_threshold_db_ = db;
+    }
+    // > 0
+    void SetAttack(float ms) noexcept {
+        attack_ms_ = ms;
+    }
+    // > 0
+    void SetRelease(float ms) noexcept {
+        release_ms_ = ms;
+    }
+private:
+    // params
+    float fs_{};
+    float attack_ms_{};
+    float release_ms_{};
+    float up_ratio_{};
+    float down_ratio_{};
+    float up_threshold_db_{};
+    float down_threshold_db_{};
+    // state
+    float up_rms_{};
+    float down_rms_{};
+};
 
 // ---------------------------------------- juce processor ----------------------------------------
 class SteepFlangerAudioProcessor final : public juce::AudioProcessor
