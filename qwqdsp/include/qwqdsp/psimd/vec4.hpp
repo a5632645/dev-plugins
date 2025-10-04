@@ -5,7 +5,7 @@ namespace qwqdsp::psimd {
 struct alignas(16) Vec4i32 {
     int x[4];
 
-    static constexpr Vec4i32 FromSingle(int v) {
+    static constexpr Vec4i32 FromSingle(int v) noexcept {
         Vec4i32 r;
         r.x[0] = v;
         r.x[1] = v;
@@ -14,7 +14,7 @@ struct alignas(16) Vec4i32 {
         return r;
     }
 
-    constexpr Vec4i32& operator+=(const Vec4i32& v) {
+    constexpr Vec4i32& operator+=(const Vec4i32& v) noexcept {
         x[0] += v.x[0];
         x[1] += v.x[1];
         x[2] += v.x[2];
@@ -22,7 +22,7 @@ struct alignas(16) Vec4i32 {
         return *this;
     }
 
-    constexpr  Vec4i32& operator-=(const Vec4i32& v) {
+    constexpr  Vec4i32& operator-=(const Vec4i32& v) noexcept {
         x[0] -= v.x[0];
         x[1] -= v.x[1];
         x[2] -= v.x[2];
@@ -30,7 +30,7 @@ struct alignas(16) Vec4i32 {
         return *this;
     }
 
-    constexpr  Vec4i32& operator*=(const Vec4i32& v) {
+    constexpr  Vec4i32& operator*=(const Vec4i32& v) noexcept {
         x[0] *= v.x[0];
         x[1] *= v.x[1];
         x[2] *= v.x[2];
@@ -38,7 +38,7 @@ struct alignas(16) Vec4i32 {
         return *this;
     }
 
-    constexpr Vec4i32& operator/=(const Vec4i32& v) {
+    constexpr Vec4i32& operator/=(const Vec4i32& v) noexcept {
         x[0] /= v.x[0];
         x[1] /= v.x[1];
         x[2] /= v.x[2];
@@ -46,7 +46,7 @@ struct alignas(16) Vec4i32 {
         return *this;
     }
 
-    constexpr Vec4i32& operator&=(const Vec4i32& v) {
+    constexpr Vec4i32& operator&=(const Vec4i32& v) noexcept {
         x[0] &= v.x[0];
         x[1] &= v.x[1];
         x[2] &= v.x[2];
@@ -54,7 +54,7 @@ struct alignas(16) Vec4i32 {
         return *this;
     }
 
-    constexpr Vec4i32& FMA(const Vec4i32& mul, const Vec4i32& add) {
+    constexpr Vec4i32& FMA(const Vec4i32& mul, const Vec4i32& add) noexcept {
         x[0] = x[0] * mul.x[0] + add.x[0];
         x[1] = x[1] * mul.x[1] + add.x[1];
         x[2] = x[2] * mul.x[2] + add.x[2];
@@ -63,27 +63,27 @@ struct alignas(16) Vec4i32 {
     }
 };
 
-static constexpr Vec4i32 operator+(const Vec4i32& a, const Vec4i32& b) {
+static constexpr Vec4i32 operator+(const Vec4i32& a, const Vec4i32& b) noexcept {
     Vec4i32 r = a;
     r += b;
     return r;
 }
-static constexpr Vec4i32 operator-(const Vec4i32& a, const Vec4i32& b) {
+static constexpr Vec4i32 operator-(const Vec4i32& a, const Vec4i32& b) noexcept {
     Vec4i32 r = a;
     r -= b;
     return r;
 }
-static constexpr Vec4i32 operator*(const Vec4i32& a, const Vec4i32& b) {
+static constexpr Vec4i32 operator*(const Vec4i32& a, const Vec4i32& b) noexcept {
     Vec4i32 r = a;
     r *= b;
     return r;
 }
-static constexpr Vec4i32 operator/(const Vec4i32& a, const Vec4i32& b) {
+static constexpr Vec4i32 operator/(const Vec4i32& a, const Vec4i32& b) noexcept {
     Vec4i32 r = a;
     r /= b;
     return r;
 }
-static constexpr Vec4i32 operator&(const Vec4i32& a, const Vec4i32& b) {
+static constexpr Vec4i32 operator&(const Vec4i32& a, const Vec4i32& b) noexcept {
     Vec4i32 r = a;
     r &= b;
     return r;
@@ -94,7 +94,7 @@ static constexpr Vec4i32 operator&(const Vec4i32& a, const Vec4i32& b) {
 struct alignas(16) Vec4f32 {
     float x[4];
 
-    static constexpr Vec4f32 FromSingle(float v) {
+    static constexpr Vec4f32 FromSingle(float v) noexcept {
         Vec4f32 r;
         r.x[0] = v;
         r.x[1] = v;
@@ -103,7 +103,7 @@ struct alignas(16) Vec4f32 {
         return r;
     }
 
-    constexpr Vec4f32& operator+=(const Vec4f32& v) {
+    constexpr Vec4f32& operator+=(const Vec4f32& v) noexcept {
         x[0] += v.x[0];
         x[1] += v.x[1];
         x[2] += v.x[2];
@@ -111,7 +111,7 @@ struct alignas(16) Vec4f32 {
         return *this;
     }
 
-    constexpr  Vec4f32& operator-=(const Vec4f32& v) {
+    constexpr  Vec4f32& operator-=(const Vec4f32& v) noexcept {
         x[0] -= v.x[0];
         x[1] -= v.x[1];
         x[2] -= v.x[2];
@@ -119,7 +119,7 @@ struct alignas(16) Vec4f32 {
         return *this;
     }
 
-    constexpr  Vec4f32& operator*=(const Vec4f32& v) {
+    constexpr  Vec4f32& operator*=(const Vec4f32& v) noexcept {
         x[0] *= v.x[0];
         x[1] *= v.x[1];
         x[2] *= v.x[2];
@@ -127,7 +127,7 @@ struct alignas(16) Vec4f32 {
         return *this;
     }
 
-    constexpr Vec4f32& operator/=(const Vec4f32& v) {
+    constexpr Vec4f32& operator/=(const Vec4f32& v) noexcept {
         x[0] /= v.x[0];
         x[1] /= v.x[1];
         x[2] /= v.x[2];
@@ -157,7 +157,7 @@ struct alignas(16) Vec4f32 {
         return x[0] + x[1] + x[2] + x[3];
     }
 
-    constexpr Vec4f32& FMA(const Vec4f32& mul, const Vec4f32& add) {
+    constexpr Vec4f32& FMA(const Vec4f32& mul, const Vec4f32& add) noexcept {
         x[0] = x[0] * mul.x[0] + add.x[0];
         x[1] = x[1] * mul.x[1] + add.x[1];
         x[2] = x[2] * mul.x[2] + add.x[2];
@@ -166,22 +166,22 @@ struct alignas(16) Vec4f32 {
     }
 };
 
-static constexpr Vec4f32 operator+(const Vec4f32& a, const Vec4f32& b) {
+static constexpr Vec4f32 operator+(const Vec4f32& a, const Vec4f32& b) noexcept {
     Vec4f32 r = a;
     r += b;
     return r;
 }
-static constexpr Vec4f32 operator-(const Vec4f32& a, const Vec4f32& b) {
+static constexpr Vec4f32 operator-(const Vec4f32& a, const Vec4f32& b) noexcept {
     Vec4f32 r = a;
     r -= b;
     return r;
 }
-static constexpr Vec4f32 operator*(const Vec4f32& a, const Vec4f32& b) {
+static constexpr Vec4f32 operator*(const Vec4f32& a, const Vec4f32& b) noexcept {
     Vec4f32 r = a;
     r *= b;
     return r;
 }
-static constexpr Vec4f32 operator/(const Vec4f32& a, const Vec4f32& b) {
+static constexpr Vec4f32 operator/(const Vec4f32& a, const Vec4f32& b) noexcept {
     Vec4f32 r = a;
     r /= b;
     return r;
