@@ -2,5 +2,5 @@ build/
 .vs/
 .vscode/
 .cache/
-synth/
 test.ipynb
+json/
