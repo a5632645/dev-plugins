@@ -2,6 +2,7 @@
 #include <vector>
 #include <numbers>
 #include <complex>
+#include <array>
 #include "curve_v2.h"
 #include "qwqdsp/psimd/align_allocator.hpp"
 
@@ -333,8 +334,35 @@ public:
     float GetGroupDelay(float w) const {
         auto const z = std::polar(1.0f, w);
         std::complex<float> delay{};
-        for (size_t i = 0; i < num_cascade_filters_; ++i) {
-            auto pole = std::polar(radius_[i], center_[i]);
+        size_t const num_simd = num_cascade_filters_ / 8;
+        size_t const num_scalar = num_cascade_filters_ & 7;
+        float const* radius_ptr = radius_.data();
+        float const* w_ptr = center_.data();
+        for (size_t i = 0; i < num_simd; ++i) {
+            std::array<std::complex<float>, 8> poles{
+                std::polar(*radius_ptr++, *w_ptr++),
+                std::polar(*radius_ptr++, *w_ptr++),
+                std::polar(*radius_ptr++, *w_ptr++),
+                std::polar(*radius_ptr++, *w_ptr++),
+                std::polar(*radius_ptr++, *w_ptr++),
+                std::polar(*radius_ptr++, *w_ptr++),
+                std::polar(*radius_ptr++, *w_ptr++),
+                std::polar(*radius_ptr++, *w_ptr++),
+            };
+            std::array<std::complex<float>, 8> delays;
+            for (size_t j = 0; j < 8; ++j) {
+                delays[j] = (poles[j] * z) / (poles[j] * z - 1.0f);
+                delays[j] -= z / (z - poles[j]);
+                poles[j] = std::conj(poles[j]);
+                delays[j] += (poles[j] * z) / (poles[j] * z - 1.0f);
+                delays[j] -= z / (z - poles[j]);
+            }
+            for (size_t j = 0; j < 8; ++j) {
+                delay += delays[j];
+            }
+        }
+        for (size_t i = 0; i < num_scalar; ++i) {
+            auto pole = std::polar(*radius_ptr++, *w_ptr++);
             delay += (pole * z) / (pole * z - 1.0f);
             delay -= z / (z - pole);
             pole = std::conj(pole);

@@ -18,19 +18,19 @@ void TimeView::UpdateGui() {
 }
 
 void TimeView::paint(juce::Graphics& g) {
-    g.fillAll(green_bg);
+    g.fillAll(ui::green_bg);
 
     // 获取图表bound
     auto b = getLocalBounds();
     b.removeFromTop(title_.getHeight());
     b.reduce(4, 4);
     auto bf = b.toFloat();
-    g.setColour(black_bg);
+    g.setColour(ui::black_bg);
     g.fillRect(b);
     
     g.reduceClipRegion(b);
     // 绘制实际使用的，如果是mouseUp后就是实际的
-    g.setColour(line_fore);
+    g.setColour(ui::line_fore);
     float lasty = juce::jmap(coeff_buffer_[0], -1.0f, 1.0f, bf.getBottom(), bf.getY());
     float lastx = bf.getX();
     for (int x = 0; x < b.getWidth(); ++x) {
@@ -45,7 +45,7 @@ void TimeView::paint(juce::Graphics& g) {
 
     if (display_custom_.getToggleState()) {
         // 绘制自定义波形
-        g.setColour(active_bg);
+        g.setColour(ui::active_bg);
         lasty = juce::jmap(p_.custom_coeffs_[0], -1.0f, 1.0f, bf.getBottom(), bf.getY());
         lastx = bf.getX();
         for (int x = 0; x < b.getWidth(); ++x) {
@@ -125,7 +125,7 @@ void TimeView::ClearCustomCoeffs() {
 // ---------------------------------------- spectral view ----------------------------------------
 
 void SpectralView::paint(juce::Graphics& g) {
-    g.fillAll(green_bg);
+    g.fillAll(ui::green_bg);
 
     // 获取图表bound
     auto b = getLocalBounds();
@@ -133,7 +133,7 @@ void SpectralView::paint(juce::Graphics& g) {
     b.reduce(2, 8);
     auto text_bound = b.removeFromLeft(36).toFloat();
     auto bf = b.toFloat();
-    g.setColour(black_bg);
+    g.setColour(ui::black_bg);
     g.fillRect(b);
     
     // 绘制频谱音量数字
@@ -150,7 +150,7 @@ void SpectralView::paint(juce::Graphics& g) {
     }
 
     // 绘制超采样频谱
-    g.setColour(line_fore);
+    g.setColour(ui::line_fore);
     float lasty = juce::jmap(gains_[0], bf.getBottom(), bf.getY());
     float lastx = bf.getX();
     for (int x = 0; x < b.getWidth(); ++x) {
@@ -166,7 +166,7 @@ void SpectralView::paint(juce::Graphics& g) {
 
     // 绘制自定义频谱
     if (time_.display_custom_.getToggleState()) {
-        g.setColour(active_bg);
+        g.setColour(ui::active_bg);
         lasty = juce::jmap(time_.p_.custom_spectral_gains[0], bf.getBottom(), bf.getY());
         lastx = bf.getX();
         for (int x = 0; x < b.getWidth(); ++x) {
@@ -368,7 +368,7 @@ void SteepFlangerAudioProcessorEditor::paint (juce::Graphics& g) {
         g.setColour(juce::Colour{193,193,166});
         g.fillRect(title_block);
     }
-    g.setColour(green_bg);
+    g.setColour(ui::green_bg);
     {
         auto topblock = b.removeFromTop(125);
         {

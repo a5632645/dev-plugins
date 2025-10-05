@@ -1,7 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include <ipp.h>
 #include <nlohmann/json.hpp>
 
 constexpr auto kResultsSize = 1024;
@@ -24,8 +23,6 @@ DispersiveDelayAudioProcessor::DispersiveDelayAudioProcessor()
                      #endif
                        )
 {
-    ippInit();
-
     curve_ = std::make_unique<mana::CurveV2>(kResultsSize, mana::CurveV2::CurveInitEnum::kRamp);
     curve_->AddListener(this);
 
@@ -167,7 +164,8 @@ void DispersiveDelayAudioProcessor::changeProgramName (int index, const juce::St
 //==============================================================================
 void DispersiveDelayAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    param_listener_.CallAll();
+    // why this value not set on startup
+    parameterChanged(beta_->getParameterID(), beta_->get());
 }
 
 void DispersiveDelayAudioProcessor::releaseResources()
@@ -258,7 +256,6 @@ void DispersiveDelayAudioProcessor::setStateInformation (const void* data, int s
     auto bck_vt = value_tree_->copyState();
     try {
         nlohmann::json j = nlohmann::json::parse(d);
-        update_flag_ = false;
         curve_->LoadState(j["curve"]);
         f_begin_->setValueNotifyingHost(f_begin_->convertTo0to1(j.value<float>("f_begin", GetDefaultValue(f_begin_))));
         min_bw_->setValueNotifyingHost(min_bw_->convertTo0to1(j.value<float>("min_bw", GetDefaultValue(min_bw_))));
@@ -268,7 +265,6 @@ void DispersiveDelayAudioProcessor::setStateInformation (const void* data, int s
             pitch_x_asix_->setValueNotifyingHost(pitch_x_asix_->convertTo0to1(j.value("pitch-x", true)));
         }
         resolution_->setValueNotifyingHost(resolution_->convertTo0to1(j.value<int>("resolution", kResulitionNames.indexOf("1024"))));
-        update_flag_ = true;
         beta_->setValueNotifyingHost(beta_->convertTo0to1(j.value<float>("flat", GetDefaultValue(beta_))));
         UpdateFilters();
     }
@@ -281,7 +277,6 @@ void DispersiveDelayAudioProcessor::setStateInformation (const void* data, int s
             );
         }
         value_tree_->replaceState(bck_vt);
-        update_flag_ = true;
         UpdateFilters();
     }
     suspendProcessing(false);
@@ -289,10 +284,6 @@ void DispersiveDelayAudioProcessor::setStateInformation (const void* data, int s
 
 void DispersiveDelayAudioProcessor::parameterChanged(const juce::String& parameterID, float newValue)
 {
-    if (!update_flag_) {
-        return;
-    }
-
     if (parameterID == beta_->getParameterID()) {
         auto ripple = std::pow(10.0f, beta_->get() / 20.0f);
         delays_.SetBeta(ripple);
@@ -309,10 +300,6 @@ void DispersiveDelayAudioProcessor::parameterChanged(const juce::String& paramet
 
 void DispersiveDelayAudioProcessor::UpdateFilters()
 {
-    if (!update_flag_) {
-        return;
-    }
-
     const juce::ScopedLock lock{ getCallbackLock() };
 
     auto resolution_size = kResulitionTable[resolution_->getIndex()];
@@ -328,7 +315,6 @@ void DispersiveDelayAudioProcessor::UpdateFilters()
 
 void DispersiveDelayAudioProcessor::RandomParameter()
 {
-    update_flag_ = false;
     beta_->setValueNotifyingHost(random_.nextFloat());
     min_bw_->setValueNotifyingHost(random_.nextFloat());
     f_begin_->setValueNotifyingHost(random_.nextFloat());
@@ -336,7 +322,6 @@ void DispersiveDelayAudioProcessor::RandomParameter()
     delay_time_->setValueNotifyingHost(random_.nextFloat());
     pitch_x_asix_->setValueNotifyingHost(random_.nextFloat());
 
-    update_flag_ = true;
     auto bw = min_bw_->get();
     delays_.SetMinBw(bw);
     UpdateFilters();

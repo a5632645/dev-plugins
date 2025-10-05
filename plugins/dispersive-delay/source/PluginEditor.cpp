@@ -8,38 +8,52 @@ DispersiveDelayAudioProcessorEditor::DispersiveDelayAudioProcessorEditor (Disper
     : AudioProcessorEditor (&p)
     , p_(p)
 {
-        auto& apvt = *p.value_tree_;
+    auto& apvt = *p.value_tree_;
 
-    delay_time_.setText("time");
-    delay_time_.ParamLink(apvt, "delay_time");
+    group_delay_cache_.resize(256);
+
+    delay_time_.BindParam(apvt, "delay_time");
     delay_time_.setHelpText("delay time, unit is ms");
+    delay_time_.slider.onValueChange = [this] {
+        TryUpdateGroupDelay();
+    };
 
-    f_begin_.setText("f_begin");
-    f_begin_.ParamLink(apvt, "f_begin");
+    f_begin_.BindParam(apvt, "f_begin");
     f_begin_.setHelpText("frequency begin, unit is semitone");
+    f_begin_.slider.onValueChange = [this] {
+        TryUpdateGroupDelay();
+    };
 
-    f_end_.setText("f_end");
-    f_end_.ParamLink(apvt, "f_end");
+    f_end_.BindParam(apvt, "f_end");
     f_end_.setHelpText("frequency end, unit is semitone");
+    f_end_.slider.onValueChange = [this] {
+        TryUpdateGroupDelay();
+    };
 
-    beta_.setText("flat");
-    beta_.ParamLink(apvt, "flat");
-    beta_.setHelpText("control the all pass filter pole radius behavior");
+    flat_.BindParam(apvt, "flat");
+    flat_.setHelpText("control the all pass filter pole radius behavior");
+    flat_.slider.onValueChange = [this] {
+        TryUpdateGroupDelay();
+    };
 
-    min_bw_.setText("min_bw");
-    min_bw_.ParamLink(apvt, "min_bw");
+    min_bw_.BindParam(apvt, "min_bw");
+    min_bw_.slider.onValueChange = [this] {
+        TryUpdateGroupDelay();
+    };
 
     x_axis_.setButtonText("pitch-x");
     x_axis_.setTooltip("if enable, x axis is pitch unit. otherwise, x axis is hz unit");
     x_axis_attachment_ = std::make_unique<juce::ButtonParameterAttachment>(*p.pitch_x_asix_, x_axis_);
+    x_axis_.onStateChange = [this] {
+        TryUpdateGroupDelay();
+    };
 
+    ui::SetLableBlack(res_label_);
     res_label_.setText("resolution", juce::dontSendNotification);
     reslution_.addItemList(p.resolution_->choices, 1);
     resolution_attachment_ = std::make_unique<juce::ComboBoxParameterAttachment>(*p.resolution_, reslution_);
-
-    random_.setButtonText("random");
-    random_.onClick = [this] {
-        p_.RandomParameter();
+    reslution_.onChange = [this] {
+        TryUpdateGroupDelay();
     };
 
     panic_.setButtonText("panic");
@@ -55,14 +69,14 @@ DispersiveDelayAudioProcessorEditor::DispersiveDelayAudioProcessorEditor (Disper
     addAndMakeVisible(delay_time_);
     addAndMakeVisible(f_begin_);
     addAndMakeVisible(f_end_);
-    addAndMakeVisible(beta_);
+    addAndMakeVisible(flat_);
     addAndMakeVisible(min_bw_);
     addAndMakeVisible(curve_);
+    ui::SetLableBlack(num_filter_label_);
     addAndMakeVisible(num_filter_label_);
     addAndMakeVisible(x_axis_);
     addAndMakeVisible(reslution_);
     addAndMakeVisible(res_label_);
-    addAndMakeVisible(random_);
     addAndMakeVisible(clear_curve_);
     addAndMakeVisible(panic_);
 
@@ -74,19 +88,20 @@ DispersiveDelayAudioProcessorEditor::DispersiveDelayAudioProcessorEditor (Disper
     curve_.SetSnapGrid(true);
     curve_.SetGridNum(16, 8);
 
-    group_delay_cache_.resize(256);
-    startTimerHz(5);
+    p_.curve_->AddListener(this);
+    TryUpdateGroupDelay();
 }
 
 
 DispersiveDelayAudioProcessorEditor::~DispersiveDelayAudioProcessorEditor() {
+    p_.curve_->RemoveListener(this);
     resolution_attachment_ = nullptr;
     x_axis_attachment_ = nullptr;
 }
 
 //==============================================================================
 void DispersiveDelayAudioProcessorEditor::paint (juce::Graphics& g) {
-    g.fillAll(juce::Colour{22,27,32});
+    g.fillAll(ui::green_bg);
 
 }
 
@@ -132,46 +147,79 @@ void DispersiveDelayAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
     {
         auto slider_aera = b.removeFromTop(20+25*3);
-        beta_.setBounds(slider_aera.removeFromLeft(64));
+        flat_.setBounds(slider_aera.removeFromLeft(64));
         f_begin_.setBounds(slider_aera.removeFromLeft(64));
         f_end_.setBounds(slider_aera.removeFromLeft(64));
         delay_time_.setBounds(slider_aera.removeFromLeft(64));
         min_bw_.setBounds(slider_aera.removeFromLeft(64));
         {
+            slider_aera.setWidth(std::min(slider_aera.getWidth(), 180));
             {
                 auto res_aera = slider_aera.removeFromTop(20);
                 res_label_.setBounds(res_aera.removeFromLeft(80));
-                reslution_.setBounds(res_aera);
+                reslution_.setBounds(res_aera.withWidth(100));
             }
             {
                 auto btn_aera = slider_aera.removeFromRight(80);
-                random_.setBounds(btn_aera.removeFromTop(25));
+                btn_aera.removeFromTop(4);
                 clear_curve_.setBounds(btn_aera.removeFromTop(25));
-                panic_.setBounds(btn_aera);
+                btn_aera.removeFromTop(4);
+                panic_.setBounds(btn_aera.removeFromTop(25));
             }
-            x_axis_.setBounds(slider_aera.removeFromTop(20));
+            x_axis_.setBounds(slider_aera.removeFromTop(30).reduced(4, 0));
             num_filter_label_.setBounds(slider_aera);
         }
     }
     curve_.setBounds(b);
 }
 
-void DispersiveDelayAudioProcessorEditor::timerCallback()
-{
+void DispersiveDelayAudioProcessorEditor::TryUpdateGroupDelay() {
+    num_filter_label_.setText(juce::String{ "n.filters: " } + juce::String(p_.delays_.GetNumFilters()), juce::dontSendNotification);
+
     constexpr auto pi = std::numbers::pi_v<float>;
     auto fs = static_cast<float>(p_.getSampleRate());
 
     group_delay_cache_.clear();
     auto size = group_delay_cache_.capacity();
-    for (size_t i = 0; i < size; ++i) {
-        auto nor = i / static_cast<float>(size);
-        auto hz = MelMap(nor);
-        auto w = hz / fs * 2 * pi;
-        auto delay_num_samples = p_.delays_.GetGroupDelay(w);
-        auto delay_num_ms = delay_num_samples * 1000.0f / fs;
-        group_delay_cache_.emplace_back(delay_num_ms);
+    if (x_axis_.getToggleState()) {
+        for (size_t i = 0; i < size; ++i) {
+            auto nor = i / static_cast<float>(size);
+            auto hz = MelMap(nor);
+            auto w = hz / fs * 2 * pi;
+            auto delay_num_samples = p_.delays_.GetGroupDelay(w);
+            auto delay_num_ms = delay_num_samples * 1000.0f / fs;
+            group_delay_cache_.emplace_back(delay_num_ms);
+        }
     }
-
-    num_filter_label_.setText(juce::String{ "n.filters: " } + juce::String(p_.delays_.GetNumFilters()), juce::dontSendNotification);
+    else {
+        for (size_t i = 0; i < size; ++i) {
+            auto nor = i / static_cast<float>(size);
+            auto hz = std::lerp(20.0f, 20000.0f, nor);
+            auto w = hz / fs * 2 * pi;
+            auto delay_num_samples = p_.delays_.GetGroupDelay(w);
+            auto delay_num_ms = delay_num_samples * 1000.0f / fs;
+            group_delay_cache_.emplace_back(delay_num_ms);
+        }
+    }
     repaint();
+}
+
+void DispersiveDelayAudioProcessorEditor::OnAddPoint(mana::CurveV2* generator, mana::CurveV2::Point p, int before_idx) {
+    TryUpdateGroupDelay();
+}
+
+void DispersiveDelayAudioProcessorEditor::OnRemovePoint(mana::CurveV2* generator, int remove_idx) {
+    TryUpdateGroupDelay();
+}
+
+void DispersiveDelayAudioProcessorEditor::OnPointXyChanged(mana::CurveV2* generator, int changed_idx) {
+    TryUpdateGroupDelay();
+}
+
+void DispersiveDelayAudioProcessorEditor::OnPointPowerChanged(mana::CurveV2* generator, int changed_idx) {
+    TryUpdateGroupDelay();
+}
+
+void DispersiveDelayAudioProcessorEditor::OnReload(mana::CurveV2* generator) {
+    TryUpdateGroupDelay();
 }

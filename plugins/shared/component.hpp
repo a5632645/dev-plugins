@@ -2,6 +2,8 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 
+namespace ui {
+
 // #99a196 ableton live9的浅绿色，亮度90
 static juce::Colour const green_bg{153,161,150};
 // #161820 ableton live9的图表黑色背景
@@ -141,7 +143,7 @@ public:
         b.removeFromTop(label.getFont().getHeight());
         slider.setBounds(b);
         label.attachToComponent(&slider, false);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, getWidth() * 0.9f, std::max(getHeight() * 0.15f, 14.0f));
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, getWidth() * 0.9f, label.getFont().getHeight());
     }
 
     void BindParam(juce::AudioProcessorValueTreeState& apvts, juce::StringRef id) {
@@ -235,8 +237,14 @@ private:
 
 class Switch : public juce::ToggleButton {
 public:
-    Switch(juce::StringRef title) {
-        setName(title);
+    Switch(juce::StringRef text) {
+        on_text_ = text;
+        off_text_ = text;
+    }
+
+    Switch(juce::StringRef on_text, juce::StringRef off_text) {
+        on_text_ = on_text;
+        off_text_ = off_text;
     }
 
     ~Switch() override {
@@ -259,9 +267,11 @@ public:
         g.fillRect(b);
         g.setColour(juce::Colours::black);
         g.drawRect(b);
-        g.drawText(getName(), b, juce::Justification::centred);
+        g.drawText(getToggleState() ? on_text_: off_text_, b, juce::Justification::centred);
     }
 private:
+    juce::String on_text_;
+    juce::String off_text_;
     std::unique_ptr<juce::ButtonParameterAttachment> attach_;
 };
 
@@ -288,4 +298,6 @@ public:
 
 static void SetLableBlack(juce::Label& lable) {
     lable.setColour(juce::Label::ColourIds::textColourId, black_bg);
+}
+
 }

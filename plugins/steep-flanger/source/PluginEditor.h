@@ -71,10 +71,10 @@ private:
 
     SteepFlangerAudioProcessor& p_;
     juce::Label title_{"", "Time view"};
-    FlatButton reload_;
-    FlatButton copy_;
-    FlatButton clear_;
-    Switch display_custom_{"show ctm"};
+    ui::FlatButton reload_;
+    ui::FlatButton copy_;
+    ui::FlatButton clear_;
+    ui::Switch display_custom_{"show ctm"};
     std::array<float, kMaxCoeffLen + 1> coeff_buffer_{};
 
     friend class SpectralView;
@@ -152,31 +152,31 @@ private:
     juce::Label plugin_title_;
 
     juce::Label lfo_title_{"lfo", "lfo"};
-    Dial delay_{"delay"};
-    Dial depth_{"depth"};
-    Dial speed_{"speed"};
-    Dial phase_{"phase"};
-    FlatButton lfo_reset_phase_;
+    ui::Dial delay_{"delay"};
+    ui::Dial depth_{"depth"};
+    ui::Dial speed_{"speed"};
+    ui::Dial phase_{"phase"};
+    ui::FlatButton lfo_reset_phase_;
 
     juce::Label fir_title_{"fir", "fir"};
-    Dial cutoff_{"cutoff"};
-    Dial coeff_len_{"steep"};
-    Dial side_lobe_{"side_lobe"};
-    Switch minum_phase_{"minum_phase"};
-    Switch highpass_{"highpass"};
-    Switch custom_{"custom"};
+    ui::Dial cutoff_{"cutoff"};
+    ui::Dial coeff_len_{"steep"};
+    ui::Dial side_lobe_{"side_lobe"};
+    ui::Switch minum_phase_{"minum_phase"};
+    ui::Switch highpass_{"highpass"};
+    ui::Switch custom_{"custom"};
 
     juce::Label feedback_title_{"feedback", "feedback"};
-    Switch fb_enable_{"feedback"};
-    Dial fb_value_{"feedback"};
-    Dial fb_damp_{"damp"};
-    FlatButton panic_;
+    ui::Switch fb_enable_{"feedback"};
+    ui::Dial fb_value_{"feedback"};
+    ui::Dial fb_damp_{"damp"};
+    ui::FlatButton panic_;
 
     juce::Label barber_title_{"barberpole", "barberpole"};
-    Switch barber_enable_{"barberpole"};
-    Dial barber_phase_{"phase"};
-    Dial barber_speed_{"speed"};
-    FlatButton barber_reset_phase_;
+    ui::Switch barber_enable_{"barberpole"};
+    ui::Dial barber_phase_{"phase"};
+    ui::Dial barber_speed_{"speed"};
+    ui::FlatButton barber_reset_phase_;
 
     TimeView timeview_;
     SpectralView spectralview_;

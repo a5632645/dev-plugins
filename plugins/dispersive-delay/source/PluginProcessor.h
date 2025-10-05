@@ -1,7 +1,7 @@
 #pragma once
 #include "../../shared/juce_param_listener.hpp"
 
-#include "dsp/sdelay_ipp.hpp"
+#include "dsp/sdelay2.hpp"
 
 // ---------------------------------------- juce processor ----------------------------------------
 class DispersiveDelayAudioProcessor final : public juce::AudioProcessor,
@@ -48,7 +48,6 @@ public:
     void RandomParameter();
     void PanicFilterFb();
 
-    JuceParamListener param_listener_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
 
     SDelay delays_;
@@ -62,7 +61,6 @@ public:
     juce::AudioParameterChoice* resolution_{};
 
     juce::Random random_;
-    std::atomic_bool update_flag_{ true };
 
 private:
     //==============================================================================
