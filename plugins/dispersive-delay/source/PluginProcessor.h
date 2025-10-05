@@ -51,7 +51,7 @@ public:
     JuceParamListener param_listener_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
 
-    SDelay delays_[2];
+    SDelay delays_;
     std::unique_ptr<mana::CurveV2> curve_;
     juce::AudioParameterFloat* beta_{};
     juce::AudioParameterFloat* min_bw_{};

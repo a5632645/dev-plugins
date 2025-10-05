@@ -56,5 +56,11 @@ if (qwqdsp_have_raylib)
     set_target_properties(playing PROPERTIES CXX_STANDARD 20)
     qwqdsp_set_warning(playing)
 
+    if (MSVC)
+        target_compile_options(playing PUBLIC /arch:AVX2)
+    else()
+        target_compile_options(playing PUBLIC -mavx2)
+    endif()
+
     add_subdirectory(attemps)
 endif()

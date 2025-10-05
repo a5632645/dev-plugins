@@ -6,10 +6,10 @@
 constexpr auto kResultsSize = 1024;
 
 static constexpr int kResulitionTable[] = {
-    64, 128, 256, 512, 1024, 2048, 4096, 8192
+    64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384
 };
 static const juce::StringArray kResulitionNames{
-    "64", "128", "256", "512", "1024", "2048", "4096", "8192"
+    "64", "128", "256", "512", "1024", "2048", "4096", "8192", "16384"
 };
 
 //==============================================================================
@@ -202,10 +202,11 @@ void DispersiveDelayAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
 {
     juce::ScopedNoDenormals noDenormals;
 
-    for (auto i = 0; i < 2; ++i) {
-        auto* channelData = buffer.getWritePointer (i);
-        delays_[i].Process(channelData, buffer.getNumSamples());
-    }
+    delays_.Process(
+        buffer.getWritePointer(0),
+        buffer.getWritePointer(1),
+        buffer.getNumSamples()
+    );
 }
 
 //==============================================================================
@@ -280,7 +281,6 @@ void DispersiveDelayAudioProcessor::setStateInformation (const void* data, int s
         update_flag_ = true;
         UpdateFilters();
     }
-    delays_[1].CopyFrom(delays_[0]);
     suspendProcessing(false);
 }
 
@@ -292,17 +292,16 @@ void DispersiveDelayAudioProcessor::parameterChanged(const juce::String& paramet
 
     if (parameterID == beta_->getParameterID()) {
         auto ripple = std::pow(10.0f, beta_->get() / 20.0f);
-        delays_[0].SetBeta(ripple);
+        delays_.SetBeta(ripple);
     }
     else if (parameterID == min_bw_->getParameterID()) {
         auto bw = min_bw_->get();
-        delays_[0].SetMinBw(bw);
+        delays_.SetMinBw(bw);
         UpdateFilters();
     }
     else {
         UpdateFilters();
     }
-    delays_[1].CopyFrom(delays_[0]);
 }
 
 void DispersiveDelayAudioProcessor::UpdateFilters()
@@ -313,7 +312,6 @@ void DispersiveDelayAudioProcessor::UpdateFilters()
 
     const juce::ScopedLock lock{ getCallbackLock() };
 
-    constexpr auto twopi = std::numbers::pi_v<float> * 2;
     auto resolution_size = kResulitionTable[resolution_->getIndex()];
     auto f_begin = f_begin_->get();
     auto f_end = f_end_->get();
@@ -322,16 +320,7 @@ void DispersiveDelayAudioProcessor::UpdateFilters()
     }
 
     auto delay = delay_time_->get();
-    if (pitch_x_asix_->get()) {
-        delays_[0].SetCurvePitchAxis(*curve_,resolution_size, delay, f_begin, f_end);
-    }
-    else {
-        auto st_begin = SemitoneNor(f_begin);
-        auto st_end = SemitoneNor(f_end);
-        auto freq_begin = Semitone2Hz(st_begin) / getSampleRate() * twopi;
-        auto freq_end = Semitone2Hz(st_end) / getSampleRate() * twopi;
-        delays_[0].SetCurve(*curve_, resolution_size, delay, freq_begin, freq_end);
-    }
+    delays_.SetCurve(*curve_,resolution_size, delay, f_begin, f_end, pitch_x_asix_->get());
 }
 
 void DispersiveDelayAudioProcessor::RandomParameter()
@@ -346,49 +335,41 @@ void DispersiveDelayAudioProcessor::RandomParameter()
 
     update_flag_ = true;
     auto bw = min_bw_->get();
-    delays_[0].SetMinBw(bw);
+    delays_.SetMinBw(bw);
     UpdateFilters();
     auto ripple = std::pow(10.0f, beta_->get() / 20.0f);
-    delays_[0].SetBeta(ripple);
-    delays_[1].CopyFrom(delays_[0]);
+    delays_.SetBeta(ripple);
 }
 
 void DispersiveDelayAudioProcessor::PanicFilterFb()
 {
     const juce::ScopedLock lock{ getCallbackLock() };
-    for (auto& d : delays_) {
-        d.PaincFilterFb();
-    }
+    delays_.PaincFilterFb();
 }
 
 void DispersiveDelayAudioProcessor::OnAddPoint(mana::CurveV2* generator, mana::CurveV2::Point p, int before_idx)
 {
     UpdateFilters();
-    delays_[1].CopyFrom(delays_[0]);
 }
 
 void DispersiveDelayAudioProcessor::OnRemovePoint(mana::CurveV2* generator, int remove_idx)
 {
     UpdateFilters();
-    delays_[1].CopyFrom(delays_[0]);
 }
 
 void DispersiveDelayAudioProcessor::OnPointXyChanged(mana::CurveV2* generator, int changed_idx)
 {
     UpdateFilters();
-    delays_[1].CopyFrom(delays_[0]);
 }
 
 void DispersiveDelayAudioProcessor::OnPointPowerChanged(mana::CurveV2* generator, int changed_idx)
 {
     UpdateFilters();
-    delays_[1].CopyFrom(delays_[0]);
 }
 
 void DispersiveDelayAudioProcessor::OnReload(mana::CurveV2* generator)
 {
     UpdateFilters();
-    delays_[1].CopyFrom(delays_[0]);
 }
 
 //==============================================================================

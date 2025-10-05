@@ -2,7 +2,6 @@
 #include <vector>
 #include <numbers>
 #include <complex>
-#include "convert.hpp"
 #include "curve_v2.h"
 #include "qwqdsp/psimd/align_allocator.hpp"
 
@@ -12,11 +11,7 @@ public:
 
     SDelay() {
         magic_beta_ = std::sqrt(beta_ / (1 - beta_));
-        x0_.resize(kMaxCascade + 8);
-        lag1_.resize(kMaxCascade + 8);
-        lag2_.resize(kMaxCascade + 8);
-        a1_.resize(kMaxCascade + 8);
-        a2_.resize(kMaxCascade + 8);
+        filters_.resize(kMaxCascade);
         center_.resize(kMaxCascade + 8);
         bw_.resize(kMaxCascade + 8);
         radius_.resize(kMaxCascade + 8);
@@ -26,233 +21,283 @@ public:
         sample_rate_ = sample_rate;
     }
 
-    void Process(float* input, size_t num_samples) {
+    void Process(float* first, float* second, size_t num_samples) {
         size_t const cascade_loop_count = (num_cascade_filters_ + 7) / 8;
         size_t const scalar_loop_count = num_cascade_filters_ & 8;
-        alignas(32) float vy[8]{};
+        alignas(32) float vy_first[8]{};
+        alignas(32) float vy_second[8]{};
 #ifndef __AVX2__
         alignas(32) float vx[9]{};
 #endif
         for (size_t xidx = 0; xidx < num_samples; ++xidx) {
             // x永远是最后一个滤波器的输出
-            float x = input[xidx];
-            float* a2_ptr = a2_.data();
-            float* lag1_ptr = lag1_.data();
-            float* lag2_ptr = lag2_.data();
-            float* a1_ptr = a1_.data();
+            float x_first = first[xidx];
+            float x_second = second[xidx];
+            auto* filter_ptr = filters_.data();
             for (size_t i = 0; i < cascade_loop_count; ++i) {
 #ifdef __AVX2__
-                float const begin_x_input = x;
+                float const begin_x_input_first = x_first;
+                float const begin_x_input_second = x_second;
 #else
                 vx[0] = x;
 #endif
+                // left channel serial
+                float* a2_ptr = filter_ptr->a2;
+                float* lag1_ptr = filter_ptr->lag1;
                 for (size_t j = 0; j < 8; ++j) {
-                    x = x * *a2_ptr + *lag1_ptr;
-                    vy[j] = x;
+                    x_first = x_first * *a2_ptr + *lag1_ptr;
+                    vy_first[j] = x_first;
                     ++a2_ptr;
                     ++lag1_ptr;
                 }
-                a2_ptr -= 8;
-                lag1_ptr -= 8;
+                // right channel serial
+                a2_ptr = filter_ptr->a2;
+                float* lag1_ptr_2 = filter_ptr->lag1_second;
+                for (size_t j = 0; j < 8; ++j) {
+                    x_second = x_second * *a2_ptr + *lag1_ptr_2;
+                    vy_second[j] = x_second;
+                    ++a2_ptr;
+                    ++lag1_ptr_2;
+                }
+                a2_ptr = filter_ptr->a2;
 
                 // vy现在是每个滤波器的输出
-                auto y = _mm256_load_ps(vy);
+                // left channel
+                auto shuffle_mask = _mm256_set_epi32(6, 5, 4, 3, 2, 1, 0, 7);
+                auto y = _mm256_load_ps(vy_first);
 #ifndef __AVX2__
                 _mm256_storeu_ps(vx + 1, y);
                 auto x = _mm256_load_ps(vx);
 #else
-                auto shuffle_mask = _mm256_set_epi32(6, 5, 4, 3, 2, 1, 0, 7);
                 auto shuffled_reg = _mm256_permutevar8x32_ps(y, shuffle_mask);
-                auto iwantx = _mm256_set1_ps(begin_x_input);
+                auto iwantx = _mm256_set1_ps(begin_x_input_first);
                 auto x = _mm256_blend_ps(shuffled_reg, iwantx, 0b00000001);
 #endif
-                
                 // update lag1
-                auto a1 = _mm256_load_ps(a1_ptr);
-                auto lag2 = _mm256_load_ps(lag2_ptr);
+                auto a1 = _mm256_load_ps(filter_ptr->a1);
+                auto lag2 = _mm256_load_ps(filter_ptr->lag2);
                 auto lag1 = _mm256_add_ps(lag2, _mm256_sub_ps(_mm256_mul_ps(x, a1), _mm256_mul_ps(y, a1)));
-                _mm256_store_ps(lag1_ptr, lag1);
+                _mm256_store_ps(filter_ptr->lag1, lag1);
 
                 // update lag2
                 auto a2 = _mm256_load_ps(a2_ptr);
                 lag2 = _mm256_sub_ps(x, _mm256_mul_ps(y, a2));
-                _mm256_store_ps(lag2_ptr, lag2);
+                _mm256_store_ps(filter_ptr->lag2, lag2);
 
-                lag1_ptr += 8;
-                lag2_ptr += 8;
-                a1_ptr += 8;
-                a2_ptr += 8;
+
+                // right channel
+                y = _mm256_load_ps(vy_second);
+#ifndef __AVX2__
+                _mm256_storeu_ps(vx + 1, y);
+                auto x = _mm256_load_ps(vx);
+#else
+                shuffled_reg = _mm256_permutevar8x32_ps(y, shuffle_mask);
+                iwantx = _mm256_set1_ps(begin_x_input_second);
+                x = _mm256_blend_ps(shuffled_reg, iwantx, 0b00000001);
+#endif
+                // update lag1
+                lag2 = _mm256_load_ps(filter_ptr->lag2_second);
+                lag1 = _mm256_add_ps(lag2, _mm256_sub_ps(_mm256_mul_ps(x, a1), _mm256_mul_ps(y, a1)));
+                _mm256_store_ps(filter_ptr->lag1_second, lag1);
+
+                // update lag2
+                lag2 = _mm256_sub_ps(x, _mm256_mul_ps(y, a2));
+                _mm256_store_ps(filter_ptr->lag2_second, lag2);
+
+                ++filter_ptr;
             }
 
+            //// 处理凑不齐8个的
 #ifdef __AVX2__
-            float begin_x_input = x;
+            float begin_x_input_first = x_first;
+            float begin_x_input_second = x_second;
 #else
             vx[0] = x;
 #endif
+            // left channel
+            float* a2_ptr = filter_ptr->a2;
+            float* lag1_ptr = filter_ptr->lag1;
             for (size_t j = 0; j < scalar_loop_count; ++j) {
-                    x = x * *a2_ptr + *lag1_ptr;
-                    vy[j] = x;
-                    ++a2_ptr;
-                    ++lag1_ptr;
+                x_first = x_first * *a2_ptr + *lag1_ptr;
+                vy_first[j] = x_first;
+                ++a2_ptr;
+                ++lag1_ptr;
             }
-            a2_ptr -= scalar_loop_count;
-            lag1_ptr -= scalar_loop_count;
+            // right channel
+            a2_ptr = filter_ptr->a2;
+            float* lag1_ptr_2 = filter_ptr->lag1_second;
+            for (size_t j = 0; j < scalar_loop_count; ++j) {
+                x_second = x_second * *a2_ptr + *lag1_ptr_2;
+                vy_second[j] = x_second;
+                ++a2_ptr;
+                ++lag1_ptr_2;
+            }
+            a2_ptr = filter_ptr->a2;
 
-            // vy现在是每个滤波器的输出
-            auto y = _mm256_load_ps(vy);
+            // left channel
+            auto shuffle_mask = _mm256_set_epi32(6, 5, 4, 3, 2, 1, 0, 7);
+            auto y = _mm256_load_ps(vy_first);
 #ifndef __AVX2__
             _mm256_storeu_ps(vx + 1, y);
-            auto xv = _mm256_load_ps(vx);
+            auto x = _mm256_load_ps(vx);
 #else
-            auto shuffle_mask = _mm256_set_epi32(6, 5, 4, 3, 2, 1, 0, 7);
             auto shuffled_reg = _mm256_permutevar8x32_ps(y, shuffle_mask);
-            auto iwantx = _mm256_set1_ps(begin_x_input);
-            auto xv = _mm256_blend_ps(shuffled_reg, iwantx, 0b00000001);
+            auto iwantx = _mm256_set1_ps(begin_x_input_first);
+            auto x = _mm256_blend_ps(shuffled_reg, iwantx, 0b00000001);
 #endif
-            
             // update lag1
-            auto a1 = _mm256_load_ps(a1_ptr);
-            auto lag2 = _mm256_load_ps(lag2_ptr);
-            auto lag1 = _mm256_add_ps(lag2, _mm256_sub_ps(_mm256_mul_ps(xv, a1), _mm256_mul_ps(y, a1)));
-            _mm256_store_ps(lag1_ptr, lag1);
+            auto a1 = _mm256_load_ps(filter_ptr->a1);
+            auto lag2 = _mm256_load_ps(filter_ptr->lag2);
+            auto lag1 = _mm256_add_ps(lag2, _mm256_sub_ps(_mm256_mul_ps(x, a1), _mm256_mul_ps(y, a1)));
+            _mm256_store_ps(filter_ptr->lag1, lag1);
 
             // update lag2
             auto a2 = _mm256_load_ps(a2_ptr);
-            lag2 = _mm256_sub_ps(xv, _mm256_mul_ps(y, a2));
-            _mm256_store_ps(lag2_ptr, lag2);
+            lag2 = _mm256_sub_ps(x, _mm256_mul_ps(y, a2));
+            _mm256_store_ps(filter_ptr->lag2, lag2);
 
-            input[xidx] = x;
+
+            // right channel
+            y = _mm256_load_ps(vy_second);
+#ifndef __AVX2__
+            _mm256_storeu_ps(vx + 1, y);
+            auto x = _mm256_load_ps(vx);
+#else
+            shuffled_reg = _mm256_permutevar8x32_ps(y, shuffle_mask);
+            iwantx = _mm256_set1_ps(begin_x_input_second);
+            x = _mm256_blend_ps(shuffled_reg, iwantx, 0b00000001);
+#endif
+            // update lag1
+            lag2 = _mm256_load_ps(filter_ptr->lag2_second);
+            lag1 = _mm256_add_ps(lag2, _mm256_sub_ps(_mm256_mul_ps(x, a1), _mm256_mul_ps(y, a1)));
+            _mm256_store_ps(filter_ptr->lag1_second, lag1);
+
+            // update lag2
+            lag2 = _mm256_sub_ps(x, _mm256_mul_ps(y, a2));
+            _mm256_store_ps(filter_ptr->lag2_second, lag2);
+
+            first[xidx] = x_first;
+            second[xidx] = x_second;
         }
     }
 
     void PaincFilterFb() {
-        std::fill(lag1_.begin(), lag1_.end(), 0);
-        std::fill(lag2_.begin(), lag2_.end(), 0);
+        size_t const simd_loop = (num_cascade_filters_ + 7) / 8;
+        for (size_t i = 0; i < simd_loop; ++i) {
+            std::fill_n(filters_[i].lag1, 8, 0);
+            std::fill_n(filters_[i].lag2, 8, 0);
+            std::fill_n(filters_[i].lag1_second, 8, 0);
+            std::fill_n(filters_[i].lag2_second, 8, 0);
+        }
     }
 
+    inline static float Hz2Mel(float hz) {
+        return 1127.0f * std::log(1.0f + hz / 700.0f);
+    }
+
+    inline static float Mel2Hz(float mel) {
+        return 700.0f * (std::exp(mel / 1127.0f) - 1.0f);
+    }
+
+    inline static const auto kMinMel = Hz2Mel(20.0f);
+    inline static const auto kMaxMel = Hz2Mel(20000.0f);
+
     /**
-     * @brief 
      * @param curve unit: ms
-     * @param f_begin 0~1
-     * @param f_end 0~1
+     * @param p_begin 0~1
+     * @param p_end 0~1
      */
-    // qwqfixme: 死循环
-    void SetCurvePitchAxis(mana::CurveV2& curve, size_t resulotion, float max_delay_ms, float p_begin, float p_end) {
+    void SetCurve(
+        mana::CurveV2& curve, size_t resulotion, float max_delay_ms,
+        float p_begin, float p_end,
+        bool log_scale
+    ) {
         constexpr auto twopi = std::numbers::pi_v<float> * 2;
-        float intergal = 0.0f;
-        auto freq_begin_hz = SemitoneMap(p_begin);
-        auto freq_end_hz = freq_begin_hz;
-        const auto real_freq_end_hz = SemitoneMap(p_end);
-        auto freq_interval_hz = (real_freq_end_hz - freq_begin_hz) / resulotion;
-        auto nor_freq_interval = freq_interval_hz / sample_rate_ * twopi;
+        float begin_w = 0;
+        float end_w = 0;
+        float w_width = 0;
+        float width_ratio_mul = 0;
 
+        if (log_scale) {
+            float const begin_mel = kMinMel + (kMaxMel - kMinMel) * p_begin;
+            float const end_mel = kMinMel + (kMaxMel - kMinMel) * p_end;
+            float const first_mel = begin_mel + (end_mel - begin_mel) / resulotion;
+            begin_w = Mel2Hz(begin_mel) * twopi / sample_rate_;
+            end_w = Mel2Hz(end_mel) * twopi / sample_rate_;
+            w_width = Mel2Hz(first_mel) * twopi / sample_rate_ - begin_w;
+            width_ratio_mul = std::exp((end_mel - begin_mel) / (1127.0f * resulotion));
+        }
+        else {
+            float const begin_f = 20.0f + (20000.0f - 20.0f) * p_begin;
+            float const end_f = 20.0f + (20000.0f - 20.0f) * p_end;
+            begin_w = begin_f * twopi / sample_rate_;
+            end_w = end_f * twopi / sample_rate_;
+            w_width = (end_w - begin_w) / resulotion;
+            width_ratio_mul = 1;
+        }
+        
         size_t const old_num = num_cascade_filters_;
         num_cascade_filters_ = 0;
-        for (size_t i = 0; i < resulotion;) {
-            while (intergal < twopi && i < resulotion) {
-                auto st = Hz2Semitone(freq_end_hz);
-                auto nor = (st - s_st_begin) / (s_st_end - s_st_begin);
-                nor = std::clamp(nor, 0.0f, 1.0f);
-                auto delay_ms = curve.GetNormalize(nor) * max_delay_ms;
-                auto delay_samples = delay_ms * sample_rate_ / 1000.0f;
-                intergal += nor_freq_interval * delay_samples;
-                freq_end_hz += freq_interval_hz;
-                ++i;
-            }
-
-            while (intergal >= twopi) {
-                intergal -= twopi;
-                // 正确的，您应该循环一次就创建一个滤波器
-                // 然而那样太卡了
-            }
-
-            if (i >= resulotion && intergal < twopi) {
-                freq_end_hz = real_freq_end_hz;
-            }
-            auto freq_end = freq_end_hz / sample_rate_ * twopi;
-            auto freq_begin = freq_begin_hz / sample_rate_ * twopi;
-
-            // 创建全通滤波器?
-            auto center = freq_begin + (freq_end - freq_begin) / 2.0f;
-            auto bw = freq_end - freq_begin;
-
-            if (bw > min_bw_) {
-                freq_begin_hz = freq_end_hz;
-                if (num_cascade_filters_ < kMaxCascade) {
-                    auto pole_radius = GetPoleRadius(bw);
-                    center_[num_cascade_filters_] = center;
-                    radius_[num_cascade_filters_] = pole_radius;
-                    bw_[num_cascade_filters_] = bw;
-                    a1_[num_cascade_filters_] = -2 * pole_radius * std::cos(center);
-                    a2_[num_cascade_filters_] = pole_radius * pole_radius;
-                    ++num_cascade_filters_;
-                }
-            }
-        }
-
-        for (size_t i = old_num; i < num_cascade_filters_; ++i) {
-            lag1_[i] = 0;
-            lag2_[i] = 0;
-            x0_[i] = 0;
-        }
-    }
-
-    /**
-     * @brief 
-     * @param curve 
-     * @param resulotion 
-     * @param max_delay_ms 
-     * @param f_begin 0~pi
-     * @param f_end 0~pi
-     */
-    void SetCurve(mana::CurveV2& curve, size_t resulotion, float max_delay_ms, float f_begin, float f_end) {
-        constexpr auto twopi = std::numbers::pi_v<float> *2;
         float intergal = 0.0f;
-        auto freq_begin = f_begin;
-        auto freq_end = f_begin;
-        auto freq_interval = (f_end - f_begin) / resulotion;
+        float allpass_begin_w = begin_w;
+        float allpass_end_w = begin_w;
 
-        size_t const old_num = num_cascade_filters_;
-        num_cascade_filters_ = 0;
+        size_t simd_counter = 0;
+        size_t scalar_counter = 0;
+
         for (size_t i = 0; i < resulotion;) {
             while (intergal < twopi && i < resulotion) {
                 auto nor = i / (resulotion - 1.0f);
                 auto delay_ms = curve.GetNormalize(nor) * max_delay_ms;
                 auto delay_samples = delay_ms * sample_rate_ / 1000.0f;
-                intergal += freq_interval * delay_samples;
-                freq_end += freq_interval;
+                intergal += w_width * delay_samples;
+                allpass_end_w += w_width;
+                w_width *= width_ratio_mul;
                 ++i;
             }
 
             while (intergal >= twopi) {
                 intergal -= twopi;
+                // 正确的，您应该在此warp一次就创建一个全通滤波器
             }
 
             if (i >= resulotion && intergal < twopi) {
-                freq_end = f_end;
+                allpass_end_w = end_w;
             }
 
-            // 创建一个全通滤波器
-            auto center = freq_begin + (freq_end - freq_begin) / 2.0f;
-            auto bw = freq_end - freq_begin;
+            // 创建全通滤波器?
+            auto center = allpass_begin_w + (allpass_end_w - allpass_begin_w) / 2.0f;
+            auto bw = allpass_end_w - allpass_begin_w;
+
             if (bw > min_bw_) {
-                freq_begin = freq_end;
+                allpass_begin_w = allpass_end_w;
                 if (num_cascade_filters_ < kMaxCascade) {
                     auto pole_radius = GetPoleRadius(bw);
-                    radius_[num_cascade_filters_] = pole_radius;
                     center_[num_cascade_filters_] = center;
+                    radius_[num_cascade_filters_] = pole_radius;
                     bw_[num_cascade_filters_] = bw;
-                    a1_[num_cascade_filters_] = -2 * pole_radius * std::cos(center);
-                    a2_[num_cascade_filters_] = pole_radius * pole_radius;
+                    filters_[simd_counter].a1[scalar_counter] = -2 * pole_radius * std::cos(center);
+                    filters_[simd_counter].a2[scalar_counter] = pole_radius * pole_radius;
                     ++num_cascade_filters_;
+                    ++scalar_counter;
+                    if (scalar_counter > 7) {
+                        scalar_counter = 0;
+                        ++simd_counter;
+                    }
                 }
             }
         }
 
-        for (size_t i = old_num; i < num_cascade_filters_; ++i) {
-            lag1_[i] = 0;
-            lag2_[i] = 0;
+        // 清除新滤波器的数据
+        size_t const old_num_simd_loop = (old_num + 7) / 8;
+        size_t const old_num_scalar = old_num & 7;
+        size_t const new_num_simd_loop = (num_cascade_filters_ + 7) / 8;
+        size_t const new_num_scalar = num_cascade_filters_ & 7;
+        filters_[old_num_simd_loop].ClearLags(old_num_scalar);
+        for (size_t i = old_num_simd_loop; i < new_num_simd_loop; ++i) {
+            filters_[i].ClearLags();
         }
+        filters_[new_num_simd_loop].ClearLags(new_num_scalar);
     }
 
     void SetMinBw(float bw) {
@@ -264,11 +309,24 @@ public:
         beta_ = beta;
         magic_beta_ = std::sqrt(beta_ / (1 - beta_));
 
-        for (size_t i = 0; i < num_cascade_filters_; ++i) {
-            auto radius = GetPoleRadius(bw_[i]);
-            radius_[i] = radius;
-            a1_[i] = -2 * radius * std::cos(center_[i]);
-            a2_[i] = radius * radius;
+        size_t const simd_loop = (num_cascade_filters_ + 7) / 8;
+        size_t const scalar_loop = num_cascade_filters_ & 7;
+        size_t fidx = 0;
+        for (size_t i = 0; i < simd_loop; ++i) {
+            for (size_t j = 0; j < 8; ++j) {
+                auto radius = GetPoleRadius(bw_[fidx]);
+                radius_[fidx] = radius;
+                filters_[i].a1[j] = -2 * radius * std::cos(center_[fidx]);
+                filters_[i].a2[j] = radius * radius;
+                ++fidx;
+            }
+        }
+        for (size_t j = 0; j < scalar_loop; ++j) {
+            auto radius = GetPoleRadius(bw_[fidx]);
+            radius_[fidx] = radius;
+            filters_[simd_loop].a1[j] = -2 * radius * std::cos(center_[fidx]);
+            filters_[simd_loop].a2[j] = radius * radius;
+            ++fidx;
         }
     }
 
@@ -289,17 +347,6 @@ public:
     size_t GetNumFilters() const {
         return num_cascade_filters_;
     }
-
-    void CopyFrom(const SDelay& other) {
-        size_t const old_num = num_cascade_filters_;
-        num_cascade_filters_ = other.num_cascade_filters_;
-        std::copy_n(other.a1_.begin(), num_cascade_filters_, a1_.begin());
-        std::copy_n(other.a2_.begin(), num_cascade_filters_, a2_.begin());
-        for (size_t i = old_num; i < num_cascade_filters_; ++i) {
-            lag1_[i] = 0;
-            lag2_[i] = 0;
-        }
-    }
 private:
     float GetPoleRadius(float bw) const {
         float ret{};
@@ -315,11 +362,29 @@ private:
 
     size_t num_cascade_filters_{};
     using SimdAllocator = qwqdsp::psimd::AlignedAllocator<float, 32>;
-    std::vector<float, SimdAllocator> x0_;
-    std::vector<float, SimdAllocator> lag1_;
-    std::vector<float, SimdAllocator> lag2_;
-    std::vector<float, SimdAllocator> a2_;
-    std::vector<float, SimdAllocator> a1_;
+
+    struct alignas(32) CascadeFilterContent {
+        float lag1[8]{};
+        float lag2[8]{};
+        float lag1_second[8]{};
+        float lag2_second[8]{};
+        float a2[8]{};
+        float a1[8]{};
+
+        void ClearLags() noexcept {
+            std::fill_n(lag1, 8, 0);
+            std::fill_n(lag2, 8, 0);
+            std::fill_n(lag1_second, 8, 0);
+            std::fill_n(lag2_second, 8, 0);
+        }
+        void ClearLags(size_t offset) noexcept {
+            std::fill_n(lag1 + offset, 8 - offset, 0);
+            std::fill_n(lag2 + offset, 8 - offset, 0);
+            std::fill_n(lag1_second + offset, 8 - offset, 0);
+            std::fill_n(lag2_second + offset, 8 - offset, 0);
+        }
+    };
+    std::vector<CascadeFilterContent> filters_;
 
     std::vector<float> center_;
     std::vector<float> bw_;

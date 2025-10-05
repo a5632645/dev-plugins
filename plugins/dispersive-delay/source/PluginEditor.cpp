@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "PluginProcessor.h"
+#include "dsp/convert.hpp"
 
 // ---------------------------------------- editor ----------------------------------------
 
@@ -74,7 +75,7 @@ DispersiveDelayAudioProcessorEditor::DispersiveDelayAudioProcessorEditor (Disper
     curve_.SetGridNum(16, 8);
 
     group_delay_cache_.resize(256);
-    startTimerHz(10);
+    startTimerHz(5);
 }
 
 
@@ -164,13 +165,13 @@ void DispersiveDelayAudioProcessorEditor::timerCallback()
     auto size = group_delay_cache_.capacity();
     for (size_t i = 0; i < size; ++i) {
         auto nor = i / static_cast<float>(size);
-        auto hz = SemitoneMap(nor);
+        auto hz = MelMap(nor);
         auto w = hz / fs * 2 * pi;
-        auto delay_num_samples = p_.delays_[0].GetGroupDelay(w);
+        auto delay_num_samples = p_.delays_.GetGroupDelay(w);
         auto delay_num_ms = delay_num_samples * 1000.0f / fs;
         group_delay_cache_.emplace_back(delay_num_ms);
     }
 
-    num_filter_label_.setText(juce::String{ "n.filters: " } + juce::String(p_.delays_[0].GetNumFilters()), juce::dontSendNotification);
+    num_filter_label_.setText(juce::String{ "n.filters: " } + juce::String(p_.delays_.GetNumFilters()), juce::dontSendNotification);
     repaint();
 }
