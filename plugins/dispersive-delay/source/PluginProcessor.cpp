@@ -31,8 +31,29 @@ DispersiveDelayAudioProcessor::DispersiveDelayAudioProcessor()
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{ "flat",0 },
                                                              "flat",
-                                                             -50.0f, -0.1f, -0.1f);
+                                                             -50.0f, -0.1f, -6.02059991f);
         beta_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{ "feedback",0 },
+                                                             "feedback",
+                                                             -0.95f, 0.95f, 0.0f);
+        feedback_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{ "delay",0 },
+                                                             "delay",
+                                                             0.0f, 1000.0f, 0.0f);
+        delay_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{ "damp",0 },
+                                                             "damp",
+                                                             20.0f, 20010.0f, 20010.0f);
+        damp_ = p.get();
         layout.add(std::move(p));
     }
     {
@@ -89,6 +110,7 @@ DispersiveDelayAudioProcessor::DispersiveDelayAudioProcessor()
     value_tree_->addParameterListener("pitch_x", this);
     value_tree_->addParameterListener("min_bw", this);
     value_tree_->addParameterListener("resolution", this);
+    OnReload(curve_.get());
 }
 
 DispersiveDelayAudioProcessor::~DispersiveDelayAudioProcessor()
@@ -165,6 +187,7 @@ void DispersiveDelayAudioProcessor::changeProgramName (int index, const juce::St
 void DispersiveDelayAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     // why this value not set on startup
+    delays_.PrepareProcess(1000.0f, sampleRate);
     parameterChanged(beta_->getParameterID(), beta_->get());
 }
 
@@ -206,7 +229,8 @@ void DispersiveDelayAudioProcessor::processBlock (juce::AudioBuffer<float>& buff
     delays_.Process(
         buffer.getWritePointer(0),
         buffer.getWritePointer(1),
-        buffer.getNumSamples()
+        buffer.getNumSamples(),
+        feedback_->get(), delay_->get(), damp_->get() * std::numbers::pi_v<float> * 2 / getSampleRate(), damp_->get() > 20000.0f
     );
 }
 

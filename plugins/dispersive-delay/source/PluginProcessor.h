@@ -52,6 +52,9 @@ public:
 
     SDelay delays_;
     std::unique_ptr<mana::CurveV2> curve_;
+    juce::AudioParameterFloat* feedback_{};
+    juce::AudioParameterFloat* delay_{};
+    juce::AudioParameterFloat* damp_{};
     juce::AudioParameterFloat* beta_{};
     juce::AudioParameterFloat* min_bw_{};
     juce::AudioParameterFloat* f_begin_{};

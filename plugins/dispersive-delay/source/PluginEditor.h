@@ -48,6 +48,10 @@ private:
     ui::FlatButton clear_curve_;
     ui::FlatButton panic_;
 
+    ui::Dial feedback_{"feedback"};
+    ui::Dial delay_{"delay"};
+    ui::Dial damp_{"damp"};
+
     std::vector<float> group_delay_cache_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DispersiveDelayAudioProcessorEditor)

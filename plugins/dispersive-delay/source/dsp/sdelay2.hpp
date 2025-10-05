@@ -5,25 +5,41 @@
 #include <array>
 #include "curve_v2.h"
 #include "qwqdsp/psimd/align_allocator.hpp"
+#include "qwqdsp/filter/one_pole.hpp"
+#include "qwqdsp/fx/delay_line.hpp"
 
 class SDelay {
 public:
-    static constexpr size_t kMaxCascade = 4096;
+    static constexpr size_t kMaxCascade = 8192;
 
     SDelay() {
         magic_beta_ = std::sqrt(beta_ / (1 - beta_));
-        filters_.resize(kMaxCascade);
+        filters_.resize(kMaxCascade / 8 + 1);
         center_.resize(kMaxCascade + 8);
         bw_.resize(kMaxCascade + 8);
         radius_.resize(kMaxCascade + 8);
     }
 
-    void PrepareProcess(float sample_rate) {
+    void PrepareProcess(float max_delay_time_ms, float sample_rate) {
         sample_rate_ = sample_rate;
+        left_delay_.Init(max_delay_time_ms, sample_rate);
+        right_delay_.Init(max_delay_time_ms, sample_rate);
     }
 
-    void Process(float* first, float* second, size_t num_samples) {
-        size_t const cascade_loop_count = (num_cascade_filters_ + 7) / 8;
+    void Process(
+        float* first, float* second, size_t num_samples,
+        float feedback, float delay_ms, float damp_w, bool damp_disbale
+    ) {
+        if (damp_disbale) {
+            left_damp_.MakePass();
+        }
+        else {
+            left_damp_.SetLPF(damp_w);
+        }
+        right_damp_.CopyFrom(left_damp_);
+
+        float const delay_samples = delay_ms * sample_rate_ / 1000.0f;
+        size_t const cascade_loop_count = num_cascade_filters_ / 8;
         size_t const scalar_loop_count = num_cascade_filters_ & 8;
         alignas(32) float vy_first[8]{};
         alignas(32) float vy_second[8]{};
@@ -32,8 +48,10 @@ public:
 #endif
         for (size_t xidx = 0; xidx < num_samples; ++xidx) {
             // x永远是最后一个滤波器的输出
-            float x_first = first[xidx];
-            float x_second = second[xidx];
+            left_delay_.Push(left_out_);
+            float x_first = first[xidx] + feedback * left_damp_.Tick(left_delay_.GetAfterPush(delay_samples));
+            right_delay_.Push(right_out_);
+            float x_second = second[xidx] + feedback * right_damp_.Tick(right_delay_.GetAfterPush(delay_samples));
             auto* filter_ptr = filters_.data();
             for (size_t i = 0; i < cascade_loop_count; ++i) {
 #ifdef __AVX2__
@@ -177,6 +195,8 @@ public:
             lag2 = _mm256_sub_ps(x, _mm256_mul_ps(y, a2));
             _mm256_store_ps(filter_ptr->lag2_second, lag2);
 
+            left_out_ = x_first;
+            right_out_ = x_second;
             first[xidx] = x_first;
             second[xidx] = x_second;
         }
@@ -190,6 +210,12 @@ public:
             std::fill_n(filters_[i].lag1_second, 8, 0);
             std::fill_n(filters_[i].lag2_second, 8, 0);
         }
+        left_damp_.Reset();
+        right_damp_.Reset();
+        left_delay_.Reset();
+        right_delay_.Reset();
+        left_out_ = 0;
+        right_out_ = 0;
     }
 
     inline static float Hz2Mel(float hz) {
@@ -290,7 +316,7 @@ public:
         }
 
         // 清除新滤波器的数据
-        size_t const old_num_simd_loop = (old_num + 7) / 8;
+        size_t const old_num_simd_loop = old_num / 8;
         size_t const old_num_scalar = old_num & 7;
         size_t const new_num_simd_loop = (num_cascade_filters_ + 7) / 8;
         size_t const new_num_scalar = num_cascade_filters_ & 7;
@@ -310,7 +336,7 @@ public:
         beta_ = beta;
         magic_beta_ = std::sqrt(beta_ / (1 - beta_));
 
-        size_t const simd_loop = (num_cascade_filters_ + 7) / 8;
+        size_t const simd_loop = num_cascade_filters_ / 8;
         size_t const scalar_loop = num_cascade_filters_ & 7;
         size_t fidx = 0;
         for (size_t i = 0; i < simd_loop; ++i) {
@@ -413,6 +439,13 @@ private:
         }
     };
     std::vector<CascadeFilterContent> filters_;
+
+    qwqdsp::filter::OnePoleFilter left_damp_;
+    qwqdsp::filter::OnePoleFilter right_damp_;
+    qwqdsp::fx::DelayLine<> left_delay_;
+    qwqdsp::fx::DelayLine<> right_delay_;
+    float left_out_{};
+    float right_out_{};
 
     std::vector<float> center_;
     std::vector<float> bw_;

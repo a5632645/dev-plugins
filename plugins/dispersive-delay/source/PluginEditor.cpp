@@ -66,6 +66,13 @@ DispersiveDelayAudioProcessorEditor::DispersiveDelayAudioProcessorEditor (Disper
         p_.curve_->Init(mana::CurveV2::CurveInitEnum::kRamp);
     };
 
+    feedback_.BindParam(apvt, "feedback");
+    delay_.BindParam(apvt, "delay");
+    damp_.BindParam(apvt, "damp");
+    addAndMakeVisible(feedback_);
+    addAndMakeVisible(delay_);
+    addAndMakeVisible(damp_);
+
     addAndMakeVisible(delay_time_);
     addAndMakeVisible(f_begin_);
     addAndMakeVisible(f_end_);
@@ -80,9 +87,9 @@ DispersiveDelayAudioProcessorEditor::DispersiveDelayAudioProcessorEditor (Disper
     addAndMakeVisible(clear_curve_);
     addAndMakeVisible(panic_);
 
-    setSize (500, 300);
+    setSize (720, 360);
     setResizable(true, true);
-    setResizeLimits(500, 300, 9999, 9999);
+    setResizeLimits(720, 360, 9999, 9999);
 
     curve_.SetCurve(p_.curve_.get());
     curve_.SetSnapGrid(true);
@@ -153,21 +160,27 @@ void DispersiveDelayAudioProcessorEditor::resized() {
         delay_time_.setBounds(slider_aera.removeFromLeft(64));
         min_bw_.setBounds(slider_aera.removeFromLeft(64));
         {
-            slider_aera.setWidth(std::min(slider_aera.getWidth(), 180));
+            auto buttons_aera = slider_aera.removeFromLeft(std::min(slider_aera.getWidth(), 180));
             {
-                auto res_aera = slider_aera.removeFromTop(20);
+                auto res_aera = buttons_aera.removeFromTop(20);
                 res_label_.setBounds(res_aera.removeFromLeft(80));
                 reslution_.setBounds(res_aera.withWidth(100));
             }
             {
-                auto btn_aera = slider_aera.removeFromRight(80);
+                auto btn_aera = buttons_aera.removeFromRight(80);
                 btn_aera.removeFromTop(4);
                 clear_curve_.setBounds(btn_aera.removeFromTop(25));
                 btn_aera.removeFromTop(4);
                 panic_.setBounds(btn_aera.removeFromTop(25));
             }
-            x_axis_.setBounds(slider_aera.removeFromTop(30).reduced(4, 0));
-            num_filter_label_.setBounds(slider_aera);
+            x_axis_.setBounds(buttons_aera.removeFromTop(30).reduced(4, 0));
+            num_filter_label_.setBounds(buttons_aera);
+        }
+        {
+            slider_aera.removeFromLeft(8);
+            feedback_.setBounds(slider_aera.removeFromLeft(64));
+            delay_.setBounds(slider_aera.removeFromLeft(64));
+            damp_.setBounds(slider_aera.removeFromLeft(64));
         }
     }
     curve_.setBounds(b);
