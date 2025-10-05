@@ -12,8 +12,7 @@ public:
 
     SDelay() {
         magic_beta_ = std::sqrt(beta_ / (1 - beta_));
-        x0_.resize(kMaxCascade);
-        y0_.resize(kMaxCascade);
+        x0_.resize(kMaxCascade + 8);
         lag1_.resize(kMaxCascade);
         lag2_.resize(kMaxCascade);
         a1_.resize(kMaxCascade);
@@ -32,24 +31,21 @@ public:
         for (size_t xidx = 0; xidx < num_samples; ++xidx) {
             {
                 float* x_ptr = x0_.data();
-                float* y_ptr = y0_.data();
                 float* a2_ptr = a2_.data();
                 float* lag1_ptr = lag1_.data();
                 float x = input[xidx];
                 for (size_t fidx = 0; fidx < num_cascade_filters_; ++fidx) {
                     *x_ptr = x;
                     x = x * *a2_ptr + *lag1_ptr;
-                    *y_ptr = x;
 
                     ++x_ptr;
-                    ++y_ptr;
                     ++a2_ptr;
                     ++lag1_ptr;
                 }
+                *x_ptr = x;
             }
 
             float* x_ptr = x0_.data();
-            float* y_ptr = y0_.data();
             float* lag1_ptr = lag1_.data();
             float* lag2_ptr = lag2_.data();
             float* a1_ptr = a1_.data();
@@ -58,7 +54,7 @@ public:
                 auto x = _mm256_load_ps(x_ptr);
                 auto a1 = _mm256_load_ps(a1_ptr);
                 auto lag2 = _mm256_load_ps(lag2_ptr);
-                auto y = _mm256_load_ps(y_ptr);
+                auto y = _mm256_loadu_ps(x_ptr + 1);
                 
                 // update lag1
                 auto lag1 = _mm256_add_ps(lag2, _mm256_sub_ps(_mm256_mul_ps(x, a1), _mm256_mul_ps(y, a1)));
@@ -70,14 +66,13 @@ public:
                 _mm256_store_ps(lag2_ptr, lag2);
 
                 x_ptr += 8;
-                y_ptr += 8;
                 lag1_ptr += 8;
                 lag2_ptr += 8;
                 a1_ptr += 8;
                 a2_ptr += 8;
             }
 
-            input[xidx] = y0_[num_cascade_filters_ - 1];
+            input[xidx] = x0_[num_cascade_filters_];
         }
     }
 
@@ -92,6 +87,7 @@ public:
      * @param f_begin 0~1
      * @param f_end 0~1
      */
+    // qwqfixme: 死循环
     void SetCurvePitchAxis(mana::CurveV2& curve, size_t resulotion, float max_delay_ms, float p_begin, float p_end) {
         constexpr auto twopi = std::numbers::pi_v<float> * 2;
         float intergal = 0.0f;
@@ -100,7 +96,6 @@ public:
         const auto real_freq_end_hz = SemitoneMap(p_end);
         auto freq_interval_hz = (real_freq_end_hz - freq_begin_hz) / resulotion;
         auto nor_freq_interval = freq_interval_hz / sample_rate_ * twopi;
-        auto nor_freq_begin = freq_begin_hz / sample_rate_ * twopi;
 
         size_t const old_num = num_cascade_filters_;
         num_cascade_filters_ = 0;
@@ -116,7 +111,7 @@ public:
                 ++i;
             }
 
-            while (intergal > twopi) {
+            while (intergal >= twopi) {
                 intergal -= twopi;
                 // 正确的，您应该循环一次就创建一个滤波器
                 // 然而那样太卡了
@@ -149,6 +144,7 @@ public:
         for (size_t i = old_num; i < num_cascade_filters_; ++i) {
             lag1_[i] = 0;
             lag2_[i] = 0;
+            x0_[i] = 0;
         }
     }
 
@@ -179,7 +175,7 @@ public:
                 ++i;
             }
 
-            while (intergal > twopi) {
+            while (intergal >= twopi) {
                 intergal -= twopi;
             }
 
@@ -271,7 +267,6 @@ private:
     size_t num_cascade_filters_{};
     using SimdAllocator = qwqdsp::psimd::AlignedAllocator<float, 32>;
     std::vector<float, SimdAllocator> x0_;
-    std::vector<float, SimdAllocator> y0_;
     std::vector<float, SimdAllocator> lag1_;
     std::vector<float, SimdAllocator> lag2_;
     std::vector<float, SimdAllocator> a2_;
