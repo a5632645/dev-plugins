@@ -13,13 +13,13 @@ public:
     SDelay() {
         magic_beta_ = std::sqrt(beta_ / (1 - beta_));
         x0_.resize(kMaxCascade + 8);
-        lag1_.resize(kMaxCascade);
-        lag2_.resize(kMaxCascade);
-        a1_.resize(kMaxCascade);
-        a2_.resize(kMaxCascade);
-        center_.resize(kMaxCascade);
-        bw_.resize(kMaxCascade);
-        radius_.resize(kMaxCascade);
+        lag1_.resize(kMaxCascade + 8);
+        lag2_.resize(kMaxCascade + 8);
+        a1_.resize(kMaxCascade + 8);
+        a2_.resize(kMaxCascade + 8);
+        center_.resize(kMaxCascade + 8);
+        bw_.resize(kMaxCascade + 8);
+        radius_.resize(kMaxCascade + 8);
     }
 
     void PrepareProcess(float sample_rate) {
@@ -28,35 +28,48 @@ public:
 
     void Process(float* input, size_t num_samples) {
         size_t const cascade_loop_count = (num_cascade_filters_ + 7) / 8;
+        size_t const scalar_loop_count = num_cascade_filters_ & 8;
+        alignas(32) float vy[8]{};
+#ifndef __AVX2__
+        alignas(32) float vx[9]{};
+#endif
         for (size_t xidx = 0; xidx < num_samples; ++xidx) {
-            {
-                float* x_ptr = x0_.data();
-                float* a2_ptr = a2_.data();
-                float* lag1_ptr = lag1_.data();
-                float x = input[xidx];
-                for (size_t fidx = 0; fidx < num_cascade_filters_; ++fidx) {
-                    *x_ptr = x;
-                    x = x * *a2_ptr + *lag1_ptr;
-
-                    ++x_ptr;
-                    ++a2_ptr;
-                    ++lag1_ptr;
-                }
-                *x_ptr = x;
-            }
-
-            float* x_ptr = x0_.data();
+            // x永远是最后一个滤波器的输出
+            float x = input[xidx];
+            float* a2_ptr = a2_.data();
             float* lag1_ptr = lag1_.data();
             float* lag2_ptr = lag2_.data();
             float* a1_ptr = a1_.data();
-            float* a2_ptr = a2_.data();
             for (size_t i = 0; i < cascade_loop_count; ++i) {
-                auto x = _mm256_load_ps(x_ptr);
-                auto a1 = _mm256_load_ps(a1_ptr);
-                auto lag2 = _mm256_load_ps(lag2_ptr);
-                auto y = _mm256_loadu_ps(x_ptr + 1);
+#ifdef __AVX2__
+                float const begin_x_input = x;
+#else
+                vx[0] = x;
+#endif
+                for (size_t j = 0; j < 8; ++j) {
+                    x = x * *a2_ptr + *lag1_ptr;
+                    vy[j] = x;
+                    ++a2_ptr;
+                    ++lag1_ptr;
+                }
+                a2_ptr -= 8;
+                lag1_ptr -= 8;
+
+                // vy现在是每个滤波器的输出
+                auto y = _mm256_load_ps(vy);
+#ifndef __AVX2__
+                _mm256_storeu_ps(vx + 1, y);
+                auto x = _mm256_load_ps(vx);
+#else
+                auto shuffle_mask = _mm256_set_epi32(6, 5, 4, 3, 2, 1, 0, 7);
+                auto shuffled_reg = _mm256_permutevar8x32_ps(y, shuffle_mask);
+                auto iwantx = _mm256_set1_ps(begin_x_input);
+                auto x = _mm256_blend_ps(shuffled_reg, iwantx, 0b00000001);
+#endif
                 
                 // update lag1
+                auto a1 = _mm256_load_ps(a1_ptr);
+                auto lag2 = _mm256_load_ps(lag2_ptr);
                 auto lag1 = _mm256_add_ps(lag2, _mm256_sub_ps(_mm256_mul_ps(x, a1), _mm256_mul_ps(y, a1)));
                 _mm256_store_ps(lag1_ptr, lag1);
 
@@ -65,14 +78,50 @@ public:
                 lag2 = _mm256_sub_ps(x, _mm256_mul_ps(y, a2));
                 _mm256_store_ps(lag2_ptr, lag2);
 
-                x_ptr += 8;
                 lag1_ptr += 8;
                 lag2_ptr += 8;
                 a1_ptr += 8;
                 a2_ptr += 8;
             }
 
-            input[xidx] = x0_[num_cascade_filters_];
+#ifdef __AVX2__
+            float begin_x_input = x;
+#else
+            vx[0] = x;
+#endif
+            for (size_t j = 0; j < scalar_loop_count; ++j) {
+                    x = x * *a2_ptr + *lag1_ptr;
+                    vy[j] = x;
+                    ++a2_ptr;
+                    ++lag1_ptr;
+            }
+            a2_ptr -= scalar_loop_count;
+            lag1_ptr -= scalar_loop_count;
+
+            // vy现在是每个滤波器的输出
+            auto y = _mm256_load_ps(vy);
+#ifndef __AVX2__
+            _mm256_storeu_ps(vx + 1, y);
+            auto xv = _mm256_load_ps(vx);
+#else
+            auto shuffle_mask = _mm256_set_epi32(6, 5, 4, 3, 2, 1, 0, 7);
+            auto shuffled_reg = _mm256_permutevar8x32_ps(y, shuffle_mask);
+            auto iwantx = _mm256_set1_ps(begin_x_input);
+            auto xv = _mm256_blend_ps(shuffled_reg, iwantx, 0b00000001);
+#endif
+            
+            // update lag1
+            auto a1 = _mm256_load_ps(a1_ptr);
+            auto lag2 = _mm256_load_ps(lag2_ptr);
+            auto lag1 = _mm256_add_ps(lag2, _mm256_sub_ps(_mm256_mul_ps(xv, a1), _mm256_mul_ps(y, a1)));
+            _mm256_store_ps(lag1_ptr, lag1);
+
+            // update lag2
+            auto a2 = _mm256_load_ps(a2_ptr);
+            lag2 = _mm256_sub_ps(xv, _mm256_mul_ps(y, a2));
+            _mm256_store_ps(lag2_ptr, lag2);
+
+            input[xidx] = x;
         }
     }
 
