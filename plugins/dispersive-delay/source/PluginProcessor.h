@@ -1,7 +1,7 @@
 #pragma once
 #include "../../shared/juce_param_listener.hpp"
 
-#include "dsp/sdelay2.hpp"
+#include "dsp/sdelay_ipp.hpp"
 
 // ---------------------------------------- juce processor ----------------------------------------
 class DispersiveDelayAudioProcessor final : public juce::AudioProcessor,

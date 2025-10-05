@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include <ipp.h>
 #include <nlohmann/json.hpp>
 
 constexpr auto kResultsSize = 1024;
@@ -23,6 +24,8 @@ DispersiveDelayAudioProcessor::DispersiveDelayAudioProcessor()
                      #endif
                        )
 {
+    ippInit();
+
     curve_ = std::make_unique<mana::CurveV2>(kResultsSize, mana::CurveV2::CurveInitEnum::kRamp);
     curve_->AddListener(this);
 
