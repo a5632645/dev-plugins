@@ -46,6 +46,14 @@ public:
 #ifndef __AVX2__
         alignas(32) float vx[9]{};
 #endif
+        /**
+         * 简要的概况并行加速，所有的biquad均为转置直接二型
+         * 更新步骤即为 y = x*a2 + lag1
+         *         lag1 = (x-y)*a1 + lag2
+         *         lag2 = x - y*a2
+         * 注意到我们可以缓存每个滤波器的y和x，因为底层lag1和lag2的更新在每个滤波器是独立的
+         * 因此我们只需要顺序计算y，然后并行更新滤波器的lag1和lag2
+         */
         for (size_t xidx = 0; xidx < num_samples; ++xidx) {
             // x永远是最后一个滤波器的输出
             left_delay_.Push(left_out_);
@@ -54,12 +62,8 @@ public:
             float x_second = second[xidx] + feedback * right_damp_.Tick(right_delay_.GetAfterPush(delay_samples));
             auto* filter_ptr = filters_.data();
             for (size_t i = 0; i < cascade_loop_count; ++i) {
-#ifdef __AVX2__
                 float const begin_x_input_first = x_first;
                 float const begin_x_input_second = x_second;
-#else
-                vx[0] = x;
-#endif
                 // left channel serial
                 float* a2_ptr = filter_ptr->a2;
                 float* lag1_ptr = filter_ptr->lag1;
@@ -82,9 +86,12 @@ public:
 
                 // vy现在是每个滤波器的输出
                 // left channel
+#ifdef __AVX2__
                 auto shuffle_mask = _mm256_set_epi32(6, 5, 4, 3, 2, 1, 0, 7);
+#endif
                 auto y = _mm256_load_ps(vy_first);
 #ifndef __AVX2__
+                vx[0] = begin_x_input_first;
                 _mm256_storeu_ps(vx + 1, y);
                 auto x = _mm256_load_ps(vx);
 #else
@@ -107,8 +114,9 @@ public:
                 // right channel
                 y = _mm256_load_ps(vy_second);
 #ifndef __AVX2__
+                vx[0] = begin_x_input_second;
                 _mm256_storeu_ps(vx + 1, y);
-                auto x = _mm256_load_ps(vx);
+                x = _mm256_load_ps(vx);
 #else
                 shuffled_reg = _mm256_permutevar8x32_ps(y, shuffle_mask);
                 iwantx = _mm256_set1_ps(begin_x_input_second);
@@ -127,12 +135,8 @@ public:
             }
 
             //// 处理凑不齐8个的
-#ifdef __AVX2__
             float begin_x_input_first = x_first;
             float begin_x_input_second = x_second;
-#else
-            vx[0] = x;
-#endif
             // left channel
             float* a2_ptr = filter_ptr->a2;
             float* lag1_ptr = filter_ptr->lag1;
@@ -154,9 +158,12 @@ public:
             a2_ptr = filter_ptr->a2;
 
             // left channel
+#ifdef __AVX2__
             auto shuffle_mask = _mm256_set_epi32(6, 5, 4, 3, 2, 1, 0, 7);
+#endif
             auto y = _mm256_load_ps(vy_first);
 #ifndef __AVX2__
+            vx[0] = begin_x_input_first;
             _mm256_storeu_ps(vx + 1, y);
             auto x = _mm256_load_ps(vx);
 #else
@@ -179,8 +186,9 @@ public:
             // right channel
             y = _mm256_load_ps(vy_second);
 #ifndef __AVX2__
+            vx[0] = begin_x_input_second;
             _mm256_storeu_ps(vx + 1, y);
-            auto x = _mm256_load_ps(vx);
+            x = _mm256_load_ps(vx);
 #else
             shuffled_reg = _mm256_permutevar8x32_ps(y, shuffle_mask);
             iwantx = _mm256_set1_ps(begin_x_input_second);
@@ -240,6 +248,7 @@ public:
         bool log_scale
     ) {
         constexpr auto twopi = std::numbers::pi_v<float> * 2;
+        constexpr auto fourpi = twopi * 2;
         float begin_w = 0;
         float end_w = 0;
         float w_width = 0;
@@ -273,7 +282,7 @@ public:
         size_t scalar_counter = 0;
 
         for (size_t i = 0; i < resulotion;) {
-            while (intergal < twopi && i < resulotion) {
+            while (intergal < fourpi && i < resulotion) {
                 auto nor = i / (resulotion - 1.0f);
                 auto delay_ms = curve.GetNormalize(nor) * max_delay_ms;
                 auto delay_samples = delay_ms * sample_rate_ / 1000.0f;
@@ -283,12 +292,12 @@ public:
                 ++i;
             }
 
-            while (intergal >= twopi) {
-                intergal -= twopi;
+            while (intergal >= fourpi) {
+                intergal -= fourpi;
                 // 正确的，您应该在此warp一次就创建一个全通滤波器
             }
 
-            if (i >= resulotion && intergal < twopi) {
+            if (i >= resulotion && intergal < fourpi) {
                 allpass_end_w = end_w;
             }
 
@@ -317,14 +326,10 @@ public:
 
         // 清除新滤波器的数据
         size_t const old_num_simd_loop = old_num / 8;
-        size_t const old_num_scalar = old_num & 7;
         size_t const new_num_simd_loop = (num_cascade_filters_ + 7) / 8;
-        size_t const new_num_scalar = num_cascade_filters_ & 7;
-        filters_[old_num_simd_loop].ClearLags(old_num_scalar);
         for (size_t i = old_num_simd_loop; i < new_num_simd_loop; ++i) {
             filters_[i].ClearLags();
         }
-        filters_[new_num_simd_loop].ClearLags(new_num_scalar);
     }
 
     void SetMinBw(float bw) {
