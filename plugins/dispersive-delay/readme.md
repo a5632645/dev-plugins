@@ -8,6 +8,9 @@ dispersive-delay is the rework version of [sdelay](https://github.com/a5632645/s
 > [!WARNING]  
 > massive cpu consume when too much filters.  
 
+## gui
+![GUI](gui.png)  
+
 ## demo
 [bilibili](https://b23.tv/fBF42Zw)  
-[raw video](https://www.youtube.com/watch?v=jEtyFu0hCgI&t=110s)  
+[youtube](https://www.youtube.com/watch?v=jEtyFu0hCgI&t=110s)  
