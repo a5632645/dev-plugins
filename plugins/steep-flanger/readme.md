@@ -11,4 +11,5 @@ barberpole flanging
 ![GUI](gui.png)
 
 ## demo
-[bilibili](https://www.bilibili.com/video/BV198npzXEPn)
+[bilibili](https://www.bilibili.com/video/BV198npzXEPn)  
+[youtube](https://www.youtube.com/watch?v=yQ357S2LP2w)  
