@@ -1,6 +1,6 @@
 # dispersive-delay
 
-dispersive-delay is the refactor version of [sdelay](https://github.com/a5632645/sdelay)
+dispersive-delay is the rework version of [sdelay](https://github.com/a5632645/sdelay)
 
 > [!NOTE]  
 > This plugin requires AVX or AVX2 support.  

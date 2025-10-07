@@ -57,11 +57,10 @@ public:
     }
 
     float Tick(float x) noexcept {
-        auto t = a1_ * latch1_ + a2_ * (x + latch2_);
-        auto y = latch2_ + t;
-        latch2_ = latch1_;
-        latch1_ = x - t;
-        return y;
+        auto output = x * a2_ + latch1_;
+        latch1_ = (x - output) * a1_ + latch2_;
+        latch2_ = x - output * a2_;
+        return output;
     }
 
     void SetA1(float a) noexcept {
@@ -81,7 +80,7 @@ public:
         a2_ = radius * radius;
     }
 
-    std::complex<float> GetResponce(std::complex<float> z) noexcept {
+    std::complex<float> GetResponce(std::complex<float> z) const noexcept {
         auto z2 = z * z;
         auto up = a2_ * z2 + a1_ * z + 1.0f;
         auto down = z2 + a1_ * z + a2_;

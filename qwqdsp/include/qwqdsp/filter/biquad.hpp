@@ -1,6 +1,12 @@
 #pragma once
 
 namespace qwqdsp::filter {
+/**
+ * @brief TDF2
+ *       b0 + b1*z^-1 + b2*z^-2
+ * H(z)=------------------------
+ *        1 + a1*z^-1 + a2*z^-2
+ */
 class Biquad {
 public:
     void Reset() noexcept {

@@ -13,7 +13,7 @@ static inline float Freq2Pitch(float f, float a4 = 440.0f) noexcept {
 }
 
 static inline float Pitch2Freq(float pitch, float a4 = 440.0f) noexcept {
-    return a4 * std::pow(2.0f, (pitch - 69.0f) / 12.0f);
+    return a4 * std::exp2((pitch - 69.0f) / 12.0f);
 }
 
 static inline float Freq2Mel(float f) noexcept {

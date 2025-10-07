@@ -27,10 +27,10 @@ public:
         const float rotaryStartAngle, const float rotaryEndAngle, juce::Slider&) override
     {
         // Radius of knob
-        auto radius = juce::jmin(width / 2, height / 2) - 5.0f;
+        auto radius = juce::jmin(width / 2, height / 2) - 2.0f;
         // Centre point (centreX, centreY) of knob
         auto centreX = x + width * 0.5f;
-        auto centreY = y + radius + 12.f;
+        auto centreY = y + height * 0.5f + 2.0f;
 
         // current angle of the slider
         auto angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
@@ -140,9 +140,10 @@ public:
 
     void resized() override {
         auto b = getLocalBounds();
-        b.removeFromTop(label.getFont().getHeight());
+        auto top = b.removeFromTop(label.getFont().getHeight());
+        label.setBounds(top);
         slider.setBounds(b);
-        label.attachToComponent(&slider, false);
+        // label.attachToComponent(&slider, false);
         slider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, getWidth() * 0.9f, label.getFont().getHeight());
     }
 
