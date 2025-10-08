@@ -22,6 +22,9 @@ ResonatorGUI::ResonatorGUI(ResonatorAudioProcessor& p, size_t idx)
     damp_.BindParam(apvts, juce::String{"damp"} + juce::String{idx});
     addAndMakeVisible(damp_);
 
+    gain_.BindParam(apvts, juce::String{"gain"} + juce::String{idx});
+    addAndMakeVisible(gain_);
+
     decay_.BindParam(apvts, juce::String{"decay"} + juce::String{idx});
     addAndMakeVisible(decay_);
 
@@ -40,6 +43,7 @@ void ResonatorGUI::resized() {
     fine_.setBounds(b.removeFromLeft(b.getHeight()));
     dispersion_.setBounds(b.removeFromLeft(b.getHeight()));
     damp_.setBounds(b.removeFromLeft(b.getHeight()));
+    gain_.setBounds(b.removeFromLeft(b.getHeight()));
     decay_.setBounds(b.removeFromLeft(b.getHeight()));
     auto polarity_width = b.getHeight() * 0.3f;
     polarity_.setBounds(b.removeFromLeft(polarity_width).withSizeKeepingCentre(polarity_width, polarity_width));
@@ -134,7 +138,7 @@ void ResonatorAudioProcessorEditor::paint (juce::Graphics& g) {
 
     g.setColour(ui::green_bg);
     auto b = getLocalBounds();
-    b.removeFromLeft(80 * 6);
+    b.removeFromLeft(80 * 7);
     b.removeFromLeft(4);
     auto matrix_b = b.removeFromTop(80 * 4);
     g.fillRect(matrix_b);
@@ -147,7 +151,7 @@ void ResonatorAudioProcessorEditor::paint (juce::Graphics& g) {
 void ResonatorAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
     {
-        auto resonators = b.removeFromLeft(80 * 6);
+        auto resonators = b.removeFromLeft(80 * 7);
         auto height = resonators.getHeight() / 8;
         r0_.setBounds(resonators.removeFromTop(height));
         r1_.setBounds(resonators.removeFromTop(height));

@@ -20,6 +20,7 @@ private:
     ui::Dial fine_{"fine"};
     ui::Dial dispersion_{"dispersion"};
     ui::Dial damp_{"damp"};
+    ui::Dial gain_{"gain"};
     ui::Dial decay_{"decay"};
     ui::Switch polarity_{"-", "+"};
     ui::Dial mix_{"mix"};

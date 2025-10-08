@@ -28,6 +28,13 @@ public:
         a1_ = 0;
     }
 
+    void MakeHighShelf(float w, float amp) noexcept {
+        auto k = std::tan(w / 2);
+        b0_ = (k + amp) / (1 + k);
+        b1_ = (k - amp) / (1 + k);
+        a1_ = (k - 1) / (k + 1);
+    }
+
     void CopyFrom(const OnePoleFilter& other) noexcept {
         b0_ = other.b0_;
         b1_ = other.b1_;

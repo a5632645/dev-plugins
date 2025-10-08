@@ -15,14 +15,18 @@ float ThrianAllpass::Process(float in) {
 }
 
 float ThrianAllpass::GetPhaseDelay(float omega) const {
-    auto cpx = std::polar(1.0f, omega);
-    auto up = a2_ * cpx * cpx + a1_ * cpx + 1.0f;
-    auto down = cpx * cpx + a1_ * cpx + a2_;
-    auto radius = -std::arg(up / down);
-    if (radius < 0) {
-        radius += twopi;
+    auto z = std::polar(1.0f, omega);
+    auto up = b0_ * z * z + a1_ * z + 1.0f;
+    auto down = z * z + a1_ * z + a2_;
+    // auto radius = -std::arg(up / down);
+    // if (radius < 0) {
+    //     radius += twopi;
+    // }
+    auto radius = std::arg(up / down);
+    if (radius > 0) {
+        radius -= twopi;
     }
-    return radius * kMaxNumAPF / omega;
+    return -radius * kMaxNumAPF / omega;
 }
 
 static constexpr float Something(float delay, int k) {
@@ -57,7 +61,7 @@ void ThrianAllpass::Panic() {
 
 std::complex<float> ThrianAllpass::GetResponce(float omega) const {
     auto z = std::polar(1.0f, omega);
-    auto up = a2_ * z * z + a1_ * z + 1.0f;
+    auto up = b0_ * z * z + a1_ * z + 1.0f;
     auto down = z * z + a1_ * z + a2_;
     return up / down;
 }

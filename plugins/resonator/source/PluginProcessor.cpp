@@ -43,6 +43,15 @@ ResonatorAudioProcessor::ResonatorAudioProcessor()
         damp_pitch_[i] = p.get();
         layout.add(std::move(p));
     }
+    for (size_t i = 0; i < kNumResonators; ++i) {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::String{"gain"} + juce::String{i},
+            juce::String{"gain"} + juce::String{i},
+            -20.0f, 0.0f, -6.01f
+        );
+        damp_gain_db_[i] = p.get();
+        layout.add(std::move(p));
+    }
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
             "global_damp",
@@ -95,7 +104,7 @@ ResonatorAudioProcessor::ResonatorAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::String{"reflection"} + juce::String{i},
             juce::String{"reflection"} + juce::String{i},
-            -std::numbers::pi_v<float>, std::numbers::pi_v<float>, 0.0f
+            -1.0f, 1.0f, 0.0f
         );
         matrix_reflections_[i] = p.get();
         layout.add(std::move(p));
@@ -242,6 +251,9 @@ void ResonatorAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     delay_.Init(sampleRate, 0.0f);
     delay_.Reset();
     dispersion_.Reset();
+    for (auto& v : frac_delay_) {
+        v.Reset();
+    }
 }
 
 void ResonatorAudioProcessor::releaseResources()
@@ -304,16 +316,18 @@ void ResonatorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     // update scatter matrix
     for (size_t i = 0; i < ScatterMatrix::kNumReflections; ++i) {
-        reflections_[i] = matrix_reflections_[i]->get();
+        reflections_[i] = matrix_reflections_[i]->get() * std::numbers::pi_v<float>;
     }
 
     // update damp filter
     std::array<float, kNumResonators> damp_w;
+    std::array<float, kNumResonators> damp_db;
     for (size_t i = 0; i < kNumResonators; ++i) {
         float const freq = qwqdsp::convert::Pitch2Freq(damp_pitch_[i]->get());
         damp_w[i] = freq * std::numbers::pi_v<float> * 2 / getSampleRate();
+        damp_db[i] = damp_gain_db_[i]->get();
     }
-    damp_.SetFrequency(damp_w);
+    damp_.SetFrequency(damp_w, damp_db);
 
     // update decays
     for (size_t i = 0; i < kNumResonators; ++i) {
@@ -417,6 +431,11 @@ void ResonatorAudioProcessor::ProcessCommon(juce::AudioBuffer<float>& buffer, ju
         delay_samples_[i] = std::max(delay_samples_[i], 0.0f);
     }
 
+    // process frac delays
+    for (size_t i = 0; i < kNumResonators; ++i) {
+        delay_samples_[i] = frac_delay_[i].SetDelay(delay_samples_[i]);
+    }
+
     // processing
     ProcessDSP(left_ptr, num_samples);
 
@@ -436,6 +455,9 @@ void ResonatorAudioProcessor::ProcessDSP(float* ptr, size_t len) {
         }
 
         delay_.Tick(fb_values_, delay_samples_);
+        for (size_t i = 0; i < kNumResonators; ++i) {
+            fb_values_[i] = frac_delay_[i].Tick(fb_values_[i]);
+        }
         dispersion_.Tick(fb_values_);
         damp_.Tick(fb_values_);
         matrix_.Tick(fb_values_, reflections_);
@@ -476,6 +498,9 @@ void ResonatorAudioProcessor::ProcessMidi(juce::AudioBuffer<float>& buffer, juce
                 // remove allpass delays
                 delay_samples_[resonator_idx] = delay_samples - allpass_delay;
                 delay_samples_[resonator_idx] = std::max(delay_samples_[resonator_idx], 0.0f);
+
+                // frac delay
+                delay_samples_[resonator_idx] = frac_delay_[resonator_idx].SetDelay(delay_samples_[resonator_idx]);
 
                 // addition input volume
                 input_volume_[resonator_idx] = message.getFloatVelocity();

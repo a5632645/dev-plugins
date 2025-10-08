@@ -23,10 +23,13 @@ public:
         }
     }
 
-    void SetFrequency(const std::array<float, kNumResonators>& omega) noexcept {
+    void SetFrequency(
+        const std::array<float, kNumResonators>& omega,
+        const std::array<float, kNumResonators>& db
+    ) noexcept {
         for (size_t i = 0; i < kNumResonators; ++i) {
-            if (omega[i] < std::numbers::pi_v<float>) {
-                damp_[i].SetLPF(omega[i]);
+            if (omega[i] < std::numbers::pi_v<float> - 1e-5f) {
+                damp_[i].MakeHighShelf(omega[i], qwqdsp::convert::Db2Gain(db[i]));
             }
             else {
                 damp_[i].MakePass();
@@ -80,6 +83,47 @@ private:
 };
 
 // ---------------------------------------- delays ----------------------------------------
+// one pole all pass filter
+class TunningFilter {
+public:
+    float Tick(float in) noexcept {
+        auto v = latch_;
+        auto t = in - alpha_ * v;
+        latch_ = t;
+        return v + alpha_ * t;
+    }
+
+    void Reset() noexcept {
+        latch_ = 0;
+    }
+    
+    /**
+     * @brief 
+     * @param delay 环路延迟
+     * @return 还剩下多少延迟
+     */
+    int32_t SetDelay(float delay) noexcept {
+        // thiran delay limit to 0.5 ~ 1.5
+        if (delay < 0.5f) {
+            alpha_ = 0.0f; // equal to one delay
+            return 0;
+        }
+        else {
+            float intergalPart = std::floor(delay);
+            float fractionalPart = delay - intergalPart;
+            if (fractionalPart < 0.5f) {
+                fractionalPart += 1.0f;
+                intergalPart -= 1.0f;
+            }
+            alpha_ = (1.0f - fractionalPart) / (1.0f + fractionalPart);
+            return static_cast<int32_t>(intergalPart);
+        }
+    }
+private:
+    float latch_{};
+    float alpha_{};
+};
+
 class ParalleDelay {
 public:
     void Init(float fs, float min_pitch) {
@@ -151,10 +195,6 @@ private:
         float const outb = sink * a + cosk * b;
         a = outa;
         b = outb;
-        // float const outa = (1 + k) * a - k * b;
-        // float const outb = a * k + (1 - k) * b;
-        // a = outa;
-        // b = outb;
     }
 };
 
@@ -312,12 +352,14 @@ public:
 
     ParalleOnepole damp_;
     ParalleDelay delay_;
+    std::array<TunningFilter, kNumResonators> frac_delay_{};
     ParalleDispersion dispersion_;
     ScatterMatrix matrix_;
     std::array<float, kNumResonators> fb_values_{};
     std::array<juce::AudioParameterFloat*, kNumResonators> pitches_{};
     std::array<juce::AudioParameterFloat*, kNumResonators> fine_tune_{};
     std::array<juce::AudioParameterFloat*, kNumResonators> damp_pitch_{};
+    std::array<juce::AudioParameterFloat*, kNumResonators> damp_gain_db_{};
     std::array<juce::AudioParameterFloat*, kNumResonators> dispersion_pole_radius_{};
     std::array<juce::AudioParameterFloat*, kNumResonators> decays_{};
     std::array<juce::AudioParameterBool*, kNumResonators> polarity_{};
