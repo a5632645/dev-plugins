@@ -419,7 +419,7 @@ void ResonatorAudioProcessor::ProcessCommon(juce::AudioBuffer<float>& buffer, ju
         float const freq = qwqdsp::convert::Pitch2Freq(pitch);
         omegas[i] = freq * std::numbers::pi_v<float> / getSampleRate();
         delay_samples_[i] = getSampleRate() / freq;
-        allpass_set_delay[i] = delay_samples_[i] * pole_radius[i] / (mana::ThrianAllpass::kMaxNumAPF + 0.1f);
+        allpass_set_delay[i] = delay_samples_[i] * pole_radius[i] / (ThrianDispersion::kNumAPF + 0.1f);
     }
 
     // update allpass filters
@@ -490,7 +490,7 @@ void ResonatorAudioProcessor::ProcessMidi(juce::AudioBuffer<float>& buffer, juce
                 float const freq = qwqdsp::convert::Pitch2Freq(pitch);
                 float const omega = freq * std::numbers::pi_v<float> / getSampleRate();
                 float const delay_samples = getSampleRate() / freq;
-                float const allpass_set_delay = delay_samples * dispersion_pole_radius_[resonator_idx]->get() / (mana::ThrianAllpass::kMaxNumAPF + 0.1f);
+                float const allpass_set_delay = delay_samples * dispersion_pole_radius_[resonator_idx]->get() / (ThrianDispersion::kNumAPF + 0.1f);
 
                 // update allpass filters
                 float const allpass_delay = dispersion_.SetSingleFilter(resonator_idx, allpass_set_delay, omega);

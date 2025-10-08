@@ -4,9 +4,49 @@
 
 #include "qwqdsp/convert.hpp"
 #include "qwqdsp/filter/one_pole.hpp"
-#include "ThrianAllpass.hpp"
 
 static constexpr size_t kNumResonators = 8;
+
+class ThrianDispersion {
+public:
+    static constexpr size_t kNumAPF = 8;
+
+    void Reset() noexcept {
+        lag1_.fill(0);
+        lag2_.fill(0);
+    }
+
+    float Tick(float x) noexcept {
+        for (size_t i = 0; i < kNumAPF; ++i) {
+            auto y = lag1_[i] + a1_ * (x - lag2_[i]);
+            lag1_[i] = x;
+            lag2_[i] = y;
+            x = y;
+        }
+        return x;
+    }
+
+    void SetGroupDelay(float delay) noexcept {
+        if (delay < 1.0f) {
+            a1_ = 0.0f;
+        }
+        else {
+            a1_ = (1.0f - delay) / (1.0f + delay);
+        }
+    }
+
+    float GetPhaseDelay(float w) const noexcept {
+        auto z = std::polar(1.0f, w);
+        auto up = a1_ * z + 1.0f;
+        auto down = z + a1_;
+        float phase = std::arg(up / down);
+        return -phase * kNumAPF / w;
+    }
+private:
+    float a1_{};
+    std::array<float, kNumAPF> lag1_{};
+    std::array<float, kNumAPF> lag2_{};
+};
 
 // ---------------------------------------- damp one pole low shelfs ----------------------------------------
 class ParalleOnepole {
@@ -45,13 +85,13 @@ class ParalleDispersion {
 public:
     void Tick(std::array<float, kNumResonators>& x) noexcept {
         for (size_t i = 0; i < kNumResonators; ++i) {
-            x[i] = dispersions_[i].Process(x[i]);
+            x[i] = dispersions_[i].Tick(x[i]);
         }
     }
 
     void Reset() noexcept {
         for (auto& f : dispersions_) {
-            f.Panic();
+            f.Reset();
         }
     }
 
@@ -79,7 +119,7 @@ public:
         return dispersions_[idx].GetPhaseDelay(omega);
     }
 private:
-    std::array<mana::ThrianAllpass, kNumResonators> dispersions_;
+    std::array<ThrianDispersion, kNumResonators> dispersions_;
 };
 
 // ---------------------------------------- delays ----------------------------------------
