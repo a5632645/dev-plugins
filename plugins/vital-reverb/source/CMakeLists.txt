@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-set(QWQ_PLUGIN_NAME "Empty")
+set(QWQ_PLUGIN_NAME "VitalReverb")
 project(${QWQ_PLUGIN_NAME} VERSION 0.0.1)
 
 juce_add_plugin(${QWQ_PLUGIN_NAME}

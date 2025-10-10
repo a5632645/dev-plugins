@@ -127,6 +127,10 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
+
+    size_t const num_samples = buffer.getNumSamples();
+    float* left_ptr = buffer.getWritePointer(0);
+    float* right_ptr = buffer.getWritePointer(1);
 }
 
 //==============================================================================

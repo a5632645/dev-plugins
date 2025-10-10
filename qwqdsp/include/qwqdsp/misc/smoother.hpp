@@ -113,4 +113,23 @@ private:
     float delta_{};
     bool end_{};
 };
+
+class ImSmoother {
+public:
+    void Reset(float val) noexcept {
+        current_ = val;
+    }
+
+    void Begin(float target, float num_samples) noexcept {
+        inc_ = (target - current_) / num_samples;
+    }
+
+    float Tick() noexcept {
+        current_ += inc_;
+        return current_;
+    }
+private:
+    float current_{};
+    float inc_{};
+};
 }

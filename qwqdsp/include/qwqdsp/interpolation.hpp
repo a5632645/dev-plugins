@@ -2,7 +2,9 @@
 #include <cmath>
 
 namespace qwqdsp {
-
+/**
+ * 可视化 https://www.desmos.com/calculator/v8eat4ajue?lang=zh-CN
+ */
 struct Interpolation {
     /**
      * @brief 拉格朗日三次插值
@@ -39,6 +41,7 @@ struct Interpolation {
     * @param y1   y[x=1]
     * @param y2   y[x=2]
     * @param frac 0<x<1
+    * @note  这和CatmullRomSpline(tension=0)是完全一致的
     */
     static float PCHIP(
         float yn1, float y0, float y1, float y2,
@@ -114,6 +117,20 @@ struct Interpolation {
                 b + a * frac
             )
         );
+    }
+
+    /**
+     * @ref https://github.com/mtytel/vital/blob/636ca0ef517a4db087a6a08a6a8a5e704e21f836/src/synthesis/framework/poly_utils.h#L138
+     */
+    static float VitalCatmullRom(
+        float yn1, float y0, float y1, float y2,
+        float t
+    ) noexcept {
+        auto const bn1 = -t * t * t + 2 * t * t - t;
+        auto const b0 = 3 * t * t * t - 5 * t * t + 2;
+        auto const b1 = -3 * t * t * t + 4 * t * t + t;
+        auto const b2 = t * t * t - t * t;
+        return (bn1 * yn1 + b0 * y0 + b1 * y1 + b2 * y2) * 0.5f;
     }
 
     static float Linear(

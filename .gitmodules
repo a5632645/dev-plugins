@@ -7,3 +7,6 @@
 [submodule "raylib"]
 	path = raylib
 	url = https://github.com/raysan5/raylib.git
+[submodule "simde-no-tests"]
+	path = simde-no-tests
+	url = https://github.com/simd-everywhere/simde-no-tests.git
