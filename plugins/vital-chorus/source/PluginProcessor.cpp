@@ -268,8 +268,8 @@ bool VitalChorusAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* VitalChorusAudioProcessor::createEditor()
 {
-    // return new VitalChorusAudioProcessorEditor (*this);
-    return new juce::GenericAudioProcessorEditor(*this);
+    return new VitalChorusAudioProcessorEditor (*this);
+    // return new juce::GenericAudioProcessorEditor(*this);
 }
 
 //==============================================================================

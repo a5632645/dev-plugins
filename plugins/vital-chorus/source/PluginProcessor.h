@@ -1,10 +1,10 @@
 #pragma once
 #include "../../shared/juce_param_listener.hpp"
+#include <span>
 
-#include "qwqdsp/fx/delay_line.hpp"
-#include "qwqdsp/psimd/vec4.hpp"
 #include "qwqdsp/polymath.hpp"
 #include "qwqdsp/fx/delay_line_simd.hpp"
+#include "qwqdsp/psimd/vec4.hpp"
 
 using SimdType = qwqdsp::psimd::Vec4f32;
 
@@ -93,18 +93,20 @@ public:
             float const avg_delay = (delay1 + delay2) * 0.5f;
             size_t const num_pairs = num_voices_ / 4;
             for (size_t i = 0; i < num_pairs; ++i) {
-                auto static_a = qwqdsp::psimd::Vec4f32{delay1, delay2, delay1, delay2};
-                auto static_b = qwqdsp::psimd::Vec4f32::FromSingle(avg_delay);
-                auto static_delay = static_a + qwqdsp::psimd::Vec4f32::FromSingle(static_cast<float>(i) / std::max(1.0f, (static_cast<float>(num_pairs) - 1.0f))) * (static_b - static_a);
-                auto const offsetp = qwqdsp::psimd::Vec4f32{0.0f, 0.25f, 0.5f, 0.75f};
-                auto sin_mod = qwqdsp::psimd::Vec4f32::FromSingle(phase_) + offsetp + qwqdsp::psimd::Vec4f32::FromSingle(0.25f * static_cast<float>(i) / static_cast<float>(num_pairs));
+                // qwqfixme: delay time is not same as vital
+                auto static_a = SimdType{delay1, delay2, delay1, delay2};
+                auto static_b = SimdType::FromSingle(avg_delay);
+                auto static_delay = static_a + SimdType::FromSingle(static_cast<float>(i) / std::max(1.0f, (static_cast<float>(num_pairs) - 1.0f))) * (static_b - static_a);
+                auto const offsetp = SimdType{0.0f, 0.25f, 0.5f, 0.75f};
+                auto sin_mod = SimdType::FromSingle(phase_) + offsetp + SimdType::FromSingle(0.25f * static_cast<float>(i) / static_cast<float>(num_pairs));
                 sin_mod = sin_mod.Frac();
                 for (size_t j = 0; j < 4; ++j) {
                     sin_mod.x[j] = qwqdsp::polymath::SinParabola(sin_mod.x[j] * 2 * std::numbers::pi_v<float> - std::numbers::pi_v<float>);
                 }
-                sin_mod = sin_mod * qwqdsp::psimd::Vec4f32::FromSingle(0.5f) + qwqdsp::psimd::Vec4f32::FromSingle(1.0f);
-                auto delay_ms = qwqdsp::psimd::Vec4f32::FromSingle(depth * kMaxModulationMs) * sin_mod + static_delay;
-                delay_samples_[i] = delay_ms * qwqdsp::psimd::Vec4f32::FromSingle(fs_ / 1000.0f);
+                sin_mod = sin_mod * SimdType::FromSingle(0.5f) + SimdType::FromSingle(1.0f);
+                auto delay_ms = SimdType::FromSingle(depth * kMaxModulationMs) * sin_mod + static_delay;
+                delay_ms_[i] = delay_ms;
+                delay_samples_[i] = delay_ms * SimdType::FromSingle(fs_ / 1000.0f);
             }
 
             // shuffle
@@ -152,56 +154,9 @@ public:
                 ++left_ptr;
                 ++right_ptr;
             }
-
-            // ProcessSingle<false>(temp_left, temp_right, left.data() + offset, right.data() + offset, cando, 0, 1);
-            // for (size_t i = 2; i < num_voices_; i += 2) {
-            //     ProcessSingle<true>(temp_left, temp_right, left.data() + offset, right.data() + offset, cando, i, i + 1);
-            // }
-            // for (size_t i = 0; i < cando; ++i) {
-            //     size_t idx = i + offset;
-            //     left[idx] = std::lerp(left[idx], temp_left[i] * g, mix);
-            //     right[idx] = std::lerp(right[idx], temp_right[i] * g, mix);
-            // }
             offset += cando;
         }
     }
-
-    // template<bool AddInto>
-    // void ProcessSingle(float* dst_left, float* dst_right, float* src_left, float* src_right, size_t len, size_t left_idx, size_t right_idx) noexcept {
-    //     float delay_samples = delay_samples_[left_idx];
-    //     float fb = fb_values_[left_idx];
-    //     for (size_t i = 0; i < len; ++i) {
-    //         delays_[left_idx].Push(*src_left + fb);
-    //         float read = delays_[left_idx].GetAfterPush(delay_samples);
-    //         fb = feedback * lowpass_[left_idx].Tick(highpass_[left_idx].Tick(read));
-    //         if constexpr (AddInto) {
-    //             *dst_left += read;
-    //         }
-    //         else {
-    //             *dst_left = read;
-    //         }
-    //         ++src_left;
-    //         ++dst_left;
-    //     }
-    //     fb_values_[left_idx] = fb;
-
-    //     delay_samples = delay_samples_[right_idx];
-    //     fb = fb_values_[right_idx];
-    //     for (size_t i = 0; i < len; ++i) {
-    //         delays_[right_idx].Push(*src_right + fb);
-    //         float read = delays_[right_idx].GetAfterPush(delay_samples);
-    //         fb = feedback * lowpass_[right_idx].Tick(highpass_[right_idx].Tick(read));
-    //         if constexpr (AddInto) {
-    //             *dst_right += read;
-    //         }
-    //         else {
-    //             *dst_right = read;
-    //         }
-    //         ++dst_right;
-    //         ++src_right;
-    //     }
-    //     fb_values_[right_idx] = fb;
-    // }
 
     // -------------------- params --------------------
     float depth{};
@@ -228,6 +183,8 @@ public:
         }
         num_voices_ = num_voices;
     }
+
+    std::array<SimdType, kMaxNumChorus / SimdType::kSize> delay_ms_{};
 private:
     float fs_{};
     float phase_{};

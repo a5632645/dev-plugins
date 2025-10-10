@@ -100,12 +100,51 @@ struct alignas(16) Vec4f32 {
     float x[4];
 
     static constexpr Vec4f32 FromSingle(float v) noexcept {
-        Vec4f32 r;
-        r.x[0] = v;
-        r.x[1] = v;
-        r.x[2] = v;
-        r.x[3] = v;
-        return r;
+        return Vec4f32{
+            v,
+            v,
+            v,
+            v
+        };
+    }
+
+    static constexpr Vec4f32 Cross(float left, float right) noexcept {
+        return Vec4f32{
+            left,
+            right,
+            left,
+            right
+        };
+    }
+
+    [[nodiscard]]
+    constexpr Vec4f32 Decross() noexcept {
+        return Vec4f32{
+            x[0] + x[2],
+            x[1] + x[3]
+        };
+    }
+
+    template<int a, int b, int c, int d>
+    [[nodiscard]]
+    constexpr Vec4f32 Shuffle() noexcept {
+        return Vec4f32{
+            x[a],
+            x[b],
+            x[c],
+            x[d]
+        };
+    }
+
+    template<int a, int b, int c, int d>
+    [[nodiscard]]
+    constexpr Vec4f32 Blend(const Vec4f32& other) noexcept {
+        return Vec4f32{
+            a == 0 ? x[0] : other.x[0],
+            b == 0 ? x[1] : other.x[1],
+            c == 0 ? x[2] : other.x[2],
+            d == 0 ? x[3] : other.x[3],
+        };
     }
 
     constexpr Vec4f32& operator+=(const Vec4f32& v) noexcept {

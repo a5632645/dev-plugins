@@ -2,15 +2,7 @@
 
 namespace qwqdsp::psimd {
 // ---------------------------------------- 16int ----------------------------------------
-#ifndef __AVX512__
-#ifndef __AVX__ || __AVX2__
-struct alignas(16) Vec16i32 {
-#else
-struct alignas(32) Vec16i32 {
-#endif
-#else
 struct alignas(64) Vec16i32 {
-#endif
     static constexpr size_t kSize = 16;
 
     int x[16];

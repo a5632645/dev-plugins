@@ -2,11 +2,7 @@
 
 namespace qwqdsp::psimd {
 // ---------------------------------------- 8int ----------------------------------------
-#ifndef __AVX__ || __AVX2__
-struct alignas(16) Vec8i32 {
-#else
 struct alignas(32) Vec8i32 {
-#endif
     static constexpr size_t kSize = 8;
 
     int x[8];
@@ -124,26 +120,73 @@ static constexpr Vec8i32 operator&(const Vec8i32& a, const Vec8i32& b) noexcept 
 }
 
 // ---------------------------------------- 8float ----------------------------------------
-#ifndef __AVX__ || __AVX2__
-struct alignas(16) Vec8f32 {
-#else
 struct alignas(32) Vec8f32 {
-#endif
     static constexpr size_t kSize = 8;
     using IntType = Vec8i32;
     float x[8];
 
     static constexpr Vec8f32 FromSingle(float v) noexcept {
-        Vec8f32 r;
-        r.x[0] = v;
-        r.x[1] = v;
-        r.x[2] = v;
-        r.x[3] = v;
-        r.x[4] = v;
-        r.x[5] = v;
-        r.x[6] = v;
-        r.x[7] = v;
-        return r;
+        return Vec8f32{
+            v,
+            v,
+            v,
+            v,
+            v,
+            v,
+            v,
+            v
+        };
+    }
+
+    static constexpr Vec8f32 Cross(float left, float right) noexcept {
+        return Vec8f32{
+            left,
+            right,
+            left,
+            right,
+            left,
+            right,
+            left,
+            right
+        };
+    }
+
+    [[nodiscard]]
+    constexpr Vec8f32 Decross() noexcept {
+        return Vec8f32{
+            x[0] + x[2] + x[4] + x[6],
+            x[1] + x[3] + x[5] + x[7]
+        };
+    }
+
+    template<int a, int b, int c, int d, int e, int f, int g, int h>
+    [[nodiscard]]
+    constexpr Vec8f32 Shuffle() noexcept {
+        return Vec8f32{
+            x[a],
+            x[b],
+            x[c],
+            x[d],
+            x[e],
+            x[f],
+            x[g],
+            x[h]
+        };
+    }
+
+    template<int a, int b, int c, int d, int e, int f, int g, int h>
+    [[nodiscard]]
+    constexpr Vec8f32 Blend(const Vec8f32& other) noexcept {
+        return Vec8f32{
+            a == 0 ? x[0] : other.x[0],
+            b == 0 ? x[1] : other.x[1],
+            c == 0 ? x[2] : other.x[2],
+            d == 0 ? x[3] : other.x[3],
+            e == 0 ? x[4] : other.x[4],
+            f == 0 ? x[5] : other.x[5],
+            g == 0 ? x[6] : other.x[6],
+            h == 0 ? x[7] : other.x[7],
+        };
     }
 
     constexpr Vec8f32& operator+=(const Vec8f32& v) noexcept {
