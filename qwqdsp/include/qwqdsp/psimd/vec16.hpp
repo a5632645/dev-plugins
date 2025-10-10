@@ -1,8 +1,18 @@
 #pragma once
 
 namespace qwqdsp::psimd {
-// ---------------------------------------- 8int ----------------------------------------
+// ---------------------------------------- 16int ----------------------------------------
+#ifndef __AVX512__
+#ifndef __AVX__ || __AVX2__
+struct alignas(16) Vec16i32 {
+#else
+struct alignas(32) Vec16i32 {
+#endif
+#else
 struct alignas(64) Vec16i32 {
+#endif
+    static constexpr size_t kSize = 16;
+
     int x[16];
 
     static constexpr Vec16i32 FromSingle(int v) noexcept {
@@ -173,8 +183,11 @@ static constexpr Vec16i32 operator&(const Vec16i32& a, const Vec16i32& b) noexce
     return r;
 }
 
-// ---------------------------------------- 8float ----------------------------------------
+// ---------------------------------------- 16float ----------------------------------------
 struct alignas(64) Vec16f32 {
+    static constexpr size_t kSize = 4;
+    using IntType = Vec16i32;
+
     float x[16];
 
     static constexpr Vec16f32 FromSingle(float v) noexcept {

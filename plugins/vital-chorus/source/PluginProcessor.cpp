@@ -20,7 +20,7 @@ VitalChorusAudioProcessor::VitalChorusAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             "freq",
             "freq",
-            juce::NormalisableRange<float>{0.125f, 64.0f},
+            juce::NormalisableRange<float>{1.0f / 64.0f, 8.0f},
             0.125f
         );
         param_freq_ = p.get();

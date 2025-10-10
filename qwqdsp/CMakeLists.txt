@@ -16,6 +16,9 @@ set(qwqdsp_have_ipp ${IPP_FOUND})
 if(NOT TARGET eigen)
     message(FATAL_ERROR "need a eigen target")
 endif()
+if (NOT TARGET simde)
+    message(FATAL_ERROR "need a simde target")
+endif()
 
 
 include(cmake/warnings.cmake)
@@ -36,7 +39,7 @@ target_include_directories(qwqdsp PUBLIC "./include")
 
 set_target_properties(qwqdsp PROPERTIES CXX_STANDARD 20)
 
-target_link_libraries(qwqdsp PUBLIC Eigen3::Eigen)
+target_link_libraries(qwqdsp PUBLIC Eigen3::Eigen simde)
 if (qwqdsp_have_ipp)
     target_link_libraries(qwqdsp PUBLIC IPP::ipps)
     target_compile_definitions(qwqdsp PUBLIC QWQDSP_HAVE_IPP)

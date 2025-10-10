@@ -3,6 +3,8 @@
 namespace qwqdsp::psimd {
 // ---------------------------------------- 4int ----------------------------------------
 struct alignas(16) Vec4i32 {
+    static constexpr size_t kSize = 4;
+
     int x[4];
 
     static constexpr Vec4i32 FromSingle(int v) noexcept {
@@ -92,6 +94,9 @@ static constexpr Vec4i32 operator&(const Vec4i32& a, const Vec4i32& b) noexcept 
 // ---------------------------------------- 4float ----------------------------------------
 
 struct alignas(16) Vec4f32 {
+    static constexpr size_t kSize = 4;
+    using IntType = Vec4i32;
+
     float x[4];
 
     static constexpr Vec4f32 FromSingle(float v) noexcept {

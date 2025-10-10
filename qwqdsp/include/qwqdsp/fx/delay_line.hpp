@@ -13,7 +13,6 @@ enum class DelayLineInterp {
     Lagrange3rd,
     PCHIP,
     Linear,
-    CatmullRom,
     Kaiser5,
     Kaiser9,
     Kaiser21
@@ -133,9 +132,6 @@ private:
             }
             else if constexpr (INTERPOLATION_TYPE == DelayLineInterp::PCHIP) {
                 return Interpolation::PCHIP(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
-            }
-            else if constexpr (INTERPOLATION_TYPE == DelayLineInterp::CatmullRom) {
-                return Interpolation::VitalCatmullRom(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
             }
             else if constexpr (INTERPOLATION_TYPE == DelayLineInterp::Kaiser5) {
                 static KaiserInterpolator<float, 5, 127, 70.0, 1.8> table;

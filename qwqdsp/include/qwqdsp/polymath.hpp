@@ -6,56 +6,54 @@
 namespace qwqdsp::polymath {
 /**
  * @param x [0, pi]
- * .\lolremez.exe --degree 4 --range 1e-50:pi*pi "sin(sqrt(x))/(sqrt(x)*x)-1/x" "1/(x*sqrt(x))"
  */
-template<class T>
-static inline constexpr T SinPi(T x) noexcept {
-    T const x2 = x * x;
-    T u = static_cast<T>(-2.0549870296337988e-8);
-    u = u * x2 + static_cast<T>(2.7051369051832768e-6);
-    u = u * x2 + static_cast<T>(-1.9814449939486949e-4);
-    u = u * x2 + static_cast<T>(8.3326852207856376e-3);
-    T const f = u * x2 + static_cast<T>(-1.6666612015728217e-1);
+static inline constexpr float SinPi(float x) noexcept {
+    float const x2 = x * x;
+    float u = 1.3528548e-10f;
+    u = u * x2 + -2.4703144e-08f;
+    u = u * x2 + 2.7532926e-06f;
+    u = u * x2 + -0.00019840381f;
+    u = u * x2 + 0.0083333179f;
+    float f = u * x2 + -0.16666666f;
     return x * x2 * f + x;
 }
 
 /**
  * @param x [0, pi]
- * .\lolremez --degree 4 --range 1e-50:pi*pi "(cos(sqrt(x))-1)/x" "1/x"
  */
-template<class T>
-static inline constexpr T CosPi(T x) noexcept {
-    T const x2 = x * x;
-    T u = static_cast<T>(-2.2068375498948933e-7);
-    u = u * x2 + static_cast<T>(2.4228489043422979e-5);
-    u = u * x2 + static_cast<T>(-1.3861265327344013e-3);
-    u = u * x2 + static_cast<T>(4.1660818319866521e-2);
-    T const f = u * x2 + static_cast<T>(-4.9999596805416058e-1);
+static inline constexpr float CosPi(float x) noexcept {
+    float const x2 = x * x;
+    float u = 1.7290616e-09f;
+    u = u * x2 + -2.7093486e-07f;
+    u = u * x2 + 2.4771643e-05f;
+    u = u * x2 + -0.0013887906f;
+    u = u * x2 + 0.041666519f;
+    float const f = u * x2 + -0.49999991f;
     return 1 + x2 * f;
 }
 
-template<class T>
-static inline constexpr T Cos(T x) noexcept {
-    return CosPi(std::abs(x));
-}
-
 /**
- * @param x [0, 1]
- * .\lolremez --degree 4 --range 0:1 "pow(2,x)"
+ * @param x [0, pi]
  */
-template<class T>
-static inline constexpr T Exp2Half(T x) noexcept {
-    T u = static_cast<T>(1.3697664475809267e-2);
-    u = u * x + static_cast<T>(5.1690358205939469e-2);
-    u = u * x + static_cast<T>(2.4163844572498163e-1);
-    u = u * x + static_cast<T>(6.9296612266139567e-1);
-    return u * x + static_cast<T>(1.000003704465937);
-}
+static inline constexpr std::complex<float> PolarPi(float x) noexcept {
+    float const x2 = x * x;
+    float u = 1.3528548e-10f;
+    u = u * x2 + -2.4703144e-08f;
+    u = u * x2 + 2.7532926e-06f;
+    u = u * x2 + -0.00019840381f;
+    u = u * x2 + 0.0083333179f;
+    float f = u * x2 + -0.16666666f;
+    float const sin = x * x2 * f + x;
 
-template<class T>
-static inline constexpr T Exp2(T x) noexcept {
-    int const i = static_cast<int>(x);
-    return static_cast<T>(1 << i) * Exp2Half(x);
+    u = 1.7290616e-09f;
+    u = u * x2 + -2.7093486e-07f;
+    u = u * x2 + 2.4771643e-05f;
+    u = u * x2 + -0.0013887906f;
+    u = u * x2 + 0.041666519f;
+    f = u * x2 + -0.49999991f;
+    float const cos = 1 + x2 * f;
+
+    return {cos, sin};
 }
 
 /**
@@ -107,66 +105,5 @@ static constexpr inline T SinRemezRat(T x) {
     q = q * s - static_cast<T>(6.00000238e+0); // -0x1.80000ap+2
     p = p * t + t;
     return (p / q) + x;
-}
-
-// based on https://github.com/chenzt2020/foc_learning/blob/main/3.fast_sin/fast_sin.h
-namespace internal {
-// lolremez --float --degree 5 --range "1e-50:pi*pi"
-// "(sin(sqrt(x))-sqrt(x))/(x*sqrt(x))" "1/(x*sqrt(x))"
-// Estimated max error: 1.455468e-9
-static inline constexpr float f1(float x) {
-    float u = 1.3528548e-10f;
-    u = u * x + -2.4703144e-08f;
-    u = u * x + 2.7532926e-06f;
-    u = u * x + -0.00019840381f;
-    u = u * x + 0.0083333179f;
-    return u * x + -0.16666666f;
-}
-// lolremez --float --degree 5 --range "1e-50:pi*pi" "(cos(sqrt(x))-1)/x"
-// "1/x"
-// Estimated max error: 1.1846383e-8
-static inline constexpr float f2(float x) {
-    float u = 1.7290616e-09f;
-    u = u * x + -2.7093486e-07f;
-    u = u * x + 2.4771643e-05f;
-    u = u * x + -0.0013887906f;
-    u = u * x + 0.041666519f;
-    return u * x + -0.49999991f;
-}
-}
-
-// 只有-2pi < x < 2pi时才会比std::sin快一点点（指不到1.00倍）
-static inline constexpr float FastSin(float x) {
-    // si = (int)(x / pi)
-    int si = (int)(x * 0.31830988f);
-    x = x - (float)si * std::numbers::pi_v<float>;
-    if (si & 1) {
-        x = x > 0.0f ? x - std::numbers::pi_v<float> : x + std::numbers::pi_v<float>;
-    }
-    return x + x * x * x * internal::f1(x * x);
-}
-
-// 只有-2pi < x < 2pi时才会比std::sin快一点点（指不到1.00倍）
-static inline constexpr float FastCos(float x) {
-    // si = (int)(x / pi)
-    int si = (int)(x * 0.31830988f);
-    x = x - (float)si * std::numbers::pi_v<float>;
-    if (si & 1) {
-        x = x > 0.0f ? x - std::numbers::pi_v<float> : x + std::numbers::pi_v<float>;
-    }
-    return 1.0f + x * x * internal::f2(x * x);
-}
-
-// 只有-2pi < x < 2pi时才会比std::sin快一点点（指不到1.00倍）
-static inline constexpr std::complex<float> FastPolar(float x) {
-    // si = (int)(x / pi)
-    int si = (int)(x * 0.31830988f);
-    x = x - (float)si * std::numbers::pi_v<float>;
-    if (si & 1) {
-        x = x > 0.0f ? x - std::numbers::pi_v<float> : x + std::numbers::pi_v<float>;
-    }
-    float const sin_x = x + x * x * x * internal::f1(x * x);
-    float const cos_x = 1.0f + x * x * internal::f2(x * x);
-    return {cos_x, sin_x};
 }
 }

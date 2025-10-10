@@ -2,7 +2,13 @@
 
 namespace qwqdsp::psimd {
 // ---------------------------------------- 8int ----------------------------------------
+#ifndef __AVX__ || __AVX2__
+struct alignas(16) Vec8i32 {
+#else
 struct alignas(32) Vec8i32 {
+#endif
+    static constexpr size_t kSize = 8;
+
     int x[8];
 
     static constexpr Vec8i32 FromSingle(int v) noexcept {
@@ -118,7 +124,13 @@ static constexpr Vec8i32 operator&(const Vec8i32& a, const Vec8i32& b) noexcept 
 }
 
 // ---------------------------------------- 8float ----------------------------------------
+#ifndef __AVX__ || __AVX2__
+struct alignas(16) Vec8f32 {
+#else
 struct alignas(32) Vec8f32 {
+#endif
+    static constexpr size_t kSize = 8;
+    using IntType = Vec8i32;
     float x[8];
 
     static constexpr Vec8f32 FromSingle(float v) noexcept {
