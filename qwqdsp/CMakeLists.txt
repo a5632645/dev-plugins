@@ -42,7 +42,7 @@ set_target_properties(qwqdsp PROPERTIES CXX_STANDARD 20)
 target_link_libraries(qwqdsp PUBLIC Eigen3::Eigen simde)
 if (qwqdsp_have_ipp)
     target_link_libraries(qwqdsp PUBLIC IPP::ipps)
-    target_compile_definitions(qwqdsp PUBLIC QWQDSP_HAVE_IPP)
+    # target_compile_definitions(qwqdsp PUBLIC QWQDSP_HAVE_IPP)
 endif()
 
 
