@@ -262,6 +262,9 @@ void VitalChorusAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 fppq = static_cast<float>(*ppq);
                 sync_lfo = true;
             }
+            if (!pos->getIsPlaying()) {
+                sync_lfo = false;
+            }
         }
     }
 
