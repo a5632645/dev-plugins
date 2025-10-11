@@ -16,16 +16,16 @@ public:
     
     void SetLPF(float w) noexcept {
         auto k = std::tan(w / 2);
-        b0_ = SimdType::FromSingle(k / (1 + k));
+        b0_ = k / (1 + k);
         b1_ = b0_;
-        a1_ = SimdType::FromSingle((k - 1) / (k + 1));
+        a1_ = (k - 1) / (k + 1);
     }
 
     void SetHPF(float w) noexcept {
         auto k = std::tan(w / 2);
-        b0_ = SimdType::FromSingle(1 / (1 + k));
-        b1_ = b0_ * SimdType::FromSingle(-1);
-        a1_ = SimdType::FromSingle((k - 1) / (k + 1));
+        b0_ = 1 / (1 + k);
+        b1_ = -b0_;
+        a1_ = (k - 1) / (k + 1);
     }
 
     void CopyFrom(const OnePoleFilter& other) noexcept {
@@ -35,15 +35,35 @@ public:
     }
 
     SimdType Tick(SimdType in) noexcept {
-        auto t = in - a1_ * latch1_;
-        auto y = t * b0_ + b1_ * latch1_;
+        auto t = in - SimdType::FromSingle(a1_) * latch1_;
+        auto y = t * SimdType::FromSingle(b0_) + SimdType::FromSingle(b1_) * latch1_;
         latch1_ = t;
         return y;
     }
+
+    struct ResponceCalc {
+        float b0;
+        float b1;
+        float a1;
+
+        std::complex<float> operator()(float w) const noexcept {
+            auto z = std::polar(1.0f, w);
+            auto up = z * b0 + b1;
+            auto down = z + a1;
+            return up / down;
+        }
+    };
+    ResponceCalc GetResponceCalc() const noexcept {
+        return ResponceCalc{
+            b0_,
+            b1_,
+            a1_
+        };
+    }
 private:
-    SimdType b0_{};
-    SimdType b1_{};
-    SimdType a1_{};
+    float b0_{};
+    float b1_{};
+    float a1_{};
     SimdType latch1_{};
 };
 
@@ -86,6 +106,7 @@ public:
 
         while (offset != num_samples) {
             size_t const cando = std::min(256ull, num_samples - offset);
+            float const delay_time_smooth_factor = 1.0f - std::exp(-1.0f / (fs_ / cando * 20.0f / 1000.0f));
 
             // update delay time
             phase_ += phase_inc_ * static_cast<float>(cando);
@@ -93,11 +114,11 @@ public:
             float const avg_delay = (delay1 + delay2) * 0.5f;
             size_t const num_pairs = num_voices_ / 4;
             for (size_t i = 0; i < num_pairs; ++i) {
-                // qwqfixme: delay time is not same as vital
-                auto static_a = SimdType{delay1, delay2, delay1, delay2};
+                auto static_a = SimdType{delay1, delay1, delay2, delay2};
                 auto static_b = SimdType::FromSingle(avg_delay);
-                auto static_delay = static_a + SimdType::FromSingle(static_cast<float>(i) / std::max(1.0f, (static_cast<float>(num_pairs) - 1.0f))) * (static_b - static_a);
-                auto const offsetp = SimdType{0.0f, 0.25f, 0.5f, 0.75f};
+                float const lerp = static_cast<float>(i) / std::max(1.0f, static_cast<float>(num_pairs) - 1.0f);
+                auto static_delay = static_a + SimdType::FromSingle(lerp) * (static_b - static_a);
+                auto offsetp = SimdType{0.0f, 0.25f, 0.5f, 0.75f};
                 auto sin_mod = SimdType::FromSingle(phase_) + offsetp + SimdType::FromSingle(0.25f * static_cast<float>(i) / static_cast<float>(num_pairs));
                 sin_mod = sin_mod.Frac();
                 for (size_t j = 0; j < 4; ++j) {
@@ -106,7 +127,10 @@ public:
                 sin_mod = sin_mod * SimdType::FromSingle(0.5f) + SimdType::FromSingle(1.0f);
                 auto delay_ms = SimdType::FromSingle(depth * kMaxModulationMs) * sin_mod + static_delay;
                 delay_ms_[i] = delay_ms;
-                delay_samples_[i] = delay_ms * SimdType::FromSingle(fs_ / 1000.0f);
+
+                // additional exp smooth
+                auto target_delay_samples = delay_ms * SimdType::FromSingle(fs_ / 1000.0f);
+                delay_samples_[i] += SimdType::FromSingle(delay_time_smooth_factor) * (target_delay_samples - delay_samples_[i]);
             }
 
             // shuffle
@@ -121,25 +145,33 @@ public:
 
             // first 4 direct set
             auto fb_mul = SimdType::FromSingle(feedback);
+            auto curr_delay_samples = last_delay_samples_[0];
+            auto delta_delay_samples = (delay_samples_[0] - last_delay_samples_[0]) / SimdType::FromSingle(static_cast<float>(cando));
             for (size_t j = 0; j < cando; ++j) {
-                auto read = delays_[0].GetAfterPush(delay_samples_[0]);
+                curr_delay_samples += delta_delay_samples;
+                auto read = delays_[0].GetAfterPush(curr_delay_samples);
                 auto write = temp_in[j] + read * fb_mul;
                 write = lowpass_[0].Tick(write);
                 write = highpass_[0].Tick(write);
                 delays_[0].Push(write);
                 temp_out[j] = read;
             }
+            last_delay_samples_[0] = curr_delay_samples;
 
             // last add into
             for (size_t i = 1; i < num_pairs; ++i) {
+                curr_delay_samples = last_delay_samples_[i];
+                delta_delay_samples = (delay_samples_[i] - last_delay_samples_[i]) / SimdType::FromSingle(static_cast<float>(cando));
                 for (size_t j = 0; j < cando; ++j) {
-                    auto read = delays_[i].GetAfterPush(delay_samples_[i]);
+                    curr_delay_samples += delta_delay_samples;
+                    auto read = delays_[i].GetAfterPush(curr_delay_samples);
                     auto write = temp_in[j] + read * fb_mul;
                     write = lowpass_[i].Tick(write);
                     write = highpass_[i].Tick(write);
                     delays_[i].Push(write);
                     temp_out[j] += read;
                 }
+                last_delay_samples_[i] = curr_delay_samples;
             }
 
             // shuffle back
@@ -184,7 +216,12 @@ public:
         num_voices_ = num_voices;
     }
 
+    // -------------------- lookup --------------------
     std::array<SimdType, kMaxNumChorus / SimdType::kSize> delay_ms_{};
+
+    std::pair<OnePoleFilter::ResponceCalc, OnePoleFilter::ResponceCalc> GetFilterResponceCalc() const noexcept {
+        return {lowpass_.front().GetResponceCalc(), highpass_.front().GetResponceCalc()};
+    }
 private:
     float fs_{};
     float phase_{};
@@ -194,6 +231,8 @@ private:
     std::array<OnePoleFilter, kMaxNumChorus / SimdType::kSize> lowpass_;
     std::array<OnePoleFilter, kMaxNumChorus / SimdType::kSize> highpass_;
     std::array<qwqdsp::fx::DelayLineSIMD<SimdType, qwqdsp::fx::DelayLineInterpSIMD::PCHIP>, kMaxNumChorus> delays_;
+
+    std::array<SimdType, kMaxNumChorus / SimdType::kSize> last_delay_samples_{};
 };
 
 // ---------------------------------------- juce processor ----------------------------------------

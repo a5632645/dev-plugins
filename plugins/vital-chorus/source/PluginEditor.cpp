@@ -1,17 +1,25 @@
 #include "PluginEditor.h"
 #include "PluginProcessor.h"
 
+#include "qwqdsp/convert.hpp"
+
 void ChorusView::paint(juce::Graphics& g) {
     g.fillAll(ui::black_bg);
     auto copy = p_.dsp_.delay_ms_;
     auto num_voices = static_cast<size_t>(p_.param_num_voices_->get());
     float const ytop = 0.25f * getHeight();
     float const ybottom = 0.75f * getHeight();
-    g.setColour(ui::line_fore);
     for (size_t i = 0; i < num_voices / SimdType::kSize; ++i) {
         SimdType norm = copy[i] / SimdType::FromSingle(VitalChorus::kMaxDelayMs);
         SimdType x = norm * SimdType::FromSingle(getWidth());
-        for (size_t j = 0; j < SimdType::kSize; ++j) {
+        // left
+        g.setColour(ui::line_fore);
+        for (size_t j = 0; j < SimdType::kSize; j += 2) {
+            g.drawVerticalLine(x.x[j], ytop, ybottom);
+        }
+        // right
+        g.setColour(ui::active_bg);
+        for (size_t j = 1; j < SimdType::kSize; j += 2) {
             g.drawVerticalLine(x.x[j], ytop, ybottom);
         }
     }
@@ -19,6 +27,27 @@ void ChorusView::paint(juce::Graphics& g) {
 
 void FilterView::paint(juce::Graphics& g) {
     g.fillAll(ui::black_bg);
+    
+    auto[lp, hp] = p_.dsp_.GetFilterResponceCalc();
+    auto eval_y = [&lp, &hp, h = static_cast<float>(getHeight()), fs = static_cast<float>(p_.getSampleRate())](float norm_w) {
+        static float const pitch_begin = qwqdsp::convert::Freq2Pitch(20.0f);
+        static float const pitch_end = qwqdsp::convert::Freq2Pitch(20000.0f);
+        float const pitch = pitch_begin + norm_w * (pitch_end - pitch_begin);
+        float const w = qwqdsp::convert::Pitch2Freq(pitch) / fs * std::numbers::pi_v<float> * 2.0f;
+        float gg = std::abs(lp(w) * hp(w));
+        gg = qwqdsp::convert::Gain2Db<-24.0f>(gg);
+        gg = std::min(gg, 0.0f);
+        return juce::jmap(gg, -24.0f, 12.0f, h, 0.0f);
+    };
+
+    g.setColour(ui::line_fore);
+    int const w = getWidth();
+    juce::Point<float> last{0, eval_y(0.0f)};
+    for (int i = 1; i < w; ++i) {
+        juce::Point<float> curr{static_cast<float>(i), eval_y(static_cast<float>(i) / static_cast<float>(w))};
+        g.drawLine(juce::Line<float>{last, curr});
+        last = curr;
+    }
 }
 
 
@@ -44,7 +73,13 @@ VitalChorusAudioProcessorEditor::VitalChorusAudioProcessorEditor (VitalChorusAud
     mix_.BindParam(apvts, "mix");
     addAndMakeVisible(mix_);
     cutoff_.BindParam(apvts, "cutoff");
+    cutoff_.slider.onValueChange = [this] {
+        filter_view_.repaint();
+    };
     addAndMakeVisible(cutoff_);
+    spread_.slider.onValueChange = [this] {
+        filter_view_.repaint();
+    };
     spread_.BindParam(apvts, "spread");
     addAndMakeVisible(spread_);
     num_voices_.BindParam(apvts, "num_voices");
@@ -56,6 +91,7 @@ VitalChorusAudioProcessorEditor::VitalChorusAudioProcessorEditor (VitalChorusAud
     addAndMakeVisible(filter_view_);
 
     setSize(530, 150);
+    setResizeLimits(530, 150, 9999, 9999);
     setResizable(true, true);
 }
 

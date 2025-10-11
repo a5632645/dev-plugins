@@ -32,6 +32,8 @@ public:
         auto centreX = x + width * 0.5f;
         auto centreY = y + height * 0.5f + 2.0f;
 
+        auto thickness = std::max(3.0f, 0.1f * radius);
+
         // current angle of the slider
         auto angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
 
@@ -39,17 +41,17 @@ public:
         juce::Path backgroundArc;
         backgroundArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, rotaryStartAngle, rotaryEndAngle, true);
         g.setColour(black_bg);
-        g.strokePath(backgroundArc, juce::PathStrokeType(3.f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.strokePath(backgroundArc, juce::PathStrokeType(thickness, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         // Draw path of slider foreground (in white)
         juce::Path foregroundArc;
         foregroundArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, rotaryStartAngle, angle, true);
         g.setColour(dial_fore);
-        g.strokePath(foregroundArc, juce::PathStrokeType(3.f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.strokePath(foregroundArc, juce::PathStrokeType(thickness, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
         // Pointer
         juce::Path p;
         auto pointerLength = radius * 1.f;
-        auto pointerThickness = 3.0f;
+        auto pointerThickness = thickness;
         p.addRectangle(-pointerThickness * 0.5f, -radius, pointerThickness, pointerLength);
         p.applyTransform(juce::AffineTransform::rotation(angle).translated(centreX, centreY));
         g.setColour(black_bg);
@@ -140,11 +142,12 @@ public:
 
     void resized() override {
         auto b = getLocalBounds();
-        auto top = b.removeFromTop(label.getFont().getHeight());
+        auto title_h = std::max(16.0f, 0.15f * getHeight());
+        auto top = b.removeFromTop(title_h);
+        label.setFont(juce::Font{title_h});
         label.setBounds(top);
         slider.setBounds(b);
-        // label.attachToComponent(&slider, false);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, getWidth() * 0.9f, label.getFont().getHeight());
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, getWidth() * 0.9f, title_h);
     }
 
     void BindParam(juce::AudioProcessorValueTreeState& apvts, juce::StringRef id) {

@@ -50,9 +50,10 @@ public:
         
         if constexpr (kInterpType == DelayLineInterpSIMD::None) {
             SIMD_TYPE r;
-            for (size_t i = 0; i < r.kSize; ++i) {
+            for (size_t i = 0; i < kActiveScalars; ++i) {
                 r.x[i] = buffer_[irpos.x[i]].x[i];
             }
+            return r;
         }
         else if constexpr (kInterpType == DelayLineInterpSIMD::Lagrange3rd) {
             SIMD_INT_TYPE inext1 = (irpos + SIMD_INT_TYPE::FromSingle(1)) & mask;
@@ -214,7 +215,7 @@ public:
     }
 private:
     std::vector<SIMD_TYPE> buffer_;
-    size_t wpos_{};
+    int wpos_{};
     int mask_{};
 };
 }

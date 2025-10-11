@@ -99,6 +99,7 @@ static inline float DigitalBW2AnalogQ(float w, float bw) noexcept {
     return DigitalOctave2AnalogQ(w, octave);
 }
 
+[[deprecated("might have numeric issue")]]
 static inline float Gain2Db(float gain) noexcept {
     if (gain > 1e-10f) {
         return 20.0f * std::log10(gain);
@@ -111,4 +112,16 @@ static inline float Gain2Db(float gain) noexcept {
 static inline float Db2Gain(float db) noexcept {
     return std::pow(10.0f, db / 20.0f);
 }
+
+template<float kMinDb>
+static inline float Gain2Db(float gain) noexcept {
+    static float const min_g = Db2Gain(kMinDb);
+    if (gain > min_g) {
+        return 20.0f * std::log10(gain);
+    }
+    else {
+        return kMinDb;
+    }
+}
+
 } // qwqdsp::convert
