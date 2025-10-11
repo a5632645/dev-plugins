@@ -40,6 +40,7 @@ private:
     VitalChorusAudioProcessor& p_;
 
     ui::Dial freq_{"freq"};
+    ui::Dial tempo_{"tempo"};
     ui::Dial depth_{"depth"};
     ui::Dial delay1_{"delay1"};
     ui::Dial delay2_{"delay2"};
@@ -48,7 +49,8 @@ private:
     ui::Dial cutoff_{"cutoff"};
     ui::Dial spread_{"spread"};
     ui::Dial num_voices_{"voices"};
-    ui::Switch bypass_{""};
+
+    std::unique_ptr<juce::ParameterAttachment> sync_type_attach_;
 
     ChorusView chorus_view_;
     FilterView filter_view_;

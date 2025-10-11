@@ -27,10 +27,10 @@ public:
         const float rotaryStartAngle, const float rotaryEndAngle, juce::Slider&) override
     {
         // Radius of knob
-        auto radius = juce::jmin(width / 2, height / 2) - 2.0f;
+        auto radius = juce::jmin(static_cast<float>(width) / 2.0f, static_cast<float>(height) / 2.0f) - 3.0f;
         // Centre point (centreX, centreY) of knob
-        auto centreX = x + width * 0.5f;
-        auto centreY = y + height * 0.5f + 2.0f;
+        auto centreX = static_cast<float>(x) + static_cast<float>(width) * 0.5f;
+        auto centreY = static_cast<float>(y) + static_cast<float>(height) * 0.5f + 3.0f;
 
         auto thickness = std::max(3.0f, 0.1f * radius);
 
@@ -66,7 +66,7 @@ public:
         juce::String text = label.getText();
         int width = label.getWidth();
         int height = label.getHeight();
-        g.setFont(juce::Font(height - 2.f, juce::Font::plain));
+        g.setFont(juce::Font{juce::FontOptions{static_cast<float>(height) - 2.0f}});
         g.drawFittedText(text, 0, 0, width, height, juce::Justification::centred, 1);
     }
 };
@@ -78,6 +78,7 @@ public:
     {}
 
     void mouseDown(const juce::MouseEvent& e) override {
+        std::ignore = e;
         juce::ModifierKeys keys = juce::ModifierKeys::getCurrentModifiers();
         if (keys.isPopupMenu()) {
             menu_.clear();
@@ -111,10 +112,16 @@ public:
                 slider_.setValue(slider_.getDoubleClickReturnValue());
             });
 
+            if (on_menu_showup) {
+                on_menu_showup(menu_);
+            }
+
             juce::PopupMenu::Options op;
             menu_.showMenuAsync(op.withMousePosition());
         }
     }
+
+    std::function<void(juce::PopupMenu&)> on_menu_showup;
 private:
     juce::Slider& slider_;
     juce::PopupMenu menu_;
@@ -142,12 +149,13 @@ public:
 
     void resized() override {
         auto b = getLocalBounds();
-        auto title_h = std::max(16.0f, 0.15f * getHeight());
-        auto top = b.removeFromTop(title_h);
-        label.setFont(juce::Font{title_h});
+        auto title_h = std::max(16.0f, 0.15f * static_cast<float>(getHeight()));
+        auto top = b.removeFromTop(static_cast<int>(title_h));
+        label.setFont(juce::Font{juce::FontOptions{title_h}});
         label.setBounds(top);
         slider.setBounds(b);
-        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, true, getWidth() * 0.9f, title_h);
+        slider.setTextBoxStyle(juce::Slider::TextBoxBelow, true,
+            static_cast<int>(static_cast<float>(getWidth()) * 0.9f), static_cast<int>(title_h));
     }
 
     void BindParam(juce::AudioProcessorValueTreeState& apvts, juce::StringRef id) {
@@ -159,8 +167,12 @@ public:
         );
     }
 
+    std::function<void(juce::PopupMenu&)>& OnMenuShowup() {
+        return slider_menu_.on_menu_showup;
+    }
+
     juce::Slider slider;
-    juce::Label label;
+    juce::Label label; // dial title
 private:
 std::unique_ptr<juce::SliderParameterAttachment> attach_;
     SliderMenu slider_menu_;
@@ -192,11 +204,11 @@ public:
 
     void mouseDown(const juce::MouseEvent& e) override {
         auto b = getLocalBounds().toFloat();
-        b.removeFromTop(title.getHeight());
+        b.removeFromTop(title.getLocalBounds().toFloat().getHeight());
 
         auto const num_choices = combobox_.getNumItems();
-        float const width = getWidth() / static_cast<float>(num_choices);
-        int choice = e.getMouseDownX() / width;
+        float const width = getLocalBounds().toFloat().getWidth() / static_cast<float>(num_choices);
+        int choice = static_cast<int>(static_cast<float>(e.getMouseDownX()) / width);
         choice = std::clamp(choice, 0, num_choices - 1);
         if (choice != combobox_.getSelectedItemIndex()) {
             combobox_.setSelectedItemIndex(choice);
@@ -206,10 +218,10 @@ public:
 
     void paint(juce::Graphics& g) override {
         auto b = getLocalBounds().toFloat();
-        b.removeFromTop(title.getHeight());
+        b.removeFromTop(title.getLocalBounds().toFloat().getHeight());
         auto const num_choices = combobox_.getNumItems();
         int const select_idx = combobox_.getSelectedItemIndex();
-        float const width = getWidth() / static_cast<float>(num_choices);
+        float const width = getLocalBounds().toFloat().getWidth() / static_cast<float>(num_choices);
         auto cube = b.removeFromLeft(width);
         for (int i = 0; i < num_choices; ++i) {
             b = cube;
@@ -228,7 +240,7 @@ public:
 
     void resized() override {
         auto b = getLocalBounds();
-        title.setBounds(b.removeFromTop(title.getFont().getHeight()));
+        title.setBounds(b.removeFromTop(static_cast<int>(title.getFont().getHeight())));
     }
 
     juce::Label title;
@@ -285,12 +297,13 @@ public:
     void paint(juce::Graphics& g) override {
         g.fillAll(line_fore);
         auto b = getLocalBounds();
+        auto const fb = b.toFloat();
         g.setColour(black_bg);
         if (isDown()) {
-            g.drawHorizontalLine(0, 0, b.getRight());
-            g.drawHorizontalLine(1, 0, b.getRight());
-            g.drawVerticalLine(0, 0, b.getBottom());
-            g.drawVerticalLine(1, 0, b.getBottom());
+            g.drawHorizontalLine(0, 0, fb.getRight());
+            g.drawHorizontalLine(1, 0, fb.getRight());
+            g.drawVerticalLine(0, 0, fb.getBottom());
+            g.drawVerticalLine(1, 0, fb.getBottom());
         }
         else {
             g.drawRect(b);
@@ -300,6 +313,7 @@ public:
     }
 };
 
+[[maybe_unused]]
 static void SetLableBlack(juce::Label& lable) {
     lable.setColour(juce::Label::ColourIds::textColourId, black_bg);
 }
