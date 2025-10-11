@@ -314,60 +314,23 @@ void ComplexFFT::Hilbert(std::span<const float> input, std::span<float> output90
 
 #else
 
-#include <ipp.h>
-#include "ipp_init.hpp"
+#include "qwqdsp/spectral/ipp_complex_fft.hpp"
 
 // Intel IPP 默认正频率起步
 namespace qwqdsp::spectral {
 
-
 ComplexFFT::ComplexFFT() {
-    internal::InitIPPOnce();
+    fft_ = std::make_unique<IppComplexFFT>();
 }
 
-
-ComplexFFT::~ComplexFFT() {
-    if (p_spec_) {
-        ippFree(p_spec_);
-    }
-    if (p_buffer_) {
-        ippFree(p_buffer_);
-    }
-}
-
+ComplexFFT::~ComplexFFT() = default;
 
 void ComplexFFT::Init(size_t fft_size) {
-    assert(std::has_single_bit(fft_size));
-    fft_size_ = fft_size;
-
-    int order = std::countr_zero(fft_size);
-    int p_spec_size{};
-    int p_spec_buffer_size{};
-    int p_buffer_size{};
-    int const flag = IPP_FFT_DIV_INV_BY_N;
-    ippsFFTGetSize_C_32f(order, flag, ippAlgHintFast, &p_spec_size, &p_spec_buffer_size, &p_buffer_size);
-
-    if (p_spec_) {
-        ippFree(p_spec_);
-    }
-    p_spec_ = ippsMalloc_8u(p_spec_size);
-    if (p_spec_buffer_) {
-        ippFree(p_spec_buffer_);
-    }
-    p_spec_buffer_ = p_spec_buffer_size > 0 ? ippsMalloc_8u(p_spec_buffer_size) : nullptr;
-    if (p_buffer_) {
-        ippFree(p_buffer_);
-    }
-    p_buffer_ = p_buffer_size > 0 ? ippsMalloc_8u(p_buffer_size) : nullptr;
-
-    ippsFFTInit_C_32f((IppsFFTSpec_C_32f**)&p_fft_spec_, order, flag, ippAlgHintFast, p_spec_, p_spec_buffer_);
+    fft_->Init(fft_size);
     real_buffer_.resize(fft_size);
     imag_buffer_.resize(fft_size);
     src_imag_buffer_.resize(fft_size);
     src_real_buffer_.resize(fft_size);
-    if (p_spec_buffer_) {
-        ippFree(p_spec_buffer_);
-    }
 }
 
 
@@ -376,11 +339,7 @@ void ComplexFFT::FFT(std::span<const float> time, std::span<std::complex<float>>
     assert(spectral.size() == NumBins());
 
     std::fill(src_imag_buffer_.begin(), src_imag_buffer_.end(), float{});
-    ippsFFTFwd_CToC_32f(
-        time.data(), src_imag_buffer_.data(),
-        real_buffer_.data(), imag_buffer_.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->FFT(time.data(), src_imag_buffer_.data(), real_buffer_.data(), imag_buffer_.data());
     
     for (size_t i = 0; i < fft_size_; ++i)
     {
@@ -399,11 +358,7 @@ void ComplexFFT::FFT(std::span<const std::complex<float>> time, std::span<std::c
         src_real_buffer_[i] = time[i].real();
         src_imag_buffer_[i] = time[i].imag();
     }
-    ippsFFTFwd_CToC_32f(
-        src_real_buffer_.data(), src_imag_buffer_.data(),
-        real_buffer_.data(), imag_buffer_.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->FFT(src_real_buffer_.data(), src_imag_buffer_.data(), real_buffer_.data(), imag_buffer_.data());
     for (size_t i = 0; i < fft_size_; ++i) {
         spectral[i].real(real_buffer_[i]);
         spectral[i].imag(imag_buffer_[i]);
@@ -417,11 +372,7 @@ void ComplexFFT::FFT(std::span<const float> time, std::span<float> real, std::sp
     assert(imag.size() == NumBins());
 
     std::fill(src_imag_buffer_.begin(), src_imag_buffer_.end(), float{});
-    ippsFFTFwd_CToC_32f(
-        time.data(), src_imag_buffer_.data(),
-        real.data(), imag.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->FFT(time.data(), src_imag_buffer_.data(), real.data(), imag.data());
 }
 
 
@@ -434,11 +385,7 @@ void ComplexFFT::FFT(std::span<const std::complex<float>> time, std::span<float>
         src_real_buffer_[i] = time[i].real();
         src_imag_buffer_[i] = time[i].imag();
     }
-    ippsFFTFwd_CToC_32f(
-        src_real_buffer_.data(), src_imag_buffer_.data(),
-        real.data(), imag.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->FFT(src_real_buffer_.data(), src_imag_buffer_.data(), real.data(), imag.data());
 }
 
 
@@ -450,11 +397,7 @@ void ComplexFFT::FFTGainPhase(std::span<const float> time, std::span<float> gain
     }
 
     std::fill(src_imag_buffer_.begin(), src_imag_buffer_.end(), float{});
-    ippsFFTFwd_CToC_32f(
-        time.data(), src_imag_buffer_.data(),
-        real_buffer_.data(), imag_buffer_.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->FFT(time.data(), src_imag_buffer_.data(), real_buffer_.data(), imag_buffer_.data());
 
     if (phase.empty()) {
         for (size_t i = 0; i < fft_size_; ++i) {
@@ -485,11 +428,7 @@ void ComplexFFT::FFTGainPhase(std::span<const std::complex<float>> time, std::sp
         src_real_buffer_[i] = time[i].real();
         src_imag_buffer_[i] = time[i].imag();
     }
-    ippsFFTFwd_CToC_32f(
-        src_real_buffer_.data(), src_imag_buffer_.data(),
-        real_buffer_.data(), imag_buffer_.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->FFT(src_real_buffer_.data(), src_imag_buffer_.data(), real_buffer_.data(), imag_buffer_.data());
 
     if (phase.empty()) {
         for (size_t i = 0; i < fft_size_; ++i) {
@@ -515,11 +454,7 @@ void ComplexFFT::IFFT(std::span<float> time, std::span<const std::complex<float>
         src_imag_buffer_[i] = spectral[i].imag();
     }
 
-    ippsFFTInv_CToC_32f(
-        src_real_buffer_.data(), src_imag_buffer_.data(),
-        time.data(), imag_buffer_.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->IFFT(src_real_buffer_.data(), src_imag_buffer_.data(), time.data(), imag_buffer_.data());
 }
 
 
@@ -529,11 +464,7 @@ void ComplexFFT::IFFT(std::span<std::complex<float>> time, std::span<const std::
         src_imag_buffer_[i] = spectral[i].imag();
     }
 
-    ippsFFTInv_CToC_32f(
-        src_real_buffer_.data(), src_imag_buffer_.data(),
-        real_buffer_.data(), imag_buffer_.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->IFFT(src_real_buffer_.data(), src_imag_buffer_.data(), real_buffer_.data(), imag_buffer_.data());
 
     for (size_t i = 0; i < fft_size_; ++i) {
         time[i] = {real_buffer_[i], imag_buffer_[i]};
@@ -542,20 +473,12 @@ void ComplexFFT::IFFT(std::span<std::complex<float>> time, std::span<const std::
 
 
 void ComplexFFT::IFFT(std::span<float> time, std::span<const float> real, std::span<const float> imag) noexcept {
-    ippsFFTInv_CToC_32f(
-        real.data(), imag.data(),
-        time.data(), imag_buffer_.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->IFFT(real.data(), imag.data(), time.data(), imag_buffer_.data());
 }
 
 
 void ComplexFFT::IFFT(std::span<std::complex<float>> time, std::span<const float> real, std::span<const float> imag) noexcept {
-    ippsFFTInv_CToC_32f(
-        real.data(), imag.data(),
-        real_buffer_.data(), imag_buffer_.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->IFFT(real.data(), imag.data(), real_buffer_.data(), imag_buffer_.data());
 
     for (size_t i = 0; i < fft_size_; ++i) {
         time[i] = {real_buffer_[i], imag_buffer_[i]};
@@ -570,11 +493,7 @@ void ComplexFFT::IFFTGainPhase(std::span<float> time, std::span<const float> gai
         src_imag_buffer_[i] = a.imag();
     }
 
-    ippsFFTInv_CToC_32f(
-        src_real_buffer_.data(), src_imag_buffer_.data(),
-        time.data(), imag_buffer_.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->IFFT(src_real_buffer_.data(), src_imag_buffer_.data(), time.data(), imag_buffer_.data());
 }
 
 
@@ -585,11 +504,7 @@ void ComplexFFT::IFFTGainPhase(std::span<std::complex<float>> time, std::span<co
         src_imag_buffer_[i] = a.imag();
     }
 
-    ippsFFTInv_CToC_32f(
-        src_real_buffer_.data(), src_imag_buffer_.data(),
-        real_buffer_.data(), imag_buffer_.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->IFFT(src_real_buffer_.data(), src_imag_buffer_.data(), real_buffer_.data(), imag_buffer_.data());
 
     for (size_t i = 0; i < fft_size_; ++i) {
         time[i] = {real_buffer_[i], imag_buffer_[i]};
@@ -602,11 +517,7 @@ void ComplexFFT::Hilbert(std::span<const float> time, std::span<std::complex<flo
     assert(output.size() == fft_size_);
 
     std::fill(src_imag_buffer_.begin(), src_imag_buffer_.end(), float{});
-    ippsFFTFwd_CToC_32f(
-        time.data(), src_imag_buffer_.data(),
-        real_buffer_.data(), imag_buffer_.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->FFT(time.data(), src_imag_buffer_.data(), real_buffer_.data(), imag_buffer_.data());
 
     size_t const nyquist_idx = fft_size_ / 2;
     for (size_t i = nyquist_idx + 1; i < fft_size_; ++i) {
@@ -620,11 +531,7 @@ void ComplexFFT::Hilbert(std::span<const float> time, std::span<std::complex<flo
         imag_buffer_[nyquist_idx] = 0;
     }
 
-    ippsFFTInv_CToC_32f(
-        real_buffer_.data(), imag_buffer_.data(),
-        src_real_buffer_.data(), src_imag_buffer_.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->IFFT(real_buffer_.data(), imag_buffer_.data(), src_real_buffer_.data(), src_imag_buffer_.data());
     for (size_t i = 0; i < fft_size_; ++i) {
         output[i] = {src_real_buffer_[i], src_imag_buffer_[i]};
     }
@@ -636,11 +543,7 @@ void ComplexFFT::Hilbert(std::span<const float> input, std::span<float> output90
     assert(output90.size() == fft_size_);
 
     std::fill(src_imag_buffer_.begin(), src_imag_buffer_.end(), float{});
-    ippsFFTFwd_CToC_32f(
-        input.data(), src_imag_buffer_.data(),
-        real_buffer_.data(), imag_buffer_.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->FFT(input.data(), src_imag_buffer_.data(), real_buffer_.data(), imag_buffer_.data());
 
     size_t const nyquist_idx = fft_size_ / 2;
     for (size_t i = nyquist_idx + 1; i < fft_size_; ++i) {
@@ -654,11 +557,7 @@ void ComplexFFT::Hilbert(std::span<const float> input, std::span<float> output90
         imag_buffer_[nyquist_idx] = 0;
     }
 
-    ippsFFTInv_CToC_32f(
-        real_buffer_.data(), imag_buffer_.data(),
-        src_real_buffer_.data(), output90.data(),
-        (IppsFFTSpec_C_32f*)p_fft_spec_, p_buffer_
-    );
+    fft_->IFFT(real_buffer_.data(), imag_buffer_.data(), src_real_buffer_.data(), output90.data());
 }
 
 } // qwq::spectral

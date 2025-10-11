@@ -6,6 +6,10 @@
 #include <cassert>
 
 namespace qwqdsp::spectral {
+#ifdef QWQDSP_HAVE_IPP
+class IppRealFFT;
+#endif
+
 class RealFFT {
 public:
     #ifdef QWQDSP_HAVE_IPP
@@ -63,14 +67,7 @@ private:
     std::vector<float> w_;
     std::vector<float> buffer_;
 #else
-    // Ipp8u* p_spec_{};
-    // Ipp8u* p_spec_buffer_{};
-    // Ipp8u* p_buffer_{};
-    // IppsFFTSpec_R_32f* p_fft_spec_{};
-    unsigned char* p_spec_{};
-    unsigned char* p_spec_buffer_{};
-    unsigned char* p_buffer_{};
-    unsigned char* p_fft_spec_{};
+    std::unique_ptr<IppRealFFT> fft_;
     std::vector<float> buffer_;
 #endif
 };

@@ -176,60 +176,26 @@ void RealFFT::Hilbert(std::span<const float> input, std::span<float> shift90, bo
 
 #else
 
-#include <ipp.h>
-#include "ipp_init.hpp"
+#include "qwqdsp/spectral/ipp_real_fft.hpp"
 
 namespace qwqdsp::spectral {
 
 RealFFT::RealFFT() {
-    internal::InitIPPOnce();
+    fft_ = std::make_unique<IppRealFFT>();
 }
 
-RealFFT::~RealFFT() {
-    if (p_spec_) {
-        ippFree(p_spec_);
-    }
-    if (p_buffer_) {
-        ippFree(p_buffer_);
-    }
-}
+RealFFT::~RealFFT() = default;
 
 void RealFFT::Init(size_t fft_size) {
-    assert(std::has_single_bit(fft_size));
-    fft_size_ = fft_size;
-
-    int order = std::countr_zero(fft_size);
-    int p_spec_size{};
-    int p_spec_buffer_size{};
-    int p_buffer_size{};
-    int const flag = IPP_FFT_DIV_INV_BY_N;
-    ippsFFTGetSize_R_32f(order, flag, ippAlgHintFast, &p_spec_size, &p_spec_buffer_size, &p_buffer_size);
-
-    if (p_spec_) {
-        ippFree(p_spec_);
-    }
-    p_spec_ = ippsMalloc_8u(p_spec_size);
-    if (p_spec_buffer_) {
-        ippFree(p_spec_buffer_);
-    }
-    p_spec_buffer_ = p_spec_buffer_size > 0 ? ippsMalloc_8u(p_spec_buffer_size) : nullptr;
-    if (p_buffer_) {
-        ippFree(p_buffer_);
-    }
-    p_buffer_ = p_buffer_size > 0 ? ippsMalloc_8u(p_buffer_size) : nullptr;
-
-    ippsFFTInit_R_32f((IppsFFTSpec_R_32f**)&p_fft_spec_, order, flag, ippAlgHintFast, p_spec_, p_spec_buffer_);
+    fft_->Init(fft_size);
     buffer_.resize(fft_size + 2);
-    if (p_spec_buffer_) {
-        ippFree(p_spec_buffer_);
-    }
 }
 
 void RealFFT::FFT(std::span<const float> time, std::span<std::complex<float>> spectral) noexcept {
     assert(time.size() == fft_size_);
     assert(spectral.size() == NumBins());
 
-    ippsFFTFwd_RToCCS_32f(time.data(), buffer_.data(), (IppsFFTSpec_R_32f*)p_fft_spec_, p_buffer_);
+    fft_->FFT(time.data(), buffer_.data());
     
     size_t complexCounter = 0;
     size_t const num_bins = NumBins();
@@ -246,7 +212,7 @@ void RealFFT::FFT(std::span<const float> time, std::span<float> real, std::span<
     assert(real.size() == NumBins());
     assert(imag.size() == NumBins());
 
-    ippsFFTFwd_RToCCS_32f(time.data(), buffer_.data(), (IppsFFTSpec_R_32f*)p_fft_spec_, p_buffer_);
+    fft_->FFT(time.data(), buffer_.data());
     
     size_t complexCounter = 0;
     size_t const num_bins = NumBins();
@@ -257,37 +223,9 @@ void RealFFT::FFT(std::span<const float> time, std::span<float> real, std::span<
     }
 }
 
-void RealFFT::IFFT(std::span<float> time, std::span<const std::complex<float>> spectral) noexcept {
-    assert(time.size() == fft_size_);
-    assert(spectral.size() == NumBins());
-
-    size_t complexCounter = 0;
-    size_t const num_bins = NumBins();
-    for (size_t i = 0; i < num_bins; ++i)
-    {
-        buffer_[complexCounter++] = spectral[i].real();
-        buffer_[complexCounter++] = spectral[i].imag();
-    }
-
-    ippsFFTInv_CCSToR_32f(buffer_.data(), time.data(), (IppsFFTSpec_R_32f*)p_fft_spec_, p_buffer_);
-}
-
-void RealFFT::IFFT(std::span<float> time, std::span<const float> real, std::span<const float> imag) noexcept {
-    assert(time.size() == fft_size_);
-    assert(real.size() == NumBins());
-    assert(imag.size() == NumBins());
-
-    size_t complexCounter = 0;
-    size_t const num_bins = NumBins();
-    for (size_t i = 0; i < num_bins; ++i)
-    {
-        buffer_[complexCounter++] = real[i];
-        buffer_[complexCounter++] = imag[i];
-    }
-
-    ippsFFTInv_CCSToR_32f(buffer_.data(), time.data(), (IppsFFTSpec_R_32f*)p_fft_spec_, p_buffer_);
-}
-
+/**
+    * @param phase 可选的，不需要请传入{}
+    */
 void RealFFT::FFTGainPhase(std::span<const float> time, std::span<float> gain, std::span<float> phase) noexcept {
     assert(time.size() == fft_size_);
     assert(gain.size() == NumBins());
@@ -295,7 +233,7 @@ void RealFFT::FFTGainPhase(std::span<const float> time, std::span<float> gain, s
         assert(phase.size() == NumBins());
     }
 
-    ippsFFTFwd_RToCCS_32f(time.data(), buffer_.data(), (IppsFFTSpec_R_32f*)p_fft_spec_, p_buffer_);
+    fft_->FFT(time.data(), buffer_.data());
     
     size_t complexCounter = 0;
     size_t const num_bins = NumBins();
@@ -318,6 +256,37 @@ void RealFFT::FFTGainPhase(std::span<const float> time, std::span<float> gain, s
     }
 }
 
+void RealFFT::IFFT(std::span<float> time, std::span<const std::complex<float>> spectral) noexcept {
+    assert(time.size() == fft_size_);
+    assert(spectral.size() == NumBins());
+
+    size_t complexCounter = 0;
+    size_t const num_bins = NumBins();
+    for (size_t i = 0; i < num_bins; ++i)
+    {
+        buffer_[complexCounter++] = spectral[i].real();
+        buffer_[complexCounter++] = spectral[i].imag();
+    }
+
+    fft_->IFFT(buffer_.data(), time.data());
+}
+
+void RealFFT::IFFT(std::span<float> time, std::span<const float> real, std::span<const float> imag) noexcept {
+    assert(time.size() == fft_size_);
+    assert(real.size() == NumBins());
+    assert(imag.size() == NumBins());
+
+    size_t complexCounter = 0;
+    size_t const num_bins = NumBins();
+    for (size_t i = 0; i < num_bins; ++i)
+    {
+        buffer_[complexCounter++] = real[i];
+        buffer_[complexCounter++] = imag[i];
+    }
+
+    fft_->IFFT(buffer_.data(), time.data());
+}
+
 void RealFFT::IFFTGainPhase(std::span<float> time, std::span<const float> gain, std::span<const float> phase) noexcept {
     assert(time.size() == fft_size_);
     assert(gain.size() == NumBins());
@@ -330,14 +299,15 @@ void RealFFT::IFFTGainPhase(std::span<float> time, std::span<const float> gain, 
         buffer_[idx++] = a.real();
         buffer_[idx++] = a.imag();
     }
-    ippsFFTInv_CCSToR_32f(buffer_.data(), time.data(), (IppsFFTSpec_R_32f*)p_fft_spec_, p_buffer_);
+
+    fft_->IFFT(buffer_.data(), time.data());
 }
 
-void RealFFT::Hilbert(std::span<const float> input, std::span<float> shift90, bool clear_dc) noexcept {
+void RealFFT::Hilbert(std::span<const float>input, std::span<float> shift90, bool clear_dc) noexcept {
     assert(input.size() == fft_size_);
     assert(shift90.size() == fft_size_);
-    
-    ippsFFTFwd_RToCCS_32f(input.data(), buffer_.data(), (IppsFFTSpec_R_32f*)p_fft_spec_, p_buffer_);
+
+    fft_->FFT(input.data(), buffer_.data());
     
     const size_t n = fft_size_ / 2;
     for (size_t i = 1; i < n; ++i) {
@@ -355,8 +325,9 @@ void RealFFT::Hilbert(std::span<const float> input, std::span<float> shift90, bo
         buffer_[fft_size_ + 1] = 0;
     }
 
-    ippsFFTInv_CCSToR_32f(buffer_.data(), shift90.data(), (IppsFFTSpec_R_32f*)p_fft_spec_, p_buffer_);
+    fft_->IFFT(buffer_.data(), shift90.data());
 }
+
 
 } // qwqdsp::spectral
 

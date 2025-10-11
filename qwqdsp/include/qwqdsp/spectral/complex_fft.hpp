@@ -6,6 +6,10 @@
 #include <cassert>
 
 namespace qwqdsp::spectral {
+#ifdef QWQDSP_HAVE_IPP
+class IppComplexFFT;
+#endif
+
 /**
  * 默认输出 [0, 2pi]
  *
@@ -88,10 +92,7 @@ private:
     std::vector<float> w_;
     std::vector<float> buffer_;
     #else
-    unsigned char* p_spec_{};
-    unsigned char* p_spec_buffer_{};
-    unsigned char* p_buffer_{};
-    unsigned char* p_fft_spec_{};
+    std::unique_ptr<IppComplexFFT> fft_;
     std::vector<float> real_buffer_;
     std::vector<float> imag_buffer_;
     std::vector<float> src_imag_buffer_;
