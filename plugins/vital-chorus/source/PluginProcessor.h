@@ -110,6 +110,7 @@ public:
             float const delay_time_smooth_factor = 1.0f - std::exp(-1.0f / (fs_ / static_cast<float>(cando) * 20.0f / 1000.0f));
 
             // update delay time
+            // you can see visualizer here https://www.desmos.com/calculator/5ytjkkqtbb?lang=zh-CN
             phase_ += phase_inc_ * static_cast<float>(cando);
             phase_ -= std::floor(phase_);
             float const avg_delay = (delay1 + delay2) * 0.5f;
