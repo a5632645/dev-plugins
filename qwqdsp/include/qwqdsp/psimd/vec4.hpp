@@ -1,4 +1,23 @@
 #pragma once
+#if _MSC_VER
+    #if defined(__AVX__) || defined(__AVX2__)
+        #define QWQDSP_HAS_SSE41 1
+    #elif defined(__SSE4_1__)
+        #define QWQDSP_HAS_SSE41 1
+    #else
+        #define QWQDSP_HAS_SSE41 0
+#endif
+#else
+    #ifdef __SSE4_1__
+        #define QWQDSP_HAS_SSE41 1
+    #else
+        #define QWQDSP_HAS_SSE41 0
+    #endif
+#endif
+
+#if QWQDSP_HAS_SSE41
+#include <cmath>
+#endif
 
 namespace qwqdsp::psimd {
 // ---------------------------------------- 4int ----------------------------------------
@@ -180,21 +199,51 @@ struct alignas(16) Vec4f32 {
     }
 
     constexpr Vec4f32 Frac() const noexcept {
-        Vec4f32 r;
-        r.x[0] = x[0] - static_cast<int>(x[0]);
-        r.x[1] = x[1] - static_cast<int>(x[1]);
-        r.x[2] = x[2] - static_cast<int>(x[2]);
-        r.x[3] = x[3] - static_cast<int>(x[3]);
+        #if QWQDSP_HAS_SSE41
+        return Vec4f32{
+            x[0] - std::floor(x[0]),
+            x[1] - std::floor(x[1]),
+            x[2] - std::floor(x[2]),
+            x[3] - std::floor(x[3])
+        };
+        #else
+        Vec4f32 r = PositiveFrac();
+        Vec4f32 fix{
+            x[0] < 0 ? 1.0f : 0.0f,
+            x[1] < 0 ? 1.0f : 0.0f,
+            x[2] < 0 ? 1.0f : 0.0f,
+            x[3] < 0 ? 1.0f : 0.0f
+        };
+        r += fix;
         return r;
+        #endif
+    }
+
+    constexpr Vec4f32 PositiveFrac() const noexcept {
+        #if QWQDSP_HAS_SSE41
+        return Vec4f32{
+            x[0] - std::floor(x[0]),
+            x[1] - std::floor(x[1]),
+            x[2] - std::floor(x[2]),
+            x[3] - std::floor(x[3])
+        };
+        #else
+        return Vec4f32{
+            x[0] - static_cast<int>(x[0]),
+            x[1] - static_cast<int>(x[1]),
+            x[2] - static_cast<int>(x[2]),
+            x[3] - static_cast<int>(x[3])
+        };
+        #endif
     }
 
     constexpr Vec4i32 ToInt() const noexcept {
-        Vec4i32 r;
-        r.x[0] = static_cast<int>(x[0]);
-        r.x[1] = static_cast<int>(x[1]);
-        r.x[2] = static_cast<int>(x[2]);
-        r.x[3] = static_cast<int>(x[3]);
-        return r;
+        return Vec4i32{
+            static_cast<int>(x[0]),
+            static_cast<int>(x[1]),
+            static_cast<int>(x[2]),
+            static_cast<int>(x[3])
+        };
     }
 
     constexpr float ReduceAdd() const noexcept {

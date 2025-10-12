@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 
 namespace qwqdsp::psimd {
 // ---------------------------------------- 8int ----------------------------------------
@@ -237,17 +238,30 @@ struct alignas(32) Vec8f32 {
         return *this;
     }
 
-    constexpr Vec8f32 Frac() const noexcept {
-        Vec8f32 r;
-        r.x[0] = x[0] - static_cast<int>(x[0]);
-        r.x[1] = x[1] - static_cast<int>(x[1]);
-        r.x[2] = x[2] - static_cast<int>(x[2]);
-        r.x[3] = x[3] - static_cast<int>(x[3]);
-        r.x[4] = x[4] - static_cast<int>(x[4]);
-        r.x[5] = x[5] - static_cast<int>(x[5]);
-        r.x[6] = x[6] - static_cast<int>(x[6]);
-        r.x[7] = x[7] - static_cast<int>(x[7]);
-        return r;
+    Vec8f32 Frac() const noexcept {
+        return Vec8f32{
+            x[0] - std::floor(x[0]),
+            x[1] - std::floor(x[1]),
+            x[2] - std::floor(x[2]),
+            x[3] - std::floor(x[3]),
+            x[4] - std::floor(x[4]),
+            x[5] - std::floor(x[5]),
+            x[6] - std::floor(x[6]),
+            x[7] - std::floor(x[7])
+        };
+    }
+
+    constexpr Vec8f32 PositiveFrac() const noexcept {
+        return Vec8f32{
+            x[0] - static_cast<int>(x[0]),
+            x[1] - static_cast<int>(x[1]),
+            x[2] - static_cast<int>(x[2]),
+            x[3] - static_cast<int>(x[3]),
+            x[4] - static_cast<int>(x[4]),
+            x[5] - static_cast<int>(x[5]),
+            x[6] - static_cast<int>(x[6]),
+            x[7] - static_cast<int>(x[7])
+        };
     }
 
     constexpr Vec8i32 ToInt() const noexcept {

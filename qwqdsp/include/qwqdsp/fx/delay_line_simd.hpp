@@ -40,8 +40,7 @@ public:
         wpos_ &= mask_;
     }
 
-    template<size_t kActiveScalars = SIMD_TYPE::kSize>
-    SIMD_TYPE GetAfterPush(SIMD_TYPE delay_samples) noexcept {
+    SIMD_TYPE GetAfterPush(SIMD_TYPE delay_samples, size_t active_scalars = SIMD_TYPE::kSize) noexcept {
         // return Get(delay_samples + 1);
         SIMD_TYPE rpos = SIMD_TYPE::FromSingle(wpos_ + mask_) - delay_samples;
         SIMD_INT_TYPE irpos = rpos.ToInt();
@@ -50,7 +49,7 @@ public:
         
         if constexpr (kInterpType == DelayLineInterpSIMD::None) {
             SIMD_TYPE r;
-            for (size_t i = 0; i < kActiveScalars; ++i) {
+            for (size_t i = 0; i < active_scalars; ++i) {
                 r.x[i] = buffer_[irpos.x[i]].x[i];
             }
             return r;
@@ -74,7 +73,7 @@ public:
             SIMD_TYPE y1;
             SIMD_TYPE y2;
             SIMD_TYPE y3;
-            for (size_t i = 0; i < kActiveScalars; ++i) {
+            for (size_t i = 0; i < active_scalars; ++i) {
                 y0.x[i] = buffer_[irpos.x[i]].x[i];
                 y1.x[i] = buffer_[inext1.x[i]].x[i];
                 y2.x[i] = buffer_[inext2.x[i]].x[i];
@@ -89,7 +88,7 @@ public:
 
             SIMD_TYPE y0;
             SIMD_TYPE y1;
-            for (size_t i = 0; i < kActiveScalars; ++i) {
+            for (size_t i = 0; i < active_scalars; ++i) {
                 y0.x[i] = buffer_[irpos.x[i]].x[i];
                 y1.x[i] = buffer_[inext1.x[i]].x[i];
             }
@@ -106,7 +105,7 @@ public:
             SIMD_TYPE y0;
             SIMD_TYPE y1;
             SIMD_TYPE y2;
-            for (size_t i = 0; i < kActiveScalars; ++i) {
+            for (size_t i = 0; i < active_scalars; ++i) {
                 yn1.x[i] = buffer_[iprev1.x[i]].x[i];
                 y0.x[i] = buffer_[irpos.x[i]].x[i];
                 y1.x[i] = buffer_[inext1.x[i]].x[i];
@@ -129,8 +128,7 @@ public:
     /**
      * @param delay_samples 此处不能小于1，否则为非因果滤波器（或者被绕回读取max_samples处）
      */
-    template<size_t kActiveScalars = SIMD_TYPE::kSize>
-    SIMD_TYPE GetBeforePush(SIMD_TYPE delay_samples) noexcept {
+    SIMD_TYPE GetBeforePush(SIMD_TYPE delay_samples, size_t active_scalars) noexcept {
         // return Get(delay_samples);
         SIMD_TYPE rpos = SIMD_TYPE::FromSingle(wpos_ + buffer_.size()) - delay_samples;
         SIMD_INT_TYPE irpos = rpos.ToInt();
@@ -139,7 +137,7 @@ public:
         
         if constexpr (kInterpType == DelayLineInterpSIMD::None) {
             SIMD_TYPE r;
-            for (size_t i = 0; i < r.kSize; ++i) {
+            for (size_t i = 0; i < active_scalars; ++i) {
                 r.x[i] = buffer_[irpos.x[i]].x[i];
             }
         }
@@ -162,7 +160,7 @@ public:
             SIMD_TYPE y1;
             SIMD_TYPE y2;
             SIMD_TYPE y3;
-            for (size_t i = 0; i < kActiveScalars; ++i) {
+            for (size_t i = 0; i < active_scalars; ++i) {
                 y0.x[i] = buffer_[irpos.x[i]].x[i];
                 y1.x[i] = buffer_[inext1.x[i]].x[i];
                 y2.x[i] = buffer_[inext2.x[i]].x[i];
@@ -177,7 +175,7 @@ public:
 
             SIMD_TYPE y0;
             SIMD_TYPE y1;
-            for (size_t i = 0; i < kActiveScalars; ++i) {
+            for (size_t i = 0; i < active_scalars; ++i) {
                 y0.x[i] = buffer_[irpos.x[i]].x[i];
                 y1.x[i] = buffer_[inext1.x[i]].x[i];
             }
@@ -194,7 +192,7 @@ public:
             SIMD_TYPE y0;
             SIMD_TYPE y1;
             SIMD_TYPE y2;
-            for (size_t i = 0; i < kActiveScalars; ++i) {
+            for (size_t i = 0; i < active_scalars; ++i) {
                 yn1.x[i] = buffer_[iprev1.x[i]].x[i];
                 y0.x[i] = buffer_[irpos.x[i]].x[i];
                 y1.x[i] = buffer_[inext1.x[i]].x[i];
