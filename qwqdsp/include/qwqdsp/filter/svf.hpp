@@ -131,20 +131,6 @@ public:
         m1 = -2 * k;
         m2 = -0;
     }
-
-    void MakeFromBiquad(float b0, float b1, float b2, float ba1, float ba2) noexcept {
-        float v1 = std::sqrt(-1.0f - ba1 - ba2);
-        float v2 = std::sqrt(-1.0f + ba1 - ba2);
-        float g = v1 / v2;
-        float k = 2 * (-1.0f + ba2) / (v1 * v2);
-        m0 = (b0 - b1 + b2) / (1.0f - ba1 + ba2);
-        m1 = 2 * (b0 - b2) / (v1 * v2);
-        m2 = (b0 + b1 + b2) / (1 + ba1 + ba2);
-        a1 = 1.0f / (1.0f + g * (g + k));
-        a2 = g * a1;
-        a3 = g * a2;
-    }
-
 private:
     float m0{};
     float m1{};

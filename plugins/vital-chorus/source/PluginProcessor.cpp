@@ -307,8 +307,6 @@ void VitalChorusAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     float high_freq = qwqdsp::convert::Pitch2Freq(param_cutoff_->get() - filter_radius);
     low_freq = low_freq * std::numbers::pi_v<float> * 2 / static_cast<float>(getSampleRate());
     high_freq = high_freq * std::numbers::pi_v<float> * 2 / static_cast<float>(getSampleRate());
-    low_freq = std::min(low_freq, std::numbers::pi_v<float> - 1e-4f);
-    high_freq = std::max(high_freq, 0.0f);
     dsp_.SetFilter(low_freq, high_freq);
 
     dsp_.Process({left_ptr, num_samples}, {right_ptr, num_samples});
