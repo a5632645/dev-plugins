@@ -271,6 +271,7 @@ void SimpleReverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             temp_in[j].x[1] = *right_ptr;
             temp_in[j].x[2] = *left_ptr;
             temp_in[j].x[3] = *right_ptr;
+            temp_in[j] *= SimdType::FromSingle(0.5f);
             ++left_ptr;
             ++right_ptr;
         }
