@@ -203,6 +203,7 @@ void SimpleReverbAudioProcessor::changeProgramName (int index, const juce::Strin
 void SimpleReverbAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     dsp_.Init(static_cast<float>(sampleRate));
+    dsp_.Reset();
     param_listener_.CallAll();
 }
 

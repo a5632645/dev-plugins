@@ -109,6 +109,8 @@ public:
             buffer.resize(static_cast<size_t>(max_allpass_size));
         }
 
+        feedback_offset_smooth_factor_ = 1.0f - std::exp(-1.0f / (fs_ * 50.0f / 1000.0f));
+
         write_index_ = 0;
         allpass_write_pos_ = 0;
     }
@@ -116,8 +118,6 @@ public:
     void Reset() noexcept {
         wet_ = SimdType::FromSingle(0.0f);
         dry_ = SimdType::FromSingle(0.0f);
-        low_pre_filter_.Reset();
-        high_pre_filter_.Reset();
         chorus_amount_ = SimdType::FromSingle(chorus_amount * kMaxChorusDrift);
 
         for (auto& f : low_shelf_filters_) {
@@ -128,8 +128,12 @@ public:
         }
         low_pre_filter_.Reset();
         high_pre_filter_.Reset();
+        predelay_.Reset();
         for (auto& d : decays_) {
             d = SimdType::FromSingle(0);
+        }
+        for (size_t i = 0; i < kNetworkContainers; ++i) {
+            feedback_offsets_[i] = kFeedbackDelays[i];
         }
 
         for (auto& buffer : allpass_lookups_) {
@@ -247,10 +251,15 @@ public:
         float current_sample_delay = sample_delay_;
         float current_delay_increment = sample_delay_increment_;
         float end_target = current_sample_delay + current_delay_increment * static_cast<float>(num_samples);
-        float target_delay = std::max(kMinDelay, pre_delay * fs_);
+        float target_delay = std::max(kMinDelay, pre_delay * fs_ / 1000.0f);
         target_delay = std::lerp(sample_delay_, target_delay, kSampleDelayMultiplier);
         float makeup_delay = target_delay - end_target;
         float delta_delay_increment = makeup_delay / (0.5f * static_cast<float>(num_samples * num_samples)) * kSampleIncrementMultiplier;
+
+        SimdType feedback_offset1 = feedback_offsets_[0];
+        SimdType feedback_offset2 = feedback_offsets_[1];
+        SimdType feedback_offset3 = feedback_offsets_[2];
+        SimdType feedback_offset4 = feedback_offsets_[3];
 
         for (size_t i = 0; i < num_samples; ++i) {
             // paralle chorus delaylines
@@ -259,10 +268,15 @@ public:
                                 current_chorus_imaginary * chorus_increment_imaginary;
             current_chorus_imaginary = current_chorus_imaginary * chorus_increment_real +
                                         current_chorus_real * chorus_increment_imaginary;
-            SimdType feedback_offset1 = delay1 + current_chorus_real * current_chorus_amount;
-            SimdType feedback_offset2 = delay2 - current_chorus_real * current_chorus_amount;
-            SimdType feedback_offset3 = delay3 + current_chorus_imaginary * current_chorus_amount;
-            SimdType feedback_offset4 = delay4 - current_chorus_imaginary * current_chorus_amount;
+            SimdType new_feedback_offset1 = delay1 + current_chorus_real * current_chorus_amount;
+            SimdType new_feedback_offset2 = delay2 - current_chorus_real * current_chorus_amount;
+            SimdType new_feedback_offset3 = delay3 + current_chorus_imaginary * current_chorus_amount;
+            SimdType new_feedback_offset4 = delay4 - current_chorus_imaginary * current_chorus_amount;
+            feedback_offset1 += SimdType::FromSingle(feedback_offset_smooth_factor_) * (new_feedback_offset1 - feedback_offset1);
+            feedback_offset2 += SimdType::FromSingle(feedback_offset_smooth_factor_) * (new_feedback_offset2 - feedback_offset2);
+            feedback_offset3 += SimdType::FromSingle(feedback_offset_smooth_factor_) * (new_feedback_offset3 - feedback_offset3);
+            feedback_offset4 += SimdType::FromSingle(feedback_offset_smooth_factor_) * (new_feedback_offset4 - feedback_offset4);
+
             SimdType feedback_read1 = ReadFeedback(0, feedback_offset1);
             SimdType feedback_read2 = ReadFeedback(1, feedback_offset2);
             SimdType feedback_read3 = ReadFeedback(2, feedback_offset3);
@@ -271,7 +285,7 @@ public:
             SimdType input = audio_in[i];
             SimdType filtered_input = high_pre_filter_.TickLowpass(input, current_high_pre_coefficient);
             filtered_input = low_pre_filter_.TickLowpass(input, current_low_pre_coefficient) - filtered_input;
-            SimdType scaled_input = filtered_input * SimdType::FromSingle(0.25f);
+            SimdType scaled_input = filtered_input * SimdType::FromSingle(0.5f);
 
             // paralle polyphase allpass
             SimdType allpass_read1 = ReadAllpass(0, allpass_offset1);
@@ -424,6 +438,10 @@ public:
 
         sample_delay_increment_ = current_delay_increment;
         sample_delay_ = current_sample_delay;
+        feedback_offsets_[0] = feedback_offset1;
+        feedback_offsets_[1] = feedback_offset2;
+        feedback_offsets_[2] = feedback_offset3;
+        feedback_offsets_[3] = feedback_offset4;
     }
 
     SimdType ReadFeedback(size_t idx, SimdType offset) {
@@ -518,7 +536,8 @@ private:
     qwqdsp::fx::DelayLineSIMD<SimdType, qwqdsp::fx::DelayLineInterpSIMD::PCHIP> predelay_;
     std::array<std::vector<SimdType>, kNetworkContainers> allpass_lookups_;
     std::array<std::vector<SimdType>, kNetworkContainers> feedback_memories_;
-    std::array<SimdType, kNetworkContainers> decays_;
+    std::array<SimdType, kNetworkContainers> decays_{};
+    std::array<SimdType, kNetworkContainers> feedback_offsets_{};
 
     std::array<ParalleOnePoleTPT, kNetworkContainers> low_shelf_filters_;
     std::array<ParalleOnePoleTPT, kNetworkContainers> high_shelf_filters_;
@@ -532,6 +551,7 @@ private:
     float low_amplitude_{};
     float high_coefficient_{};
     float high_amplitude_{};
+    float feedback_offset_smooth_factor_{};
 
     float chorus_phase_{};
     SimdType chorus_amount_{};
