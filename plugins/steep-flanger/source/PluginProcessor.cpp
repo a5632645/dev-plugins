@@ -455,7 +455,6 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             for (size_t j = 0; j < num_process; ++j) {
                 curr_num_notch += delta_num_notch;
                 curr_damp_coeff += delta_damp_coeff;
-                delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
     
                 float left_sum = 0;
                 float const left_num_notch = curr_num_notch.x[0];
@@ -469,6 +468,7 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 current_delay.x[3] = left_num_notch * 3;
                 SimdType delay_inc = SimdType::FromSingle(left_num_notch * 4);
                 auto coeff_it = coeffs_.data();
+                delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
                     SimdType taps_out = delay_left_.GetAfterPush(current_delay);
                     current_delay += delay_inc;
@@ -495,6 +495,7 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 current_delay.x[3] = right_num_notch * 3;
                 delay_inc = SimdType::FromSingle(right_num_notch * 4);
                 coeff_it = coeffs_.data();
+                delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
                     SimdType taps_out = delay_right_.GetAfterPush(current_delay);
                     current_delay += delay_inc;
