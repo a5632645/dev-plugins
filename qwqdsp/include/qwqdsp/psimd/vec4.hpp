@@ -162,6 +162,9 @@ struct alignas(16) Vec4f32 {
         };
     }
 
+    /**
+     * @return x[a],x[b],x[c],x[d]
+     */
     template<int a, int b, int c, int d>
     [[nodiscard]]
     constexpr Vec4f32 Shuffle() noexcept {
@@ -173,6 +176,9 @@ struct alignas(16) Vec4f32 {
         };
     }
 
+    /**
+     * @brief tparam: 0 => self, 1 => other
+     */
     template<int a, int b, int c, int d>
     [[nodiscard]]
     constexpr Vec4f32 Blend(const Vec4f32& other) noexcept {

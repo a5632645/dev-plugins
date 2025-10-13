@@ -6,6 +6,7 @@
 #include "qwqdsp/polymath.hpp"
 #include "qwqdsp/convert.hpp"
 #include "qwqdsp/filter/rbj.hpp"
+#include "x86/sse2.h"
 
 //==============================================================================
 SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
@@ -167,21 +168,20 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{"fb_damp", 1},
             "fb_damp",
-            juce::NormalisableRange<float>{50.0f, 20010.0f, 0.1f},
-            5000.0f
+            0.0f, 140.0f,
+            90.0f
         );
-        param_listener_.Add(p, [this](float damp_freq) {
+        param_listener_.Add(p, [this](float damp_pitch) {
             juce::ScopedLock _{getCallbackLock()};
+            float damp_freq = qwqdsp::convert::Pitch2Freq(damp_pitch);
             if (damp_freq > 20000.0f) {
-                left_damp_.Set(1, 0, 0, 0, 0);
+                // no filting
+                damp_lowpass_coeff_ = 1.0f;
             }
             else {
-                float const w = qwqdsp::convert::Freq2W(damp_freq, getSampleRate());
-                qwqdsp::filter::RBJ design;
-                design.Lowpass(w, std::numbers::sqrt2_v<float> / 2);
-                left_damp_.Set(design.b0, design.b1, design.b2, design.a1, design.a2);
+                float const w = qwqdsp::convert::Freq2W(damp_freq, static_cast<float>(getSampleRate()));
+                damp_lowpass_coeff_ = damp_.ComputeCoeff(w);
             }
-            right_damp_.Copy(left_damp_);
         });
         layout.add(std::move(p));
     }
@@ -321,9 +321,8 @@ void SteepFlangerAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     float const samples_need = sampleRate * 30.0f / 1000.0f;
     delay_left_.Init(samples_need * kMaxCoeffLen + 256 + 4);
     delay_right_.Init(samples_need * kMaxCoeffLen + 256 + 4);
-    left_delay_smoother_.SetSmoothTime(20.0f, sampleRate);
-    right_delay_smoother_.SetSmoothTime(20.0f, sampleRate);
     barber_phase_smoother_.SetSmoothTime(20.0f, sampleRate);
+    damp_.Reset();
     barber_oscillator_.Reset();
     barber_osc_keep_amp_counter_ = 0;
     // VIC正交振荡器衰减非常慢，设定为5分钟保持一次
@@ -367,17 +366,17 @@ bool SteepFlangerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layo
 
 // ---------------------------------------- 简单的SIMD 复数，为了旋转 ----------------------------------------
 struct Vec4Complex {
-    Vec4 re;
-    Vec4 im;
+    SimdType re;
+    SimdType im;
 
     static constexpr Vec4Complex FromSingle(float re, float im) noexcept {
         Vec4Complex r;
-        r.re = Vec4::FromSingle(re);
-        r.im = Vec4::FromSingle(im);
+        r.re = SimdType::FromSingle(re);
+        r.im = SimdType::FromSingle(im);
         return r;
     }
 
-    static Vec4Complex FromPolar(Vec4 w) noexcept {
+    static Vec4Complex FromPolar(SimdType w) noexcept {
         Vec4Complex r;
         r.re.x[0] = std::cos(w.x[0]);
         r.re.x[1] = std::cos(w.x[1]);
@@ -391,8 +390,8 @@ struct Vec4Complex {
     }
 
     constexpr Vec4Complex& operator*=(const Vec4Complex& a) {
-        Vec4 new_re = re * a.re - im * a.im;
-        Vec4 new_im = re * a.im + im * a.re;
+        SimdType new_re = re * a.re - im * a.im;
+        SimdType new_im = re * a.im + im * a.re;
         re = new_re;
         im = new_im;
         return *this;
@@ -415,7 +414,7 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    size_t const len = buffer.getNumSamples();
+    size_t const len = static_cast<size_t>(buffer.getNumSamples());
     auto* left_ptr = buffer.getWritePointer(0);
     auto* right_ptr = buffer.getWritePointer(1);
 
@@ -424,146 +423,116 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         size_t num_process = std::min<size_t>(256, cando);
         cando -= num_process;
 
-        // update lfo
-        phase_ += phase_inc_ * num_process;
+        // update delay times
+        phase_ += phase_inc_ * static_cast<float>(num_process);
         float right_phase = phase_ + phase_shift_;
         {
             float t;
             phase_ = std::modf(phase_, &t);
             right_phase = std::modf(right_phase, &t);
         }
-        float lfo_sine = qwqdsp::polymath::SinPi(phase_ * std::numbers::pi_v<float>);
-        float delay = delay_samples_ + lfo_sine * depth_samples_;
-        delay = std::max(0.0f, delay);
-        left_delay_smoother_.SetTarget(delay);
+        float left_phase = phase_;
 
-        lfo_sine = qwqdsp::polymath::SinPi(right_phase * std::numbers::pi_v<float>);
-        delay = delay_samples_ + lfo_sine * depth_samples_;
-        delay = std::max(0.0f, delay);
-        right_delay_smoother_.SetTarget(delay);
+        SimdType lfo_modu;
+        lfo_modu.x[0] = qwqdsp::polymath::SinPi(left_phase * std::numbers::pi_v<float>);
+        lfo_modu.x[1] = qwqdsp::polymath::SinPi(right_phase * std::numbers::pi_v<float>);
+
+        SimdType target_delay_samples = SimdType::FromSingle(delay_samples_) + lfo_modu * SimdType::FromSingle(depth_samples_);
+        target_delay_samples = SimdType::Max(target_delay_samples, SimdType::FromSingle(0.0f));
+        float const delay_time_smooth_factor = 1.0f - std::exp(-1.0f / (static_cast<float>(getSampleRate()) / static_cast<float>(num_process) * 20.0f / 1000.0f));
+        last_exp_delay_samples_ += SimdType::FromSingle(delay_time_smooth_factor) * (target_delay_samples - last_exp_delay_samples_);
+        SimdType curr_num_notch = last_delay_samples_;
+        SimdType delta_num_notch = (last_exp_delay_samples_ - curr_num_notch) / SimdType::FromSingle(static_cast<float>(num_process));
+
+        float curr_damp_coeff = last_damp_lowpass_coeff_;
+        float delta_damp_coeff = (damp_lowpass_coeff_ - curr_damp_coeff) / (static_cast<float>(num_process));
+
+        delay_left_.WrapBuffer();
+        delay_right_.WrapBuffer();
 
         // fir polyphase filtering
         if (!barber_enable_) {
-            delay_left_.PushBlockNotChangeWpos({left_ptr, num_process});
-            size_t wpos = delay_left_.wpos_;
-            size_t const mask = delay_left_.mask_;
-            for (size_t i = 0; i < num_process; ++i) {
-                // delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
-                delay_left_.buffer_[wpos] += left_fb_ * feedback_mul_;
-
-                {
-                    // 拷贝前四个元素到末尾
-                    // 在读取[delay.delay_length_-1,delay.delay_length)处的值时拉格朗日插值需要前三个元素
-                    // 所以实际上只需要拷贝3个即可
-                    __m128 first4 = _mm_load_ps(&delay_left_.buffer_[0]);
-                    _mm_store_ps(&delay_left_.buffer_[delay_left_.delay_length_], first4);
-                }
+            for (size_t j = 0; j < num_process; ++j) {
+                curr_num_notch += delta_num_notch;
+                curr_damp_coeff += delta_damp_coeff;
+                delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
     
-                float sum = 0;
-                float const num_notch = left_delay_smoother_.Tick();
+                float left_sum = 0;
+                float const left_num_notch = curr_num_notch.x[0];
                 // for (size_t i = 0; i < coeff_len_; ++i) {
                 //     sum += coeffs_[i] * delay_left_.GetAfterPush(i * num_notch);
                 // }
-                Vec4 current_delay;
+                SimdType current_delay;
                 current_delay.x[0] = 0;
-                current_delay.x[1] = num_notch;
-                current_delay.x[2] = num_notch * 2;
-                current_delay.x[3] = num_notch * 3;
-                Vec4 delay_inc = Vec4::FromSingle(num_notch * 4);
-                Vec4 temp_vec = Vec4::FromSingle(wpos + delay_left_.delay_length_);
+                current_delay.x[1] = left_num_notch;
+                current_delay.x[2] = left_num_notch * 2;
+                current_delay.x[3] = left_num_notch * 3;
+                SimdType delay_inc = SimdType::FromSingle(left_num_notch * 4);
                 auto coeff_it = coeffs_.data();
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    Vec4 taps_out = delay_left_.GetRaw(temp_vec - current_delay);
+                    SimdType taps_out = delay_left_.GetAfterPush(current_delay);
                     current_delay += delay_inc;
-                    Vec4 vec_coeffs;
+                    SimdType vec_coeffs;
                     vec_coeffs.x[0] = *coeff_it++;
                     vec_coeffs.x[1] = *coeff_it++;
                     vec_coeffs.x[2] = *coeff_it++;
                     vec_coeffs.x[3] = *coeff_it++;
                     taps_out *= vec_coeffs;
-                    sum += taps_out.x[0];
-                    sum += taps_out.x[1];
-                    sum += taps_out.x[2];
-                    sum += taps_out.x[3];
+                    left_sum += taps_out.x[0];
+                    left_sum += taps_out.x[1];
+                    left_sum += taps_out.x[2];
+                    left_sum += taps_out.x[3];
                 }
-                ++wpos;
-                wpos &= mask;
-    
-                left_fb_ = left_damp_.Tick(sum);
-                *left_ptr = sum;
-                ++left_ptr;
-            }
-            delay_left_.wpos_ = wpos;
 
-            delay_right_.PushBlockNotChangeWpos({right_ptr, num_process});
-            wpos = delay_right_.wpos_;
-            for (size_t i = 0; i < num_process; ++i) {
-                // delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
-                delay_right_.buffer_[wpos] += right_fb_ * feedback_mul_;
-
-                {
-                    __m128 first4 = _mm_load_ps(&delay_right_.buffer_[0]);
-                    _mm_store_ps(&delay_right_.buffer_[delay_right_.delay_length_], first4);
-                }
-    
-                float sum = 0;
-                float const num_notch = right_delay_smoother_.Tick();
+                float right_sum = 0;
+                float const right_num_notch = curr_num_notch.x[1];
                 // for (size_t i = 0; i < coeff_len_; ++i) {
                 //     sum += coeffs_[i] * delay_right_.GetAfterPush(i * num_notch);
                 // }
-                Vec4 current_delay;
                 current_delay.x[0] = 0;
-                current_delay.x[1] = num_notch;
-                current_delay.x[2] = num_notch * 2;
-                current_delay.x[3] = num_notch * 3;
-                Vec4 delay_inc = Vec4::FromSingle(num_notch * 4);
-                Vec4 temp_vec = Vec4::FromSingle(wpos + delay_left_.delay_length_);
-                auto coeff_it = coeffs_.data();
+                current_delay.x[1] = right_num_notch;
+                current_delay.x[2] = right_num_notch * 2;
+                current_delay.x[3] = right_num_notch * 3;
+                delay_inc = SimdType::FromSingle(right_num_notch * 4);
+                coeff_it = coeffs_.data();
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    Vec4 taps_out = delay_right_.GetRaw(temp_vec - current_delay);
+                    SimdType taps_out = delay_right_.GetAfterPush(current_delay);
                     current_delay += delay_inc;
-                    Vec4 vec_coeffs;
+                    SimdType vec_coeffs;
                     vec_coeffs.x[0] = *coeff_it++;
                     vec_coeffs.x[1] = *coeff_it++;
                     vec_coeffs.x[2] = *coeff_it++;
                     vec_coeffs.x[3] = *coeff_it++;
                     taps_out *= vec_coeffs;
-                    sum += taps_out.x[0];
-                    sum += taps_out.x[1];
-                    sum += taps_out.x[2];
-                    sum += taps_out.x[3];
+                    right_sum += taps_out.x[0];
+                    right_sum += taps_out.x[1];
+                    right_sum += taps_out.x[2];
+                    right_sum += taps_out.x[3];
                 }
-                ++wpos;
-                wpos &= mask;
-    
-                right_fb_ = right_damp_.Tick(sum);
-                *right_ptr = sum;
+
+                SimdType damp_x;
+                damp_x.x[0] = left_sum;
+                damp_x.x[1] = right_sum;
+                damp_x = damp_.TickLowpass(damp_x, SimdType::FromSingle(curr_damp_coeff));
+                left_fb_ = damp_x.x[0];
+                right_fb_ = damp_x.x[1];
+                *left_ptr = damp_x.x[0];
+                ++left_ptr;
+                *right_ptr = damp_x.x[1];
                 ++right_ptr;
             }
-            delay_right_.wpos_ = wpos;
         }
         else {
-            delay_left_.PushBlockNotChangeWpos({left_ptr, num_process});
-            delay_right_.PushBlockNotChangeWpos({right_ptr, num_process});
-            size_t wpos = delay_left_.wpos_;
-            size_t const mask = delay_left_.mask_;
-            for (size_t i = 0; i < num_process; ++i) {
-                // delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
-                // delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
-                delay_left_.buffer_[wpos] += left_fb_ * feedback_mul_;
-                delay_right_.buffer_[wpos] += right_fb_ * feedback_mul_;
+            for (size_t j = 0; j < num_process; ++j) {
+                curr_damp_coeff += delta_damp_coeff;
+                curr_num_notch += delta_num_notch;
+                delay_left_.Push(*left_ptr + left_fb_ * feedback_mul_);
+                delay_right_.Push(*right_ptr + right_fb_ * feedback_mul_);
 
-                {
-                    __m128 first4 = _mm_load_ps(&delay_left_.buffer_[0]);
-                    _mm_store_ps(&delay_left_.buffer_[delay_left_.delay_length_], first4);
-                    first4 = _mm_load_ps(&delay_right_.buffer_[0]);
-                    _mm_store_ps(&delay_right_.buffer_[delay_right_.delay_length_], first4);
-                }
-
-                float const left_num_notch = left_delay_smoother_.Tick();
-                float const right_num_notch = right_delay_smoother_.Tick();
-                Vec4 left_current_delay;
-                Vec4 right_current_delay;
+                float const left_num_notch = curr_num_notch.x[0];
+                float const right_num_notch = curr_num_notch.x[1];
+                SimdType left_current_delay;
+                SimdType right_current_delay;
                 left_current_delay.x[0] = 0;
                 left_current_delay.x[1] = left_num_notch;
                 left_current_delay.x[2] = left_num_notch * 2;
@@ -572,8 +541,8 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 right_current_delay.x[1] = right_num_notch;
                 right_current_delay.x[2] = right_num_notch * 2;
                 right_current_delay.x[3] = right_num_notch * 3;
-                Vec4 left_delay_inc = Vec4::FromSingle(left_num_notch * 4);
-                Vec4 right_delay_inc = Vec4::FromSingle(right_num_notch * 4);
+                SimdType left_delay_inc = SimdType::FromSingle(left_num_notch * 4);
+                SimdType right_delay_inc = SimdType::FromSingle(right_num_notch * 4);
 
                 // auto const left_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
                 // auto const right_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
@@ -625,21 +594,20 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 float right_re_sum = 0;
                 float right_im_sum = 0;
                 auto coeff_it = coeffs_.data();
-                Vec4 temp_vec = Vec4::FromSingle(wpos + delay_left_.delay_length_);
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    Vec4 left_taps_out = delay_left_.GetRaw(temp_vec - left_current_delay);
-                    Vec4 right_taps_out = delay_right_.GetRaw(temp_vec - right_current_delay);
+                    SimdType left_taps_out = delay_left_.GetAfterPush(left_current_delay);
+                    SimdType right_taps_out = delay_right_.GetAfterPush(right_current_delay);
                     left_current_delay += left_delay_inc;
                     right_current_delay += right_delay_inc;
 
-                    Vec4 vec_coeffs;
+                    SimdType vec_coeffs;
                     vec_coeffs.x[0] = *coeff_it++;
                     vec_coeffs.x[1] = *coeff_it++;
                     vec_coeffs.x[2] = *coeff_it++;
                     vec_coeffs.x[3] = *coeff_it++;
 
                     left_taps_out *= vec_coeffs;
-                    Vec4 temp = left_taps_out * left_rotation_coeff.re;
+                    SimdType temp = left_taps_out * left_rotation_coeff.re;
                     left_re_sum += temp.x[0];
                     left_re_sum += temp.x[1];
                     left_re_sum += temp.x[2];
@@ -665,22 +633,23 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     left_rotation_coeff *= left_rotation_mul;
                     right_rotation_coeff *= right_rotation_mul;
                 }
-                ++wpos;
-                wpos &= mask;
                 
-                // 为什么这个不能只统计RE进行实数滤波，明明APF都是实数没有复数系数desu
-                float const left_out = left_hilbert_.Tick({left_re_sum, left_im_sum}).real();
-                float const right_out = right_hilbert_.Tick({right_re_sum, right_im_sum}).real();
-                left_fb_ = left_damp_.Tick(left_out);
-                right_fb_ = right_damp_.Tick(right_out);
-                *left_ptr = left_out;
-                *right_ptr = right_out;
+                SimdType remove_positive_spectrum = hilbert_complex_.Tick(SimdType{
+                    left_re_sum, left_im_sum, right_re_sum, right_im_sum
+                });
+                // this will mirror the positive spectrum to negative domain, forming a real value signal
+                SimdType damp_x = remove_positive_spectrum.Shuffle<0, 2, 1, 3>();
+                damp_x = damp_.TickLowpass(damp_x, SimdType::FromSingle(curr_damp_coeff));
+                left_fb_ = damp_x.x[0];
+                right_fb_ = damp_x.x[1];
+                *left_ptr = damp_x.x[0];
+                *right_ptr = damp_x.x[1];
                 ++left_ptr;
                 ++right_ptr;
             }
-            delay_left_.wpos_ = wpos;
-            delay_right_.wpos_ = wpos;
         }
+        last_delay_samples_ = last_exp_delay_samples_;
+        last_damp_lowpass_coeff_ = damp_lowpass_coeff_;
     }
     barber_osc_keep_amp_counter_ += len;
     [[unlikely]]
@@ -868,8 +837,7 @@ void SteepFlangerAudioProcessor::Panic() {
     right_fb_ = 0;
     delay_left_.Reset();
     delay_right_.Reset();
-    left_hilbert_.Reset();
-    right_hilbert_.Reset();
+    hilbert_complex_.Reset();
 }
 
 
