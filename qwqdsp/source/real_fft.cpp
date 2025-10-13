@@ -189,6 +189,7 @@ RealFFT::~RealFFT() = default;
 void RealFFT::Init(size_t fft_size) {
     fft_->Init(fft_size);
     buffer_.resize(fft_size + 2);
+    fft_size_ = fft_size;
 }
 
 void RealFFT::FFT(std::span<const float> time, std::span<std::complex<float>> spectral) noexcept {

@@ -331,6 +331,7 @@ void ComplexFFT::Init(size_t fft_size) {
     imag_buffer_.resize(fft_size);
     src_imag_buffer_.resize(fft_size);
     src_real_buffer_.resize(fft_size);
+    fft_size_ = fft_size;
 }
 
 
