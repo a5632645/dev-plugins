@@ -513,13 +513,13 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 SimdType damp_x;
                 damp_x.x[0] = left_sum;
                 damp_x.x[1] = right_sum;
+                *left_ptr = left_sum;
+                *right_ptr = right_sum;
+                ++left_ptr;
+                ++right_ptr;
                 damp_x = damp_.TickLowpass(damp_x, SimdType::FromSingle(curr_damp_coeff));
                 left_fb_ = damp_x.x[0];
                 right_fb_ = damp_x.x[1];
-                *left_ptr = damp_x.x[0];
-                ++left_ptr;
-                *right_ptr = damp_x.x[1];
-                ++right_ptr;
             }
         }
         else {
@@ -639,13 +639,13 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 });
                 // this will mirror the positive spectrum to negative domain, forming a real value signal
                 SimdType damp_x = remove_positive_spectrum.Shuffle<0, 2, 1, 3>();
-                damp_x = damp_.TickLowpass(damp_x, SimdType::FromSingle(curr_damp_coeff));
-                left_fb_ = damp_x.x[0];
-                right_fb_ = damp_x.x[1];
                 *left_ptr = damp_x.x[0];
                 *right_ptr = damp_x.x[1];
                 ++left_ptr;
                 ++right_ptr;
+                damp_x = damp_.TickLowpass(damp_x, SimdType::FromSingle(curr_damp_coeff));
+                left_fb_ = damp_x.x[0];
+                right_fb_ = damp_x.x[1];
             }
         }
         last_delay_samples_ = last_exp_delay_samples_;
