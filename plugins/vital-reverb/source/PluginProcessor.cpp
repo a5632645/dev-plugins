@@ -1,23 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-namespace simplereverb{
-// this copy from https://github.com/mtytel/vital/blob/main/src/synthesis/effects/reverb.cpp
-constexpr float kFeedbackDelays[16] = {
-    6753.2f, 9278.4f, 7704.5f, 11328.5f,
-    9701.12f, 5512.5f, 8480.45f, 5638.65f,
-    3120.73f, 3429.5f, 3626.37f, 7713.52f,
-    4521.54f, 6518.97f, 5265.56f, 5630.25,
-};
-
-static constexpr void SingleScalar(float& a, float& b) noexcept {
-    constexpr float g = std::numbers::sqrt2_v<float> / 2;
-    float const t = a + b;
-    b = (b - a) * g;
-    a = t * g;
-}
-}
-
 //==============================================================================
 SimpleReverbAudioProcessor::SimpleReverbAudioProcessor()
      : AudioProcessor (BusesProperties()
@@ -31,6 +14,88 @@ SimpleReverbAudioProcessor::SimpleReverbAudioProcessor()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            "chorus amount",
+            "chorus amount",
+            0.0f, 1.0f, 0.05f
+        );
+        param_chorus_amount_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            "chorus freq",
+            "chorus freq",
+            juce::NormalisableRange<float>{0.003f, 8.0f, 0.001f, 0.4f},
+            0.25f
+        );
+        param_chorus_freq_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            "mix",
+            "mix",
+            0.0f, 1.0f, 0.25f
+        );
+        param_wet_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            "pre lowpass",
+            "pre lowpass",
+            0.0f, 130.0f, 0.0f
+        );
+        param_pre_lowpass_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            "pre highpass",
+            "pre highpass",
+            0.0f, 130.0f, 110.0f
+        );
+        param_pre_highpass_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            "low damp",
+            "low damp",
+            0.0f, 130.0f, 0.0f
+        );
+        param_low_damp_pitch_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            "high damp",
+            "high damp",
+            0.0f, 130.0f, 90.0f
+        );
+        param_high_damp_pitch_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            "low gain",
+            "low gain",
+            -6.0f, 0.0f, 0.0f
+        );
+        param_low_damp_db_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            "high gain",
+            "high gain",
+            -6.0f, 0.0f, -1.0f
+        );
+        param_high_damp_db_ = p.get();
+        layout.add(std::move(p));
+    }
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
             "size",
@@ -47,25 +112,17 @@ SimpleReverbAudioProcessor::SimpleReverbAudioProcessor()
             juce::NormalisableRange<float>{15.0f, 64000.0f, 1.0f, 0.4f},
             1000.0f
         );
-        param_decay_ = p.get();
+        param_decay_ms_ = p.get();
         layout.add(std::move(p));
     }
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
-            "damp",
-            "damp",
-            100, 140, 130
+            "predelay",
+            "predelay",
+            juce::NormalisableRange<float>{0.0f, 300.0f, 1.0f, 0.4f},
+            0.0f
         );
-        param_damp_pitch_ = p.get();
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "gain",
-            "gain",
-            -10.0f, 0.0f, -6.01f
-        );
-        param_damp_gain_ = p.get();
+        param_predelay_ = p.get();
         layout.add(std::move(p));
     }
 
@@ -145,9 +202,7 @@ void SimpleReverbAudioProcessor::changeProgramName (int index, const juce::Strin
 //==============================================================================
 void SimpleReverbAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    delay_.Init(65536);
-    delay_.Reset();
-    damp_.Reset();
+    dsp_.Init(static_cast<float>(sampleRate));
     param_listener_.CallAll();
 }
 
@@ -186,60 +241,57 @@ void SimpleReverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 {
     juce::ScopedNoDenormals noDenormals;
 
-    size_t const num_samples = buffer.getNumSamples();
+    size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
     float* left_ptr = buffer.getWritePointer(0);
     float* right_ptr = buffer.getWritePointer(1);
 
-    float const fs_ratio = getSampleRate() / 44100.0f;
-    float const size_mul = std::exp2(4 * param_size_->get() + -3) * fs_ratio;
-    std::array<float, 16> delay_samples;
-    for (size_t i = 0; i < 16; ++i) {
-        delay_samples[i] = simplereverb::kFeedbackDelays[i] * size_mul;
-    }
+    dsp_.chorus_amount = param_chorus_amount_->get();
+    dsp_.chorus_freq = param_chorus_freq_->get();
+    dsp_.wet = param_wet_->get();
+    dsp_.pre_lowpass = param_pre_lowpass_->get();
+    dsp_.pre_highpass = param_pre_highpass_->get();
+    dsp_.low_damp_pitch = param_low_damp_pitch_->get();
+    dsp_.high_damp_pitch = param_high_damp_pitch_->get();
+    dsp_.low_damp_db = param_low_damp_db_->get();
+    dsp_.high_damp_db = param_high_damp_db_->get();
+    dsp_.size = param_size_->get();
+    dsp_.decay_ms = param_decay_ms_->get();
+    dsp_.pre_delay = param_predelay_->get();
 
-    std::array<float, 16> decays;
-    float const decay_period = 1000.0f / (param_decay_->get() * getSampleRate());
-    for (size_t i = 0; i < 16; ++i) {
-        decays[i] = std::pow(1e-3f, delay_samples[i] * decay_period);
-    }
+    std::array<SimdType, 512> temp_in;
+    std::array<SimdType, 512> temp_out;
 
-    damp_.SetFrequency(
-        qwqdsp::convert::Pitch2Freq(param_damp_pitch_->get()) * std::numbers::pi_v<float> * 2 / getSampleRate(),
-        param_damp_gain_->get()
-    );
+    size_t offset = 0;
+    while (offset != num_samples) {
+        size_t const cando = std::min(512ull, num_samples - offset);
 
-    for (size_t i = 0; i < num_samples; ++i) {
-        float const x = left_ptr[i] * 0.25f;
-        auto delay_out = delay_.GetBeforePush(delay_samples);
-        for (size_t j = 0; j < 16; ++j) {
-            delay_out[j] = x + delay_out[j] * decays[j];
+        // shuffle
+        for (size_t j = 0; j < cando; ++j) {
+            temp_in[j].x[0] = *left_ptr;
+            temp_in[j].x[1] = *right_ptr;
+            temp_in[j].x[2] = *left_ptr;
+            temp_in[j].x[3] = *right_ptr;
+            ++left_ptr;
+            ++right_ptr;
         }
-        damp_.Tick(delay_out);
 
-        simplereverb::SingleScalar(delay_out[0], delay_out[1]);
-        simplereverb::SingleScalar(delay_out[2], delay_out[3]);
-        simplereverb::SingleScalar(delay_out[4], delay_out[5]);
-        simplereverb::SingleScalar(delay_out[6], delay_out[7]);
-        simplereverb::SingleScalar(delay_out[8], delay_out[9]);
-        simplereverb::SingleScalar(delay_out[10], delay_out[11]);
-        simplereverb::SingleScalar(delay_out[12], delay_out[13]);
-        simplereverb::SingleScalar(delay_out[14], delay_out[15]);
-        
-        simplereverb::SingleScalar(delay_out[1], delay_out[2]);
-        simplereverb::SingleScalar(delay_out[3], delay_out[4]);
-        simplereverb::SingleScalar(delay_out[5], delay_out[6]);
-        simplereverb::SingleScalar(delay_out[7], delay_out[8]);
-        simplereverb::SingleScalar(delay_out[9], delay_out[10]);
-        simplereverb::SingleScalar(delay_out[11], delay_out[12]);
-        simplereverb::SingleScalar(delay_out[13], delay_out[14]);
-        simplereverb::SingleScalar(delay_out[15], delay_out[0]);
+        dsp_.Process({temp_in.data(), cando}, {temp_out.data(), cando});
 
-        delay_.Push(delay_out);
+        // shuffle back
+        left_ptr -= cando;
+        right_ptr -= cando;
+        for (size_t j = 0; j < cando; ++j) {
+            SimdType t = temp_out[j];
+            *left_ptr = t.x[0] + t.x[2];
+            *right_ptr = t.x[1] + t.x[3];
+            jassert(!std::isnan(*left_ptr));
+            jassert(!std::isnan(*right_ptr));
+            ++left_ptr;
+            ++right_ptr;
+        }
 
-        left_ptr[i] = std::accumulate(delay_out.begin(), delay_out.end(), 0.0f);
+        offset += cando;
     }
-
-    std::copy_n(left_ptr, num_samples, right_ptr);
 }
 
 //==============================================================================
@@ -250,8 +302,8 @@ bool SimpleReverbAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* SimpleReverbAudioProcessor::createEditor()
 {
-    // return new SimpleReverbAudioProcessorEditor (*this);
-    return new juce::GenericAudioProcessorEditor(*this);
+    return new SimpleReverbAudioProcessorEditor (*this);
+    // return new juce::GenericAudioProcessorEditor(*this);
 }
 
 //==============================================================================

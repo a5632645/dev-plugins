@@ -127,6 +127,24 @@ struct alignas(16) Vec4f32 {
         };
     }
 
+    static constexpr Vec4f32 Min(Vec4f32 const& a, Vec4f32 const& b) noexcept {
+        return {
+            a.x[0] < b.x[0] ? a.x[0] : b.x[0],
+            a.x[1] < b.x[1] ? a.x[1] : b.x[1],
+            a.x[2] < b.x[2] ? a.x[2] : b.x[2],
+            a.x[3] < b.x[3] ? a.x[3] : b.x[3]
+        };
+    }
+
+    static constexpr Vec4f32 Max(Vec4f32 const& a, Vec4f32 const& b) noexcept {
+        return {
+            a.x[0] > b.x[0] ? a.x[0] : b.x[0],
+            a.x[1] > b.x[1] ? a.x[1] : b.x[1],
+            a.x[2] > b.x[2] ? a.x[2] : b.x[2],
+            a.x[3] > b.x[3] ? a.x[3] : b.x[3]
+        };
+    }
+
     static constexpr Vec4f32 Cross(float left, float right) noexcept {
         return Vec4f32{
             left,
@@ -250,12 +268,13 @@ struct alignas(16) Vec4f32 {
         return x[0] + x[1] + x[2] + x[3];
     }
 
-    constexpr Vec4f32& FMA(const Vec4f32& mul, const Vec4f32& add) noexcept {
-        x[0] = x[0] * mul.x[0] + add.x[0];
-        x[1] = x[1] * mul.x[1] + add.x[1];
-        x[2] = x[2] * mul.x[2] + add.x[2];
-        x[3] = x[3] * mul.x[3] + add.x[3];
-        return *this;
+    static constexpr Vec4f32 FMA(const Vec4f32& mula, const Vec4f32& mulb, const Vec4f32& add) noexcept {
+        return Vec4f32{
+            mula.x[0] * mulb.x[0] + add.x[0],
+            mula.x[1] * mulb.x[1] + add.x[1],
+            mula.x[2] * mulb.x[2] + add.x[2],
+            mula.x[3] * mulb.x[3] + add.x[3]
+        };
     }
 };
 
