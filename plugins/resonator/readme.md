@@ -8,10 +8,7 @@ midi control pitch
 couple matrix  
 
 ## todo
--[ ]optimise cpu  
--[ ]thrian interpolation for delayline  
 -[ ]correct delayline pitches  
--[ ]stereo channel processing  
 
 ## gui
 ![GUI](gui.png)

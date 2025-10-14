@@ -25,7 +25,7 @@ public:
         }
     }
 
-    static SimdType ComputeCoeffs(SimdType w) noexcept {
+    static SimdType ComputeCoeffs(SimdType const& w) noexcept {
         SimdType r;
         for (size_t i = 0; i < SimdType::kSize; ++i) {
             r.x[i] = ComputeCoeff(w.x[i]);
@@ -33,7 +33,7 @@ public:
         return r;
     }
 
-    SimdType TickLowpass(SimdType x, SimdType coeff) noexcept {
+    SimdType TickLowpass(SimdType const& x, SimdType const& coeff) noexcept {
         SimdType delta = coeff * (x - lag_);
         lag_ += delta;
         SimdType y = lag_;
@@ -41,12 +41,17 @@ public:
         return y;
     }
 
-    SimdType TickHighpass(SimdType x, SimdType coeff) noexcept {
+    SimdType TickHighpass(SimdType const& x, SimdType const& coeff) noexcept {
         SimdType delta = coeff * (x - lag_);
         lag_ += delta;
         SimdType y = lag_;
         lag_ += delta;
         return x - y;
+    }
+
+    SimdType TickHighshelf(SimdType const& x, SimdType const& coeff, SimdType const& gain) noexcept {
+        SimdType lp = TickLowpass(x, coeff);
+        return lp + gain * (x - lp);
     }
 private:
     SimdType lag_{};

@@ -10,7 +10,7 @@ originally here lived green vocoder repository.
 [dispersive-delay](plugins/dispersive-delay/readme.md) is a spectal-delay-like delay using tons of cascade allpass filters.(require AVX or AVX2(faster))  
 ![GUI](plugins/dispersive-delay/gui.png)
 ---
-[resonator](plugins/resonator/readme.md) is a resonator with allpass dispersion and simple couple matrix.(only left channel now)  
+[resonator](plugins/resonator/readme.md) is a resonator with allpass dispersion and simple couple matrix.  
 ![GUI](plugins/resonator/gui.png)
 ---
 [vital-chorus](plugins/vital-chorus/readme.md) chours made according to Vital's code.  

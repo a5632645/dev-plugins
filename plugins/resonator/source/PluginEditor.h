@@ -54,13 +54,14 @@ private:
     ResonatorGUI r6_;
     ResonatorGUI r7_;
 
-    ui::Dial reflection0_{"couple"};
-    ui::Dial reflection1_{"couple"};
-    ui::Dial reflection2_{"couple"};
-    ui::Dial reflection3_{"couple"};
-    ui::Dial reflection4_{"couple"};
-    ui::Dial reflection5_{"couple"};
-    ui::Dial reflection6_{"couple"};
+    ui::Dial reflection0_{"couple0"};
+    ui::Dial reflection1_{"couple1"};
+    ui::Dial reflection2_{"couple2"};
+    ui::Dial reflection3_{"couple3"};
+    ui::Dial reflection4_{"couple4"};
+    ui::Dial reflection5_{"couple5"};
+    ui::Dial reflection6_{"couple6"};
+    ui::Dial reflection7_{"couple7"};
 
     juce::Label midi_title_{"", "midi"};
     ui::Switch midi_drive_{"midi"};

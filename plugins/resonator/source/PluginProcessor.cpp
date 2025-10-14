@@ -100,7 +100,7 @@ ResonatorAudioProcessor::ResonatorAudioProcessor()
         });
         layout.add(std::move(p));
     }
-    for (size_t i = 0; i < ScatterMatrix::kNumReflections; ++i) {
+    for (size_t i = 0; i < kNumResonators; ++i) {
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::String{"reflection"} + juce::String{i},
             juce::String{"reflection"} + juce::String{i},
@@ -170,8 +170,7 @@ ResonatorAudioProcessor::ResonatorAudioProcessor()
     }
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
-
-    input_volume_.fill(1);
+    dsp_.TrunOnAllInput(1);
 }
 
 ResonatorAudioProcessor::~ResonatorAudioProcessor()
@@ -247,13 +246,8 @@ void ResonatorAudioProcessor::changeProgramName (int index, const juce::String& 
 //==============================================================================
 void ResonatorAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    damp_.Reset();
-    delay_.Init(sampleRate, 0.0f);
-    delay_.Reset();
-    dispersion_.Reset();
-    for (auto& v : frac_delay_) {
-        v.Reset();
-    }
+    dsp_.Init(static_cast<float>(sampleRate), 0.0f);
+    dsp_.Reset();
 }
 
 void ResonatorAudioProcessor::releaseResources()
@@ -296,57 +290,24 @@ void ResonatorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         was_midi_drive_ = midi_drive;
         if (midi_drive) {
             note_manager_.initializeVoices();
-            input_volume_.fill(0);
+            dsp_.TrunOnAllInput(0);
         }
         else {
-            input_volume_.fill(1);
+            dsp_.TrunOnAllInput(1);
         }
     }
 
-    // output mix volumes
     for (size_t i = 0; i < kNumResonators; ++i) {
-        float const db = mix_volume_[i]->get();
-        if (db < -60.0f) {
-            mix_[i] = 0;
-        }
-        else {
-            mix_[i] = qwqdsp::convert::Db2Gain(db);
-        }
+        dsp_.polarity[i] = polarity_[i]->get();
+        dsp_.dispersion[i] = dispersion_pole_radius_[i]->get();
+        dsp_.decay_ms[i] = decays_[i]->get();
+        dsp_.damp_pitch[i] = damp_pitch_[i]->get();
+        dsp_.damp_gain_db[i] = damp_gain_db_[i]->get();
+        dsp_.mix_db[i] = mix_volume_[i]->get();
+        dsp_.dry = dry_mix_->get();
+        dsp_.norm_reflections[i] = matrix_reflections_[i]->get();
     }
-
-    // update scatter matrix
-    for (size_t i = 0; i < ScatterMatrix::kNumReflections; ++i) {
-        reflections_[i] = matrix_reflections_[i]->get() * std::numbers::pi_v<float>;
-    }
-
-    // update damp filter
-    std::array<float, kNumResonators> damp_w;
-    std::array<float, kNumResonators> damp_db;
-    for (size_t i = 0; i < kNumResonators; ++i) {
-        float const freq = qwqdsp::convert::Pitch2Freq(damp_pitch_[i]->get());
-        damp_w[i] = freq * std::numbers::pi_v<float> * 2 / getSampleRate();
-        damp_db[i] = damp_gain_db_[i]->get();
-    }
-    damp_.SetFrequency(damp_w, damp_db);
-
-    // update decays
-    for (size_t i = 0; i < kNumResonators; ++i) {
-        float const decay_ms = decays_[i]->get();
-        if (decay_ms > 0.5f) {
-            float const mul = -3.0f * delay_samples_[i] / (getSampleRate() * decay_ms / 1000.0f);
-            feedbacks_[i] = std::pow(10.0f, mul);
-            feedbacks_[i] = std::min(feedbacks_[i], 1.0f);
-        }
-        else {
-            feedbacks_[i] = 0;
-        }
-
-        if (polarity_[i]->get()) {
-            feedbacks_[i] = -feedbacks_[i];
-        }
-    }
-
-    dry_volume_ = dry_mix_->get();
+    dsp_.UpdateBasicParams();
 
     if (was_midi_drive_) {
         ProcessMidi(buffer, midiMessages);
@@ -399,78 +360,21 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 
 
 void ResonatorAudioProcessor::ProcessCommon(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&) {
-    size_t const num_samples = buffer.getNumSamples();
+    size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
     float* left_ptr = buffer.getWritePointer(0);
     float* right_ptr = buffer.getWritePointer(1);
 
-    std::array<float, kNumResonators> pole_radius;
     for (size_t i = 0; i < kNumResonators; ++i) {
-        pole_radius[i] = dispersion_pole_radius_[i]->get();
+        dsp_.pitches[i] = pitches_[i]->get();
+        dsp_.fine_tune[i] = fine_tune_[i]->get();
     }
+    dsp_.UpdateAllPitches();
 
-    // update delaylines
-    std::array<float, kNumResonators> omegas;
-    std::array<float, kNumResonators> allpass_set_delay;
-    for (size_t i = 0; i < kNumResonators; ++i) {
-        float pitch = pitches_[i]->get() + fine_tune_[i]->get() / 100.0f;
-        if (polarity_[i]->get()) {
-            pitch += 12;
-        }
-        float const freq = qwqdsp::convert::Pitch2Freq(pitch);
-        omegas[i] = freq * std::numbers::pi_v<float> / getSampleRate();
-        delay_samples_[i] = getSampleRate() / freq;
-        allpass_set_delay[i] = delay_samples_[i] * pole_radius[i] / (ThrianDispersion::kNumAPF + 0.1f);
-    }
-
-    // update allpass filters
-    auto allpass_delay = dispersion_.SetFilter(allpass_set_delay, omegas);
-
-    // remove allpass delays
-    for (size_t i = 0; i < kNumResonators; ++i) {
-        delay_samples_[i] -= allpass_delay[i];
-        delay_samples_[i] = std::max(delay_samples_[i], 0.0f);
-    }
-
-    // process frac delays
-    for (size_t i = 0; i < kNumResonators; ++i) {
-        delay_samples_[i] = frac_delay_[i].SetDelay(delay_samples_[i]);
-    }
-
-    // processing
-    ProcessDSP(left_ptr, num_samples);
-
-    std::copy_n(left_ptr, num_samples, right_ptr);
-}
-
-void ResonatorAudioProcessor::ProcessDSP(float* ptr, size_t len) {
-    // processing
-    for (size_t i = 0; i < len; ++i) {
-        float out = dry_volume_ * ptr[i];
-        for (size_t j = 0; j < kNumResonators; ++j) {
-            out += fb_values_[j] * mix_[j];
-        }
-
-        for (size_t j = 0; j < kNumResonators; ++j) {
-            fb_values_[j] += input_volume_[j] * ptr[i];
-        }
-
-        delay_.Tick(fb_values_, delay_samples_);
-        for (size_t i = 0; i < kNumResonators; ++i) {
-            fb_values_[i] = frac_delay_[i].Tick(fb_values_[i]);
-        }
-        dispersion_.Tick(fb_values_);
-        damp_.Tick(fb_values_);
-        matrix_.Tick(fb_values_, reflections_);
-        for (size_t j = 0; j < kNumResonators; ++j) {
-            fb_values_[j] *= feedbacks_[j];
-        }
-
-        ptr[i] = out;
-    }
+    dsp_.Process(left_ptr, right_ptr, num_samples);
 }
 
 void ResonatorAudioProcessor::ProcessMidi(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi_buffer) {
-    size_t const num_samples = buffer.getNumSamples();
+    size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
     float* left_ptr = buffer.getWritePointer(0);
     float* right_ptr = buffer.getWritePointer(1);
 
@@ -478,41 +382,19 @@ void ResonatorAudioProcessor::ProcessMidi(juce::AudioBuffer<float>& buffer, juce
     for (auto midi : midi_buffer) {
         auto message = midi.getMessage();
         if (message.isNoteOnOrOff()) {
-            ProcessDSP(left_ptr + buffer_pos, midi.samplePosition - buffer_pos);
+            dsp_.Process(left_ptr + buffer_pos, right_ptr + buffer_pos, midi.samplePosition - buffer_pos);
             buffer_pos = midi.samplePosition;
 
             if (message.isNoteOn()) {
-                int resonator_idx = note_manager_.noteOn(message.getNoteNumber(), allow_round_robin_->get());
-                float pitch = message.getNoteNumber() + fine_tune_[resonator_idx]->get() / 100.0f;
-                if (polarity_[resonator_idx]->get()) {
-                    pitch += 12;
-                }
-                float const freq = qwqdsp::convert::Pitch2Freq(pitch);
-                float const omega = freq * std::numbers::pi_v<float> / getSampleRate();
-                float const delay_samples = getSampleRate() / freq;
-                float const allpass_set_delay = delay_samples * dispersion_pole_radius_[resonator_idx]->get() / (ThrianDispersion::kNumAPF + 0.1f);
-
-                // update allpass filters
-                float const allpass_delay = dispersion_.SetSingleFilter(resonator_idx, allpass_set_delay, omega);
-
-                // remove allpass delays
-                delay_samples_[resonator_idx] = delay_samples - allpass_delay;
-                delay_samples_[resonator_idx] = std::max(delay_samples_[resonator_idx], 0.0f);
-
-                // frac delay
-                delay_samples_[resonator_idx] = frac_delay_[resonator_idx].SetDelay(delay_samples_[resonator_idx]);
-
-                // addition input volume
-                input_volume_[resonator_idx] = message.getFloatVelocity();
+                size_t resonator_idx = note_manager_.noteOn(message.getNoteNumber(), allow_round_robin_->get());
+                dsp_.NoteOn(resonator_idx, message.getNoteNumber(), message.getFloatVelocity());
             }
             else {
                 int resonator_idx = note_manager_.noteOff(message.getNoteNumber());
-                // just mute
-                input_volume_[resonator_idx] = 0;
+                dsp_.Noteoff(resonator_idx);
             }
         }
     }
-    ProcessDSP(left_ptr + buffer_pos, num_samples - buffer_pos);
 
-    std::copy_n(left_ptr, num_samples, right_ptr);
+    dsp_.Process(left_ptr + buffer_pos, right_ptr + buffer_pos, num_samples - buffer_pos);
 }

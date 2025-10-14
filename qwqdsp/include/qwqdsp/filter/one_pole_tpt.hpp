@@ -31,6 +31,19 @@ public:
         lag_ += delta;
         return y;
     }
+
+    float TickHighpass(float x) noexcept {
+        float const delta = g_ * (x - lag_);
+        lag_ += delta;
+        float const y = lag_;
+        lag_ += delta;
+        return x - y;
+    }
+
+    float TickHighshelf(float x, float gain) noexcept {
+        float lp = Tick(x);
+        return lp + gain * (x - lp);
+    }
 private:
     float g_{};
     float lag_{};

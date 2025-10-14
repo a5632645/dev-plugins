@@ -3,20 +3,42 @@
 #include <complex>
 
 #include "qwqdsp/convert.hpp"
-#include "qwqdsp/filter/one_pole.hpp"
+#include "qwqdsp/filter/one_pole_tpt_simd.hpp"
+#include "qwqdsp/psimd/vec4.hpp"
 
 static constexpr size_t kNumResonators = 8;
+
+using SimdType = qwqdsp::psimd::Vec4f32;
+using SimdIntType = qwqdsp::psimd::Vec4i32;
+
+static SimdType Sin(SimdType const& w) {
+    return SimdType{
+        std::sin(w.x[0]),
+        std::sin(w.x[1]),
+        std::sin(w.x[2]),
+        std::sin(w.x[3])
+    };
+}
+
+static SimdType Cos(SimdType const& w) {
+    return SimdType{
+        std::cos(w.x[0]),
+        std::cos(w.x[1]),
+        std::cos(w.x[2]),
+        std::cos(w.x[3])
+    };
+}
 
 class ThrianDispersion {
 public:
     static constexpr size_t kNumAPF = 8;
 
     void Reset() noexcept {
-        lag1_.fill(0);
-        lag2_.fill(0);
+        std::ranges::fill(lag1_, SimdType{});
+        std::ranges::fill(lag2_, SimdType{});
     }
 
-    float Tick(float x) noexcept {
+    SimdType Tick(SimdType x) noexcept {
         for (size_t i = 0; i < kNumAPF; ++i) {
             auto y = lag1_[i] + a1_ * (x - lag2_[i]);
             lag1_[i] = x;
@@ -26,107 +48,56 @@ public:
         return x;
     }
 
-    void SetGroupDelay(float delay) noexcept {
+    void SetGroupDelay(SimdType const& delay) noexcept {
+        SimdType temp = (SimdType::FromSingle(1) - delay) / (SimdType::FromSingle(1) + delay);
+        SimdType zero = SimdType::FromSingle(0);
+        a1_ = SimdType{
+            delay.x[0] < 1.0f ? zero.x[0] : temp.x[0],
+            delay.x[1] < 1.0f ? zero.x[1] : temp.x[1],
+            delay.x[2] < 1.0f ? zero.x[2] : temp.x[2],
+            delay.x[3] < 1.0f ? zero.x[3] : temp.x[3]
+        };
+    }
+
+    void SetGroupDelay(size_t idx, float delay) noexcept {
         if (delay < 1.0f) {
-            a1_ = 0.0f;
+            a1_.x[idx] = 0.0f;
         }
         else {
-            a1_ = (1.0f - delay) / (1.0f + delay);
+            a1_.x[idx] = (1.0f - delay) / (1.0f + delay);
         }
     }
 
-    float GetPhaseDelay(float w) const noexcept {
+    SimdType GetPhaseDelay(SimdType const& w) const noexcept {
+        SimdType r;
+        for (size_t i= 0; i < SimdType::kSize; ++i) {
+            auto z = std::polar(1.0f, w.x[i]);
+            auto up = a1_.x[i] * z + 1.0f;
+            auto down = z + a1_.x[i];
+            float phase = std::arg(up / down);
+            r.x[i] = -phase * kNumAPF / w.x[i];
+        }
+        return r;
+    }
+
+    float GetPhaseDelay(size_t idx, float w) const noexcept {
         auto z = std::polar(1.0f, w);
-        auto up = a1_ * z + 1.0f;
-        auto down = z + a1_;
+        auto up = a1_.x[idx] * z + 1.0f;
+        auto down = z + a1_.x[idx];
         float phase = std::arg(up / down);
         return -phase * kNumAPF / w;
     }
 private:
-    float a1_{};
-    std::array<float, kNumAPF> lag1_{};
-    std::array<float, kNumAPF> lag2_{};
-};
-
-// ---------------------------------------- damp one pole low shelfs ----------------------------------------
-class ParalleOnepole {
-public:
-    void Tick(std::array<float, kNumResonators>& x) noexcept {
-        for (size_t i = 0; i < kNumResonators; ++i) {
-            x[i] = damp_[i].Tick(x[i]);
-        }
-    }
-
-    void Reset() noexcept {
-        for (auto& f : damp_) {
-            f.Reset();
-        }
-    }
-
-    void SetFrequency(
-        const std::array<float, kNumResonators>& omega,
-        const std::array<float, kNumResonators>& db
-    ) noexcept {
-        for (size_t i = 0; i < kNumResonators; ++i) {
-            if (omega[i] < std::numbers::pi_v<float> - 1e-5f) {
-                damp_[i].MakeHighShelf(omega[i], qwqdsp::convert::Db2Gain(db[i]));
-            }
-            else {
-                damp_[i].MakePass();
-            }
-        }
-    }
-private:
-    std::array<qwqdsp::filter::OnePoleFilter, kNumResonators> damp_;
-};
-
-// ---------------------------------------- dispersion allpass ----------------------------------------
-class ParalleDispersion {
-public:
-    void Tick(std::array<float, kNumResonators>& x) noexcept {
-        for (size_t i = 0; i < kNumResonators; ++i) {
-            x[i] = dispersions_[i].Tick(x[i]);
-        }
-    }
-
-    void Reset() noexcept {
-        for (auto& f : dispersions_) {
-            f.Reset();
-        }
-    }
-
-    std::array<float, kNumResonators> SetFilter(
-        const std::array<float, kNumResonators>& delay,
-        const std::array<float, kNumResonators>& omega
-    ) noexcept {
-        for (size_t i = 0; i < kNumResonators; ++i) {
-            dispersions_[i].SetGroupDelay(delay[i]);
-        }
-
-        std::array<float, kNumResonators> delays;
-        for (size_t i = 0; i < kNumResonators; ++i) {
-            delays[i] = dispersions_[i].GetPhaseDelay(omega[i]);
-        }
-        return delays;
-    }
-
-    float SetSingleFilter(
-        size_t idx,
-        float delay,
-        float omega
-    ) noexcept {
-        dispersions_[idx].SetGroupDelay(delay);
-        return dispersions_[idx].GetPhaseDelay(omega);
-    }
-private:
-    std::array<ThrianDispersion, kNumResonators> dispersions_;
+    SimdType a1_{};
+    std::array<SimdType, kNumAPF> lag1_{};
+    std::array<SimdType, kNumAPF> lag2_{};
 };
 
 // ---------------------------------------- delays ----------------------------------------
 // one pole all pass filter
 class TunningFilter {
 public:
-    float Tick(float in) noexcept {
+    SimdType Tick(SimdType const& in) noexcept {
         auto v = latch_;
         auto t = in - alpha_ * v;
         latch_ = t;
@@ -134,7 +105,7 @@ public:
     }
 
     void Reset() noexcept {
-        latch_ = 0;
+        latch_ = SimdType{};
     }
     
     /**
@@ -142,10 +113,32 @@ public:
      * @param delay 环路延迟
      * @return 还剩下多少延迟
      */
-    int32_t SetDelay(float delay) noexcept {
+    SimdIntType SetDelay(SimdType const& delay) noexcept {
+        SimdIntType r;
+        for (size_t i = 0; i < SimdType::kSize; ++i) {
+            // thiran delay limit to 0.5 ~ 1.5
+            if (delay.x[i] < 0.5f) {
+                alpha_.x[i] = 0.0f; // equal to one delay
+                r.x[i] = 0;
+            }
+            else {
+                float intergalPart = std::floor(delay.x[i]);
+                float fractionalPart = delay.x[i] - intergalPart;
+                if (fractionalPart < 0.5f) {
+                    fractionalPart += 1.0f;
+                    intergalPart -= 1.0f;
+                }
+                alpha_.x[i] = (1.0f - fractionalPart) / (1.0f + fractionalPart);
+                r.x[i] = static_cast<int>(intergalPart);
+            }
+        }
+        return r;
+    }
+
+    int SetDelay(size_t idx, float delay) noexcept {
         // thiran delay limit to 0.5 ~ 1.5
         if (delay < 0.5f) {
-            alpha_ = 0.0f; // equal to one delay
+            alpha_.x[idx] = 0.0f; // equal to one delay
             return 0;
         }
         else {
@@ -155,18 +148,19 @@ public:
                 fractionalPart += 1.0f;
                 intergalPart -= 1.0f;
             }
-            alpha_ = (1.0f - fractionalPart) / (1.0f + fractionalPart);
-            return static_cast<int32_t>(intergalPart);
+            alpha_.x[idx] = (1.0f - fractionalPart) / (1.0f + fractionalPart);
+            return static_cast<int>(intergalPart);
         }
     }
 private:
-    float latch_{};
-    float alpha_{};
+    SimdType latch_{};
+    SimdType alpha_{};
 };
 
-class ParalleDelay {
+class Resonator {
 public:
     void Init(float fs, float min_pitch) {
+        fs_ = fs;
         float const min_frequency = qwqdsp::convert::Pitch2Freq(min_pitch);
         float const max_seconds = 1.0f / min_frequency;
         size_t const max_samples = static_cast<size_t>(std::ceil(max_seconds * fs));
@@ -175,67 +169,338 @@ public:
         while (a < max_samples) {
             a *= 2;
         }
-        for (auto& v : buffer_) {
+        for (auto& v : delay_buffer_) {
             v.resize(a);
         }
-        mask_ = a - 1;
+        delay_mask_ = a - 1;
     }
 
     void Reset() noexcept {
-        wpos_ = 0;
-        for (auto& v : buffer_) {
-            std::fill(v.begin(), v.end(), 0);
+        delay_wpos_ = 0;
+        for (auto& v : delay_buffer_) {
+            std::ranges::fill(v, SimdType{});
+        }
+        for (auto& v : thrian_interp_) {
+            v.Reset();
+        }
+        for (auto& d : dispersion_) {
+            d.Reset();
+        }
+        for (auto& d : damp_) {
+            d.Reset();
         }
     }
 
-    void Tick(
-        std::array<float, kNumResonators>& x,
-        const std::array<float, kNumResonators>& delays
-    ) noexcept {
-        for (size_t i = 0; i < kNumResonators; ++i) {
-            buffer_[i][wpos_] = x[i];
+    void Process(float* left_ptr, float* right_ptr, size_t len) noexcept {
+        size_t wpos = delay_wpos_;
+        // left processing
+        for (size_t i = 0; i < len; ++i) {
+            // input
+            SimdType output = SimdType::FromSingle(left_ptr[i]);
+            SimdType input_1 = input_volume_[0] * output + fb_values_[0];
+            SimdType input_2 = input_volume_[1] * output + fb_values_[1];
+            output *= SimdType::FromSingle(dry);
+            output += fb_values_[0] * output_volume_[0];
+            output += fb_values_[1] * output_volume_[1];
 
-            size_t rpos = wpos_ + mask_ + 1 - delays[i];
-            rpos &= mask_;
-            x[i] = buffer_[i][rpos];
+            // delayline
+            delay_buffer_[0][wpos] = input_1;
+            delay_buffer_[1][wpos] = input_2;
+            wpos = (wpos + 1) & delay_mask_;
+            SimdType delay_out1 = ReadFeedback(0, wpos, 0);
+            SimdType delay_out2 = ReadFeedback(1, wpos, 1);
+
+            // dispersion and damp
+            delay_out1 = dispersion_[0].Tick(delay_out1);
+            delay_out2 = dispersion_[1].Tick(delay_out2);
+            delay_out1 = damp_[0].TickHighshelf(delay_out1, damp_highshelf_coeff[0], damp_highshelf_gain[0]);
+            delay_out2 = damp_[1].TickHighshelf(delay_out2, damp_highshelf_coeff[1], damp_highshelf_gain[1]);
+            delay_out1 = dc_blocker[0].TickHighpass(delay_out1, SimdType::FromSingle(0.0005f));
+            delay_out2 = dc_blocker[1].TickHighpass(delay_out2, SimdType::FromSingle(0.0005f));
+
+            // scatter signals
+            SimdType scatter_sin = Sin(reflections_[0]);
+            SimdType scatter_cos = Cos(reflections_[0]);
+            SimdType scatter_a{
+                delay_out1.x[0], delay_out1.x[2], delay_out2.x[0], delay_out2.x[2]
+            };
+            SimdType scatter_b{
+                delay_out1.x[1], delay_out1.x[3], delay_out2.x[1], delay_out2.x[3]
+            };
+            // [0, 2, 4, 6]
+            SimdType scatter_outa = scatter_cos * scatter_a - scatter_sin * scatter_b;
+            // [1, 3, 5, 7]
+            SimdType scatter_outb = scatter_sin * scatter_a + scatter_cos * scatter_b;
+
+            SimdType scatter2_ina = scatter_outb;
+            SimdType scatter2_inb = scatter_outa.Shuffle<1, 2, 3, 0>();
+            scatter_sin = Sin(reflections_[1]);
+            scatter_cos = Cos(reflections_[1]);
+            // [1, 3, 5, 7]
+            scatter_outa = scatter_cos * scatter2_ina - scatter_sin * scatter2_inb;
+            // [2, 4, 6, 0]
+            scatter_outb = scatter_sin * scatter2_ina + scatter_cos * scatter2_inb;
+
+            SimdType pipe_a{
+                scatter_outb.x[3], scatter_outa.x[0], scatter_outb.x[0], scatter_outa.x[1]
+            };
+            SimdType pipe_b{
+                scatter_outb.x[1], scatter_outa.x[2], scatter_outb.x[2], scatter_outa.x[3]
+            };
+            
+            // write
+            fb_values_[0] = feedback_gain_[0] * pipe_a;
+            fb_values_[1] = feedback_gain_[1] * pipe_b;
+
+            left_ptr[i] = output.ReduceAdd();
         }
 
-        ++wpos_;
-        wpos_ &= mask_;
-    }
-private:
-    std::array<std::vector<float>, kNumResonators> buffer_;
-    size_t wpos_{};
-    size_t mask_{};
-};
+        // right processing
+        wpos = delay_wpos_;
+        for (size_t i = 0; i < len; ++i) {
+            // input
+            SimdType output = SimdType::FromSingle(right_ptr[i]);
+            SimdType input_1 = input_volume_[0] * output + fb_values_[2];
+            SimdType input_2 = input_volume_[1] * output + fb_values_[3];
+            output *= SimdType::FromSingle(dry);
+            output += fb_values_[2] * output_volume_[0];
+            output += fb_values_[3] * output_volume_[1];
 
-// ---------------------------------------- scatter matrix ----------------------------------------
-class ScatterMatrix {
-public:
-    static constexpr size_t kNumReflections = 7;
+            // delayline
+            delay_buffer_[2][wpos] = input_1;
+            delay_buffer_[3][wpos] = input_2;
+            wpos = (wpos + 1) & delay_mask_;
+            SimdType delay_out1 = ReadFeedback(2, wpos, 0);
+            SimdType delay_out2 = ReadFeedback(3, wpos, 1);
 
-    void Tick(
-        std::array<float, kNumResonators>& x,
-        const std::array<float, kNumReflections>& reflections
-    ) noexcept {
-        SingleScatter(x[0], x[1], reflections[0]);
-        SingleScatter(x[2], x[3], reflections[1]);
-        SingleScatter(x[4], x[5], reflections[2]);
-        SingleScatter(x[6], x[7], reflections[3]);
-        SingleScatter(x[1], x[2], reflections[4]);
-        SingleScatter(x[5], x[6], reflections[5]);
-        SingleScatter(x[2], x[5], reflections[6]);
+            // dispersion and damp
+            delay_out1 = dispersion_[2].Tick(delay_out1);
+            delay_out2 = dispersion_[3].Tick(delay_out2);
+            delay_out1 = damp_[2].TickHighshelf(delay_out1, damp_highshelf_coeff[0], damp_highshelf_gain[0]);
+            delay_out2 = damp_[3].TickHighshelf(delay_out2, damp_highshelf_coeff[1], damp_highshelf_gain[1]);
+            delay_out1 = dc_blocker[2].TickHighpass(delay_out1, SimdType::FromSingle(0.0005f));
+            delay_out2 = dc_blocker[3].TickHighpass(delay_out2, SimdType::FromSingle(0.0005f));
+
+            // scatter signals
+            SimdType scatter_sin = Sin(reflections_[0]);
+            SimdType scatter_cos = Cos(reflections_[0]);
+            SimdType scatter_a{
+                delay_out1.x[0], delay_out1.x[2], delay_out2.x[0], delay_out2.x[2]
+            };
+            SimdType scatter_b{
+                delay_out1.x[1], delay_out1.x[3], delay_out2.x[1], delay_out2.x[3]
+            };
+            // [0, 2, 4, 6]
+            SimdType scatter_outa = scatter_cos * scatter_a - scatter_sin * scatter_b;
+            // [1, 3, 5, 7]
+            SimdType scatter_outb = scatter_sin * scatter_a + scatter_cos * scatter_b;
+
+            SimdType scatter2_ina = scatter_outb;
+            SimdType scatter2_inb = scatter_outa.Shuffle<1, 2, 3, 0>();
+            scatter_sin = Sin(reflections_[1]);
+            scatter_cos = Cos(reflections_[1]);
+            // [1, 3, 5, 7]
+            scatter_outa = scatter_cos * scatter2_ina - scatter_sin * scatter2_inb;
+            // [2, 4, 6, 0]
+            scatter_outb = scatter_sin * scatter2_ina + scatter_cos * scatter2_inb;
+
+            SimdType pipe_a{
+                scatter_outb.x[3], scatter_outa.x[0], scatter_outb.x[0], scatter_outa.x[1]
+            };
+            SimdType pipe_b{
+                scatter_outb.x[1], scatter_outa.x[2], scatter_outb.x[2], scatter_outa.x[3]
+            };
+            
+            // write
+            fb_values_[2] = feedback_gain_[0] * pipe_a;
+            fb_values_[3] = feedback_gain_[1] * pipe_b;
+            right_ptr[i] = output.ReduceAdd();
+        }
+
+        delay_wpos_ = wpos;
     }
+
+    void UpdateBasicParams() noexcept {
+        // output mix volumes
+        for (size_t j = 0; j < kMonoContainerSize; ++j) {
+            for (size_t i = 0; i < SimdType::kSize; ++i) {
+                size_t const param_idx = j * SimdType::kSize + i;
+                float const db = mix_db[param_idx];
+                if (db < -60.0f) {
+                    output_volume_[j].x[i] = 0;
+                }
+                else {
+                    output_volume_[j].x[i] = qwqdsp::convert::Db2Gain(db);
+                }
+            }
+        }
+
+        // update scatter matrix
+        for (size_t j = 0; j < kMonoContainerSize; ++j) {
+            for (size_t i = 0; i < SimdType::kSize; ++i) {
+                size_t const param_idx = j * SimdType::kSize + i;
+                reflections_[j].x[i] = norm_reflections[param_idx] * std::numbers::pi_v<float>;
+            }
+        }
+
+        // update damp filter
+        for (size_t j = 0; j < kMonoContainerSize; ++j) {
+            SimdType omega;
+            for (size_t i = 0; i < SimdType::kSize; ++i) {
+                size_t const param_idx = j * SimdType::kSize + i;
+                float const freq = qwqdsp::convert::Pitch2Freq(damp_pitch[param_idx]);
+                omega.x[i] = freq * std::numbers::pi_v<float> * 2 / fs_;
+                damp_highshelf_gain[j].x[i] = qwqdsp::convert::Db2Gain(damp_gain_db[param_idx]);
+            }
+            damp_highshelf_coeff[j] = qwqdsp::filter::OnePoleTPTSimd<SimdType>::ComputeCoeffs(omega);
+        }
+    }
+
+    void UpdateAllPitches() noexcept {
+        for (size_t i = 0; i < kMonoContainerSize; ++i) {
+            SimdType omega;
+            SimdType loop_samples;
+            SimdType allpass_set_delay;
+            for (size_t j = 0; j < SimdType::kSize; ++j) {
+                size_t param_idx = i * SimdType::kSize + j;
+                float pitch = pitches[param_idx] + fine_tune[param_idx] / 100.0f;
+                if (polarity[param_idx]) {
+                    pitch += 12;
+                }
+                float const freq = qwqdsp::convert::Pitch2Freq(pitch);
+                omega.x[j] = freq * std::numbers::pi_v<float> / fs_;
+                loop_samples.x[j] = fs_ / freq;
+                allpass_set_delay.x[j] = loop_samples.x[j] * dispersion[param_idx] / (ThrianDispersion::kNumAPF + 0.1f);
+            }
+    
+            // update allpass filters
+            dispersion_[i].SetGroupDelay(allpass_set_delay);
+            dispersion_[i + kMonoContainerSize].SetGroupDelay(allpass_set_delay);
+            SimdType allpass_delay = dispersion_[i].GetPhaseDelay(omega);
+    
+            // remove allpass delays
+            SimdType delay_samples = loop_samples - allpass_delay;
+            delay_samples = SimdType::Max(delay_samples, SimdType::FromSingle(0.0f));
+    
+            // process frac delays
+            delay_samples_[i] = thrian_interp_[i].SetDelay(delay_samples);
+            thrian_interp_[i + kMonoContainerSize].SetDelay(delay_samples);
+
+            // feedback decay
+            for (size_t j = 0; j < SimdType::kSize; ++j) {
+                size_t param_idx = i * SimdType::kSize + j;
+                float feedback_gain = 0;
+                if (decay_ms[param_idx] > 0.5f) {
+                    float const mul = -3.0f * loop_samples.x[j] / (fs_ * decay_ms[param_idx] / 1000.0f);
+                    feedback_gain = std::pow(10.0f, mul);
+                    feedback_gain = std::min(feedback_gain, 1.0f);
+                }
+                else {
+                    feedback_gain = 0;
+                }
+                if (polarity[param_idx]) {
+                    feedback_gain = -feedback_gain;
+                }
+                feedback_gain_[i].x[j] = feedback_gain;
+            }
+        }
+    }
+
+    void NoteOn(size_t idx, float pitch, float velocity) noexcept {
+        size_t const simd_idx = idx / SimdType::kSize;
+        size_t const scalar_idx = idx & (SimdType::kSize - 1);
+
+        pitches[idx] = pitch;
+        input_volume_[simd_idx].x[scalar_idx] = velocity;
+        pitch = pitches[idx] + fine_tune[idx] / 100.0f;
+        if (polarity[idx]) {
+            pitch += 12;
+        }
+        float const freq = qwqdsp::convert::Pitch2Freq(pitch);
+        float const omega = freq * std::numbers::pi_v<float> / fs_;
+        float const loop_samples = fs_ / freq;
+        float const allpass_set_delay = loop_samples * dispersion[idx] / (ThrianDispersion::kNumAPF + 0.1f);
+
+        // update allpass filters
+        dispersion_[simd_idx].SetGroupDelay(scalar_idx, allpass_set_delay);
+        dispersion_[simd_idx + kMonoContainerSize].SetGroupDelay(scalar_idx, allpass_set_delay);
+        float allpass_delay = dispersion_[simd_idx].GetPhaseDelay(scalar_idx, omega);
+
+        // remove allpass delays
+        float delay_samples = loop_samples - allpass_delay;
+        delay_samples = std::max(delay_samples, 0.0f);
+
+        // process frac delays
+        delay_samples_[simd_idx].x[scalar_idx] = thrian_interp_[simd_idx].SetDelay(scalar_idx, delay_samples);
+        thrian_interp_[simd_idx + kMonoContainerSize].SetDelay(scalar_idx, delay_samples);
+
+        // feedback decay
+        float feedback_gain = 0;
+        if (decay_ms[idx] > 0.5f) {
+            float const mul = -3.0f * loop_samples / (fs_ * decay_ms[idx] / 1000.0f);
+            feedback_gain = std::pow(10.0f, mul);
+            feedback_gain = std::min(feedback_gain, 1.0f);
+        }
+        else {
+            feedback_gain = 0;
+        }
+        if (polarity[idx]) {
+            feedback_gain = -feedback_gain;
+        }
+        feedback_gain_[simd_idx].x[scalar_idx] = feedback_gain;
+    }
+
+    void TrunOnAllInput(float v) noexcept {
+        std::ranges::fill(input_volume_, SimdType::FromSingle(v));
+    }
+
+    void Noteoff(size_t idx) noexcept {
+        size_t simd_idx = idx / SimdType::kSize;
+        size_t scalar_idx = idx & (SimdType::kSize - 1);
+        input_volume_[simd_idx].x[scalar_idx] = 0;
+    }
+
+    // -------------------- params --------------------
+    std::array<bool, kNumResonators> polarity{};
+    std::array<float, kNumResonators> pitches{};
+    std::array<float, kNumResonators> fine_tune{};
+    std::array<float, kNumResonators> dispersion{};
+    std::array<float, kNumResonators> decay_ms{};
+    std::array<float, kNumResonators> damp_pitch{};
+    std::array<float, kNumResonators> damp_gain_db{};
+    std::array<float, kNumResonators> mix_db{};
+    std::array<float, kNumResonators> norm_reflections{};
+    float dry{};
 private:
-    // 只能用正交矩阵?
-    static constexpr void SingleScatter(float& a, float& b, float k) {
-        float const cosk = std::cos(k);
-        float const sink = std::sin(k);
-        float const outa = cosk * a - sink * b;
-        float const outb = sink * a + cosk * b;
-        a = outa;
-        b = outb;
+    SimdType ReadFeedback(size_t idx, size_t wpos, size_t delay_idx) noexcept {
+        SimdIntType rpos = SimdIntType::FromSingle(wpos + delay_mask_) - delay_samples_[delay_idx];
+        rpos &= SimdIntType::FromSingle(delay_mask_);
+        SimdType delay_output;
+        for (size_t k = 0; k < SimdType::kSize; ++k) {
+            delay_output.x[k] = delay_buffer_[idx][rpos.x[k]].x[k];
+        }
+        return thrian_interp_[idx].Tick(delay_output);
     }
+
+    static constexpr size_t kContainerSize = 2 * kNumResonators / SimdType::kSize;
+    static constexpr size_t kMonoContainerSize = kNumResonators / SimdType::kSize;
+
+    std::array<std::vector<SimdType>, kContainerSize> delay_buffer_;
+    size_t delay_wpos_{};
+    size_t delay_mask_{};
+    std::array<TunningFilter, kContainerSize> thrian_interp_;
+    std::array<ThrianDispersion, kContainerSize> dispersion_;
+    std::array<qwqdsp::filter::OnePoleTPTSimd<SimdType>, kContainerSize> damp_;
+    std::array<qwqdsp::filter::OnePoleTPTSimd<SimdType>, kContainerSize> dc_blocker;
+    std::array<SimdType, kMonoContainerSize> input_volume_{};
+    std::array<SimdType, kMonoContainerSize> output_volume_{};
+    std::array<SimdType, kMonoContainerSize> reflections_{};
+    std::array<SimdType, kMonoContainerSize> damp_highshelf_coeff{};
+    std::array<SimdType, kMonoContainerSize> damp_highshelf_gain{};
+    std::array<SimdType, kMonoContainerSize> feedback_gain_{};
+    std::array<SimdIntType, kMonoContainerSize> delay_samples_{};
+    std::array<SimdType, kContainerSize> fb_values_{};
+    float fs_{};
 };
 
 struct Voice
@@ -390,12 +655,6 @@ public:
     JuceParamListener param_listener_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
 
-    ParalleOnepole damp_;
-    ParalleDelay delay_;
-    std::array<TunningFilter, kNumResonators> frac_delay_{};
-    ParalleDispersion dispersion_;
-    ScatterMatrix matrix_;
-    std::array<float, kNumResonators> fb_values_{};
     std::array<juce::AudioParameterFloat*, kNumResonators> pitches_{};
     std::array<juce::AudioParameterFloat*, kNumResonators> fine_tune_{};
     std::array<juce::AudioParameterFloat*, kNumResonators> damp_pitch_{};
@@ -404,7 +663,7 @@ public:
     std::array<juce::AudioParameterFloat*, kNumResonators> decays_{};
     std::array<juce::AudioParameterBool*, kNumResonators> polarity_{};
     std::array<juce::AudioParameterFloat*, kNumResonators> mix_volume_{};
-    std::array<juce::AudioParameterFloat*, ScatterMatrix::kNumReflections> matrix_reflections_{};
+    std::array<juce::AudioParameterFloat*, kNumResonators> matrix_reflections_{};
 
     juce::AudioParameterBool* midi_drive_{};
     juce::AudioParameterBool* allow_round_robin_{};
@@ -415,16 +674,10 @@ public:
     bool was_midi_drive_{false};
     PolyphonyManager note_manager_;
 
-    float dry_volume_{};
-    std::array<float, kNumResonators> mix_{};
-    std::array<float, kNumResonators + 1> input_volume_{};
-    std::array<float, kNumResonators> delay_samples_{};
-    std::array<float, ScatterMatrix::kNumReflections> reflections_{};
-    std::array<float, kNumResonators> feedbacks_{};
+    Resonator dsp_;
 private:
     void ProcessCommon(juce::AudioBuffer<float>&, juce::MidiBuffer&);
     void ProcessMidi(juce::AudioBuffer<float>&, juce::MidiBuffer&);
-    void ProcessDSP(float* ptr, size_t len);
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ResonatorAudioProcessor)

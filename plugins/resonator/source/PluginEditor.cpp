@@ -108,6 +108,8 @@ ResonatorAudioProcessorEditor::ResonatorAudioProcessorEditor (ResonatorAudioProc
     addAndMakeVisible(reflection5_);
     reflection6_.BindParam(apvts, "reflection6");
     addAndMakeVisible(reflection6_);
+    reflection7_.BindParam(apvts, "reflection7");
+    addAndMakeVisible(reflection7_);
 
     addAndMakeVisible(midi_title_);
     midi_drive_.BindParam(apvts, "midi_drive");
@@ -173,12 +175,10 @@ void ResonatorAudioProcessorEditor::resized() {
         }
         {
             auto second2 = martix_b.removeFromLeft(80);
-            reflection4_.setBounds(second2.removeFromTop(second2.getHeight() / 2).withSizeKeepingCentre(80, 80));
-            reflection5_.setBounds(second2.withSizeKeepingCentre(80, 80));
-        }
-        {
-            auto last1 = martix_b.removeFromLeft(80);
-            reflection6_.setBounds(last1.withSizeKeepingCentre(80, 80));
+            reflection4_.setBounds(second2.removeFromTop(80));
+            reflection5_.setBounds(second2.removeFromTop(80));
+            reflection6_.setBounds(second2.removeFromTop(80));
+            reflection7_.setBounds(second2.removeFromTop(80));
         }
     }
     {
