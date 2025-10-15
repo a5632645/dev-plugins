@@ -36,7 +36,7 @@ struct WindowFIR {
         Lowpass(x, half_bw);
         float center = (static_cast<float>(x.size()) - 1.0f) / 2.0f;
         for (size_t i = 0; i < x.size(); ++i) {
-            x[i] *= 2 * std::cos((i - center) * center_w);
+            x[i] *= 2 * std::cos((static_cast<float>(i) - center) * center_w);
         }
     }
 
