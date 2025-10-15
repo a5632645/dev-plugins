@@ -4,7 +4,7 @@ it is the son of steep-flanger and dispersive-delay.
 it can generate effects sounds like harmor phaser.  
 ![FX](effects.png)
 
-> ![WARNNING]  
+> [!WARNNING]  
 > massive cpu consume for calculating allpass filters.  
 
 ## features

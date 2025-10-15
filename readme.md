@@ -7,6 +7,9 @@ originally here lived green vocoder repository.
 [steep-flanger](plugins/steep-flanger/readme.md) is a barberpole fir flanger.  
 ![GUI](plugins/steep-flanger/gui.png)
 ---
+[deep-phaser](plugins/deep-phaser/readme.md) is the son of steep-flanger and dispersive-delay.  
+![GUI](plugins/deep-phaser/gui.png)
+---
 [dispersive-delay](plugins/dispersive-delay/readme.md) is a spectal-delay-like delay using tons of cascade allpass filters.(require AVX or AVX2(faster))  
 ![GUI](plugins/dispersive-delay/gui.png)
 ---
