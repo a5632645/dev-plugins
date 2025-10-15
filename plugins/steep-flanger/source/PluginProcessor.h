@@ -11,34 +11,6 @@
 #include "qwqdsp/filter/iir_cpx_hilbert_stereo_simd.hpp"
 #include "x86/sse2.h"
 
-class EditorUpdate : public juce::AsyncUpdater {
-public:
-    void UpdateGui() {
-        if (juce::MessageManager::getInstance()->isThisTheMessageThread()) {
-            cancelPendingUpdate();
-            handleAsyncUpdate();
-        }
-        else {
-            triggerAsyncUpdate();
-        }
-    }
-
-    void handleAsyncUpdate() override;
-
-    void OnEditorCreate(juce::AudioProcessorEditor* editor) {
-        editor_ = editor;
-        cancelPendingUpdate();
-        UpdateGui();
-    }
-
-    void OnEditorDestory() {
-        editor_ = nullptr;
-        cancelPendingUpdate();
-    }
-private:
-    std::atomic<juce::AudioProcessorEditor*> editor_;
-};
-
 using SimdType = qwqdsp::psimd::Vec4f32;
 using SimdIntType = qwqdsp::psimd::Vec4i32;
 
@@ -73,7 +45,7 @@ public:
     #if JUCE_CLANG
     [[clang::always_inline]]
     #elif JUCE_GCC
-    __attribute__((always_inline))
+    [[gnu::always_inline]]
     #elif JUCE_MSVC
     __forceinline
     #else
@@ -188,31 +160,43 @@ public:
     JuceParamListener param_listener_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
 
+    juce::AudioParameterFloat* param_delay_ms_;
+    juce::AudioParameterFloat* param_delay_depth_ms_;
+    juce::AudioParameterFloat* param_lfo_speed_;
+    juce::AudioParameterFloat* param_lfo_phase_;
+    juce::AudioParameterFloat* param_fir_cutoff_;
+    juce::AudioParameterFloat* param_fir_coeff_len_;
+    juce::AudioParameterFloat* param_fir_side_lobe_;
+    juce::AudioParameterBool* param_fir_min_phase_;
+    juce::AudioParameterBool* param_fir_highpass_;
+    juce::AudioParameterFloat* param_feedback_;
+    juce::AudioParameterFloat* param_damp_pitch_;
+    juce::AudioParameterBool* param_feedback_enable_;
+    juce::AudioParameterFloat* param_barber_phase_;
+    juce::AudioParameterFloat* param_barber_speed_;
+    juce::AudioParameterBool* param_barber_enable_;
+
+    std::atomic<bool> should_update_fir_{};
+    std::atomic<bool> have_new_coeff_{};
+
     static constexpr size_t kSIMDMaxCoeffLen = ((kMaxCoeffLen + 3) / 4) * 4;
 
     Vec4DelayLine delay_left_;
     Vec4DelayLine delay_right_;
+    // fir
     alignas(16) std::array<float, kSIMDMaxCoeffLen> coeffs_{};
+    std::array<SimdType, kSIMDMaxCoeffLen / 4> last_coeffs_{};
     std::array<float, kMaxCoeffLen> custom_coeffs_{};
     std::array<float, kMaxCoeffLen> custom_spectral_gains{};
     size_t coeff_len_{};
     size_t coeff_len_div_4_{};
-    float side_lobe_{20};
-    float cutoff_w_{};
 
     // delay time lfo
     float phase_{};
-    float phase_inc_{};
-    float delay_samples_{};
-    float depth_samples_{};
-    float phase_shift_{};
     SimdType last_exp_delay_samples_{};
     SimdType last_delay_samples_{};
 
     // feedback
-    float feedback_value_{};
-    float feedback_mul_{};
-    bool feedback_enable_{};
     float left_fb_{};
     float right_fb_{};
     qwqdsp::filter::OnePoleTPTSimd<SimdType> damp_;
@@ -220,29 +204,19 @@ public:
     float last_damp_lowpass_coeff_{1.0f};
 
     // barberpole
-    bool barber_enable_{};
     qwqdsp::filter::StereoIIRHilbertDeeperCpx<SimdType> hilbert_complex_;
     qwqdsp::misc::ExpSmoother barber_phase_smoother_;
     qwqdsp::oscillor::VicSineOsc barber_oscillator_;
     size_t barber_osc_keep_amp_counter_{};
     size_t barber_osc_keep_amp_need_{};
 
-    bool minum_phase_{};
-    bool highpass_{};
-    bool is_using_custom_{};
+    std::atomic<bool> is_using_custom_{};
     qwqdsp::spectral::ComplexFFT complex_fft_;
-
-    EditorUpdate editor_update_;
-#if HAVE_MEASUREMENT
-    juce::AudioProcessLoadMeasurer measurer;
-#endif
-
-    void UpdateCoeff();
-    void PostCoeffsProcessing();
-    void UpdateFeedback();
+    
     void Panic();
-
 private:
+    void UpdateCoeff();
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SteepFlangerAudioProcessor)
 };

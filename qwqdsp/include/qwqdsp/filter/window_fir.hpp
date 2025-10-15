@@ -1,12 +1,14 @@
 #pragma once
 #include <cassert>
-#include <cstddef>
 #include <numeric>
 #include <span>
 #include <numbers>
 #include <cmath>
 
 namespace qwqdsp::filter {
+/**
+ * @ref https://ccrma.stanford.edu/~jos/WinFlt/WinFlt_2up.pdf
+ */
 struct WindowFIR {
     static void Lowpass(std::span<float> x, float wc) noexcept {
         float center = (static_cast<float>(x.size()) - 1.0f) / 2.0f;
@@ -17,37 +19,49 @@ struct WindowFIR {
     }
 
     static void Highpass(std::span<float> x, float wc) noexcept {
-        assert(x.size() % 2 == 1);
-        float center = (static_cast<float>(x.size()) - 1.0f) / 2.0f;
+        Lowpass(x, std::numbers::pi_v<float> - wc);
         for (size_t i = 0; i < x.size(); ++i) {
-            float t = static_cast<float>(i) - center;
-            x[i] = -Sinc(wc, t);
+            if (i % 2 == 0) {
+                x[i] = -x[i];
+            }
         }
-        x[x.size() / 2] += 1;
     }
 
     static void Bandpass(std::span<float> x, float w1, float w2) noexcept {
-        if (w1 < w2) {
+        if (w1 > w2) {
             std::swap(w1, w2);
         }
+        float center_w = (w1 + w2) * 0.5f;
+        float half_bw = w2 - center_w;
+        Lowpass(x, half_bw);
         float center = (static_cast<float>(x.size()) - 1.0f) / 2.0f;
         for (size_t i = 0; i < x.size(); ++i) {
-            float t = static_cast<float>(i) - center;
-            x[i] = Sinc(w2, t) - Sinc(w1, t);
+            x[i] *= 2 * std::cos((i - center) * center_w);
         }
     }
 
+    /**
+     * @note 偶数长度会产生非线性相位
+     */
     static void Bandstop(std::span<float> x, float w1, float w2) noexcept {
-        assert(x.size() % 2 == 1);
-        if (w1 < w2) {
+        if (w1 > w2) {
             std::swap(w1, w2);
         }
         float center = (static_cast<float>(x.size()) - 1.0f) / 2.0f;
         for (size_t i = 0; i < x.size(); ++i) {
             float t = static_cast<float>(i) - center;
-            x[i] = -(Sinc(w2, t) - Sinc(w1, t));
+            x[i] = Sinc(w1, t);
         }
-        x[x.size() / 2] -= 1;
+        float highpass_w = std::numbers::pi_v<float> - w2;
+        for (size_t i = 0; i < x.size(); ++i) {
+            float t = static_cast<float>(i) - center;
+            if (i % 2 == 0) {
+                x[i] -= Sinc(highpass_w, t);
+            }
+            else {
+                x[i] += Sinc(highpass_w, t);
+            }
+        }
     }
 
     static void Normalize(std::span<float> x) noexcept {

@@ -53,6 +53,12 @@ public:
         SimdType lp = TickLowpass(x, coeff);
         return lp + gain * (x - lp);
     }
+
+    SimdType TickAllpass(SimdType const& x, SimdType const& coeff) noexcept {
+        SimdType lp = TickLowpass(x, coeff);
+        lp += lp;
+        return lp - x;
+    }
 private:
     SimdType lag_{};
 };

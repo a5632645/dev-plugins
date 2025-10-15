@@ -44,28 +44,20 @@ private:
     T sum_{};
 };
 
-template <bool kUseClamp = true>
 class IntegratorTrapezoidal {
 public:
     void Reset() noexcept {
-        sum_ = 0;
-        latch_ = 0;
+        lag_ = 0;
     }
 
     float Tick(float x) noexcept {
-        float const t = (x + latch_) * 0.5f;
-        latch_ = x;
-        if constexpr (kUseClamp) {
-            sum_ = std::clamp(sum_ + t, -10.0f, 10.0f);
-        }
-        else {
-            sum_ += t;
-        }
-        return sum_;
+        x *= 0.5f;
+        float const y = x + lag_;
+        lag_ = x + y;
+        return y;
     }
 private:
-    float sum_{};
-    float latch_{};
+    float lag_{};
 };
 
 template <class T, T kLeak = T(0.997)>

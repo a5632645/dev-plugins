@@ -44,6 +44,10 @@ public:
         float lp = Tick(x);
         return lp + gain * (x - lp);
     }
+
+    float TickAllpass(float x) noexcept {
+        return 2 * Tick(x) - x;
+    }
 private:
     float g_{};
     float lag_{};

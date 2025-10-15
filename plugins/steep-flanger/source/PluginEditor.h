@@ -121,10 +121,9 @@ private:
 // ---------------------------------------- editor ----------------------------------------
 
 //==============================================================================
-class SteepFlangerAudioProcessorEditor final : public juce::AudioProcessorEditor
-#if HAVE_MEASUREMENT
-, public juce::Timer
-#endif
+class SteepFlangerAudioProcessorEditor final 
+    : public juce::AudioProcessorEditor
+    , public juce::Timer
 {
 public:
     explicit SteepFlangerAudioProcessorEditor (SteepFlangerAudioProcessor&);
@@ -143,13 +142,9 @@ public:
         spectralview_.UpdateGui();
     }
 
-#if HAVE_MEASUREMENT
     void timerCallback() override;
-#endif
 private:
     SteepFlangerAudioProcessor& p_;
-
-    juce::Label plugin_title_;
 
     juce::Label lfo_title_{"lfo", "lfo"};
     ui::Dial delay_{"delay"};

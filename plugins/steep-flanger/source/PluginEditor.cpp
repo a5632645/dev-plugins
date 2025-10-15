@@ -7,10 +7,8 @@
 // ---------------------------------------- time prev ----------------------------------------
 
 void TimeView::UpdateGui() {
-    {
-        juce::ScopedLock _{p_.getCallbackLock()};
-        std::copy_n(p_.coeffs_.begin(), p_.coeff_len_, coeff_buffer_.begin());
-    }
+    std::copy_n(p_.coeffs_.begin(), p_.coeff_len_, coeff_buffer_.begin());
+
     if (p_.coeff_len_ != 0) {
         coeff_buffer_[p_.coeff_len_] = coeff_buffer_[p_.coeff_len_ - 1];
     }
@@ -100,12 +98,8 @@ void TimeView::mouseUp(const juce::MouseEvent& e) {
 }
 
 void TimeView::SendCoeffs() {
-    {
-        juce::ScopedLock _{p_.getCallbackLock()};
-        p_.is_using_custom_ = true;
-        p_.UpdateCoeff();
-    }
-    p_.editor_update_.UpdateGui();
+    p_.is_using_custom_ = true;
+    p_.should_update_fir_ = true;
 }
 
 void TimeView::CopyCoeffesToCustom() {
@@ -268,10 +262,6 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
 {
     auto& apvts = *p.value_tree_;
 
-    plugin_title_.setText("SteepFlanger Prototype by Mana", juce::dontSendNotification);
-    plugin_title_.setFont(juce::Font{28});
-    addAndMakeVisible(plugin_title_);
-
     addAndMakeVisible(lfo_title_);
     delay_.BindParam(apvts, "delay");
     addAndMakeVisible(delay_);
@@ -301,12 +291,12 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     addAndMakeVisible(highpass_);
     custom_.onStateChange = [this] {
         if (custom_.getToggleState()) {
-            setSize(600, 294 + 200);
+            setSize(600, 264 + 200);
             timeview_.setVisible(true);
             spectralview_.setVisible(true);
         }
         else {
-            setSize(600, 294);
+            setSize(600, 264);
             timeview_.setVisible(false);
             spectralview_.setVisible(false);
         }
@@ -344,18 +334,14 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     addAndMakeVisible(timeview_);
     addAndMakeVisible(spectralview_);
 
-    setSize(600, 296);
+    setSize(600, 264);
 
     custom_.setToggleState(p.is_using_custom_, juce::sendNotificationSync);
-    p.editor_update_.OnEditorCreate(this);
 
-#if HAVE_MEASUREMENT
-    startTimerHz(10);
-#endif
+    startTimerHz(30);
 }
 
 SteepFlangerAudioProcessorEditor::~SteepFlangerAudioProcessorEditor() {
-    p_.editor_update_.OnEditorDestory();
 }
 
 //==============================================================================
@@ -363,11 +349,6 @@ void SteepFlangerAudioProcessorEditor::paint (juce::Graphics& g) {
     g.fillAll(juce::Colour{22,27,32});
 
     auto b = getLocalBounds();
-    {
-        auto title_block = b.removeFromTop(plugin_title_.getFont().getHeight());
-        g.setColour(juce::Colour{193,193,166});
-        g.fillRect(title_block);
-    }
     g.setColour(ui::green_bg);
     {
         auto topblock = b.removeFromTop(125);
@@ -397,9 +378,6 @@ void SteepFlangerAudioProcessorEditor::paint (juce::Graphics& g) {
 
 void SteepFlangerAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
-    {
-        plugin_title_.setBounds(b.removeFromTop(plugin_title_.getFont().getHeight()));
-    }
     {
         auto topblock = b.removeFromTop(125);
         {
@@ -466,14 +444,8 @@ void SteepFlangerAudioProcessorEditor::resized() {
     }
 }
 
-#if HAVE_MEASUREMENT
 void SteepFlangerAudioProcessorEditor::timerCallback() {
-    static double a = 0;
-
-    auto cpu_percent = p_.measurer.getLoadAsPercentage();
-    a = a * 0.9f + 0.1f * cpu_percent;
-    juce::String s;
-    s << "[cpu]: " << a << "%";
-    juce::Logger::getCurrentLogger()->writeToLog(s);
+    if (p_.have_new_coeff_.exchange(false)) {
+        UpdateGui();
+    }
 }
-#endif
