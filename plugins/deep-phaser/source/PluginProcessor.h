@@ -14,7 +14,7 @@
 using SimdType = qwqdsp::psimd::Vec4f32;
 using SimdIntType = qwqdsp::psimd::Vec4i32;
 
-class CascadeOnepoleAllpass {
+class CascadeOnepoleAllpassTPT {
 public:
     void Reset() noexcept {
         lag_ = SimdType::FromSingle(0);
@@ -52,6 +52,43 @@ public:
     }
 private:
     SimdType lag_{};
+};
+
+class CascadeOnepoleAllpassDF1 {
+public:
+    void Reset() noexcept {
+        xlag_ = SimdType::FromSingle(0);
+        ylag_ = SimdType::FromSingle(0);
+    }
+    
+    static float ComputeCoeff(float w) noexcept {
+        constexpr float kMaxOmega = std::numbers::pi_v<float> - 1e-5f;
+        [[unlikely]]
+        if (w < 0.0f) {
+            return 0.0f;
+        }
+        else if (w > kMaxOmega) {
+            return 1.0f;
+        }
+        else [[likely]] {
+            auto k = std::tan(w / 2);
+            return k / (1 + k);
+        }
+    }
+
+    QWQDSP_FORCE_INLINE
+    SimdType TickAllpass(float x, float coeff) noexcept {
+        for (size_t i = 0; i < SimdType::kSize; ++i) {
+            float y = xlag_.x[i] + coeff * (x - ylag_.x[i]);
+            xlag_.x[i] = x;
+            ylag_.x[i] = y;
+            x = y;
+        }
+        return ylag_;
+    }
+private:
+    SimdType xlag_{};
+    SimdType ylag_{};
 };
 
 class AllpassBuffer {
@@ -98,7 +135,7 @@ public:
     }
 private:
     std::array<SimdType, kNumApf * 2> output_buffer_{};
-    std::array<CascadeOnepoleAllpass, kNumApf> lags_;
+    std::array<CascadeOnepoleAllpassDF1, kNumApf> lags_;
 };
 
 // ---------------------------------------- juce processor ----------------------------------------

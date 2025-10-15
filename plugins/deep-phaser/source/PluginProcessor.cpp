@@ -35,8 +35,8 @@ DeepPhaserAudioProcessor::DeepPhaserAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{"blend", 1},
             "blend",
-            juce::NormalisableRange<float>{0.01f, 0.4f},
-            0.15f
+            juce::NormalisableRange<float>{-0.95f, 0.95f, 0.001f},
+            -0.6f
         );
         param_allpass_blend_ = p.get();
         layout.add(std::move(p));
