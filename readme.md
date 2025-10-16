@@ -27,3 +27,8 @@ originally here lived green vocoder repository.
 find more wried plugins at [hirrofox github](https://github.com/hiirofox)  
 find more intresting plugins at [ryukau github](https://github.com/ryukau)  
 filter for music DSP [THE ART OF VA FILTER DESIGN](https://www.native-instruments.com/fileadmin/ni_media/downloads/pdf/VAFilterDesign_1.1.1.pdf)  
+
+## license
+qwqdsp is unlicense.  
+vital-chorus and vital-reverb are GPL, because i reference to vital's code.  
+other plugins are BSD, commercial using need JUCE's commercial license.  
