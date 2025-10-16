@@ -13,6 +13,7 @@ add_library(simde INTERFACE)
 target_include_directories(simde INTERFACE simde-no-tests)
 
 # folders
+add_subdirectory(cpp_simd_detector)
 add_subdirectory(json)
 add_subdirectory(eigen)
 add_subdirectory(JUCE)

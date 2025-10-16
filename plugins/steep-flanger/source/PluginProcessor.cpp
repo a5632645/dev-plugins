@@ -1,12 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include "qwqdsp/filter/window_fir.hpp"
-#include "qwqdsp/window/kaiser.hpp"
-#include "qwqdsp/polymath.hpp"
-#include "qwqdsp/convert.hpp"
-#include "x86/sse2.h"
-
 //==============================================================================
 SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
      : AudioProcessor (BusesProperties()
@@ -72,8 +66,8 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         );
         param_fir_cutoff_ = p.get();
         param_listener_.Add(p, [this](float) {
-            is_using_custom_ = false;
-            should_update_fir_ = true;
+            dsp_param_.is_using_custom_ = false;
+            dsp_param_.should_update_fir_ = true;
         });
         layout.add(std::move(p));
     }
@@ -86,7 +80,7 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         );
         param_fir_coeff_len_ = p.get();
         param_listener_.Add(p, [this](float) {
-            should_update_fir_ = true;
+            dsp_param_.should_update_fir_ = true;
         });
         layout.add(std::move(p));
     }
@@ -99,8 +93,8 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         );
         param_fir_side_lobe_ = p.get();
         param_listener_.Add(p, [this](float) {
-            is_using_custom_ = false;
-            should_update_fir_ = true;
+            dsp_param_.is_using_custom_ = false;
+            dsp_param_.should_update_fir_ = true;
         });
         layout.add(std::move(p));
     }
@@ -112,7 +106,7 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         );
         param_fir_min_phase_ = p.get();
         param_listener_.Add(p, [this](bool) {
-            should_update_fir_ = true;
+            dsp_param_.should_update_fir_ = true;
         });
         layout.add(std::move(p));
     }
@@ -124,8 +118,8 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         );
         param_fir_highpass_ = p.get();
         param_listener_.Add(p, [this](bool) {
-            is_using_custom_ = false;
-            should_update_fir_ = true;
+            dsp_param_.is_using_custom_ = false;
+            dsp_param_.should_update_fir_ = true;
         });
         layout.add(std::move(p));
     }
@@ -159,7 +153,7 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         );
         param_feedback_enable_ = p.get();
         param_listener_.Add(p, [this](bool) {
-            should_update_fir_ = true;
+            dsp_param_.should_update_fir_ = true;
         });
         layout.add(std::move(p));
     }
@@ -196,8 +190,6 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
     }
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
-
-    complex_fft_.Init(kFFTSize);
 }
 
 SteepFlangerAudioProcessor::~SteepFlangerAudioProcessor()
@@ -275,17 +267,9 @@ void SteepFlangerAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
 {
     std::ignore = samplesPerBlock;
     
-    float const samples_need = static_cast<float>(sampleRate) * 30.0f / 1000.0f;
-    delay_left_.Init(static_cast<size_t>(samples_need * kMaxCoeffLen + 256 + 4));
-    delay_right_.Init(static_cast<size_t>(samples_need * kMaxCoeffLen + 256 + 4));
-    barber_phase_smoother_.SetSmoothTime(20.0f, static_cast<float>(sampleRate));
-    damp_.Reset();
-    barber_oscillator_.Reset();
-    barber_osc_keep_amp_counter_ = 0;
-    // VIC正交振荡器衰减非常慢，设定为5分钟保持一次
-    barber_osc_keep_amp_need_ = static_cast<size_t>(sampleRate * 60 * 5);
-
-    should_update_fir_ = true;
+    dsp_.Init(static_cast<float>(sampleRate), 30.0f);
+    dsp_.Reset();
+    dsp_param_.should_update_fir_ = true;
 }
 
 void SteepFlangerAudioProcessor::releaseResources()
@@ -318,40 +302,6 @@ bool SteepFlangerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layo
   #endif
 }
 
-// ---------------------------------------- 简单的SIMD 复数，为了旋转 ----------------------------------------
-struct Vec4Complex {
-    SimdType re;
-    SimdType im;
-
-    static constexpr Vec4Complex FromSingle(float re, float im) noexcept {
-        Vec4Complex r;
-        r.re = SimdType::FromSingle(re);
-        r.im = SimdType::FromSingle(im);
-        return r;
-    }
-
-    static Vec4Complex FromPolar(SimdType w) noexcept {
-        Vec4Complex r;
-        r.re.x[0] = std::cos(w.x[0]);
-        r.re.x[1] = std::cos(w.x[1]);
-        r.re.x[2] = std::cos(w.x[2]);
-        r.re.x[3] = std::cos(w.x[3]);
-        r.im.x[0] = std::sin(w.x[0]);
-        r.im.x[1] = std::sin(w.x[1]);
-        r.im.x[2] = std::sin(w.x[2]);
-        r.im.x[3] = std::sin(w.x[3]);
-        return r;
-    }
-
-    constexpr Vec4Complex& operator*=(const Vec4Complex& a) {
-        SimdType new_re = re * a.re - im * a.im;
-        SimdType new_im = re * a.im + im * a.re;
-        re = new_re;
-        im = new_im;
-        return *this;
-    }
-};
-
 void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
@@ -359,283 +309,27 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     juce::ScopedNoDenormals noDenormals;
 
+    dsp_param_.delay_ms = param_delay_ms_->get();
+    dsp_param_.depth_ms = param_delay_depth_ms_->get();
+    dsp_param_.lfo_freq = param_lfo_speed_->get();
+    dsp_param_.lfo_phase = param_lfo_phase_->get();
+    dsp_param_.fir_cutoff = param_fir_cutoff_->get();
+    dsp_param_.fir_coeff_len = static_cast<size_t>(param_fir_coeff_len_->get());
+    dsp_param_.fir_side_lobe = param_fir_side_lobe_->get();
+    dsp_param_.fir_min_phase = param_fir_min_phase_->get();
+    dsp_param_.fir_highpass = param_fir_highpass_->get();
+    dsp_param_.feedback = param_feedback_->get();
+    dsp_param_.damp_pitch = param_damp_pitch_->get();
+    dsp_param_.feedback_enable = param_feedback_enable_->get();
+    dsp_param_.barber_phase = param_barber_phase_->get();
+    dsp_param_.barber_speed = param_barber_speed_->get();
+    dsp_param_.barber_enable = param_barber_enable_->get();
+
     size_t const len = static_cast<size_t>(buffer.getNumSamples());
     auto* left_ptr = buffer.getWritePointer(0);
     auto* right_ptr = buffer.getWritePointer(1);
 
-    float const fs = static_cast<float>(getSampleRate());
-
-    size_t cando = len;
-    while (cando != 0) {
-        size_t num_process = std::min<size_t>(512, cando);
-        cando -= num_process;
-
-        if (should_update_fir_.exchange(false)) {
-            UpdateCoeff();
-        }
-
-        float feedback_mul = 0;
-        if (param_feedback_enable_->get()) {
-            float db = param_feedback_->get();
-            float abs_db = std::abs(db);
-            if (param_fir_min_phase_->get()) {
-                abs_db = std::max(abs_db, 4.1f);
-            }
-            float abs_gain = qwqdsp::convert::Db2Gain(-abs_db);
-            abs_gain = std::min(abs_gain, 0.95f);
-            if (db > 0) {
-                feedback_mul = -abs_gain;
-            }
-            else {
-                feedback_mul = abs_gain;
-            }
-        }
-
-        float const damp_pitch = param_damp_pitch_->get();
-        float const damp_freq = qwqdsp::convert::Pitch2Freq(damp_pitch);
-        float const damp_w = qwqdsp::convert::Freq2W(damp_freq, fs);
-        damp_lowpass_coeff_ = damp_.ComputeCoeff(damp_w);
-
-        barber_phase_smoother_.SetTarget(param_barber_phase_->get());
-        barber_oscillator_.SetFreq(param_barber_speed_->get(), fs);
-
-        // update delay times
-        phase_ += param_lfo_speed_->get() / static_cast<float>(getSampleRate()) * static_cast<float>(num_process);
-        float right_phase = phase_ + param_lfo_phase_->get();
-        {
-            float t;
-            phase_ = std::modf(phase_, &t);
-            right_phase = std::modf(right_phase, &t);
-        }
-        float left_phase = phase_;
-
-        SimdType lfo_modu;
-        lfo_modu.x[0] = qwqdsp::polymath::SinPi(left_phase * std::numbers::pi_v<float>);
-        lfo_modu.x[1] = qwqdsp::polymath::SinPi(right_phase * std::numbers::pi_v<float>);
-
-        float const delay_samples = param_delay_ms_->get() * fs / 1000.0f;
-        float const depth_samples = param_delay_depth_ms_->get() * fs / 1000.0f;
-        SimdType target_delay_samples = SimdType::FromSingle(delay_samples) + lfo_modu * SimdType::FromSingle(depth_samples);
-        target_delay_samples = SimdType::Max(target_delay_samples, SimdType::FromSingle(0.0f));
-        float const delay_time_smooth_factor = 1.0f - std::exp(-1.0f / (static_cast<float>(getSampleRate()) / static_cast<float>(num_process) * 20.0f / 1000.0f));
-        last_exp_delay_samples_ += SimdType::FromSingle(delay_time_smooth_factor) * (target_delay_samples - last_exp_delay_samples_);
-        SimdType curr_num_notch = last_delay_samples_;
-        SimdType delta_num_notch = (last_exp_delay_samples_ - curr_num_notch) / SimdType::FromSingle(static_cast<float>(num_process));
-
-        float curr_damp_coeff = last_damp_lowpass_coeff_;
-        float delta_damp_coeff = (damp_lowpass_coeff_ - curr_damp_coeff) / (static_cast<float>(num_process));
-
-        delay_left_.WrapBuffer();
-        delay_right_.WrapBuffer();
-
-        float inv_samples = 1.0f / static_cast<float>(num_process);
-        std::array<SimdType, kSIMDMaxCoeffLen / 4> delta_coeffs;
-        for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-            auto last = simde_mm_load_ps(last_coeffs_[i].x);
-            auto target = simde_mm_load_ps(coeffs_.data() + 4 * i);
-            auto delta = simde_mm_mul_ps(simde_mm_sub_ps(target, last), simde_mm_set_ps1(inv_samples));
-            simde_mm_store_ps(delta_coeffs[i].x, delta);
-        }
-
-        // fir polyphase filtering
-        if (!param_barber_enable_->get()) {
-            for (size_t j = 0; j < num_process; ++j) {
-                curr_num_notch += delta_num_notch;
-                curr_damp_coeff += delta_damp_coeff;
-
-                for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    last_coeffs_[i] += delta_coeffs[i];
-                }
-    
-                float left_sum = 0;
-                float const left_num_notch = curr_num_notch.x[0];
-                // for (size_t i = 0; i < coeff_len_; ++i) {
-                //     sum += coeffs_[i] * delay_left_.GetAfterPush(i * num_notch);
-                // }
-                SimdType current_delay;
-                current_delay.x[0] = 0;
-                current_delay.x[1] = left_num_notch;
-                current_delay.x[2] = left_num_notch * 2;
-                current_delay.x[3] = left_num_notch * 3;
-                SimdType delay_inc = SimdType::FromSingle(left_num_notch * 4);
-                delay_left_.Push(*left_ptr + left_fb_ * feedback_mul);
-                for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    SimdType taps_out = delay_left_.GetAfterPush(current_delay);
-                    current_delay += delay_inc;
-
-                    taps_out *= last_coeffs_[i];
-                    left_sum += taps_out.x[0];
-                    left_sum += taps_out.x[1];
-                    left_sum += taps_out.x[2];
-                    left_sum += taps_out.x[3];
-                }
-
-                float right_sum = 0;
-                float const right_num_notch = curr_num_notch.x[1];
-                // for (size_t i = 0; i < coeff_len_; ++i) {
-                //     sum += coeffs_[i] * delay_right_.GetAfterPush(i * num_notch);
-                // }
-                current_delay.x[0] = 0;
-                current_delay.x[1] = right_num_notch;
-                current_delay.x[2] = right_num_notch * 2;
-                current_delay.x[3] = right_num_notch * 3;
-                delay_inc = SimdType::FromSingle(right_num_notch * 4);
-                delay_right_.Push(*right_ptr + right_fb_ * feedback_mul);
-                for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    SimdType taps_out = delay_right_.GetAfterPush(current_delay);
-                    current_delay += delay_inc;
-                    taps_out *= last_coeffs_[i];
-                    right_sum += taps_out.x[0];
-                    right_sum += taps_out.x[1];
-                    right_sum += taps_out.x[2];
-                    right_sum += taps_out.x[3];
-                }
-
-                SimdType damp_x;
-                damp_x.x[0] = left_sum;
-                damp_x.x[1] = right_sum;
-                *left_ptr = left_sum;
-                *right_ptr = right_sum;
-                ++left_ptr;
-                ++right_ptr;
-                damp_x = damp_.TickLowpass(damp_x, SimdType::FromSingle(curr_damp_coeff));
-                left_fb_ = damp_x.x[0];
-                right_fb_ = damp_x.x[1];
-            }
-        }
-        else {
-            for (size_t j = 0; j < num_process; ++j) {
-                curr_damp_coeff += delta_damp_coeff;
-                curr_num_notch += delta_num_notch;
-
-                for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    last_coeffs_[i] += delta_coeffs[i];
-                }
-
-                delay_left_.Push(*left_ptr + left_fb_ * feedback_mul);
-                delay_right_.Push(*right_ptr + right_fb_ * feedback_mul);
-
-                float const left_num_notch = curr_num_notch.x[0];
-                float const right_num_notch = curr_num_notch.x[1];
-                SimdType left_current_delay;
-                SimdType right_current_delay;
-                left_current_delay.x[0] = 0;
-                left_current_delay.x[1] = left_num_notch;
-                left_current_delay.x[2] = left_num_notch * 2;
-                left_current_delay.x[3] = left_num_notch * 3;
-                right_current_delay.x[0] = 0;
-                right_current_delay.x[1] = right_num_notch;
-                right_current_delay.x[2] = right_num_notch * 2;
-                right_current_delay.x[3] = right_num_notch * 3;
-                SimdType left_delay_inc = SimdType::FromSingle(left_num_notch * 4);
-                SimdType right_delay_inc = SimdType::FromSingle(right_num_notch * 4);
-
-                // auto const left_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
-                // auto const right_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
-                // std::complex<float> left_rotation_coeff = 1;
-                // std::complex<float> right_rotation_coeff = 1;
-                // std::complex<float> left_sum = 0;
-                // std::complex<float> right_sum = 0;
-
-                // barber_phase_ += barber_phase_inc_;
-                // barber_phase_ -= std::floor(barber_phase_);
-                // float barber = barber_phase_ + barber_phase_smoother_.Tick();
-                // barber -= std::floor(barber);
-
-                // for (size_t i = 0; i < coeff_len_; ++i) {
-                //     left_sum += left_rotation_coeff * coeffs_[i] * delay_left_.GetAfterPush(i * left_num_notch);
-                //     right_sum += right_rotation_coeff * coeffs_[i] * delay_right_.GetAfterPush(i * right_num_notch);
-                //     left_rotation_coeff *= left_rotation_mul;
-                //     right_rotation_coeff *= right_rotation_mul;
-                // }
-                auto const addition_rotation = std::polar(1.0f, barber_phase_smoother_.Tick() * std::numbers::pi_v<float> * 2);
-                barber_oscillator_.Tick();
-                auto const rotation_once = barber_oscillator_.GetCpx() * addition_rotation;
-                auto const rotation_2 = rotation_once * rotation_once;
-                auto const rotation_3 = rotation_once * rotation_2;
-                auto const rotation_4 = rotation_2 * rotation_2;
-                Vec4Complex left_rotation_coeff;
-                left_rotation_coeff.re.x[0] = 1;
-                left_rotation_coeff.re.x[1] = rotation_once.real();
-                left_rotation_coeff.re.x[2] = rotation_2.real();
-                left_rotation_coeff.re.x[3] = rotation_3.real();
-                left_rotation_coeff.im.x[0] = 0;
-                left_rotation_coeff.im.x[1] = rotation_once.imag();
-                left_rotation_coeff.im.x[2] = rotation_2.imag();
-                left_rotation_coeff.im.x[3] = rotation_3.imag();
-                Vec4Complex right_rotation_coeff = left_rotation_coeff;
-                Vec4Complex left_rotation_mul;
-                left_rotation_mul.re.x[0] = rotation_4.real();
-                left_rotation_mul.re.x[1] = rotation_4.real();
-                left_rotation_mul.re.x[2] = rotation_4.real();
-                left_rotation_mul.re.x[3] = rotation_4.real();
-                left_rotation_mul.im.x[0] = rotation_4.imag();
-                left_rotation_mul.im.x[1] = rotation_4.imag();
-                left_rotation_mul.im.x[2] = rotation_4.imag();
-                left_rotation_mul.im.x[3] = rotation_4.imag();
-                Vec4Complex right_rotation_mul = left_rotation_mul;
-
-                float left_re_sum = 0;
-                float left_im_sum = 0;
-                float right_re_sum = 0;
-                float right_im_sum = 0;
-                for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    SimdType left_taps_out = delay_left_.GetAfterPush(left_current_delay);
-                    SimdType right_taps_out = delay_right_.GetAfterPush(right_current_delay);
-                    left_current_delay += left_delay_inc;
-                    right_current_delay += right_delay_inc;
-
-                    left_taps_out *= last_coeffs_[i];
-                    SimdType temp = left_taps_out * left_rotation_coeff.re;
-                    left_re_sum += temp.x[0];
-                    left_re_sum += temp.x[1];
-                    left_re_sum += temp.x[2];
-                    left_re_sum += temp.x[3];
-                    temp = left_taps_out * left_rotation_coeff.im;
-                    left_im_sum += temp.x[0];
-                    left_im_sum += temp.x[1];
-                    left_im_sum += temp.x[2];
-                    left_im_sum += temp.x[3];
-
-                    right_taps_out *= last_coeffs_[i];
-                    temp = right_taps_out * right_rotation_coeff.re;
-                    right_re_sum += temp.x[0];
-                    right_re_sum += temp.x[1];
-                    right_re_sum += temp.x[2];
-                    right_re_sum += temp.x[3];
-                    temp = right_taps_out * right_rotation_coeff.im;
-                    right_im_sum += temp.x[0];
-                    right_im_sum += temp.x[1];
-                    right_im_sum += temp.x[2];
-                    right_im_sum += temp.x[3];
-
-                    left_rotation_coeff *= left_rotation_mul;
-                    right_rotation_coeff *= right_rotation_mul;
-                }
-                
-                SimdType remove_positive_spectrum = hilbert_complex_.Tick(SimdType{
-                    left_re_sum, left_im_sum, right_re_sum, right_im_sum
-                });
-                // this will mirror the positive spectrum to negative domain, forming a real value signal
-                SimdType damp_x = remove_positive_spectrum.Shuffle<0, 2, 1, 3>();
-                *left_ptr = damp_x.x[0];
-                *right_ptr = damp_x.x[1];
-                ++left_ptr;
-                ++right_ptr;
-                damp_x = damp_.TickLowpass(damp_x, SimdType::FromSingle(curr_damp_coeff));
-                left_fb_ = damp_x.x[0];
-                right_fb_ = damp_x.x[1];
-            }
-        }
-        last_delay_samples_ = last_exp_delay_samples_;
-        last_damp_lowpass_coeff_ = damp_lowpass_coeff_;
-    }
-    barber_osc_keep_amp_counter_ += len;
-    [[unlikely]]
-    if (barber_osc_keep_amp_counter_ > barber_osc_keep_amp_need_) {
-        barber_osc_keep_amp_counter_ = 0;
-        barber_oscillator_.KeepAmp();
-    }
+    dsp_.Process(left_ptr, right_ptr, len, dsp_param_);
 }
 
 //==============================================================================
@@ -656,12 +350,12 @@ void SteepFlangerAudioProcessor::getStateInformation (juce::MemoryBlock& destDat
     suspendProcessing(true);
     if (auto state = value_tree_->copyState().createXml(); state != nullptr) {
         auto custom_coeffs = state->createNewChildElement("CUSTOM_COEFFS");
-        custom_coeffs->setAttribute("USING", is_using_custom_);
+        custom_coeffs->setAttribute("USING", dsp_param_.is_using_custom_);
         auto data = custom_coeffs->createNewChildElement("DATA");
         for (size_t i = 0; i < kMaxCoeffLen; ++i) {
             auto time = data->createNewChildElement("ITEM");
-            time->setAttribute("TIME", custom_coeffs_[i]);
-            time->setAttribute("SPECTRAL", custom_spectral_gains[i]);
+            time->setAttribute("TIME", dsp_param_.custom_coeffs_[i]);
+            time->setAttribute("SPECTRAL", dsp_param_.custom_spectral_gains[i]);
         }
         copyXmlToBinary(*state, destData);
     }
@@ -677,18 +371,18 @@ void SteepFlangerAudioProcessor::setStateInformation (const void* data, int size
         value_tree_->replaceState(state);
         auto coeffs = xml.getChildByName("CUSTOM_COEFFS");
         if (coeffs) {
-            is_using_custom_ = coeffs->getBoolAttribute("USING", false);
+            dsp_param_.is_using_custom_ = coeffs->getBoolAttribute("USING", false);
             auto data_sections = coeffs->getChildByName("DATA");
             if (data_sections) {
                 auto it = data_sections->getChildIterator();
                 for (size_t i = 0; auto item : it) {
-                    custom_coeffs_[i] = static_cast<float>(item->getDoubleAttribute("TIME"));
-                    custom_spectral_gains[i] = static_cast<float>(item->getDoubleAttribute("SPECTRAL"));
+                    dsp_param_.custom_coeffs_[i] = static_cast<float>(item->getDoubleAttribute("TIME"));
+                    dsp_param_.custom_spectral_gains[i] = static_cast<float>(item->getDoubleAttribute("SPECTRAL"));
                     ++i;
                     // protect loading old version 65 length coeffs
                     if (i == kMaxCoeffLen) break;
                 }
-                should_update_fir_ = true;
+                dsp_param_.should_update_fir_ = true;
             }
         }
     }
@@ -700,94 +394,4 @@ void SteepFlangerAudioProcessor::setStateInformation (const void* data, int size
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new SteepFlangerAudioProcessor();
-}
-
-
-
-
-void SteepFlangerAudioProcessor::UpdateCoeff() {
-    size_t coeff_len = static_cast<size_t>(param_fir_coeff_len_->get());
-    coeff_len_ = coeff_len;
-
-    if (!is_using_custom_) {
-        std::span<float> kernel{coeffs_.data(), coeff_len};
-        float const cutoff_w = param_fir_cutoff_->get();
-        if (param_fir_highpass_->get()) {
-            qwqdsp::filter::WindowFIR::Highpass(kernel, std::numbers::pi_v<float> - cutoff_w);
-        }
-        else {
-            qwqdsp::filter::WindowFIR::Lowpass(kernel, cutoff_w);
-        }
-        float const beta = qwqdsp::window::Kaiser::Beta(param_fir_side_lobe_->get());
-        qwqdsp::window::Kaiser::ApplyWindow(kernel, beta, false);
-    }
-    else {
-        std::copy_n(custom_coeffs_.begin(), coeff_len, coeffs_.begin());
-    }
-
-    coeff_len_div_4_ = (coeff_len + 3) / 4;
-    size_t const idxend = coeff_len_div_4_ * 4;
-    for (size_t i = coeff_len; i < idxend; ++i) {
-        coeffs_[i] = 0;
-    }
-
-    float pad[kFFTSize]{};
-    std::span<float> kernel{coeffs_.data(), coeff_len};
-    constexpr size_t num_bins = complex_fft_.NumBins(kFFTSize);
-    std::array<float, num_bins> gains{};
-    if (param_fir_min_phase_->get() || param_feedback_enable_->get()) {
-        std::copy(kernel.begin(), kernel.end(), pad);
-        complex_fft_.FFTGainPhase(pad, gains);
-    }
-
-    if (param_fir_min_phase_->get()) {
-        float log_gains[num_bins]{};
-        for (size_t i = 0; i < num_bins; ++i) {
-            log_gains[i] = std::log(gains[i] + 1e-18f);
-        }
-
-        float phases[num_bins]{};
-        complex_fft_.IFFT(pad, log_gains, phases);
-        pad[0] = 0;
-        pad[num_bins / 2] = 0;
-        for (size_t i = num_bins / 2 + 1; i < num_bins; ++i) {
-            pad[i] = -pad[i];
-        }
-
-        complex_fft_.FFT(pad, log_gains, phases);
-        complex_fft_.IFFTGainPhase(pad, gains, phases);
-
-        for (size_t i = 0; i < kernel.size(); ++i) {
-            kernel[i] = pad[i];
-        }
-    }
-
-    if (!param_feedback_enable_->get()) {
-        float energy = 0;
-        for (auto x : kernel) {
-            energy += x * x;
-        }
-        float g = 1.0f / std::sqrt(energy + 1e-18f);
-        for (auto& x : kernel) {
-            x *= g;
-        }
-    }
-    else {
-        float const max_spectral_gain = *std::max_element(gains.begin(), gains.end());
-        float const gain = 1.0f / (max_spectral_gain + 1e-10f);
-        for (auto& x : kernel) {
-            x *= gain;
-        }
-    }
-
-    have_new_coeff_ = true;
-}
-
-void SteepFlangerAudioProcessor::Panic() {
-    juce::ScopedLock _{getCallbackLock()};
-    left_fb_ = 0;
-    right_fb_ = 0;
-    delay_left_.Reset();
-    delay_right_.Reset();
-    hilbert_complex_.Reset();
 }

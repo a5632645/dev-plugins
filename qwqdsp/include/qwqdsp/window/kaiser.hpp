@@ -22,45 +22,60 @@ struct Kaiser {
 
     static void Window(std::span<float> window, float beta, bool for_analyze_not_fir) noexcept {
         const size_t N = window.size();
-        auto inc = 2.0f / (static_cast<float>(N) - 1.0f);
         if (for_analyze_not_fir) {
-            inc = 2.0f / static_cast<float>(N);
+            auto down = 1.0f / std::cyl_bessel_i(0.0f, beta);
+            for (size_t i = 0; i < N; ++i) {
+                auto t = static_cast<float>(i) / static_cast<float>(N);
+                t = 2 * t - 1;
+                auto arg = std::sqrt(1.0f - t * t);
+                window[i] = std::cyl_bessel_i(0.0f, beta * arg) * down;
+            }
         }
-        auto down = 1.0f / std::cyl_bessel_i(0.0f, beta);
-        for (size_t i = 0; i < N; ++i) {
-            auto t = -1.0f + static_cast<float>(i) * inc;
-            auto arg = std::sqrt(1.0f - t * t);
-            window[i] = std::cyl_bessel_i(0.0f, beta * arg) * down;
+        else {
+            auto down = 1.0f / std::cyl_bessel_i(0.0f, beta);
+            for (size_t i = 0; i < N; ++i) {
+                auto t = static_cast<float>(i) / (static_cast<float>(N) - 1.0f);
+                t = 2 * t - 1;
+                auto arg = std::sqrt(1.0f - t * t);
+                window[i] = std::cyl_bessel_i(0.0f, beta * arg) * down;
+            }
         }
     }
 
     static void ApplyWindow(std::span<float> x, float beta, bool for_analyze_not_fir) noexcept {
-        [[unlikely]]
-        if (x.size() == 1) {
-            x[0] = 1;
-            return;
-        }
-
         const size_t N = x.size();
-        auto inc = 2.0f / (static_cast<float>(N) - 1.0f);
         if (for_analyze_not_fir) {
-            inc = 2.0f / static_cast<float>(N);
+            auto down = 1.0f / std::cyl_bessel_i(0.0f, beta);
+            for (size_t i = 0; i < N; ++i) {
+                auto t = static_cast<float>(i) / static_cast<float>(N);
+                t = 2 * t - 1;
+                auto arg = std::sqrt(1.0f - t * t);
+                x[i] *= std::cyl_bessel_i(0.0f, beta * arg) * down;
+            }
         }
-        auto down = 1.0f / std::cyl_bessel_i(0.0f, beta);
-        for (size_t i = 0; i < N; ++i) {
-            auto t = -1.0f + static_cast<float>(i) * inc;
-            auto arg = std::sqrt(1.0f - t * t);
-            x[i] *= std::cyl_bessel_i(0.0f, beta * arg) * down;
+        else {
+            auto down = 1.0f / std::cyl_bessel_i(0.0f, beta);
+            for (size_t i = 0; i < N; ++i) {
+                auto t = static_cast<float>(i) / (static_cast<float>(N) - 1.0f);
+                t = 2 * t - 1;
+                auto arg = std::sqrt(1.0f - t * t);
+                x[i] *= std::cyl_bessel_i(0.0f, beta * arg) * down;
+            }
         }
     }
 
+    /**
+     * @note 此方法只会生成周期性，也就是for analyze
+     */
     static void Window(std::span<float> window, std::span<float> dwindow, float beta) noexcept {
         constexpr auto kTimeDelta = 0.001f;
         const size_t N = window.size();
-        auto inc = 2.0f / static_cast<float>(N);
+
         auto down = 1.0f / std::cyl_bessel_i(0.0f, beta);
         for (size_t i = 0; i < N; ++i) {
-            auto t = -1.0f + static_cast<float>(i) * inc;
+            auto t = static_cast<float>(i) / static_cast<float>(N);
+            t = 2 * t - 1;
+
             auto arg = std::sqrt(1.0f - t * t);
             window[i] = std::cyl_bessel_i(0.0f, beta * arg) * down;
             if (i == 0) {

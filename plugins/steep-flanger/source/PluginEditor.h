@@ -56,7 +56,7 @@ public:
 
     void resized() override {
         auto b = getLocalBounds();
-        auto top = b.removeFromTop(title_.getFont().getHeight() * 1.5f);
+        auto top = b.removeFromTop(static_cast<int>(title_.getFont().getHeight() * 1.5f));
         reload_.setBounds(top.removeFromRight(60).reduced(1, 1));
         copy_.setBounds(top.removeFromRight(50).reduced(1, 1));
         clear_.setBounds(top.removeFromRight(50).reduced(1, 1));
@@ -93,7 +93,7 @@ public:
 
     void resized() override {
         auto b = getLocalBounds();
-        title_.setBounds(b.removeFromTop(title_.getFont().getHeight()));
+        title_.setBounds(b.removeFromTop(static_cast<int>(title_.getFont().getHeight())));
     }
 
     void UpdateGui();
@@ -172,6 +172,10 @@ private:
     ui::Dial barber_phase_{"phase"};
     ui::Dial barber_speed_{"speed"};
     ui::FlatButton barber_reset_phase_;
+
+    juce::Label about_title_;
+    juce::Label cpu_arch_;
+    juce::Label build_time_;
 
     TimeView timeview_;
     SpectralView spectralview_;
