@@ -27,22 +27,12 @@ target_sources(${QWQ_PLUGIN_NAME}
     PRIVATE
         PluginEditor.cpp
         PluginProcessor.cpp
+        vec4.cpp
+        vec8.cpp
 )
 set_target_properties(${QWQ_PLUGIN_NAME} PROPERTIES CXX_STANDARD 20)
-
-if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    if (MSVC)
-        message(STATUS FATAL_ERROR "msvc on macos?")
-    else()
-        target_compile_options(${QWQ_PLUGIN_NAME} PUBLIC -march=native)
-    endif()
-else()
-    if (MSVC)
-        target_compile_options(${QWQ_PLUGIN_NAME} PUBLIC /arch:AVX2)
-    else()
-        target_compile_options(${QWQ_PLUGIN_NAME} PUBLIC -mavx2)
-    endif()
-endif()
+set_source_files_properties(vec4.cpp PROPERTIES COMPILE_OPTIONS ${PLUGIN_VEC4_COMPLIER_OPTION})
+set_source_files_properties(vec8.cpp PROPERTIES COMPILE_OPTIONS ${PLUGIN_VEC8_COMPLIER_OPTION})
 
 target_compile_definitions(${QWQ_PLUGIN_NAME}
     PUBLIC
