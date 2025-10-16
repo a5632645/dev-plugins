@@ -18,21 +18,21 @@ Float32x8 Vec4DelayLine::GetAfterPush(Float32x8 const& delay_samples) const noex
     Float32x8 frac = frpos.Frac();
 
     Float32x8 interp0;
-    simde_mm256_store_ps(interp0.x, simde_mm256_loadu_ps(buffer_.data() + irpos.x[0]));
+    simde_mm_store_ps(interp0.x, simde_mm_loadu_ps(buffer_.data() + irpos.x[0]));
     Float32x8 interp1;
-    simde_mm256_store_ps(interp1.x, simde_mm256_loadu_ps(buffer_.data() + irpos.x[1]));
+    simde_mm_store_ps(interp1.x, simde_mm_loadu_ps(buffer_.data() + irpos.x[1]));
     Float32x8 interp2;
-    simde_mm256_store_ps(interp2.x, simde_mm256_loadu_ps(buffer_.data() + irpos.x[2]));
+    simde_mm_store_ps(interp2.x, simde_mm_loadu_ps(buffer_.data() + irpos.x[2]));
     Float32x8 interp3;
-    simde_mm256_store_ps(interp3.x, simde_mm256_loadu_ps(buffer_.data() + irpos.x[3]));
+    simde_mm_store_ps(interp3.x, simde_mm_loadu_ps(buffer_.data() + irpos.x[3]));
     Float32x8 interp4;
-    simde_mm256_store_ps(interp4.x, simde_mm256_loadu_ps(buffer_.data() + irpos.x[4]));
+    simde_mm_store_ps(interp4.x, simde_mm_loadu_ps(buffer_.data() + irpos.x[4]));
     Float32x8 interp5;
-    simde_mm256_store_ps(interp5.x, simde_mm256_loadu_ps(buffer_.data() + irpos.x[5]));
+    simde_mm_store_ps(interp5.x, simde_mm_loadu_ps(buffer_.data() + irpos.x[5]));
     Float32x8 interp6;
-    simde_mm256_store_ps(interp6.x, simde_mm256_loadu_ps(buffer_.data() + irpos.x[6]));
+    simde_mm_store_ps(interp6.x, simde_mm_loadu_ps(buffer_.data() + irpos.x[6]));
     Float32x8 interp7;
-    simde_mm256_store_ps(interp7.x, simde_mm256_loadu_ps(buffer_.data() + irpos.x[7]));
+    simde_mm_store_ps(interp7.x, simde_mm_loadu_ps(buffer_.data() + irpos.x[7]));
 
     Float32x8 y0;
     y0.x[0] = interp0.x[0];
