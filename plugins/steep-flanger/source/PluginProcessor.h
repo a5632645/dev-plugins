@@ -122,13 +122,10 @@ public:
         complex_fft_.Init(kFFTSize);
 
         cpu_arch_ = 0;
-        if (simd_detector::is_supported(simd_detector::InstructionSet::AVX)) {
+        if (simd_detector::is_supported(simd_detector::InstructionSet::PLUGIN_VEC8_DISPATCH_ISET)) {
             cpu_arch_ = 2;
         }
-        else if (simd_detector::is_supported(simd_detector::InstructionSet::SSE4_1)) {
-            cpu_arch_ = 1;
-        }
-        else if (simd_detector::is_supported(simd_detector::InstructionSet::NEON)) {
+        else if (simd_detector::is_supported(simd_detector::InstructionSet::PLUGIN_VEC4_DISPATCH_ISET)) {
             cpu_arch_ = 1;
         }
     }
