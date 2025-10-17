@@ -19,19 +19,27 @@ if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     else()
         set(PLUGIN_VEC4_COMPLIER_OPTION -march=native)
         set(PLUGIN_VEC8_COMPLIER_OPTION -march=native)
+        set(PLUGIN_VEC8_LESS_COMPLIER_OPTION -march=native)
         add_compile_definitions(PLUGIN_VEC4_DISPATCH_ISET=NEON)
         add_compile_definitions(PLUGIN_VEC8_DISPATCH_ISET=NEON)
+        add_compile_definitions(PLUGIN_VEC8_LESS_DISPATCH_ISET=NEON)
     endif()
 else()
     if (MSVC)
         set(PLUGIN_VEC4_COMPLIER_OPTION /arch:SSE4.2)
         set(PLUGIN_VEC8_COMPLIER_OPTION /arch:avx2)
+        set(PLUGIN_VEC8_LESS_COMPLIER_OPTION /arch:avx)
     else()
         set(PLUGIN_VEC4_COMPLIER_OPTION -msse4.1)
         set(PLUGIN_VEC8_COMPLIER_OPTION -mavx2)
+        set(PLUGIN_VEC8_LESS_COMPLIER_OPTION -mavx)
     endif()
+    # basic sse support
     add_compile_definitions(PLUGIN_VEC4_DISPATCH_ISET=SSE4_1)
+    # most avx2 support
     add_compile_definitions(PLUGIN_VEC8_DISPATCH_ISET=AVX2)
+    # if a plugin don't use avx2 intergal instruction, use this
+    add_compile_definitions(PLUGIN_VEC8_LESS_DISPATCH_ISET=AVX)
 endif()
 
 # folders

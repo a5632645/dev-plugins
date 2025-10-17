@@ -138,6 +138,66 @@ private:
     std::array<CascadeOnepoleAllpassDF1, kNumApf> lags_;
 };
 
+class AllpassBuffer2 {
+public:
+    static constexpr size_t kRealNumApf = 512;
+    static constexpr size_t kNumApf = kRealNumApf / SimdType::kSize;
+    static constexpr size_t kIndexSize = kNumApf * SimdType::kSize;
+    static constexpr size_t kIndexMask = kNumApf * SimdType::kSize - 1;
+    static constexpr float kMaxIndex = kIndexSize;
+
+    void Reset() noexcept {
+        std::ranges::fill(output_buffer_, float{});
+        std::ranges::fill(xlags_, float{});
+    }
+
+    QWQDSP_FORCE_INLINE
+    auto GetAfterPush(SimdIntType rpos) const noexcept {
+        SimdIntType mask = SimdIntType::FromSingle(kIndexMask);
+        SimdIntType irpos = rpos & mask;
+
+        struct LRSimdType {
+            SimdType left;
+            SimdType right;
+        };
+
+        float const* buffer = output_buffer_.data();
+        SimdType y0;
+        y0.x[0] = buffer[irpos.x[0] * 2];
+        y0.x[1] = buffer[irpos.x[1] * 2];
+        y0.x[2] = buffer[irpos.x[2] * 2];
+        y0.x[3] = buffer[irpos.x[3] * 2];
+        SimdType y1;
+        y1.x[0] = buffer[irpos.x[0] * 2 + 1];
+        y1.x[1] = buffer[irpos.x[1] * 2 + 1];
+        y1.x[2] = buffer[irpos.x[2] * 2 + 1];
+        y1.x[3] = buffer[irpos.x[3] * 2 + 1];
+        return LRSimdType{y0,y1};
+    }
+
+    QWQDSP_FORCE_INLINE
+    void Push(float left_x, float rightx, float coeff, size_t num_cascade) noexcept {
+        num_cascade *= SimdType::kSize;
+        float* xlag_ptr = xlags_.data();
+        float* ylag_ptr = output_buffer_.data();
+        for (size_t i = 0; i < num_cascade; ++i) {
+            float left_y = xlag_ptr[0] + coeff * (left_x - ylag_ptr[0]);
+            float righty = xlag_ptr[1] + coeff * (rightx - ylag_ptr[1]);
+            xlag_ptr[0] = left_x;
+            xlag_ptr[1] = rightx;
+            ylag_ptr[0] = left_y;
+            ylag_ptr[1] = righty;
+            left_x = left_y;
+            rightx = righty;
+            xlag_ptr += 2;
+            ylag_ptr += 2;
+        }
+    }
+private:
+    alignas(16) std::array<float, kRealNumApf * 2> output_buffer_{};
+    alignas(16) std::array<float, kRealNumApf * 2> xlags_{};
+};
+
 // ---------------------------------------- juce processor ----------------------------------------
 class DeepPhaserAudioProcessor final : public juce::AudioProcessor
 {
@@ -199,8 +259,9 @@ public:
 
     static constexpr size_t kSIMDMaxCoeffLen = ((kMaxCoeffLen + 3) / 4) * 4;
 
-    AllpassBuffer delay_left_;
-    AllpassBuffer delay_right_;
+    // AllpassBuffer delay_left_;
+    // AllpassBuffer delay_right_;
+    AllpassBuffer2 delay_;
     // fir
     alignas(16) std::array<float, kSIMDMaxCoeffLen> coeffs_{};
     std::array<SimdType, kSIMDMaxCoeffLen / 4> last_coeffs_{};

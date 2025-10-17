@@ -37,6 +37,8 @@ DeepPhaserAudioProcessor::DeepPhaserAudioProcessor()
             "blend",
             juce::NormalisableRange<float>{-0.95f, 0.95f, 0.001f},
             -0.6f
+            // juce::NormalisableRange<float>{0.01f, 0.4f, 0.001f},
+            // 0.2f
         );
         param_allpass_blend_ = p.get();
         layout.add(std::move(p));
@@ -244,8 +246,9 @@ void DeepPhaserAudioProcessor::prepareToPlay (double sampleRate, int samplesPerB
     
     barber_phase_smoother_.SetSmoothTime(20.0f, static_cast<float>(sampleRate));
     damp_.Reset();
-    delay_left_.Reset();
-    delay_right_.Reset();
+    // delay_left_.Reset();
+    // delay_right_.Reset();
+    delay_.Reset();
     barber_oscillator_.Reset();
     barber_osc_keep_amp_counter_ = 0;
     // VIC正交振荡器衰减非常慢，设定为5分钟保持一次
@@ -387,33 +390,24 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 current_delay.x[2] = num_state * 2;
                 current_delay.x[3] = num_state * 3;
                 SimdIntType delay_inc = SimdIntType::FromSingle(num_state * 4);
-                delay_left_.Push(*left_ptr + left_fb_ * feedback_mul, last_allpass_coeff_, num_calc_apf);
-                for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    SimdType taps_out = delay_left_.GetAfterPush(current_delay);
-                    current_delay += delay_inc;
-
-                    taps_out *= last_coeffs_[i];
-                    left_sum += taps_out.x[0];
-                    left_sum += taps_out.x[1];
-                    left_sum += taps_out.x[2];
-                    left_sum += taps_out.x[3];
-                }
-
                 float right_sum = 0;
-                current_delay.x[0] = 0;
-                current_delay.x[1] = num_state;
-                current_delay.x[2] = num_state * 2;
-                current_delay.x[3] = num_state * 3;
-                delay_inc = SimdIntType::FromSingle(num_state * 4);
-                delay_right_.Push(*right_ptr + right_fb_ * feedback_mul, last_allpass_coeff_, num_calc_apf);
+                delay_.Push(*left_ptr + left_fb_ * feedback_mul, *right_ptr + right_fb_ * feedback_mul, last_allpass_coeff_, num_calc_apf);
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    SimdType taps_out = delay_right_.GetAfterPush(current_delay);
+                    auto taps_out = delay_.GetAfterPush(current_delay);
+
+                    taps_out.left *= last_coeffs_[i];
+                    left_sum += taps_out.left.x[0];
+                    left_sum += taps_out.left.x[1];
+                    left_sum += taps_out.left.x[2];
+                    left_sum += taps_out.left.x[3];
+
+                    taps_out.right *= last_coeffs_[i];
+                    right_sum += taps_out.right.x[0];
+                    right_sum += taps_out.right.x[1];
+                    right_sum += taps_out.right.x[2];
+                    right_sum += taps_out.right.x[3];
+
                     current_delay += delay_inc;
-                    taps_out *= last_coeffs_[i];
-                    right_sum += taps_out.x[0];
-                    right_sum += taps_out.x[1];
-                    right_sum += taps_out.x[2];
-                    right_sum += taps_out.x[3];
                 }
 
                 SimdType damp_x;
@@ -437,21 +431,13 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     last_coeffs_[i] += delta_coeffs[i];
                 }
 
-                delay_left_.Push(*left_ptr + left_fb_ * feedback_mul, last_allpass_coeff_, num_calc_apf);
-                delay_right_.Push(*right_ptr + right_fb_ * feedback_mul, last_allpass_coeff_, num_calc_apf);
-
-                SimdIntType left_current_delay;
-                SimdIntType right_current_delay;
-                left_current_delay.x[0] = 0;
-                left_current_delay.x[1] = num_state;
-                left_current_delay.x[2] = num_state * 2;
-                left_current_delay.x[3] = num_state * 3;
-                right_current_delay.x[0] = 0;
-                right_current_delay.x[1] = num_state;
-                right_current_delay.x[2] = num_state * 2;
-                right_current_delay.x[3] = num_state * 3;
-                SimdIntType left_delay_inc = SimdIntType::FromSingle(num_state * 4);
-                SimdIntType right_delay_inc = SimdIntType::FromSingle(num_state * 4);
+                delay_.Push(*left_ptr + left_fb_ * feedback_mul, *right_ptr + right_fb_ * feedback_mul, last_allpass_coeff_, num_calc_apf);
+                SimdIntType current_delay;
+                current_delay.x[0] = 0;
+                current_delay.x[1] = num_state;
+                current_delay.x[2] = num_state * 2;
+                current_delay.x[3] = num_state * 3;
+                SimdIntType delay_inc = SimdIntType::FromSingle(num_state * 4);
 
                 // auto const left_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
                 // auto const right_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
@@ -503,30 +489,28 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 float right_re_sum = 0;
                 float right_im_sum = 0;
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-                    SimdType left_taps_out = delay_left_.GetAfterPush(left_current_delay);
-                    SimdType right_taps_out = delay_right_.GetAfterPush(right_current_delay);
-                    left_current_delay += left_delay_inc;
-                    right_current_delay += right_delay_inc;
+                    auto taps_out = delay_.GetAfterPush(current_delay);
+                    current_delay += delay_inc;
 
-                    left_taps_out *= last_coeffs_[i];
-                    SimdType temp = left_taps_out * left_rotation_coeff.re;
+                    taps_out.left *= last_coeffs_[i];
+                    SimdType temp = taps_out.left * left_rotation_coeff.re;
                     left_re_sum += temp.x[0];
                     left_re_sum += temp.x[1];
                     left_re_sum += temp.x[2];
                     left_re_sum += temp.x[3];
-                    temp = left_taps_out * left_rotation_coeff.im;
+                    temp = taps_out.left * left_rotation_coeff.im;
                     left_im_sum += temp.x[0];
                     left_im_sum += temp.x[1];
                     left_im_sum += temp.x[2];
                     left_im_sum += temp.x[3];
 
-                    right_taps_out *= last_coeffs_[i];
-                    temp = right_taps_out * right_rotation_coeff.re;
+                    taps_out.right *= last_coeffs_[i];
+                    temp = taps_out.right * right_rotation_coeff.re;
                     right_re_sum += temp.x[0];
                     right_re_sum += temp.x[1];
                     right_re_sum += temp.x[2];
                     right_re_sum += temp.x[3];
-                    temp = right_taps_out * right_rotation_coeff.im;
+                    temp = taps_out.right * right_rotation_coeff.im;
                     right_im_sum += temp.x[0];
                     right_im_sum += temp.x[1];
                     right_im_sum += temp.x[2];
@@ -695,7 +679,8 @@ void DeepPhaserAudioProcessor::Panic() {
     juce::ScopedLock _{getCallbackLock()};
     left_fb_ = 0;
     right_fb_ = 0;
-    delay_left_.Reset();
-    delay_right_.Reset();
+    delay_.Reset();
+    // delay_left_.Reset();
+    // delay_right_.Reset();
     hilbert_complex_.Reset();
 }
