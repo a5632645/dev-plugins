@@ -25,7 +25,7 @@ DeepPhaserAudioProcessor::DeepPhaserAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterInt>(
             juce::ParameterID{"state", 1},
             "state",
-            1.0f, static_cast<int>(AllpassBuffer::kMaxIndex / 4),
+            1.0f, static_cast<int>(AllpassBuffer2::kMaxIndex / 4),
             12.0f
         );
         param_state_ = p.get();
@@ -352,10 +352,13 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         barber_phase_smoother_.SetTarget(param_barber_phase_->get());
         barber_oscillator_.SetFreq(param_barber_speed_->get(), fs);
 
-        float const max_base_state = AllpassBuffer::kMaxIndex / static_cast<float>(coeff_len_);
+        float const max_base_state = AllpassBuffer2::kMaxIndex / static_cast<float>(coeff_len_);
         float current_num_state = static_cast<float>(param_state_->get());
-        size_t num_calc_apf = static_cast<size_t>(param_state_->get()) * coeff_len_div_4_;
-        num_calc_apf = std::min(num_calc_apf, AllpassBuffer::kNumApf);
+        size_t num_calc_apf = static_cast<size_t>(param_state_->get()) * coeff_len_;
+        num_calc_apf = std::min(num_calc_apf, AllpassBuffer2::kRealNumApf);
+        delay_.SetZero(last_num_calc_apfs_, num_calc_apf);
+        last_num_calc_apfs_ = num_calc_apf;
+
         current_num_state = std::min(max_base_state, current_num_state);
         int const num_state = static_cast<int>(current_num_state);
 
@@ -392,6 +395,10 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 SimdIntType delay_inc = SimdIntType::FromSingle(num_state * 4);
                 float right_sum = 0;
                 delay_.Push(*left_ptr + left_fb_ * feedback_mul, *right_ptr + right_fb_ * feedback_mul, last_allpass_coeff_, num_calc_apf);
+                SimdType damp_x = delay_.GetLR(num_calc_apf - 1);
+                damp_x = damp_.TickLowpass(damp_x, SimdType::FromSingle(curr_damp_coeff));
+                left_fb_ = damp_x.x[0];
+                right_fb_ = damp_x.x[1];
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
                     auto taps_out = delay_.GetAfterPush(current_delay);
 
@@ -410,16 +417,10 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     current_delay += delay_inc;
                 }
 
-                SimdType damp_x;
-                damp_x.x[0] = left_sum;
-                damp_x.x[1] = right_sum;
                 *left_ptr = left_sum;
                 *right_ptr = right_sum;
                 ++left_ptr;
                 ++right_ptr;
-                damp_x = damp_.TickLowpass(damp_x, SimdType::FromSingle(curr_damp_coeff));
-                left_fb_ = damp_x.x[0];
-                right_fb_ = damp_x.x[1];
             }
         }
         else {
@@ -432,6 +433,11 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 }
 
                 delay_.Push(*left_ptr + left_fb_ * feedback_mul, *right_ptr + right_fb_ * feedback_mul, last_allpass_coeff_, num_calc_apf);
+                SimdType feedback_x = delay_.GetLR(num_calc_apf - 1);
+                feedback_x = damp_.TickLowpass(feedback_x, SimdType::FromSingle(curr_damp_coeff));
+                left_fb_ = feedback_x.x[0];
+                right_fb_ = feedback_x.x[1];
+
                 SimdIntType current_delay;
                 current_delay.x[0] = 0;
                 current_delay.x[1] = num_state;
@@ -439,24 +445,6 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 current_delay.x[3] = num_state * 3;
                 SimdIntType delay_inc = SimdIntType::FromSingle(num_state * 4);
 
-                // auto const left_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
-                // auto const right_rotation_mul = std::polar(1.0f, barber * std::numbers::pi_v<float> * 2);
-                // std::complex<float> left_rotation_coeff = 1;
-                // std::complex<float> right_rotation_coeff = 1;
-                // std::complex<float> left_sum = 0;
-                // std::complex<float> right_sum = 0;
-
-                // barber_phase_ += barber_phase_inc_;
-                // barber_phase_ -= std::floor(barber_phase_);
-                // float barber = barber_phase_ + barber_phase_smoother_.Tick();
-                // barber -= std::floor(barber);
-
-                // for (size_t i = 0; i < coeff_len_; ++i) {
-                //     left_sum += left_rotation_coeff * coeffs_[i] * delay_left_.GetAfterPush(i * left_num_notch);
-                //     right_sum += right_rotation_coeff * coeffs_[i] * delay_right_.GetAfterPush(i * right_num_notch);
-                //     left_rotation_coeff *= left_rotation_mul;
-                //     right_rotation_coeff *= right_rotation_mul;
-                // }
                 auto const addition_rotation = std::polar(1.0f, barber_phase_smoother_.Tick() * std::numbers::pi_v<float> * 2);
                 barber_oscillator_.Tick();
                 auto const rotation_once = barber_oscillator_.GetCpx() * addition_rotation;
@@ -524,14 +512,11 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     left_re_sum, left_im_sum, right_re_sum, right_im_sum
                 });
                 // this will mirror the positive spectrum to negative domain, forming a real value signal
-                SimdType damp_x = remove_positive_spectrum.Shuffle<0, 2, 1, 3>();
-                *left_ptr = damp_x.x[0];
-                *right_ptr = damp_x.x[1];
+                SimdType output_y = remove_positive_spectrum.Shuffle<0, 2, 1, 3>();
+                *left_ptr = output_y.x[0];
+                *right_ptr = output_y.x[1];
                 ++left_ptr;
                 ++right_ptr;
-                damp_x = damp_.TickLowpass(damp_x, SimdType::FromSingle(curr_damp_coeff));
-                left_fb_ = damp_x.x[0];
-                right_fb_ = damp_x.x[1];
             }
         }
         last_damp_lowpass_coeff_ = damp_lowpass_coeff_;

@@ -14,130 +14,6 @@
 using SimdType = qwqdsp::psimd::Vec4f32;
 using SimdIntType = qwqdsp::psimd::Vec4i32;
 
-class CascadeOnepoleAllpassTPT {
-public:
-    void Reset() noexcept {
-        lag_ = SimdType::FromSingle(0);
-    }
-    
-    static float ComputeCoeff(float w) noexcept {
-        constexpr float kMaxOmega = std::numbers::pi_v<float> - 1e-5f;
-        [[unlikely]]
-        if (w < 0.0f) {
-            return 0.0f;
-        }
-        else if (w > kMaxOmega) {
-            return 1.0f;
-        }
-        else [[likely]] {
-            auto k = std::tan(w / 2);
-            return k / (1 + k);
-        }
-    }
-
-    QWQDSP_FORCE_INLINE
-    SimdType TickAllpass(float x, float coeff) noexcept {
-        SimdType delta;
-        SimdType y;
-        for (size_t i = 0; i < SimdType::kSize; ++i) {
-            delta.x[i] = coeff * (x - lag_.x[i]);
-            float lp = lag_.x[i] + delta.x[i];
-            x -= lp;
-            x -= lp;
-            y.x[i] = x;
-        }
-        lag_ += delta;
-        lag_ += delta;
-        return y;
-    }
-private:
-    SimdType lag_{};
-};
-
-class CascadeOnepoleAllpassDF1 {
-public:
-    void Reset() noexcept {
-        xlag_ = SimdType::FromSingle(0);
-        ylag_ = SimdType::FromSingle(0);
-    }
-    
-    static float ComputeCoeff(float w) noexcept {
-        constexpr float kMaxOmega = std::numbers::pi_v<float> - 1e-5f;
-        [[unlikely]]
-        if (w < 0.0f) {
-            return 0.0f;
-        }
-        else if (w > kMaxOmega) {
-            return 1.0f;
-        }
-        else [[likely]] {
-            auto k = std::tan(w / 2);
-            return k / (1 + k);
-        }
-    }
-
-    QWQDSP_FORCE_INLINE
-    SimdType TickAllpass(float x, float coeff) noexcept {
-        for (size_t i = 0; i < SimdType::kSize; ++i) {
-            float y = xlag_.x[i] + coeff * (x - ylag_.x[i]);
-            xlag_.x[i] = x;
-            ylag_.x[i] = y;
-            x = y;
-        }
-        return ylag_;
-    }
-private:
-    SimdType xlag_{};
-    SimdType ylag_{};
-};
-
-class AllpassBuffer {
-public:
-    static constexpr size_t kNumApf = 128;
-    static constexpr size_t kRealNumApf = kNumApf * SimdType::kSize;
-    static constexpr size_t kIndexSize = kNumApf * SimdType::kSize;
-    static constexpr size_t kIndexMask = kNumApf * SimdType::kSize - 1;
-    static constexpr float kMaxIndex = kIndexSize;
-
-    void Reset() noexcept {
-        std::ranges::fill(output_buffer_, SimdType{});
-        for (auto& f : lags_) {
-            f.Reset();
-        }
-    }
-
-    QWQDSP_FORCE_INLINE
-    SimdType GetAfterPush(SimdIntType rpos) const noexcept {
-        SimdIntType mask = SimdIntType::FromSingle(kIndexMask);
-        SimdIntType irpos = rpos & mask;
-
-        float const* buffer = reinterpret_cast<float const*>(output_buffer_.data());
-        SimdType y0;
-        y0.x[0] = buffer[irpos.x[0]];
-        y0.x[1] = buffer[irpos.x[1]];
-        y0.x[2] = buffer[irpos.x[2]];
-        y0.x[3] = buffer[irpos.x[3]];
-        return y0;
-    }
-
-    QWQDSP_FORCE_INLINE
-    void Push(float x, float coeff, size_t num_cascade) noexcept {
-        for (size_t i = 0; i < num_cascade; ++i) {
-            output_buffer_[i] = lags_[i].TickAllpass(x, coeff);
-            x = output_buffer_[i].x[3];
-        }
-    }
-
-    QWQDSP_FORCE_INLINE
-    float Get(size_t idx) const noexcept {
-        float const* buffer = reinterpret_cast<float const*>(output_buffer_.data());
-        return buffer[idx];
-    }
-private:
-    std::array<SimdType, kNumApf * 2> output_buffer_{};
-    std::array<CascadeOnepoleAllpassDF1, kNumApf> lags_;
-};
-
 class AllpassBuffer2 {
 public:
     static constexpr size_t kRealNumApf = 512;
@@ -177,7 +53,6 @@ public:
 
     QWQDSP_FORCE_INLINE
     void Push(float left_x, float rightx, float coeff, size_t num_cascade) noexcept {
-        num_cascade *= SimdType::kSize;
         float* xlag_ptr = xlags_.data();
         float* ylag_ptr = output_buffer_.data();
         for (size_t i = 0; i < num_cascade; ++i) {
@@ -192,6 +67,21 @@ public:
             xlag_ptr += 2;
             ylag_ptr += 2;
         }
+    }
+
+    void SetZero(size_t last_num, size_t curr_num) noexcept {
+        size_t const begin_idx = last_num * 2;
+        size_t const end_idx = curr_num * 2;
+        for (size_t i = begin_idx; i < end_idx; ++i) {
+            output_buffer_[i] = 0;
+        }
+        for (size_t i = begin_idx; i < end_idx; ++i) {
+            xlags_[i] = 0;
+        }
+    }
+
+    SimdType GetLR(size_t filter_idx) const noexcept {
+        return SimdType{output_buffer_[filter_idx * 2], output_buffer_[filter_idx * 2 + 1]};
     }
 private:
     alignas(16) std::array<float, kRealNumApf * 2> output_buffer_{};
@@ -272,6 +162,7 @@ public:
 
     // allpass
     float last_allpass_coeff_{};
+    size_t last_num_calc_apfs_{};
 
     // feedback
     float left_fb_{};
