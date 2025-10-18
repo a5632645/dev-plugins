@@ -3,7 +3,7 @@
 
 // ---------------------------------------- editor ----------------------------------------
 
-SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlangerAudioProcessor& p)
+SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (EmptyAudioProcessor& p)
     : AudioProcessorEditor (&p)
     , p_(p)
 {

@@ -1,5 +1,6 @@
 #pragma once
-#include "../../shared/juce_param_listener.hpp"
+#include "pluginshared/juce_param_listener.hpp"
+#include "pluginshared/preset_manager.hpp"
 
 #include "dsp/sdelay2.hpp"
 
@@ -49,6 +50,7 @@ public:
     void PanicFilterFb();
 
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
+    std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 
     SDelay delays_;
     std::unique_ptr<mana::CurveV2> curve_;

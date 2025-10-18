@@ -94,10 +94,13 @@ void FilterView::paint(juce::Graphics& g) {
 VitalChorusAudioProcessorEditor::VitalChorusAudioProcessorEditor (VitalChorusAudioProcessor& p)
     : AudioProcessorEditor (&p)
     , p_(p)
+    , preset_panel_(*p.preset_manager_)
     , chorus_view_(p)
     , filter_view_(p)
 {
     auto& apvts = *p.value_tree_;
+
+    addAndMakeVisible(preset_panel_);
 
     auto sync_type_changed = [this](float){
         LFOTempoType type = static_cast<LFOTempoType>(p_.param_sync_type_->get());
@@ -181,8 +184,8 @@ VitalChorusAudioProcessorEditor::VitalChorusAudioProcessorEditor (VitalChorusAud
     addAndMakeVisible(chorus_view_);
     addAndMakeVisible(filter_view_);
 
-    setSize(530, 150);
-    setResizeLimits(530, 150, 9999, 9999);
+    setSize(530, 200);
+    setResizeLimits(530, 200, 9999, 9999);
     setResizable(true, true);
 }
 
@@ -196,6 +199,7 @@ void VitalChorusAudioProcessorEditor::paint (juce::Graphics& g) {
 
 void VitalChorusAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
+    preset_panel_.setBounds(b.removeFromTop(std::max(50, b.proportionOfHeight(0.1f))));
 
     auto w = b.getWidth() / 3;
     {

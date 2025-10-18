@@ -1,5 +1,6 @@
 #pragma once
-#include "../../shared/component.hpp"
+#include "pluginshared/component.hpp"
+#include "pluginshared/preset_panel.hpp"
 
 #include "ui/common_curve_editor.h"
 
@@ -30,6 +31,7 @@ private:
     void OnReload(mana::CurveV2* generator) override;
 
     DispersiveDelayAudioProcessor& p_;
+    pluginshared::PresetPanel preset_panel_;
 
     ui::Dial flat_{"flat"};
     ui::Dial f_begin_{"begin"};

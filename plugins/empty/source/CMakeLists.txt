@@ -41,7 +41,7 @@ target_compile_definitions(${QWQ_PLUGIN_NAME}
 
 target_link_libraries(${QWQ_PLUGIN_NAME}
     PRIVATE
-        AudioPluginData           # If we'd created a binary data target, we'd link to it here
+        # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
         qwqdsp
     PUBLIC

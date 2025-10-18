@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 set(QWQ_PLUGIN_NAME "SteepFlanger")
-project(${QWQ_PLUGIN_NAME} VERSION 0.0.1)
+project(${QWQ_PLUGIN_NAME} VERSION 0.1.0)
 
 juce_add_plugin(${QWQ_PLUGIN_NAME}
     # VERSION ...                               # Set this if the plugin version is different to the project version
@@ -49,6 +49,7 @@ target_link_libraries(${QWQ_PLUGIN_NAME}
         Eigen3::Eigen
         qwqdsp
         cpp_simd_detector
+        PluginShared
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

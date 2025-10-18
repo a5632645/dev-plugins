@@ -2,7 +2,7 @@
 #include "PluginEditor.h"
 
 //==============================================================================
-SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
+EmptyAudioProcessor::EmptyAudioProcessor()
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
                       #if ! JucePlugin_IsSynth
@@ -190,20 +190,26 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
     }
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
+    preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
+    preset_manager_->external_load_default_operations = [this]{
+        dsp_param_.is_using_custom_ = false;
+        std::ranges::fill(dsp_param_.custom_coeffs_, float{});
+        std::ranges::fill(dsp_param_.custom_spectral_gains, float{});
+    };
 }
 
-SteepFlangerAudioProcessor::~SteepFlangerAudioProcessor()
+EmptyAudioProcessor::~EmptyAudioProcessor()
 {
     value_tree_ = nullptr;
 }
 
 //==============================================================================
-const juce::String SteepFlangerAudioProcessor::getName() const
+const juce::String EmptyAudioProcessor::getName() const
 {
     return JucePlugin_Name;
 }
 
-bool SteepFlangerAudioProcessor::acceptsMidi() const
+bool EmptyAudioProcessor::acceptsMidi() const
 {
    #if JucePlugin_WantsMidiInput
     return true;
@@ -212,7 +218,7 @@ bool SteepFlangerAudioProcessor::acceptsMidi() const
    #endif
 }
 
-bool SteepFlangerAudioProcessor::producesMidi() const
+bool EmptyAudioProcessor::producesMidi() const
 {
    #if JucePlugin_ProducesMidiOutput
     return true;
@@ -221,7 +227,7 @@ bool SteepFlangerAudioProcessor::producesMidi() const
    #endif
 }
 
-bool SteepFlangerAudioProcessor::isMidiEffect() const
+bool EmptyAudioProcessor::isMidiEffect() const
 {
    #if JucePlugin_IsMidiEffect
     return true;
@@ -230,40 +236,40 @@ bool SteepFlangerAudioProcessor::isMidiEffect() const
    #endif
 }
 
-double SteepFlangerAudioProcessor::getTailLengthSeconds() const
+double EmptyAudioProcessor::getTailLengthSeconds() const
 {
     return 0.0;
 }
 
-int SteepFlangerAudioProcessor::getNumPrograms()
+int EmptyAudioProcessor::getNumPrograms()
 {
     return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
                 // so this should be at least 1, even if you're not really implementing programs.
 }
 
-int SteepFlangerAudioProcessor::getCurrentProgram()
+int EmptyAudioProcessor::getCurrentProgram()
 {
     return 0;
 }
 
-void SteepFlangerAudioProcessor::setCurrentProgram (int index)
+void EmptyAudioProcessor::setCurrentProgram (int index)
 {
     juce::ignoreUnused (index);
 }
 
-const juce::String SteepFlangerAudioProcessor::getProgramName (int index)
+const juce::String EmptyAudioProcessor::getProgramName (int index)
 {
     juce::ignoreUnused (index);
     return {};
 }
 
-void SteepFlangerAudioProcessor::changeProgramName (int index, const juce::String& newName)
+void EmptyAudioProcessor::changeProgramName (int index, const juce::String& newName)
 {
     juce::ignoreUnused (index, newName);
 }
 
 //==============================================================================
-void SteepFlangerAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void EmptyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     std::ignore = samplesPerBlock;
     
@@ -272,13 +278,13 @@ void SteepFlangerAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     dsp_param_.should_update_fir_ = true;
 }
 
-void SteepFlangerAudioProcessor::releaseResources()
+void EmptyAudioProcessor::releaseResources()
 {
     // When playback stops, you can use this as an opportunity to free up any
     // spare memory, etc.
 }
 
-bool SteepFlangerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool EmptyAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
   #if JucePlugin_IsMidiEffect
     juce::ignoreUnused (layouts);
@@ -302,7 +308,7 @@ bool SteepFlangerAudioProcessor::isBusesLayoutSupported (const BusesLayout& layo
   #endif
 }
 
-void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
+void EmptyAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
     std::ignore = midiMessages;
@@ -333,19 +339,19 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 }
 
 //==============================================================================
-bool SteepFlangerAudioProcessor::hasEditor() const
+bool EmptyAudioProcessor::hasEditor() const
 {
     return true; // (change this to false if you choose to not supply an editor)
 }
 
-juce::AudioProcessorEditor* SteepFlangerAudioProcessor::createEditor()
+juce::AudioProcessorEditor* EmptyAudioProcessor::createEditor()
 {
     return new SteepFlangerAudioProcessorEditor (*this);
     // return new juce::GenericAudioProcessorEditor(*this);
 }
 
 //==============================================================================
-void SteepFlangerAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+void EmptyAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     suspendProcessing(true);
     if (auto state = value_tree_->copyState().createXml(); state != nullptr) {
@@ -362,7 +368,7 @@ void SteepFlangerAudioProcessor::getStateInformation (juce::MemoryBlock& destDat
     suspendProcessing(false);
 }
 
-void SteepFlangerAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+void EmptyAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     suspendProcessing(true);
     auto xml = *getXmlFromBinary(data, sizeInBytes);
@@ -393,5 +399,5 @@ void SteepFlangerAudioProcessor::setStateInformation (const void* data, int size
 // This creates new instances of the plugin..
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new SteepFlangerAudioProcessor();
+    return new EmptyAudioProcessor();
 }

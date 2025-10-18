@@ -165,6 +165,12 @@ DeepPhaserAudioProcessor::DeepPhaserAudioProcessor()
     }
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
+    preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
+    preset_manager_->external_load_default_operations = [this]{
+        is_using_custom_ = false;
+        std::ranges::fill(custom_coeffs_, float{});
+        std::ranges::fill(custom_spectral_gains, float{});
+    };
 
     complex_fft_.Init(kFFTSize);
 }

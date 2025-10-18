@@ -6,8 +6,11 @@
 SimpleReverbAudioProcessorEditor::SimpleReverbAudioProcessorEditor (SimpleReverbAudioProcessor& p)
     : AudioProcessorEditor (&p)
     , p_(p)
+    , preset_panel_(*p.preset_manager_)
 {
     auto& apvts = *p.value_tree_;
+
+    addAndMakeVisible(preset_panel_);
 
     chorus_amount_.BindParam(p.param_chorus_amount_);
     addAndMakeVisible(chorus_amount_);
@@ -34,8 +37,8 @@ SimpleReverbAudioProcessorEditor::SimpleReverbAudioProcessorEditor (SimpleReverb
     predelay_.BindParam(p.param_predelay_);
     addAndMakeVisible(predelay_);
 
-    setSize(530, 150);
-    setResizeLimits(530, 150, 9999, 9999);
+    setSize(530, 200);
+    setResizeLimits(530, 200, 9999, 9999);
     setResizable(true, true);
 }
 
@@ -45,11 +48,12 @@ SimpleReverbAudioProcessorEditor::~SimpleReverbAudioProcessorEditor() {
 //==============================================================================
 void SimpleReverbAudioProcessorEditor::paint (juce::Graphics& g) {
     g.fillAll(ui::green_bg);
-
 }
 
 void SimpleReverbAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
+    preset_panel_.setBounds(b.removeFromTop(std::max(50, b.proportionOfHeight(0.1f))));
+
     int w = b.getWidth() / 6;
     auto top = b.removeFromTop(b.getHeight() / 2);
     pre_lowpass_.setBounds(top.removeFromLeft(w));

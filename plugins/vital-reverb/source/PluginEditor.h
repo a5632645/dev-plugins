@@ -1,5 +1,6 @@
 #pragma once
-#include "../../shared/component.hpp"
+#include "pluginshared/component.hpp"
+#include "pluginshared/preset_panel.hpp"
 
 // ---------------------------------------- editor ----------------------------------------
 
@@ -17,6 +18,7 @@ public:
 
 private:
     SimpleReverbAudioProcessor& p_;
+    pluginshared::PresetPanel preset_panel_;
 
     ui::Dial chorus_amount_{"CHOR AMT"};
     ui::Dial chorus_freq_{"CHOR FREQ"};

@@ -1,5 +1,6 @@
 #pragma once
-#include "../../shared/component.hpp"
+#include "pluginshared/component.hpp"
+#include "pluginshared/preset_panel.hpp"
 
 class VitalChorusAudioProcessor;
 
@@ -38,6 +39,7 @@ public:
 
 private:
     VitalChorusAudioProcessor& p_;
+    pluginshared::PresetPanel preset_panel_;
 
     ui::Dial freq_{"freq"};
     ui::Dial tempo_{"tempo"};

@@ -1,13 +1,14 @@
 #pragma once
-#include "../../shared/juce_param_listener.hpp"
+#include "pluginshared/juce_param_listener.hpp"
+#include "pluginshared/preset_manager.hpp"
 
 // ---------------------------------------- juce processor ----------------------------------------
-class SteepFlangerAudioProcessor final : public juce::AudioProcessor
+class EmptyAudioProcessor final : public juce::AudioProcessor
 {
 public:
     //==============================================================================
-    SteepFlangerAudioProcessor();
-    ~SteepFlangerAudioProcessor() override;
+    EmptyAudioProcessor();
+    ~EmptyAudioProcessor() override;
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -44,7 +45,8 @@ public:
     JuceParamListener param_listener_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
 
+    std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 private:
     //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SteepFlangerAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EmptyAudioProcessor)
 };

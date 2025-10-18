@@ -257,10 +257,13 @@ void SpectralView::mouseUp(const juce::MouseEvent& e) {
 DeepPhaserAudioProcessorEditor::DeepPhaserAudioProcessorEditor (DeepPhaserAudioProcessor& p)
     : AudioProcessorEditor (&p)
     , p_(p)
+    , preset_panel_(*p.preset_manager_)
     , timeview_(p)
     , spectralview_(timeview_)
 {
     auto& apvts = *p.value_tree_;
+
+    addAndMakeVisible(preset_panel_);
 
     addAndMakeVisible(allpass_title_);
     allpass_blend_.BindParam(p.param_allpass_blend_);
@@ -281,12 +284,12 @@ DeepPhaserAudioProcessorEditor::DeepPhaserAudioProcessorEditor (DeepPhaserAudioP
     addAndMakeVisible(highpass_);
     custom_.onStateChange = [this] {
         if (custom_.getToggleState()) {
-            setSize(600, 264 + 200);
+            setSize(600, 264 + 200 + 50);
             timeview_.setVisible(true);
             spectralview_.setVisible(true);
         }
         else {
-            setSize(600, 264);
+            setSize(600, 264 + 50);
             timeview_.setVisible(false);
             spectralview_.setVisible(false);
         }
@@ -326,7 +329,7 @@ DeepPhaserAudioProcessorEditor::DeepPhaserAudioProcessorEditor (DeepPhaserAudioP
     addAndMakeVisible(timeview_);
     addAndMakeVisible(spectralview_);
 
-    setSize(600, 264);
+    setSize(600, 264 + 50);
 
     custom_.setToggleState(p.is_using_custom_, juce::sendNotificationSync);
 
@@ -338,10 +341,12 @@ DeepPhaserAudioProcessorEditor::~DeepPhaserAudioProcessorEditor() {
 
 //==============================================================================
 void DeepPhaserAudioProcessorEditor::paint (juce::Graphics& g) {
-    g.fillAll(juce::Colour{22,27,32});
+    g.fillAll(ui::black_bg);
 
-    auto b = getLocalBounds();
     g.setColour(ui::green_bg);
+    auto b = getLocalBounds();
+    g.fillRect(b.removeFromTop(50 - 2));
+    b.removeFromTop(2);
     {
         auto topblock = b.removeFromTop(125);
         {
@@ -363,6 +368,7 @@ void DeepPhaserAudioProcessorEditor::paint (juce::Graphics& g) {
 
 void DeepPhaserAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
+    preset_panel_.setBounds(b.removeFromTop(50));
     {
         auto topblock = b.removeFromTop(125);
         {

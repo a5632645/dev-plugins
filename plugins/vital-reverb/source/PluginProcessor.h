@@ -1,5 +1,6 @@
 #pragma once
-#include "../../shared/juce_param_listener.hpp"
+#include "pluginshared/juce_param_listener.hpp"
+#include "pluginshared/preset_manager.hpp"
 
 #include "vital_reverb.hpp"
 
@@ -45,6 +46,7 @@ public:
 
     JuceParamListener param_listener_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
+    std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 
     juce::AudioParameterFloat* param_chorus_amount_;
     juce::AudioParameterFloat* param_chorus_freq_;

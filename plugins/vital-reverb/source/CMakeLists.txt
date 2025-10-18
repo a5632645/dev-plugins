@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 set(QWQ_PLUGIN_NAME "VitalReverb")
-project(${QWQ_PLUGIN_NAME} VERSION 0.0.1)
+project(${QWQ_PLUGIN_NAME} VERSION 0.1.0)
 
 juce_add_plugin(${QWQ_PLUGIN_NAME}
     # VERSION ...                               # Set this if the plugin version is different to the project version
@@ -41,9 +41,10 @@ target_compile_definitions(${QWQ_PLUGIN_NAME}
 
 target_link_libraries(${QWQ_PLUGIN_NAME}
     PRIVATE
-        AudioPluginData           # If we'd created a binary data target, we'd link to it here
+        # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
         qwqdsp
+        PluginShared
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

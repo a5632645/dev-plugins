@@ -1,5 +1,6 @@
 #pragma once
-#include "../../shared/component.hpp"
+#include "pluginshared/component.hpp"
+#include "pluginshared/preset_panel.hpp"
 
 class ResonatorAudioProcessor;
 
@@ -45,6 +46,7 @@ private:
     void timerCallback() override;
 
     ResonatorAudioProcessor& p_;
+    pluginshared::PresetPanel preset_panel_;
 
     ResonatorGUI r0_;
     ResonatorGUI r1_;

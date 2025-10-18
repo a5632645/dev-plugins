@@ -7,8 +7,10 @@
 DispersiveDelayAudioProcessorEditor::DispersiveDelayAudioProcessorEditor (DispersiveDelayAudioProcessor& p)
     : AudioProcessorEditor (&p)
     , p_(p)
+    , preset_panel_(*p.preset_manager_)
 {
     auto& apvt = *p.value_tree_;
+    addAndMakeVisible(preset_panel_);
 
     group_delay_cache_.resize(256);
 
@@ -87,9 +89,9 @@ DispersiveDelayAudioProcessorEditor::DispersiveDelayAudioProcessorEditor (Disper
     addAndMakeVisible(clear_curve_);
     addAndMakeVisible(panic_);
 
-    setSize (720, 360);
+    setSize (720, 360 + 50);
     setResizable(true, true);
-    setResizeLimits(720, 360, 9999, 9999);
+    setResizeLimits(720, 360 + 50, 9999, 9999);
 
     curve_.SetCurve(p_.curve_.get());
     curve_.SetSnapGrid(true);
@@ -109,7 +111,6 @@ DispersiveDelayAudioProcessorEditor::~DispersiveDelayAudioProcessorEditor() {
 //==============================================================================
 void DispersiveDelayAudioProcessorEditor::paint (juce::Graphics& g) {
     g.fillAll(ui::green_bg);
-
 }
 
 void DispersiveDelayAudioProcessorEditor::paintOverChildren(juce::Graphics& g)
@@ -152,6 +153,7 @@ void DispersiveDelayAudioProcessorEditor::paintOverChildren(juce::Graphics& g)
 
 void DispersiveDelayAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
+    preset_panel_.setBounds(b.removeFromTop(50));
     {
         auto slider_aera = b.removeFromTop(20+25*3);
         flat_.setBounds(slider_aera.removeFromLeft(64));

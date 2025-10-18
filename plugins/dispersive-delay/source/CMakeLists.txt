@@ -1,11 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
-
-
 set(QWQ_PLUGIN_NAME "DispersiveDelay")
-project(${QWQ_PLUGIN_NAME} VERSION 0.0.1)
-
-
+project(${QWQ_PLUGIN_NAME} VERSION 0.1.0)
 
 juce_add_plugin(${QWQ_PLUGIN_NAME}
     # VERSION ...                               # Set this if the plugin version is different to the project version
@@ -27,8 +23,6 @@ juce_add_plugin(${QWQ_PLUGIN_NAME}
     FORMATS AU VST3 Standalone                  # The formats to build. Other valid formats are: AAX Unity VST AU AUv3
     PRODUCT_NAME ${QWQ_PLUGIN_NAME})        # The name of the final executable, which can differ from the target name
 
-
-
 target_sources(${QWQ_PLUGIN_NAME}
     PRIVATE
         PluginEditor.cpp
@@ -38,8 +32,6 @@ target_sources(${QWQ_PLUGIN_NAME}
         ui/LM_slider.cpp
 )
 set_target_properties(${QWQ_PLUGIN_NAME} PROPERTIES CXX_STANDARD 20)
-
-
 
 target_compile_definitions(${QWQ_PLUGIN_NAME}
     PUBLIC
@@ -55,13 +47,13 @@ else()
     target_compile_options(${QWQ_PLUGIN_NAME} PUBLIC -mavx2)
 endif()
 
-
 target_link_libraries(${QWQ_PLUGIN_NAME}
     PRIVATE
-        AudioPluginData           # If we'd created a binary data target, we'd link to it here
+        # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
         qwqdsp
         nlohmann_json
+        PluginShared
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

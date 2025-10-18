@@ -1,22 +1,25 @@
 #pragma once
-#include "../../shared/component.hpp"
+#include "pluginshared/component.hpp"
+#include "pluginshared/preset_panel.hpp"
 
 // ---------------------------------------- editor ----------------------------------------
 
-class SteepFlangerAudioProcessor;
+class EmptyAudioProcessor;
 
 //==============================================================================
-class SteepFlangerAudioProcessorEditor final : public juce::AudioProcessorEditor {
+class EmptyAudioProcessorEditor final : public juce::AudioProcessorEditor {
 public:
-    explicit SteepFlangerAudioProcessorEditor (SteepFlangerAudioProcessor&);
-    ~SteepFlangerAudioProcessorEditor() override;
+    explicit EmptyAudioProcessorEditor (EmptyAudioProcessor&);
+    ~EmptyAudioProcessorEditor() override;
 
     //==============================================================================
     void paint (juce::Graphics&) override;
     void resized() override;
 
 private:
-    SteepFlangerAudioProcessor& p_;
+    EmptyAudioProcessor& p_;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SteepFlangerAudioProcessorEditor)
+    pluginshared::PresetPanel preset_;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EmptyAudioProcessorEditor)
 };

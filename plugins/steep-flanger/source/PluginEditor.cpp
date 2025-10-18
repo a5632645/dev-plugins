@@ -251,13 +251,16 @@ void SpectralView::mouseUp(const juce::MouseEvent& e) {
 
 // ---------------------------------------- editor ----------------------------------------
 
-SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlangerAudioProcessor& p)
+SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (EmptyAudioProcessor& p)
     : AudioProcessorEditor (&p)
     , p_(p)
+    , preset_panel_(*p.preset_manager_)
     , timeview_(p)
     , spectralview_(timeview_)
 {
     auto& apvts = *p.value_tree_;
+
+    addAndMakeVisible(preset_panel_);
 
     addAndMakeVisible(lfo_title_);
     delay_.BindParam(apvts, "delay");
@@ -288,12 +291,12 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     addAndMakeVisible(highpass_);
     custom_.onStateChange = [this] {
         if (custom_.getToggleState()) {
-            setSize(600, 264 + 200);
+            setSize(600, 264 + 200 + 50);
             timeview_.setVisible(true);
             spectralview_.setVisible(true);
         }
         else {
-            setSize(600, 264);
+            setSize(600, 264 + 50);
             timeview_.setVisible(false);
             spectralview_.setVisible(false);
         }
@@ -356,7 +359,7 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     ui::SetLableBlack(build_time_);
     addAndMakeVisible(build_time_);
 
-    setSize(600, 264);
+    setSize(600, 264 + 50);
     custom_.setToggleState(p.dsp_param_.is_using_custom_, juce::sendNotificationSync);
     startTimerHz(30);
 }
@@ -370,6 +373,8 @@ void SteepFlangerAudioProcessorEditor::paint (juce::Graphics& g) {
 
     auto b = getLocalBounds();
     g.setColour(ui::green_bg);
+    g.fillRect(b.removeFromTop(50 - 2));
+    b.removeFromTop(2);
     {
         auto topblock = b.removeFromTop(125);
         {
@@ -400,6 +405,7 @@ void SteepFlangerAudioProcessorEditor::paint (juce::Graphics& g) {
 
 void SteepFlangerAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
+    preset_panel_.setBounds(b.removeFromTop(50));
     {
         auto topblock = b.removeFromTop(125);
         {

@@ -1,1 +1,2 @@
 # empty
+a template plugin.  

@@ -3,23 +3,30 @@
 
 // ---------------------------------------- editor ----------------------------------------
 
-SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlangerAudioProcessor& p)
+EmptyAudioProcessorEditor::EmptyAudioProcessorEditor (EmptyAudioProcessor& p)
     : AudioProcessorEditor (&p)
     , p_(p)
+    , preset_(*p.preset_manager_)
 {
     auto& apvts = *p.value_tree_;
+
+    addAndMakeVisible(preset_);
+
+    setSize(800, 600);
 }
 
-SteepFlangerAudioProcessorEditor::~SteepFlangerAudioProcessorEditor() {
+EmptyAudioProcessorEditor::~EmptyAudioProcessorEditor() {
 }
 
 //==============================================================================
-void SteepFlangerAudioProcessorEditor::paint (juce::Graphics& g) {
-    g.fillAll(juce::Colour{22,27,32});
+void EmptyAudioProcessorEditor::paint (juce::Graphics& g) {
+    g.fillAll(ui::green_bg);
 
 }
 
-void SteepFlangerAudioProcessorEditor::resized() {
+void EmptyAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
+
+    preset_.setBounds(b.removeFromTop(50));
 
 }

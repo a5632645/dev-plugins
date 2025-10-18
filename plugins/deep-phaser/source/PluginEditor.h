@@ -1,5 +1,6 @@
 #pragma once
-#include "../../shared/component.hpp"
+#include "pluginshared/component.hpp"
+#include "pluginshared/preset_panel.hpp"
 
 #include "qwqdsp/spectral/real_fft.hpp"
 #include "shared.hpp"
@@ -145,6 +146,7 @@ public:
     void timerCallback() override;
 private:
     DeepPhaserAudioProcessor& p_;
+    pluginshared::PresetPanel preset_panel_;
 
     juce::Label allpass_title_{"basic", "basic"};
     ui::Dial state_{"state"};

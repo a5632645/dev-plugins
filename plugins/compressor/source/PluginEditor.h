@@ -4,12 +4,12 @@
 
 // ---------------------------------------- editor ----------------------------------------
 
-class SteepFlangerAudioProcessor;
+class EmptyAudioProcessor;
 
 //==============================================================================
 class SteepFlangerAudioProcessorEditor final : public juce::AudioProcessorEditor {
 public:
-    explicit SteepFlangerAudioProcessorEditor (SteepFlangerAudioProcessor&);
+    explicit SteepFlangerAudioProcessorEditor (EmptyAudioProcessor&);
     ~SteepFlangerAudioProcessorEditor() override;
 
     //==============================================================================
@@ -17,7 +17,7 @@ public:
     void resized() override;
 
 private:
-    SteepFlangerAudioProcessor& p_;
+    EmptyAudioProcessor& p_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SteepFlangerAudioProcessorEditor)
 };

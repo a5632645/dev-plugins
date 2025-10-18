@@ -275,12 +275,12 @@ private:
 };
 
 // ---------------------------------------- juce processor ----------------------------------------
-class SteepFlangerAudioProcessor final : public juce::AudioProcessor
+class EmptyAudioProcessor final : public juce::AudioProcessor
 {
 public:
     //==============================================================================
-    SteepFlangerAudioProcessor();
-    ~SteepFlangerAudioProcessor() override;
+    EmptyAudioProcessor();
+    ~EmptyAudioProcessor() override;
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -321,5 +321,5 @@ public:
 
 private:
     //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SteepFlangerAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EmptyAudioProcessor)
 };

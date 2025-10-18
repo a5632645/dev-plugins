@@ -1,15 +1,16 @@
 #pragma once
-#include "../../shared/component.hpp"
+#include "pluginshared/component.hpp"
+#include "pluginshared/preset_panel.hpp"
 
 #include "qwqdsp/spectral/real_fft.hpp"
 #include "shared.hpp"
 
-class SteepFlangerAudioProcessor;
+class EmptyAudioProcessor;
 
 // ---------------------------------------- time prev ----------------------------------------
 class TimeView : public juce::Component {
 public:
-    TimeView(SteepFlangerAudioProcessor& p)
+    TimeView(EmptyAudioProcessor& p)
         : p_(p)
     {
         addAndMakeVisible(title_);
@@ -69,7 +70,7 @@ public:
 private:
     void RepaintTimeAndSpectralView();
 
-    SteepFlangerAudioProcessor& p_;
+    EmptyAudioProcessor& p_;
     juce::Label title_{"", "Time view"};
     ui::FlatButton reload_;
     ui::FlatButton copy_;
@@ -126,7 +127,7 @@ class SteepFlangerAudioProcessorEditor final
     , public juce::Timer
 {
 public:
-    explicit SteepFlangerAudioProcessorEditor (SteepFlangerAudioProcessor&);
+    explicit SteepFlangerAudioProcessorEditor (EmptyAudioProcessor&);
     ~SteepFlangerAudioProcessorEditor() override;
 
     //==============================================================================
@@ -144,7 +145,8 @@ public:
 
     void timerCallback() override;
 private:
-    SteepFlangerAudioProcessor& p_;
+    EmptyAudioProcessor& p_;
+    pluginshared::PresetPanel preset_panel_;
 
     juce::Label lfo_title_{"lfo", "lfo"};
     ui::Dial delay_{"delay"};

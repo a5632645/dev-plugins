@@ -127,6 +127,7 @@ void ResonatorGUI::UpdateMidiNote() {
 ResonatorAudioProcessorEditor::ResonatorAudioProcessorEditor (ResonatorAudioProcessor& p)
     : AudioProcessorEditor (&p)
     , p_(p)
+    , preset_panel_(*p.preset_manager_)
     , r0_(p, 0)
     , r1_(p, 1)
     , r2_(p, 2)
@@ -137,6 +138,7 @@ ResonatorAudioProcessorEditor::ResonatorAudioProcessorEditor (ResonatorAudioProc
     , r7_(p, 7)
 {
     auto& apvts = *p.value_tree_;
+    addAndMakeVisible(preset_panel_);
 
     addAndMakeVisible(r0_);
     addAndMakeVisible(r1_);
@@ -174,7 +176,7 @@ ResonatorAudioProcessorEditor::ResonatorAudioProcessorEditor (ResonatorAudioProc
     dry_.BindParam(apvts, "dry");
     addAndMakeVisible(dry_);
 
-    setSize(800, 600);
+    setSize(800, 600 + 50);
     startTimerHz(15);
 }
 
@@ -185,8 +187,9 @@ ResonatorAudioProcessorEditor::~ResonatorAudioProcessorEditor() {
 void ResonatorAudioProcessorEditor::paint (juce::Graphics& g) {
     g.fillAll(ui::black_bg);
 
-    g.setColour(ui::green_bg);
     auto b = getLocalBounds();
+    g.setColour(ui::green_bg);
+    g.fillRect(b.removeFromTop(50));
     b.removeFromLeft(80 * 7);
     b.removeFromLeft(4);
     auto matrix_b = b.removeFromTop(80 * 4);
@@ -199,6 +202,7 @@ void ResonatorAudioProcessorEditor::paint (juce::Graphics& g) {
 
 void ResonatorAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
+    preset_panel_.setBounds(b.removeFromTop(50));
     {
         auto resonators = b.removeFromLeft(80 * 7);
         auto height = resonators.getHeight() / 8;
