@@ -153,10 +153,6 @@ public:
         SimdType* audio_out = lr_output.data();
         size_t num_samples = input_cross.size();
 
-        for (size_t i = 0; i < kNetworkContainers; ++i) {
-            WrapFeedbackBuffer(i);
-        }
-
         float const tick_increment = 1.0f / static_cast<float>(num_samples);
 
         SimdType current_dry = dry_;
@@ -487,14 +483,6 @@ public:
             buffer[static_cast<size_t>(irpos.x[2])].x[2],
             buffer[static_cast<size_t>(irpos.x[3])].x[3]
         };
-    }
-
-    void WrapFeedbackBuffer(size_t i) {
-        auto& buffer = feedback_memories_[i];
-        buffer[0] = buffer[static_cast<size_t>(max_feedback_size_)];
-        buffer[static_cast<size_t>(max_feedback_size_) + 1] = buffer[1];
-        buffer[static_cast<size_t>(max_feedback_size_) + 2] = buffer[2];
-        buffer[static_cast<size_t>(max_feedback_size_) + 3] = buffer[3];
     }
 private:
     static constexpr float kT60Amplitude = 0.001f;
