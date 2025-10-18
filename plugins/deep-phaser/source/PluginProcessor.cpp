@@ -622,14 +622,14 @@ void DeepPhaserAudioProcessor::UpdateCoeff() {
         coeffs_[i] = 0;
     }
 
-    float pad[kFFTSize]{};
     std::span<float> kernel{coeffs_.data(), coeff_len};
-    constexpr size_t num_bins = complex_fft_.NumBins(kFFTSize);
-    std::array<float, num_bins> gains{};
-    std::copy(kernel.begin(), kernel.end(), pad);
-    complex_fft_.FFTGainPhase(pad, gains);
-
     if (param_fir_min_phase_->get()) {
+        float pad[kFFTSize]{};
+        constexpr size_t num_bins = complex_fft_.NumBins(kFFTSize);
+        std::array<float, num_bins> gains{};
+        std::copy(kernel.begin(), kernel.end(), pad);
+        complex_fft_.FFTGainPhase(pad, gains);
+
         float log_gains[num_bins]{};
         for (size_t i = 0; i < num_bins; ++i) {
             log_gains[i] = std::log(gains[i] + 1e-18f);
@@ -651,10 +651,13 @@ void DeepPhaserAudioProcessor::UpdateCoeff() {
         }
     }
 
-    float const max_spectral_gain = *std::max_element(gains.begin(), gains.end());
-    float const gain = 1.0f / (max_spectral_gain + 1e-10f);
+    float energy = 0;
+    for (auto x : kernel) {
+        energy += x * x;
+    }
+    float g = 1.0f / std::sqrt(energy + 1e-10f);
     for (auto& x : kernel) {
-        x *= gain;
+        x *= g;
     }
 
     have_new_coeff_ = true;
@@ -665,7 +668,5 @@ void DeepPhaserAudioProcessor::Panic() {
     left_fb_ = 0;
     right_fb_ = 0;
     delay_.Reset();
-    // delay_left_.Reset();
-    // delay_right_.Reset();
     hilbert_complex_.Reset();
 }
