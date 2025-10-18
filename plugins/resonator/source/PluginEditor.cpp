@@ -1,6 +1,15 @@
 #include "PluginEditor.h"
 #include "PluginProcessor.h"
 
+static juce::String FormatMidiNote(int note) {
+    if (note > 0) {
+        return juce::MidiMessage::getMidiNoteName(note, true, true, false);
+    }
+    else {
+        return "inactive";
+    }
+}
+
 // ---------------------------------------- resonator ----------------------------------------
 ResonatorGUI::ResonatorGUI(ResonatorAudioProcessor& p, size_t idx)
     : p_(p)
@@ -8,44 +17,88 @@ ResonatorGUI::ResonatorGUI(ResonatorAudioProcessor& p, size_t idx)
     auto& apvts = *p.value_tree_;
 
     pitch_.BindParam(apvts, juce::String{"pitch"} + juce::String{idx});
-    pitch_.slider.onValueChange = [this] {
-        backup_pitch_ = pitch_.slider.getValue();
-    };
     addAndMakeVisible(pitch_);
+    ui::SetLableBlack(midi_pitch_);
+    midi_pitch_.setJustificationType(juce::Justification::centred);
+    addChildComponent(midi_pitch_);
 
     fine_.BindParam(apvts, juce::String{"fine"} + juce::String{idx});
     addAndMakeVisible(fine_);
 
     dispersion_.BindParam(apvts, juce::String{"dispersion"} + juce::String{idx});
+    dispersion_.OnMenuShowup() = [single = this](juce::PopupMenu& m) {
+        m.addSeparator();
+        m.addItem("set all", [ptr = single](){
+            float const v = ptr->p_.dispersion_pole_radius_[0]->convertTo0to1(static_cast<float>(ptr->dispersion_.slider.getValue()));
+            for (auto& param : ptr->p_.dispersion_pole_radius_) {
+                param->setValueNotifyingHost(v);
+            }
+        });
+    };
     addAndMakeVisible(dispersion_);
 
     damp_.BindParam(apvts, juce::String{"damp"} + juce::String{idx});
+    damp_.OnMenuShowup() = [single = this](juce::PopupMenu& m) {
+        m.addSeparator();
+        m.addItem("set all", [ptr = single](){
+            float const v = ptr->p_.damp_pitch_[0]->convertTo0to1(static_cast<float>(ptr->damp_.slider.getValue()));
+            for (auto& param : ptr->p_.damp_pitch_) {
+                param->setValueNotifyingHost(v);
+            }
+        });
+    };
     addAndMakeVisible(damp_);
 
     gain_.BindParam(apvts, juce::String{"gain"} + juce::String{idx});
+    gain_.OnMenuShowup() = [single = this](juce::PopupMenu& m) {
+        m.addSeparator();
+        m.addItem("set all", [ptr = single](){
+            float const v = ptr->p_.damp_gain_db_[0]->convertTo0to1(static_cast<float>(ptr->gain_.slider.getValue()));
+            for (auto& param : ptr->p_.damp_gain_db_) {
+                param->setValueNotifyingHost(v);
+            }
+        });
+    };
     addAndMakeVisible(gain_);
 
     decay_.BindParam(apvts, juce::String{"decay"} + juce::String{idx});
+    decay_.OnMenuShowup() = [single = this](juce::PopupMenu& m) {
+        m.addSeparator();
+        m.addItem("set all", [ptr = single](){
+            float const v = ptr->p_.decays_[0]->convertTo0to1(static_cast<float>(ptr->decay_.slider.getValue()));
+            for (auto& param : ptr->p_.decays_) {
+                param->setValueNotifyingHost(v);
+            }
+        });
+    };
     addAndMakeVisible(decay_);
 
     polarity_.BindParam(apvts, juce::String{"polarity"} + juce::String{idx});
     addAndMakeVisible(polarity_);
 
     mix_.BindParam(apvts, juce::String{"mix"} + juce::String{idx});
+    mix_.OnMenuShowup() = [single = this](juce::PopupMenu& m) {
+        m.addSeparator();
+        m.addItem("set all", [ptr = single](){
+            float const v = ptr->p_.mix_volume_[0]->convertTo0to1(static_cast<float>(ptr->mix_.slider.getValue()));
+            for (auto& param : ptr->p_.mix_volume_) {
+                param->setValueNotifyingHost(v);
+            }
+        });
+    };
     addAndMakeVisible(mix_);
-    
-    backup_pitch_ = pitch_.slider.getValue();
 }
 
 void ResonatorGUI::resized() {
     auto b = getLocalBounds();
     pitch_.setBounds(b.removeFromLeft(b.getHeight()));
+    midi_pitch_.setBounds(pitch_.getBounds());
     fine_.setBounds(b.removeFromLeft(b.getHeight()));
     dispersion_.setBounds(b.removeFromLeft(b.getHeight()));
     damp_.setBounds(b.removeFromLeft(b.getHeight()));
     gain_.setBounds(b.removeFromLeft(b.getHeight()));
     decay_.setBounds(b.removeFromLeft(b.getHeight()));
-    auto polarity_width = b.getHeight() * 0.3f;
+    auto polarity_width = static_cast<int>(static_cast<float>(b.getHeight()) * 0.4f);
     polarity_.setBounds(b.removeFromLeft(polarity_width).withSizeKeepingCentre(polarity_width, polarity_width));
     mix_.setBounds(b.removeFromLeft(b.getHeight()));
 }
@@ -56,17 +109,17 @@ void ResonatorGUI::paint(juce::Graphics& g) {
     g.fillRect(b);
 }
 
-void ResonatorGUI::ConnectParam(bool connect) {
-    if (connect) {
-        pitch_.slider.setValue(backup_pitch_, juce::dontSendNotification);
-    }
-    else {
-        backup_pitch_ = pitch_.slider.getValue();
-    }
+void ResonatorGUI::SetMidiDrive(bool midi_drive) {
+    pitch_.setVisible(!midi_drive);
+    midi_pitch_.setVisible(midi_drive);
 }
 
 void ResonatorGUI::UpdateMidiNote() {
-    pitch_.slider.setValue(p_.note_manager_.getVoice(idx_).midiNote, juce::dontSendNotification);
+    int const now_midi = p_.note_manager_.getVoice(idx_).midiNote;
+    if (now_midi != old_midi_pitch_) {
+        old_midi_pitch_ = now_midi;
+        midi_pitch_.setText(FormatMidiNote(now_midi), juce::dontSendNotification);
+    }
 }
 
 // ---------------------------------------- editor ----------------------------------------
@@ -118,12 +171,6 @@ ResonatorAudioProcessorEditor::ResonatorAudioProcessorEditor (ResonatorAudioProc
     addAndMakeVisible(round_robin_);
 
     addAndMakeVisible(global_title_);
-    global_mix_.BindParam(apvts, "global_mix");
-    addAndMakeVisible(global_mix_);
-    global_decay_.BindParam(apvts, "global_decay");
-    addAndMakeVisible(global_decay_);
-    global_damp_.BindParam(apvts, "global_damp");
-    addAndMakeVisible(global_damp_);
     dry_.BindParam(apvts, "dry");
     addAndMakeVisible(dry_);
 
@@ -194,9 +241,6 @@ void ResonatorAudioProcessorEditor::resized() {
         {
             global_title_.setBounds(misc_b.removeFromTop(20));
             auto top = misc_b.removeFromTop(80);
-            global_decay_.setBounds(top.removeFromLeft(60));
-            global_mix_.setBounds(top.removeFromLeft(60));
-            global_damp_.setBounds(top.removeFromLeft(60));
             dry_.setBounds(top.removeFromLeft(60));
         }
     }
@@ -206,14 +250,14 @@ void ResonatorAudioProcessorEditor::timerCallback() {
     bool midi_drive = midi_drive_.getToggleState();
     if (midi_drive != was_midi_drive_) {
         was_midi_drive_ = midi_drive;
-        r0_.ConnectParam(!midi_drive);
-        r1_.ConnectParam(!midi_drive);
-        r2_.ConnectParam(!midi_drive);
-        r3_.ConnectParam(!midi_drive);
-        r4_.ConnectParam(!midi_drive);
-        r5_.ConnectParam(!midi_drive);
-        r6_.ConnectParam(!midi_drive);
-        r7_.ConnectParam(!midi_drive);
+        r0_.SetMidiDrive(midi_drive);
+        r1_.SetMidiDrive(midi_drive);
+        r2_.SetMidiDrive(midi_drive);
+        r3_.SetMidiDrive(midi_drive);
+        r4_.SetMidiDrive(midi_drive);
+        r5_.SetMidiDrive(midi_drive);
+        r6_.SetMidiDrive(midi_drive);
+        r7_.SetMidiDrive(midi_drive);
     }
 
     if (!midi_drive) {

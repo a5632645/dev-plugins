@@ -11,12 +11,14 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
 
-    void ConnectParam(bool connect);
+    void SetMidiDrive(bool connect);
     void UpdateMidiNote();
 private:
     ResonatorAudioProcessor& p_;
     const size_t idx_;
+    int old_midi_pitch_{-2};
     ui::Dial pitch_{"pitch"};
+    juce::Label midi_pitch_;
     ui::Dial fine_{"fine"};
     ui::Dial dispersion_{"dispersion"};
     ui::Dial damp_{"damp"};
@@ -24,7 +26,6 @@ private:
     ui::Dial decay_{"decay"};
     ui::Switch polarity_{"-", "+"};
     ui::Dial mix_{"mix"};
-    float backup_pitch_{};
 };
 
 // ---------------------------------------- editor ----------------------------------------
@@ -68,9 +69,6 @@ private:
     bool was_midi_drive_{false};
     ui::Switch round_robin_{"round_robin"};
     juce::Label global_title_{"", "global setting"};
-    ui::Dial global_decay_{"decay"};
-    ui::Dial global_mix_{"mix"};
-    ui::Dial global_damp_{"damp"};
     ui::Dial dry_{"dry"};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ResonatorAudioProcessorEditor)

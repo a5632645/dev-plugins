@@ -52,20 +52,6 @@ ResonatorAudioProcessor::ResonatorAudioProcessor()
         damp_gain_db_[i] = p.get();
         layout.add(std::move(p));
     }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "global_damp",
-            "global_damp",
-            100, 140, 130
-        );
-        param_listener_.Add(p, [this, ptr = p.get()](float v) {
-            float const val01 = ptr->convertTo0to1(v);
-            for (auto& d : damp_pitch_) {
-                d->setValueNotifyingHost(val01);
-            }
-        });
-        layout.add(std::move(p));
-    }
     for (size_t i = 0; i < kNumResonators; ++i) {
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::String{"dispersion"} + juce::String{i},
@@ -85,21 +71,6 @@ ResonatorAudioProcessor::ResonatorAudioProcessor()
         decays_[i] = p.get();
         layout.add(std::move(p));
     }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "global_decay",
-            "global_decay",
-            juce::NormalisableRange<float>{0.0f, 32000.0f, 0.1f, 0.4f},
-            0.0f
-        );
-        param_listener_.Add(p, [this, ptr = p.get()](float v) {
-            float const val01 = ptr->convertTo0to1(v);
-            for (auto& d : decays_) {
-                d->setValueNotifyingHost(val01);
-            }
-        });
-        layout.add(std::move(p));
-    }
     for (size_t i = 0; i < kNumResonators; ++i) {
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::String{"reflection"} + juce::String{i},
@@ -116,20 +87,6 @@ ResonatorAudioProcessor::ResonatorAudioProcessor()
             -61.0f, 0.0f, i == 0 ? 0.0f : -61.0f
         );
         mix_volume_[i] = p.get();
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "global_mix",
-            "global_mix",
-            -61.0f, 0.0f, -61.0f
-        );
-        param_listener_.Add(p, [this, ptr = p.get()](float v) {
-            float const val01 = ptr->convertTo0to1(v);
-            for (auto& d : mix_volume_) {
-                d->setValueNotifyingHost(val01);
-            }
-        });
         layout.add(std::move(p));
     }
     for (size_t i = 0; i < kNumResonators; ++i) {
@@ -246,6 +203,7 @@ void ResonatorAudioProcessor::changeProgramName (int index, const juce::String& 
 //==============================================================================
 void ResonatorAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    std::ignore = samplesPerBlock;
     dsp_.Init(static_cast<float>(sampleRate), 0.0f);
     dsp_.Reset();
 }
@@ -378,23 +336,28 @@ void ResonatorAudioProcessor::ProcessMidi(juce::AudioBuffer<float>& buffer, juce
     float* left_ptr = buffer.getWritePointer(0);
     float* right_ptr = buffer.getWritePointer(1);
 
+    for (size_t i = 0; i < kNumResonators; ++i) {
+        dsp_.fine_tune[i] = fine_tune_[i]->get();
+    }
+    dsp_.UpdateAllPitches();
+
     int buffer_pos = 0;
     for (auto midi : midi_buffer) {
         auto message = midi.getMessage();
         if (message.isNoteOnOrOff()) {
-            dsp_.Process(left_ptr + buffer_pos, right_ptr + buffer_pos, midi.samplePosition - buffer_pos);
+            dsp_.Process(left_ptr + buffer_pos, right_ptr + buffer_pos, static_cast<size_t>(midi.samplePosition - buffer_pos));
             buffer_pos = midi.samplePosition;
 
             if (message.isNoteOn()) {
-                size_t resonator_idx = note_manager_.noteOn(message.getNoteNumber(), allow_round_robin_->get());
-                dsp_.NoteOn(resonator_idx, message.getNoteNumber(), message.getFloatVelocity());
+                int resonator_idx = note_manager_.noteOn(message.getNoteNumber(), allow_round_robin_->get());
+                dsp_.NoteOn(static_cast<size_t>(resonator_idx), static_cast<float>(message.getNoteNumber()), message.getFloatVelocity());
             }
             else {
                 int resonator_idx = note_manager_.noteOff(message.getNoteNumber());
-                dsp_.Noteoff(resonator_idx);
+                dsp_.Noteoff(static_cast<size_t>(resonator_idx));
             }
         }
     }
 
-    dsp_.Process(left_ptr + buffer_pos, right_ptr + buffer_pos, num_samples - buffer_pos);
+    dsp_.Process(left_ptr + buffer_pos, right_ptr + buffer_pos, num_samples - static_cast<size_t>(buffer_pos));
 }

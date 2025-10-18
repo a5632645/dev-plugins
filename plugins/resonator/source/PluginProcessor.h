@@ -356,6 +356,18 @@ public:
         }
     }
 
+    /**
+    * @brief Update all pitches and associated parameters from internal pitch array.
+    *
+    * This function updates the following parameters for each resonator:
+    * - Omega (angular frequency)
+    * - Loop samples (sample period of the resonator)
+    * - Allpass filter delay (group delay of the allpass filter)
+    * - Feedback gain (gain of the feedback path)
+    * - Fractional delay (sample period of the fractional delay filter)
+    * - Allpass filter coefficients (coefficients of the allpass filter)
+    * - Feedback gain (gain of the feedback path)
+    */
     void UpdateAllPitches() noexcept {
         for (size_t i = 0; i < kMonoContainerSize; ++i) {
             SimdType omega;
@@ -473,11 +485,11 @@ public:
     float dry{};
 private:
     SimdType ReadFeedback(size_t idx, size_t wpos, size_t delay_idx) noexcept {
-        SimdIntType rpos = SimdIntType::FromSingle(wpos + delay_mask_) - delay_samples_[delay_idx];
-        rpos &= SimdIntType::FromSingle(delay_mask_);
+        SimdIntType rpos = SimdIntType::FromSingle(static_cast<int>(wpos + delay_mask_)) - delay_samples_[delay_idx];
+        rpos &= SimdIntType::FromSingle(static_cast<int>(delay_mask_));
         SimdType delay_output;
         for (size_t k = 0; k < SimdType::kSize; ++k) {
-            delay_output.x[k] = delay_buffer_[idx][rpos.x[k]].x[k];
+            delay_output.x[k] = delay_buffer_[idx][static_cast<size_t>(rpos.x[k])].x[k];
         }
         return thrian_interp_[idx].Tick(delay_output);
     }
@@ -492,7 +504,7 @@ private:
     std::array<ThrianDispersion, kContainerSize> dispersion_;
     std::array<qwqdsp::filter::OnePoleTPTSimd<SimdType>, kContainerSize> damp_;
     std::array<qwqdsp::filter::OnePoleTPTSimd<SimdType>, kContainerSize> dc_blocker;
-    std::array<SimdType, kMonoContainerSize> input_volume_{};
+    std::array<SimdType, kMonoContainerSize + 1> input_volume_{};
     std::array<SimdType, kMonoContainerSize> output_volume_{};
     std::array<SimdType, kMonoContainerSize> reflections_{};
     std::array<SimdType, kMonoContainerSize> damp_highshelf_coeff{};
@@ -526,7 +538,7 @@ public:
         if (round_robin) {
             // 测试循环位
             if (!voices[round_robin_].isActive) {
-                int id = activateVoice(round_robin_, note);
+                int id = activateVoice(static_cast<int>(round_robin_), note);
                 ++round_robin_;
                 round_robin_ &= (kNumResonators - 1);
                 return id;
@@ -537,7 +549,7 @@ public:
         for (size_t id = 0; id < kNumResonators; ++id) {
             if (!voices[id].isActive) {
                 // 找到空闲复音：直接分配
-                return activateVoice(id, note);
+                return activateVoice(static_cast<int>(id), note);
             }
         }
 
@@ -560,10 +572,10 @@ public:
         // 找到所有分配给该音高的复音并释放
         for (size_t id = 0; id < kNumResonators; ++id) {
             if (voices[id].isActive && voices[id].midiNote == note) {
-                deactivateVoice(id);
+                deactivateVoice(static_cast<int>(id));
                 // 注意：如果有多个复音分配到同一个音高，这里只会释放找到的第一个。
                 // 如果需要支持单音高多复音，则可以继续循环或使用更复杂的映射。
-                return id;
+                return static_cast<int>(id);
             }
         }
         return kNumResonators;
@@ -572,13 +584,13 @@ public:
     // -----------------------------------------------------------
     // 调试/查询方法
     // -----------------------------------------------------------
-    const Voice& getVoice(int id) const {
+    const Voice& getVoice(size_t id) const {
         return voices[id];
     }
 
     void initializeVoices() {
         for (size_t i = 0; i < kNumResonators; ++i) {
-            voices[i].voiceID = i;
+            voices[i].voiceID = static_cast<int>(i);
             voices[i].midiNote = -1;
             voices[i].isActive = false;
         }
@@ -591,8 +603,8 @@ private:
     size_t round_robin_{};
 
     int activateVoice(int id, int note) {
-        voices[id].midiNote = note;
-        voices[id].isActive = true;
+        voices[static_cast<size_t>(id)].midiNote = note;
+        voices[static_cast<size_t>(id)].isActive = true;
         
         // 将此复音 ID 添加到激活队列的尾部，表示它现在是“最新”的
         activationOrder.push_back(id);
@@ -600,8 +612,8 @@ private:
     }
 
     void deactivateVoice(int id) {
-        voices[id].isActive = false;
-        voices[id].midiNote = -1;
+        voices[static_cast<size_t>(id)].isActive = false;
+        voices[static_cast<size_t>(id)].midiNote = -1;
 
         // 从激活队列中移除此 ID，因为它不再是“激活”状态
         // 使用 std::remove_if + erase idiom
