@@ -32,3 +32,7 @@ filter for music DSP [THE ART OF VA FILTER DESIGN](https://www.native-instrument
 qwqdsp is unlicense.  
 vital-chorus and vital-reverb are GPL, because i reference to vital's code.  
 other plugins are BSD, commercial using need JUCE's commercial license.  
+
+## credits
+preset code from [jucePresetManagement](https://github.com/TheAudioProgrammer/jucePresetManagement)  
+great chorus and reverb from [vital](https://github.com/mtytel/vital)  

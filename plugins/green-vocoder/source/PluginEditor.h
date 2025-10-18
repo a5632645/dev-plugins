@@ -1,6 +1,7 @@
 #pragma once
 #include "PluginProcessor.h"
 #include "juce_gui_basics/juce_gui_basics.h"
+#include "pluginshared/preset_panel.hpp"
 
 #include "tooltips.hpp"
 #include "ui/toggle_button.hpp"
@@ -38,6 +39,7 @@ private:
 
     ui::MyLookAndFeel myLookAndFeel_;
     AudioPluginAudioProcessor& processorRef;
+    pluginshared::PresetPanel preset_panel_;
     juce::TooltipWindow tooltip_window_;
 
     ui::VerticalSlider pre_lowpass_;

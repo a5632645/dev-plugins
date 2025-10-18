@@ -6,7 +6,9 @@
 
 //==============================================================================
 AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
-    : AudioProcessorEditor (&p), processorRef (p)
+    : AudioProcessorEditor (&p)
+    , processorRef (p)
+    , preset_panel_(*p.preset_manager_)
     , tooltip_window_(this, 500)
     , main_gain_(p.main_gain_)
     , side_gain_(p.side_gain_)
@@ -22,6 +24,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     tooltip_window_.setLookAndFeel(&myLookAndFeel_);
     
     auto& apvts = *p.value_tree_;
+    addAndMakeVisible(preset_panel_);
 
     pre_lowpass_.BindParameter(apvts, id::kPreLowpass);
     addAndMakeVisible(pre_lowpass_);
@@ -65,7 +68,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addAndMakeVisible(ensemble_);
     addAndMakeVisible(tracking_);
 
-    setSize (575, 550);
+    setSize (575, 550 + 50);
     startTimerHz(30);
     OnLanguageChanged(tooltips_);
 }
@@ -100,6 +103,7 @@ void AudioPluginAudioProcessorEditor::OnLanguageChanged(tooltip::Tooltips& toolt
 
 void AudioPluginAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
+    preset_panel_.setBounds(b.removeFromTop(50));
     {
         auto title_box = b.removeFromTop(20);
         auto top = b.removeFromTop(100);

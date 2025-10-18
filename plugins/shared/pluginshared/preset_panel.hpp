@@ -200,7 +200,8 @@ private:
                     return;
                 }
                 if (version.toString().equalsIgnoreCase(JucePlugin_VersionString)) {
-                        panel_.TempDisplayUpdateInfo(kButtonInfoDisplayTime, "newest!");
+                    panel_.TempDisplayUpdateInfo(kButtonInfoDisplayTime, "newest!");
+                    return;
                 }
                 else {
                     juce::MessageManagerLock lock;

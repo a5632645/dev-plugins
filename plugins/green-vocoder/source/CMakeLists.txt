@@ -14,7 +14,7 @@ cmake_minimum_required(VERSION 3.22)
 # `project()` command. `project()` sets up some helpful variables that describe source/binary
 # directories, and the current project version. This is a standard CMake command.
 
-project(GreenVocoder VERSION 0.0.1)
+project(GreenVocoder VERSION 0.1.0)
 
 # If you've installed JUCE somehow (via a package manager, or directly using the CMake install
 # target), you'll need to tell this project that it depends on the installed copy of JUCE. If you've
@@ -123,6 +123,7 @@ target_link_libraries(GreenVocoder
         juce::juce_audio_utils
         Eigen3::Eigen
         qwqdsp
+        PluginShared
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

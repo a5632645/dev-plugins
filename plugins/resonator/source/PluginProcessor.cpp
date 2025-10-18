@@ -16,7 +16,7 @@ ResonatorAudioProcessor::ResonatorAudioProcessor()
 
     for (size_t i = 0; i < kNumResonators; ++i) {
         auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::String{"pitch"} + juce::String{i},
+            juce::ParameterID{juce::String{"pitch"} + juce::String{i}, 1},
             juce::String{"pitch"} + juce::String{i},
             juce::NormalisableRange<float>{0.0f, 127.0f, 0.01f},
             60.0f

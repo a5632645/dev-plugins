@@ -608,6 +608,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     }
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
+    preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
