@@ -82,7 +82,7 @@ private:
             plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString;
             menu.addItem(plugin_name, false, false, []{});
 
-            if (have_new_version_) {
+            if (presetManager.have_new_version_) {
                 menu.addItem("new version", []{
                     juce::URL{kReleasePageURL}.launchInDefaultBrowser();
                 });
@@ -134,7 +134,7 @@ private:
             presetManager.update_thread_->stopThread(-1);
             presetManager.update_thread_ = nullptr;
         }
-        presetManager.update_thread_ = std::make_unique<UpdateThread>(*this);
+        presetManager.update_thread_ = std::make_unique<UpdateThread>(*this, presetManager);
         if (!presetManager.update_thread_->startThread()) {
             juce::NativeMessageBox::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "check update error", "launch update thread failed");
             return;
@@ -195,11 +195,10 @@ private:
     friend class UpdateThread;
     class UpdateThread : public juce::Thread {
     public:
-        UpdateThread(PresetPanel& panel)
+        UpdateThread(PresetPanel& panel, PresetManager& manager)
             : juce::Thread("version check")
-            , panel_(&panel) {
-            
-        }
+            , panel_(&panel)
+            , manager_(manager) {}
 
         void run() override {
             juce::URL::InputStreamOptions op{juce::URL::ParameterHandling::inAddress};
@@ -248,6 +247,7 @@ private:
                     return;
                 }
                 else {
+                    manager_.have_new_version_ = true;
                     if (!panel_) {
                         return;
                     }
@@ -256,7 +256,6 @@ private:
                     juce::MessageManager::callAsync([p = panel_, v = version.toString()]{
                         juce::String s;
                         s << "new version avaliable: " << v;
-                        p->have_new_version_ = true;
                         p->update_message_.label.setText(s, juce::dontSendNotification);
                         p->update_message_.button.setButtonText("ok");
                     });
@@ -280,6 +279,7 @@ private:
         }
 
         juce::Component::SafePointer<PresetPanel> panel_;
+        PresetManager& manager_;
     };
 
     PresetManager& presetManager;
@@ -288,7 +288,6 @@ private:
     std::unique_ptr<juce::FileChooser> fileChooser;
     juce::TextButton options_button_;
     UpdateMessageComponent update_message_;
-    std::atomic<bool> have_new_version_{false};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetPanel)
 };

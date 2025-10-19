@@ -180,6 +180,7 @@ private:
     juce::Value currentPreset;
     juce::ValueTree default_state_;
     std::unique_ptr<juce::Thread> update_thread_;
+    std::atomic<bool> have_new_version_{false};
 
     friend class PresetPanel;
 };
