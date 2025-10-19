@@ -102,6 +102,7 @@ DispersiveDelayAudioProcessor::DispersiveDelayAudioProcessor()
     }
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
+    preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
 
     value_tree_->addParameterListener("flat", this);
     value_tree_->addParameterListener("f_begin", this);
@@ -112,7 +113,6 @@ DispersiveDelayAudioProcessor::DispersiveDelayAudioProcessor()
     value_tree_->addParameterListener("resolution", this);
     OnReload(curve_.get());
 
-    preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
     preset_manager_->external_load_default_operations = [this]{
         curve_->Init(mana::CurveV2::CurveInitEnum::kRamp);
     };

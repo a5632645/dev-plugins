@@ -6,8 +6,11 @@ struct JuceParamListener{
         std::function<void(float)> func;
         juce::AudioParameterFloat* ptr;
 
-        FloatStore(std::function<void(float)> func, juce::AudioParameterFloat* ptr) : func(func), ptr(ptr) {
+        FloatStore(std::function<void(float)> _func, juce::AudioParameterFloat* _ptr) : func(_func), ptr(_ptr) {
             ptr->addListener(this);
+        }
+        ~FloatStore() override {
+            ptr->removeListener(this);
         }
         void parameterValueChanged (int parameterIndex, float newValue) override {
             func(ptr->get());
@@ -23,8 +26,11 @@ struct JuceParamListener{
         std::function<void(bool)> func;
         juce::AudioParameterBool* ptr;
 
-        BoolStore(std::function<void(bool)> func, juce::AudioParameterBool* ptr) : func(func), ptr(ptr) {
+        BoolStore(std::function<void(bool)> _func, juce::AudioParameterBool* _ptr) : func(_func), ptr(_ptr) {
             ptr->addListener(this);
+        }
+        ~BoolStore() override {
+            ptr->removeListener(this);
         }
         void parameterValueChanged (int parameterIndex, float newValue) override {
             func(ptr->get());
@@ -40,8 +46,11 @@ struct JuceParamListener{
         std::function<void(int)> func;
         juce::AudioParameterInt* ptr;
 
-        IntStore(std::function<void(int)> func, juce::AudioParameterInt* ptr) : func(func), ptr(ptr) {
+        IntStore(std::function<void(int)> _func, juce::AudioParameterInt* _ptr) : func(_func), ptr(_ptr) {
             ptr->addListener(this);
+        }
+        ~IntStore() override {
+            ptr->removeListener(this);
         }
         void parameterValueChanged (int parameterIndex, float newValue) override {
             func(ptr->get());
@@ -57,8 +66,11 @@ struct JuceParamListener{
         std::function<void(int)> func;
         juce::AudioParameterChoice* ptr;
 
-        ChoiceStore(std::function<void(int)> func, juce::AudioParameterChoice* ptr) : func(func), ptr(ptr) {
+        ChoiceStore(std::function<void(int)> _func, juce::AudioParameterChoice* _ptr) : func(_func), ptr(_ptr) {
             ptr->addListener(this);
+        }
+        ~ChoiceStore() override {
+            ptr->removeListener(this);
         }
         void parameterValueChanged (int parameterIndex, float newValue) override {
             func(ptr->getIndex());

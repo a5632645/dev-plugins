@@ -222,7 +222,7 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
     std::array<qwqdsp::oscillor::MCFSineOsc, kMaxCoeffLen> oscs;
     std::array<float, kMaxCoeffLen> true_gains;
     for (size_t i = 0; i < coeff_len; ++i) {
-        oscs[i].Reset(i * std::numbers::pi_v<float> / coeff_len, static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+        oscs[i].Reset(static_cast<float>(i) * std::numbers::pi_v<float> / coeff_len, static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
         float const db = std::lerp(-101.0f, 0.0f, time_.p_.dsp_param_.custom_spectral_gains[i]);
         if (db < -100.0f) {
             true_gains[i] = 0;
@@ -246,12 +246,13 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
 }
 
 void SpectralView::mouseUp(const juce::MouseEvent& e) {
+    std::ignore = e;
     time_.SendCoeffs();
 }
 
 // ---------------------------------------- editor ----------------------------------------
 
-SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (EmptyAudioProcessor& p)
+SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlangerAudioProcessor& p)
     : AudioProcessorEditor (&p)
     , p_(p)
     , preset_panel_(*p.preset_manager_)

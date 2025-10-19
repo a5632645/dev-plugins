@@ -158,7 +158,7 @@ public:
 
     void loadDefaultPatch() {
         processor_.suspendProcessing(true);
-        valueTreeState.replaceState(default_state_);
+        valueTreeState.replaceState(default_state_.createCopy());
         if (external_load_default_operations) {
             external_load_default_operations();
         }
