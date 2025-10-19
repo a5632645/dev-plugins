@@ -98,7 +98,7 @@ public:
                 editor->onReturnKey = [&slider = ptr_component->slider_, dialog, editor] {
                     slider.setValue(slider.getValueFromText(editor->getText()),
                                 juce::NotificationType::sendNotificationSync);
-                    dialog->closeButtonPressed();
+                    dialog->userTriedToCloseWindow();
                 };
                 dialog->enterModalState(true, nullptr, true);
                 juce::MessageManager::callAsync([editor]{

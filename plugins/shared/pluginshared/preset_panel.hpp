@@ -5,7 +5,7 @@
 namespace pluginshared {
 class PresetPanel : public juce::Component, juce::Button::Listener, juce::ComboBox::Listener {
 public:
-    static constexpr int kButtonInfoDisplayTime = 5000;
+    static constexpr int kNetworkTimeout = 500; // ms
     static constexpr auto kReleasePageURL = "https://github.com/a5632645/dev-plugins/releases";
     static constexpr auto kReleaseJsonFile = "https://raw.githubusercontent.com/a5632645/dev-plugins/refs/heads/main/release.json";
 
@@ -22,14 +22,9 @@ public:
 
         loadPresetList();
 
-        juce::String s;
-        s << JucePlugin_Name << ' ' << JucePlugin_VersionString;
-        version_label_.setText(s, juce::dontSendNotification);
-        addAndMakeVisible(version_label_);
-
-        check_update_.setButtonText("check update");
-        addAndMakeVisible(check_update_);
-        check_update_.addListener(this);
+        options_button_.setButtonText("options");
+        addAndMakeVisible(options_button_);
+        options_button_.addListener(this);
     }
 
     ~PresetPanel() override {
@@ -38,19 +33,12 @@ public:
         previousPresetButton.removeListener(this);
         nextPresetButton.removeListener(this);
         presetList.removeListener(this);
-        if (update_thread_) {
-            update_thread_->stopThread(100);
-            update_thread_ = nullptr;
-        }
     }
 
     void resized() override {
         auto container = getLocalBounds().reduced(4);
 
-        auto version_bound = container.removeFromLeft(container.proportionOfWidth(0.3f));
-        float const string_width =juce::TextLayout::getStringWidth(version_label_.getFont(), version_label_.getText());
-        version_label_.setBounds(version_bound.removeFromLeft(static_cast<int>(string_width)));
-        check_update_.setBounds(version_bound.reduced(4));
+        options_button_.setBounds(container.removeFromLeft(container.proportionOfWidth(0.15f)).reduced(4));
 
         auto const b = container;
         deleteButton.setBounds(container.removeFromRight(b.proportionOfWidth(0.15f)).reduced(4));
@@ -59,6 +47,8 @@ public:
         nextPresetButton.setBounds(container.removeFromRight(container.getHeight()).reduced(4));
         presetList.setBounds(container.reduced(4));
     }
+
+    std::function<void(juce::PopupMenu&)> on_menu_showup;
 private:
     void buttonClicked(juce::Button* button) override {
         if (button == &saveButton) {
@@ -82,45 +72,44 @@ private:
             presetList.setSelectedItemIndex(index, juce::dontSendNotification);
         }
         else if (button == &deleteButton) {
-            if (presetList.getSelectedId() == 1) {
-                return;
-            }
             presetManager.deletePreset(presetManager.getCurrentPreset());
             loadPresetList();
         }
-        else if (button == &check_update_) {
+        else if (button == &options_button_) {
+            juce::PopupMenu menu;
+
+            juce::String plugin_name;
+            plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString;
+            menu.addItem(plugin_name, false, false, []{});
+
             if (have_new_version_) {
-                juce::URL{kReleasePageURL}.launchInDefaultBrowser();
+                menu.addItem("new version", []{
+                    juce::URL{kReleasePageURL}.launchInDefaultBrowser();
+                });
             }
             else {
-                if (update_thread_) {
-                    update_thread_->stopThread(100);
-                    update_thread_ = nullptr;
-                }
-                update_thread_ = std::make_unique<UpdateThread>(*this);
-                if (!update_thread_->startThread()) {
-                    check_update_.setButtonText("failded");
-                    check_update_.setEnabled(false);
-                    juce::Timer::callAfterDelay(kButtonInfoDisplayTime, [this](){
-                        check_update_.setButtonText("check update");
-                        check_update_.setEnabled(true);
-                    });
-                }
-                else {
-                    check_update_.setButtonText("checking");
-                    check_update_.setEnabled(false);
-                }
+                menu.addItem("check update", [this]{
+                    CheckUpdate();
+                });
             }
+
+            menu.addSeparator();
+            menu.addItem("init patch", [this]{
+                presetList.setSelectedItemIndex(-1, juce::dontSendNotification);
+                presetManager.loadDefaultPatch();
+            });
+
+            if (on_menu_showup) {
+                on_menu_showup(menu);
+            }
+
+            juce::PopupMenu::Options op;
+            menu.showMenuAsync(op.withMousePosition());
         }
     }
     void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override {
         if (comboBoxThatHasChanged == &presetList) {
-            if (presetList.getSelectedId() == 1) {
-                presetManager.loadDefaultPatch();
-            }
-            else {
-                presetManager.loadPreset(presetList.getItemText(presetList.getSelectedItemIndex()));
-            }
+            presetManager.loadPreset(presetList.getItemText(presetList.getSelectedItemIndex()));
         }
     }
 
@@ -137,51 +126,106 @@ private:
         const auto currentPreset = presetManager.getCurrentPreset();
         presetList.addItemList(allPresets, 1);
         int idx = allPresets.indexOf(currentPreset);
-        // if empty maybe a delete patch
-        if (!currentPreset.isEmpty() && idx == -1) {
-            // force default patch
-            idx = 0;
-        }
         presetList.setSelectedItemIndex(idx, juce::dontSendNotification);
     }
 
-    void TempDisplayUpdateInfo(int ms, juce::StringRef text) {
-        const juce::MessageManagerLock lock;
-        juce::MessageManager::callAsync([this, text, ms]{
-            check_update_.setButtonText(text);
-            check_update_.setEnabled(false);
-            juce::Timer::callAfterDelay(ms, [this](){
-                check_update_.setButtonText("check update");
-                check_update_.setEnabled(true);
-            });
-        });
+    void CheckUpdate() {
+        if (presetManager.update_thread_) {
+            presetManager.update_thread_->stopThread(-1);
+            presetManager.update_thread_ = nullptr;
+        }
+        presetManager.update_thread_ = std::make_unique<UpdateThread>(*this);
+        if (!presetManager.update_thread_->startThread()) {
+            juce::NativeMessageBox::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "check update error", "launch update thread failed");
+            return;
+        }
+
+        auto* diaglog = new UpdateMessageDialog;
+
+        update_message_.label.setText("checking update", juce::dontSendNotification);
+        update_message_.button.setButtonText("cancel");
+        update_message_.button.onClick = [diaglog] {
+            diaglog->userTriedToCloseWindow();
+        };
+        diaglog->on_close = [this] {
+            if (presetManager.update_thread_) {
+                presetManager.update_thread_->stopThread(-1);
+                presetManager.update_thread_ = nullptr;
+            }
+            update_message_.button.onClick = []{};
+        };
+
+        diaglog->setContentNonOwned(&update_message_, true);
+        diaglog->enterModalState(true, nullptr, true);
     }
+
+    class UpdateMessageDialog : public juce::DialogWindow {
+    public:
+        UpdateMessageDialog()
+            : juce::DialogWindow("checking update", juce::Colours::black, false) {}
+
+        void closeButtonPressed() override {
+            if (on_close) {
+                on_close();
+            }
+            delete this;
+        }
+
+        std::function<void()> on_close;
+    };
+
+    class UpdateMessageComponent : public juce::Component {
+    public:
+        UpdateMessageComponent() {
+            addAndMakeVisible(label);
+            addAndMakeVisible(button);
+            setSize(350, 200);
+        }
+
+        void resized() override {
+            auto b = getLocalBounds();
+            label.setBounds(b.removeFromTop(b.proportionOfHeight(0.8f)));
+            button.setBounds(b);
+        }
+
+        juce::Label label;
+        juce::TextButton button;
+    };
 
     friend class UpdateThread;
     class UpdateThread : public juce::Thread {
     public:
         UpdateThread(PresetPanel& panel)
             : juce::Thread("version check")
-            , panel_(panel) {}
+            , panel_(&panel) {
+            
+        }
 
         void run() override {
-            std::unique_ptr<juce::InputStream> stream;
-            stream.reset(juce::URLInputSource{juce::URL{kReleaseJsonFile}}.createInputStream());
+            juce::URL::InputStreamOptions op{juce::URL::ParameterHandling::inAddress};
+            // why not give me a std::future like class, then i can run a loop check
+            auto stream = juce::URL{kReleaseJsonFile}
+                .createInputStream(op.withConnectionTimeoutMs(kNetworkTimeout));
+
+            if (threadShouldExit()) {
+                return;
+            }
+
             if (!stream) {
-                panel_.TempDisplayUpdateInfo(kButtonInfoDisplayTime, "network error");
+                SetUpdateMessage("network error", "ok");
                 return;
             }
 
             auto version_string = stream->readEntireStreamAsString();
             auto json = juce::JSON::fromString(version_string);
             if (!json.isArray()) {
-                panel_.TempDisplayUpdateInfo(kButtonInfoDisplayTime, "data error");
+                SetUpdateMessage("payload error", "ok");
                 return;
             }
 
             auto* array = json.getArray();
             if (!array) {
-                panel_.TempDisplayUpdateInfo(kButtonInfoDisplayTime, "data error");
+                SetUpdateMessage("payload error", "ok");
                 return;
             }
 
@@ -196,40 +240,55 @@ private:
 
                 auto version = plugin.getProperty("version", JucePlugin_VersionString);
                 if (!version.isString()) {
-                    panel_.TempDisplayUpdateInfo(kButtonInfoDisplayTime, "data error");
+                    SetUpdateMessage("payload error", "ok");
                     return;
                 }
                 if (version.toString().equalsIgnoreCase(JucePlugin_VersionString)) {
-                    panel_.TempDisplayUpdateInfo(kButtonInfoDisplayTime, "newest!");
+                    SetUpdateMessage("you are using newest plugin", "ok");
                     return;
                 }
                 else {
+                    if (!panel_) {
+                        return;
+                    }
+
                     juce::MessageManagerLock lock;
-                    juce::MessageManager::callAsync([&p = panel_, v = version.toString()]{
+                    juce::MessageManager::callAsync([p = panel_, v = version.toString()]{
                         juce::String s;
-                        s << "new version: " << v;
-                        p.check_update_.setButtonText(s);
-                        p.have_new_version_ = true;
-                        p.check_update_.setEnabled(true);
+                        s << "new version avaliable: " << v;
+                        p->have_new_version_ = true;
+                        p->update_message_.label.setText(s, juce::dontSendNotification);
+                        p->update_message_.button.setButtonText("ok");
                     });
                     return;
                 }
             }
 
-            panel_.TempDisplayUpdateInfo(kButtonInfoDisplayTime, "plugin error");
+            SetUpdateMessage("plugin error", "ok");
         }
     private:
-        PresetPanel& panel_;
+        void SetUpdateMessage(juce::StringRef label, juce::StringRef button) {
+            if (!panel_) {
+                return;
+            }
+            
+            juce::MessageManagerLock lock;
+            juce::MessageManager::callAsync([p = panel_, label, button]{
+                p->update_message_.label.setText(label, juce::dontSendNotification);
+                p->update_message_.button.setButtonText(button);
+            });
+        }
+
+        juce::Component::SafePointer<PresetPanel> panel_;
     };
 
     PresetManager& presetManager;
     juce::TextButton saveButton, deleteButton, previousPresetButton, nextPresetButton;
     juce::ComboBox presetList;
     std::unique_ptr<juce::FileChooser> fileChooser;
-    juce::Label version_label_;
-    juce::TextButton check_update_;
-    std::unique_ptr<juce::Thread> update_thread_;
-    bool have_new_version_{false};
+    juce::TextButton options_button_;
+    UpdateMessageComponent update_message_;
+    std::atomic<bool> have_new_version_{false};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetPanel)
 };

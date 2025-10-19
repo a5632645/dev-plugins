@@ -31,13 +31,20 @@ public:
             }
         }
 
-        apvts.state.setProperty(presetNameProperty, "default", nullptr);
+        apvts.state.setProperty(presetNameProperty, "", nullptr);
         apvts.state.setProperty("version", JucePlugin_VersionString, nullptr);
 
         valueTreeState.state.addListener(this);
         currentPreset.referTo(valueTreeState.state.getPropertyAsValue(presetNameProperty, nullptr));
 
         default_state_ = valueTreeState.copyState();
+    }
+
+    ~PresetManager() override {
+        if (update_thread_) {
+            update_thread_->stopThread(-1);
+            update_thread_ = nullptr;
+        }
     }
 
     void savePreset(const juce::String& presetName)
@@ -83,11 +90,6 @@ public:
     void loadPreset(const juce::String& presetName)
     {
         if (presetName.isEmpty()) {
-            return;
-        }
-
-        if (presetName.equalsIgnoreCase("default")) {
-            loadDefaultPatch();
             return;
         }
 
@@ -139,7 +141,7 @@ public:
 
     juce::StringArray getAllPresets() const
     {
-        juce::StringArray presets{"default"};
+        juce::StringArray presets;
         const auto fileArray = defaultDirectory.findChildFiles(
             juce::File::TypesOfFileToFind::findFiles, false, "*." + extension);
         for (const auto& file : fileArray)
@@ -175,7 +177,10 @@ private:
 
     juce::AudioProcessorValueTreeState& valueTreeState;
     juce::AudioProcessor& processor_;
-    juce::Value currentPreset{"default"};
+    juce::Value currentPreset;
     juce::ValueTree default_state_;
+    std::unique_ptr<juce::Thread> update_thread_;
+
+    friend class PresetPanel;
 };
 }
