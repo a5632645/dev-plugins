@@ -268,7 +268,7 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     addAndMakeVisible(delay_);
     depth_.BindParam(apvts, "depth");
     addAndMakeVisible(depth_);
-    speed_.BindParam(apvts, "speed");
+    speed_.BindParam(p.delay_lfo_state_);
     addAndMakeVisible(speed_);
     phase_.BindParam(apvts, "phase");
     addAndMakeVisible(phase_);
@@ -321,7 +321,7 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     addAndMakeVisible(barber_title_);
     barber_phase_.BindParam(apvts, "barber_phase");
     addAndMakeVisible(barber_phase_);
-    barber_speed_.BindParam(apvts, "barber_speed");
+    barber_speed_.BindParam(p.barber_lfo_state_);
     addAndMakeVisible(barber_speed_);
     barber_enable_.BindParam(apvts, "barber_enable");
     addAndMakeVisible(barber_enable_);
@@ -331,6 +331,8 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
         p_.dsp_.SetBarberLFOPhase(0);
     };
     addAndMakeVisible(barber_reset_phase_);
+    barber_stereo_.BindParam(p.param_barber_stereo_);
+    addAndMakeVisible(barber_stereo_);
 
     addAndMakeVisible(timeview_);
     addAndMakeVisible(spectralview_);
@@ -459,13 +461,14 @@ void SteepFlangerAudioProcessorEditor::resized() {
         }
         bottom_block.removeFromRight(8);
         {
-            barber_title_.setBounds(bottom_block.removeFromTop(25));
+            auto barber_title_bound = bottom_block.removeFromTop(25);
+            barber_enable_.setBounds(barber_title_bound.removeFromRight(100).reduced(2));
+            barber_title_.setBounds(barber_title_bound);
             barber_phase_.setBounds(bottom_block.removeFromLeft(80));
             barber_speed_.setBounds(bottom_block.removeFromLeft(80));
             auto e = bottom_block.removeFromLeft(100);
-            auto barber_enable_block = e.removeFromTop(e.getHeight() / 2);
-            barber_enable_.setBounds(barber_enable_block.withSizeKeepingCentre(e.getWidth(), 25));
-            barber_reset_phase_.setBounds(e.withSizeKeepingCentre(e.getWidth(), 25));
+            barber_stereo_.setBounds(e.removeFromTop(70).withWidth(50));
+            barber_reset_phase_.setBounds(e.reduced(4));
         }
     }
     b.removeFromTop(8);

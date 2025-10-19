@@ -1,6 +1,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include "pluginshared/version.hpp"
+
 //==============================================================================
 SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
      : AudioProcessor (BusesProperties()
@@ -42,7 +44,17 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
             juce::NormalisableRange<float>{0.0f, 10.0f, 0.01f},
             0.3f
         );
-        param_lfo_speed_ = p.get();
+        delay_lfo_state_.param_lfo_hz_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = delay_lfo_state_.MakeLfoTempoTypeParam("sync", pluginshared::BpmSyncLFO::LFOTempoType::Free);
+        delay_lfo_state_.param_lfo_tempo_type_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = delay_lfo_state_.MakeLfoTempoSpeedParam("speed_tempo", 4);
+        delay_lfo_state_.param_tempo_speed_ = p.get();
         layout.add(std::move(p));
     }
     {
@@ -171,12 +183,32 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
     }
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{"barber_stereo", 1},
+            "barber_stereo",
+            juce::NormalisableRange<float>{0.0f, 1.0f, 0.01f},
+            0.0f
+        );
+        param_barber_stereo_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{"barber_speed", 1},
             "barber_speed",
             juce::NormalisableRange<float>{-10.0f, 10.0f, 0.01f},
             0.0f
         );
-        param_barber_speed_ = p.get();
+        barber_lfo_state_.param_lfo_hz_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = barber_lfo_state_.MakeLfoTempoTypeParam("barber_sync", pluginshared::BpmSyncLFO::LFOTempoType::Free);
+        barber_lfo_state_.param_lfo_tempo_type_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = barber_lfo_state_.MakeLfoTempoSpeedParam("barber_speed_tempo", 4);
+        barber_lfo_state_.param_tempo_speed_ = p.get();
         layout.add(std::move(p));
     }
     {
@@ -312,12 +344,23 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
     std::ignore = midiMessages;
-
     juce::ScopedNoDenormals noDenormals;
+
+    if (auto* head = getPlayHead()) {
+        delay_lfo_state_.SyncBpm(head->getPosition());
+        barber_lfo_state_.SyncBpm(head->getPosition());
+
+        if (delay_lfo_state_.ShouldSync()) {
+            dsp_.SetLFOPhase(delay_lfo_state_.GetSyncPhase());
+        }
+        if (barber_lfo_state_.ShouldSync()) {
+            dsp_.SetBarberLFOPhase(barber_lfo_state_.GetSyncPhase());
+        }
+    }
 
     dsp_param_.delay_ms = param_delay_ms_->get();
     dsp_param_.depth_ms = param_delay_depth_ms_->get();
-    dsp_param_.lfo_freq = param_lfo_speed_->get();
+    dsp_param_.lfo_freq = delay_lfo_state_.GetLfoFreq();
     dsp_param_.lfo_phase = param_lfo_phase_->get();
     dsp_param_.fir_cutoff = param_fir_cutoff_->get();
     dsp_param_.fir_coeff_len = static_cast<size_t>(param_fir_coeff_len_->get());
@@ -328,8 +371,9 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     dsp_param_.damp_pitch = param_damp_pitch_->get();
     dsp_param_.feedback_enable = param_feedback_enable_->get();
     dsp_param_.barber_phase = param_barber_phase_->get();
-    dsp_param_.barber_speed = param_barber_speed_->get();
+    dsp_param_.barber_speed = barber_lfo_state_.GetLfoFreq();
     dsp_param_.barber_enable = param_barber_enable_->get();
+    dsp_param_.barber_stereo_phase = param_barber_stereo_->get() * std::numbers::pi_v<float> / 2;
 
     size_t const len = static_cast<size_t>(buffer.getNumSamples());
     auto* left_ptr = buffer.getWritePointer(0);
@@ -373,6 +417,7 @@ void SteepFlangerAudioProcessor::setStateInformation (const void* data, int size
     suspendProcessing(true);
     auto xml = *getXmlFromBinary(data, sizeInBytes);
     auto state = juce::ValueTree::fromXml(xml);
+
     if (state.isValid()) {
         value_tree_->replaceState(state);
         auto coeffs = xml.getChildByName("CUSTOM_COEFFS");
@@ -390,6 +435,21 @@ void SteepFlangerAudioProcessor::setStateInformation (const void* data, int size
                 }
                 dsp_param_.should_update_fir_ = true;
             }
+        }
+
+        auto const& version_var = state.getProperty(preset_manager_->kVersionProperty);
+        int major{};
+        int minor{};
+        int patch{};
+        if (!version_var.isVoid()) {
+            std::tie(major, minor, patch) = pluginshared::version::ParseVersionString(version_var.toString());
+        }
+        if (minor <= 1 && patch <= 0) {
+            // version 0.1.0 or below doesn't have tempo/freq control
+            delay_lfo_state_.SetTempoTypeToFree();
+            barber_lfo_state_.SetTempoTypeToFree();
+            // version 0.1.0 or below doesn't have barber_stereo
+            param_barber_stereo_->setValueNotifyingHost(param_barber_stereo_->convertTo0to1(0));
         }
     }
     suspendProcessing(false);

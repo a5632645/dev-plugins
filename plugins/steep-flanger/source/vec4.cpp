@@ -1,5 +1,8 @@
 #include "PluginProcessor.h"
 
+#include "qwqdsp/convert.hpp"
+#include "qwqdsp/polymath.hpp"
+
 QWQDSP_FORCE_INLINE
 constexpr Complex32x4& Complex32x4::operator*=(const Complex32x4& a) noexcept {
     Float32x4 new_re = re * a.re - im * a.im;
@@ -228,6 +231,7 @@ void SteepFlanger::ProcessVec4(
                 auto const rotation_2 = rotation_once * rotation_once;
                 auto const rotation_3 = rotation_once * rotation_2;
                 auto const rotation_4 = rotation_2 * rotation_2;
+                auto const right_channel_rotation = std::polar(1.0f, param.barber_stereo_phase);
                 Complex32x4 left_rotation_coeff;
                 left_rotation_coeff.re.x[0] = 1;
                 left_rotation_coeff.re.x[1] = rotation_once.real();
@@ -238,15 +242,14 @@ void SteepFlanger::ProcessVec4(
                 left_rotation_coeff.im.x[2] = rotation_2.imag();
                 left_rotation_coeff.im.x[3] = rotation_3.imag();
                 Complex32x4 right_rotation_coeff = left_rotation_coeff;
-                Complex32x4 left_rotation_mul;
-                left_rotation_mul.re.x[0] = rotation_4.real();
-                left_rotation_mul.re.x[1] = rotation_4.real();
-                left_rotation_mul.re.x[2] = rotation_4.real();
-                left_rotation_mul.re.x[3] = rotation_4.real();
-                left_rotation_mul.im.x[0] = rotation_4.imag();
-                left_rotation_mul.im.x[1] = rotation_4.imag();
-                left_rotation_mul.im.x[2] = rotation_4.imag();
-                left_rotation_mul.im.x[3] = rotation_4.imag();
+                right_rotation_coeff *= Complex32x4{
+                    .re = Float32x4::FromSingle(right_channel_rotation.real()),
+                    .im = Float32x4::FromSingle(right_channel_rotation.imag())
+                };
+                Complex32x4 left_rotation_mul{
+                    .re = Float32x4::FromSingle(rotation_4.real()),
+                    .im = Float32x4::FromSingle(rotation_4.imag())
+                };
                 Complex32x4 right_rotation_mul = left_rotation_mul;
 
                 float left_re_sum = 0;

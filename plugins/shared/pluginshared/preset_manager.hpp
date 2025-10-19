@@ -15,6 +15,7 @@ public:
     };
     inline static const juce::String extension{"preset"};
     inline static const juce::String presetNameProperty{"presetName"};
+    inline static const juce::String kVersionProperty{"version"};
 
     PresetManager(juce::AudioProcessorValueTreeState& apvts, juce::AudioProcessor& p) 
         : valueTreeState(apvts)

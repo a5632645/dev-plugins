@@ -281,16 +281,43 @@ struct alignas(32) Vec8f32 {
         return x[0] + x[1] + x[2] + x[3] + x[4] + x[5] + x[6] + x[7];
     }
 
-    constexpr Vec8f32& FMA(const Vec8f32& mul, const Vec8f32& add) noexcept {
-        x[0] = x[0] * mul.x[0] + add.x[0];
-        x[1] = x[1] * mul.x[1] + add.x[1];
-        x[2] = x[2] * mul.x[2] + add.x[2];
-        x[3] = x[3] * mul.x[3] + add.x[3];
-        x[4] = x[4] * mul.x[4] + add.x[4];
-        x[5] = x[5] * mul.x[5] + add.x[5];
-        x[6] = x[6] * mul.x[6] + add.x[6];
-        x[7] = x[7] * mul.x[7] + add.x[7];
-        return *this;
+    static constexpr Vec8f32 FMA(Vec8f32 const& mula, Vec8f32 const& mulb, Vec8f32 const& add) noexcept {
+        return Vec8f32{
+            mula.x[0] * mulb.x[0] + add.x[0],
+            mula.x[1] * mulb.x[1] + add.x[1],
+            mula.x[2] * mulb.x[2] + add.x[2],
+            mula.x[3] * mulb.x[3] + add.x[3],
+            mula.x[4] * mulb.x[4] + add.x[4],
+            mula.x[5] * mulb.x[5] + add.x[5],
+            mula.x[6] * mulb.x[6] + add.x[6],
+            mula.x[7] * mulb.x[7] + add.x[7]
+        };
+    }
+
+    constexpr Vec8f32 Abs() const noexcept {
+        return Vec8f32{
+            std::abs(x[0]),
+            std::abs(x[1]),
+            std::abs(x[2]),
+            std::abs(x[3]),
+            std::abs(x[4]),
+            std::abs(x[5]),
+            std::abs(x[6]),
+            std::abs(x[7])
+        };
+    }
+
+    static constexpr Vec8f32 CopySign(Vec8f32 const& abs, Vec8f32 const& sign) noexcept {
+        return Vec8f32{
+            std::copysign(abs.x[0], sign.x[0]),
+            std::copysign(abs.x[1], sign.x[1]),
+            std::copysign(abs.x[2], sign.x[2]),
+            std::copysign(abs.x[3], sign.x[3]),
+            std::copysign(abs.x[4], sign.x[4]),
+            std::copysign(abs.x[5], sign.x[5]),
+            std::copysign(abs.x[6], sign.x[6]),
+            std::copysign(abs.x[7], sign.x[7])
+        };
     }
 };
 

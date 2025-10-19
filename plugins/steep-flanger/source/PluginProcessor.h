@@ -1,7 +1,9 @@
 #pragma once
 #include "pluginshared/juce_param_listener.hpp"
-#include "pluginshared/preset_manager.hpp"
 #include "shared.hpp"
+
+#include "pluginshared/preset_manager.hpp"
+#include "pluginshared/bpm_sync_lfo.hpp"
 
 #include "qwqdsp/misc/smoother.hpp"
 #include "qwqdsp/spectral/complex_fft.hpp"
@@ -12,8 +14,6 @@
 #include "qwqdsp/filter/one_pole_tpt_simd.hpp"
 #include "qwqdsp/filter/iir_cpx_hilbert_stereo_simd.hpp"
 #include "qwqdsp/force_inline.hpp"
-#include "qwqdsp/convert.hpp"
-#include "qwqdsp/polymath.hpp"
 #include "qwqdsp/filter/window_fir.hpp"
 #include "qwqdsp/window/kaiser.hpp"
 #include "simd_detector.h"
@@ -96,22 +96,24 @@ private:
 
 class SteepFlangerParameter {
 public:
-    float delay_ms;
-    float depth_ms;
-    float lfo_freq;
-    float lfo_phase;
-    float fir_cutoff;
-    size_t fir_coeff_len;
-    float fir_side_lobe;
+    // => is mapping internal
+    float delay_ms; // >=0
+    float depth_ms; // >=0
+    float lfo_freq; // hz
+    float lfo_phase; // 0~1 => 0~2pi
+    float fir_cutoff; // 0~pi
+    size_t fir_coeff_len; // 4~kMaxCoeffLen
+    float fir_side_lobe; // >20
     bool fir_min_phase;
     bool fir_highpass;
-    float feedback;
+    float feedback; // db
     float damp_pitch;
     bool feedback_enable;
-    float barber_phase;
-    float barber_speed;
+    float barber_phase; // 0~1 => 0~2pi
+    float barber_speed; // hz
     bool barber_enable;
-    std::atomic<bool> should_update_fir_{};
+    float barber_stereo_phase; // 0~pi/2
+    std::atomic<bool> should_update_fir_{}; // tell flanger to update coeffs
     std::atomic<bool> is_using_custom_{};
     std::array<float, kMaxCoeffLen> custom_coeffs_{};
     std::array<float, kMaxCoeffLen> custom_spectral_gains{};
@@ -369,7 +371,6 @@ public:
 
     juce::AudioParameterFloat* param_delay_ms_;
     juce::AudioParameterFloat* param_delay_depth_ms_;
-    juce::AudioParameterFloat* param_lfo_speed_;
     juce::AudioParameterFloat* param_lfo_phase_;
     juce::AudioParameterFloat* param_fir_cutoff_;
     juce::AudioParameterFloat* param_fir_coeff_len_;
@@ -380,11 +381,14 @@ public:
     juce::AudioParameterFloat* param_damp_pitch_;
     juce::AudioParameterBool* param_feedback_enable_;
     juce::AudioParameterFloat* param_barber_phase_;
-    juce::AudioParameterFloat* param_barber_speed_;
+    juce::AudioParameterFloat* param_barber_stereo_;
     juce::AudioParameterBool* param_barber_enable_;
     
     SteepFlanger dsp_;
     SteepFlangerParameter dsp_param_;
+
+    pluginshared::BpmSyncLFO delay_lfo_state_;
+    pluginshared::BpmSyncLFO barber_lfo_state_;
 
 private:
     //==============================================================================

@@ -19,6 +19,20 @@ static inline constexpr float SinPi(float x) noexcept {
 }
 
 /**
+ * @param x [-pi, pi]
+ */
+static inline constexpr float SinCycle(float x) noexcept {
+    return std::copysign(SinPi(std::abs(x)), x);
+}
+
+/**
+ * @param x [0, 2pi]
+ */
+static inline constexpr float Sin2Pi(float x) noexcept {
+    return -SinCycle(x - std::numbers::pi_v<float>);
+}
+
+/**
  * @param x [0, pi]
  */
 static inline constexpr float CosPi(float x) noexcept {
@@ -30,6 +44,20 @@ static inline constexpr float CosPi(float x) noexcept {
     u = u * x2 + 0.041666519f;
     float const f = u * x2 + -0.49999991f;
     return 1 + x2 * f;
+}
+
+/**
+ * @param x [-pi, pi]
+ */
+static inline constexpr float CosCycle(float x) noexcept {
+    return CosPi(std::abs(x));
+}
+
+/**
+ * @param x [0, 2pi]
+ */
+static inline constexpr float Cos2Pi(float x) noexcept {
+    return -CosCycle(x - std::numbers::pi_v<float>);
 }
 
 /**
@@ -78,7 +106,7 @@ static inline constexpr T SinParabola(T x) noexcept {
  * @param x [-pi/2, pi/2]
  */
 template<class T>
-static inline constexpr T SinRemez(T x) {
+static inline constexpr T SinRemez(T x) noexcept {
     T t = x * x;
     T p =       static_cast<T>(-2.38889015e-8); // -0x1.9a6880p-26
     p = p * t + static_cast<T>(2.75253933e-6); //  0x1.717088p-19
@@ -95,7 +123,7 @@ static inline constexpr T SinRemez(T x) {
  * @param x [-pi/2, pi/2]
  */
 template<class T>
-static constexpr inline T SinRemezRat(T x) {
+static constexpr inline T SinRemezRat(T x) noexcept {
     T s = x * x;
     T q = static_cast<T>(-2.91886134e-3); // -0x1.7e94bcp-9
     T p = static_cast<T>(-1.64994095e-2); // -0x1.0e538ap-6

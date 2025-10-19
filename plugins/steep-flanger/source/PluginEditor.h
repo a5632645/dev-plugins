@@ -1,6 +1,7 @@
 #pragma once
 #include "pluginshared/component.hpp"
 #include "pluginshared/preset_panel.hpp"
+#include "pluginshared/bpm_sync_ui.hpp"
 
 #include "qwqdsp/spectral/real_fft.hpp"
 #include "shared.hpp"
@@ -151,7 +152,7 @@ private:
     juce::Label lfo_title_{"lfo", "lfo"};
     ui::Dial delay_{"delay"};
     ui::Dial depth_{"depth"};
-    ui::Dial speed_{"speed"};
+    ui::BpmSyncDial speed_{"speed", "tempo"};
     ui::Dial phase_{"phase"};
     ui::FlatButton lfo_reset_phase_;
 
@@ -170,9 +171,10 @@ private:
     ui::FlatButton panic_;
 
     juce::Label barber_title_{"barberpole", "barberpole"};
-    ui::Switch barber_enable_{"barberpole"};
+    ui::Switch barber_enable_{"enable"};
     ui::Dial barber_phase_{"phase"};
-    ui::Dial barber_speed_{"speed"};
+    ui::BpmSyncDial barber_speed_{"speed", "tempo"};
+    ui::Dial barber_stereo_{"stereo"};
     ui::FlatButton barber_reset_phase_;
 
     juce::Label about_title_;
