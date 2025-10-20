@@ -406,13 +406,12 @@ void DeepPhaserAudioProcessorEditor::resized() {
             barber_bound_ = bottom_block.removeFromLeft(260);
             auto barber_block = barber_bound_;
             auto barber_title_bound = barber_block.removeFromTop(25);
-            barber_enable_.setBounds(barber_title_bound.removeFromRight(100).reduced(2));
+            barber_reset_phase_.setBounds(barber_title_bound.removeFromRight(100).reduced(2));
+            barber_enable_.setBounds(barber_title_bound.removeFromRight(80).reduced(2));
             barber_title_.setBounds(barber_title_bound);
             barber_phase_.setBounds(barber_block.removeFromLeft(80));
             barber_speed_.setBounds(barber_block.removeFromLeft(80));
-            auto e = barber_block.removeFromLeft(100);
-            barber_stereo_.setBounds(e.removeFromTop(70).withWidth(50));
-            barber_reset_phase_.setBounds(e.reduced(4));
+            barber_stereo_.setBounds(barber_block);
         }
         bottom_block.removeFromLeft(8);
         {

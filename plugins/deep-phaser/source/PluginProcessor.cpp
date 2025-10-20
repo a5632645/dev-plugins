@@ -700,9 +700,8 @@ void DeepPhaserAudioProcessor::setStateInformation (const void* data, int sizeIn
             barber_lfo_state_.SetTempoTypeToFree();
             // version 0.1.0 or below doesn't have barber_stereo
             param_barber_stereo_->setValueNotifyingHost(param_barber_stereo_->convertTo0to1(0));
-            param_blend_range_->setValueNotifyingHost(param_barber_stereo_->convertTo0to1(0));
-            param_blend_phase_->setValueNotifyingHost(param_barber_stereo_->convertTo0to1(0));
-            blend_lfo_phase_ = 0;
+            param_blend_range_->setValueNotifyingHost(param_blend_range_->convertTo0to1(0));
+            param_blend_phase_->setValueNotifyingHost(param_blend_phase_->convertTo0to1(0));
             // conver raw coeff to pitch
             float const raw_coeff = state.getProperty("blend");
             float const omega = AllpassBuffer2::RevertCoeff2Omega(raw_coeff);
