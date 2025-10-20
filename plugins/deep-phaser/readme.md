@@ -22,6 +22,4 @@ barberpole phasing
 [youtube](https://www.youtube.com/watch?v=-OuCLQlKYQk)  
 
 ## todo
--[ ] optimise  
--[ ] add allpass filter blend modulation lfo  
--[ ] avx simd version and dynamic dispatch  
+-[ ] optimise cpu usage  
