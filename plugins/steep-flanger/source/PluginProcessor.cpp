@@ -48,12 +48,13 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         layout.add(std::move(p));
     }
     {
-        auto p = delay_lfo_state_.MakeLfoTempoTypeParam("sync", pluginshared::BpmSyncLFO::LFOTempoType::Free);
+        auto p = delay_lfo_state_.MakeLfoTempoTypeParam("sync",
+            pluginshared::BpmSyncLFO<false>::LFOTempoType::Sync);
         delay_lfo_state_.param_lfo_tempo_type_ = p.get();
         layout.add(std::move(p));
     }
     {
-        auto p = delay_lfo_state_.MakeLfoTempoSpeedParam("speed_tempo", 4);
+        auto p = delay_lfo_state_.MakeLfoTempoSpeedParam("speed_tempo", "2");
         delay_lfo_state_.param_tempo_speed_ = p.get();
         layout.add(std::move(p));
     }
@@ -202,12 +203,13 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         layout.add(std::move(p));
     }
     {
-        auto p = barber_lfo_state_.MakeLfoTempoTypeParam("barber_sync", pluginshared::BpmSyncLFO::LFOTempoType::Free);
+        auto p = barber_lfo_state_.MakeLfoTempoTypeParam("barber_sync",
+            pluginshared::BpmSyncLFO<true>::LFOTempoType::Sync);
         barber_lfo_state_.param_lfo_tempo_type_ = p.get();
         layout.add(std::move(p));
     }
     {
-        auto p = barber_lfo_state_.MakeLfoTempoSpeedParam("barber_speed_tempo", 4);
+        auto p = barber_lfo_state_.MakeLfoTempoSpeedParam("barber_speed_tempo", "1");
         barber_lfo_state_.param_tempo_speed_ = p.get();
         layout.add(std::move(p));
     }

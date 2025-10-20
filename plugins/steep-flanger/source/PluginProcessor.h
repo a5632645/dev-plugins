@@ -387,8 +387,8 @@ public:
     SteepFlanger dsp_;
     SteepFlangerParameter dsp_param_;
 
-    pluginshared::BpmSyncLFO delay_lfo_state_;
-    pluginshared::BpmSyncLFO barber_lfo_state_;
+    pluginshared::BpmSyncLFO<false> delay_lfo_state_;
+    pluginshared::BpmSyncLFO<true> barber_lfo_state_;
 
 private:
     //==============================================================================

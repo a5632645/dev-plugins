@@ -1,7 +1,7 @@
 # deep phaser
 deep phaser is a FIR phaser plugin.  
-it is the son of steep-flanger and dispersive-delay.  
-it can generate effects sounds like harmor phaser.  
+it is an approximately log-warp style of steep-flanger to create phaser-sounding notches.  
+it can generate effects sounds like [harmor](https://www.image-line.com/fl-studio-learning/fl-studio-online-manual/html/plugins/Harmor.htm) phaser or even more resonating phaser sound.  
 ![FX](effects.png)
 
 > [!WARNING]  
@@ -18,6 +18,8 @@ barberpole phasing
 ![GUI](gui.png)
 
 ## demo
+[bilibili](https://www.bilibili.com/video/BV1rBWyzBEQs)  
+[youtube](https://www.youtube.com/watch?v=-OuCLQlKYQk)  
 
 ## todo
 -[ ] optimise  

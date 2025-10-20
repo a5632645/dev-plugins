@@ -298,6 +298,12 @@ private:
 // ---------------------------------------- flat button ----------------------------------------
 class FlatButton : public juce::TextButton {
 public:
+    FlatButton() {}
+
+    FlatButton(juce::StringRef text) {
+        setButtonText(text);
+    }
+
     void paint(juce::Graphics& g) override {
         g.fillAll(line_fore);
         auto b = getLocalBounds();

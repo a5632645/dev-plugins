@@ -2,6 +2,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 namespace pluginshared {
+template<bool NegPos>
 class BpmSyncLFO {
 public:
     enum class LFOTempoType {
@@ -12,12 +13,26 @@ public:
         NumTypes
     };
 
-    inline static juce::StringArray const kTempoStrings {
-        "freeze", "32/1", "16/1", "8/1", "4/1", "2/1", "1/1", "1/2", "1/4", "1/8", "1/16"
-    };
-    static constexpr std::array const kTempoMuls {
-        0.0f, 1.0f/128.0f, 1.0f/64.0f, 1.0f/32.0f, 1.0f/16.0f, 1.0f/8.0f, 1.0f/4.0f, 1.0f/2.0f, 1.0f, 2.0f, 4.0f
-    };
+    inline static juce::StringArray const kTempoStrings{
+        "freeze", "32",  "16",  "8",    "4",    "2",   "1",
+        "1/2",    "1/4", "1/8", "1/16", "1/32", "1/64"};
+    static constexpr std::array const kTempoMuls{
+        0.0f,        1.0f / 128.0f, 1.0f / 64.0f, 1.0f / 32.0f, 1.0f / 16.0f,
+        1.0f / 8.0f, 1.0f / 4.0f,   1.0f / 2.0f,  1.0f,         2.0f,
+        4.0f,        8.0f,          16.0f};
+
+    inline static juce::StringArray const kNegPosTempoStrings{
+        "-1/64", "-1/32", "-1/16", "-1/8",   "-1/4", "-1/2", "-1",  "-2", "-4",
+        "-8",    "-16",   "-32",   "freeze", "32",   "16",   "8",   "4",  "2",
+        "1",     "1/2",   "1/4",   "1/8",    "1/16", "1/32", "1/64"};
+    static constexpr std::array const kNegPosTempoMuls{
+        -16.0f,        -8.0f,         -4.0f,         -2.0f,
+        -1.0f,         -1.0f / 2.0f,  -1.0f / 4.0f,  -1.0f / 8.0f,
+        -1.0f / 16.0f, -1.0f / 32.0f, -1.0f / 64.0f, -1.0f / 128.0f,
+        0.0f,          1.0f / 128.0f, 1.0f / 64.0f,  1.0f / 32.0f,
+        1.0f / 16.0f,  1.0f / 8.0f,   1.0f / 4.0f,   1.0f / 2.0f,
+        1.0f,          2.0f,          4.0f,          8.0f,
+        16.0f};
 
     inline static const juce::String kTempoSpeedPrefix{"ts"};
     inline static const juce::String kTempoTypePrefix{"tt"};
@@ -34,14 +49,28 @@ public:
     }
 
     static std::unique_ptr<juce::AudioParameterChoice> MakeLfoTempoSpeedParam(
-        juce::StringRef name, int default_idx
+        juce::StringRef name, juce::StringRef default_speed
     ) {
-        return std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{name, 1},
-            name,
-            kTempoStrings,
-            default_idx
-        );
+        if constexpr (NegPos) {
+            int const default_idx = kNegPosTempoStrings.indexOf(default_speed);
+            jassert(default_idx != -1);
+            return std::make_unique<juce::AudioParameterChoice>(
+                juce::ParameterID{name, 1},
+                name,
+                kNegPosTempoStrings,
+                default_idx
+            );
+        }
+        else {
+            int const default_idx = kTempoStrings.indexOf(default_speed);
+            jassert(default_idx != -1);
+            return std::make_unique<juce::AudioParameterChoice>(
+                juce::ParameterID{name, 1},
+                name,
+                kTempoStrings,
+                default_idx
+            );
+        }
     }
 
     static std::unique_ptr<juce::AudioParameterInt> MakeLfoTempoTypeParam(
@@ -89,7 +118,13 @@ public:
             lfo_freq_ = param_lfo_hz_->get();
         }
         else {
-            float sync_rate = kTempoMuls[static_cast<size_t>(param_tempo_speed_->getIndex())];
+            float sync_rate{};
+            if constexpr (NegPos) {
+                sync_rate = kNegPosTempoMuls[static_cast<size_t>(param_tempo_speed_->getIndex())];
+            }
+            else {
+                sync_rate = kTempoMuls[static_cast<size_t>(param_tempo_speed_->getIndex())];
+            }
             if (tempo_type == LFOTempoType::SyncDot) {
                 sync_rate *= 2.0f / 3.0f;
             }
@@ -108,6 +143,9 @@ public:
         }
     }
 
+    /**
+     * @return [0,1]
+     */
     float GetSyncPhase() const noexcept {
         return sync_phase_;
     }
@@ -116,6 +154,9 @@ public:
         return should_sync_;
     }
 
+    /**
+     * @return hz
+     */
     float GetLfoFreq() const noexcept {
         return lfo_freq_;
     }

@@ -46,14 +46,14 @@ public:
 
     void SetTarget(float x) noexcept {
         target_ = x;
-        delta_ = (target_ - now_) / total_samples_;
+        delta_ = (target_ - now_) / static_cast<float>(total_samples_);
         nsamples_ = total_samples_;
     }
 
     void SetSmoothTime(float ms, float fs) noexcept {
-        total_samples_ = fs * ms / 1000.0f;
+        total_samples_ = static_cast<int>(fs * ms / 1000.0f);
         total_samples_ = total_samples_ < 1 ? 1 : total_samples_;
-        delta_ = (target_ - now_) / total_samples_;
+        delta_ = (target_ - now_) / static_cast<float>(total_samples_);
     }
 
     bool IsEnd() const noexcept {

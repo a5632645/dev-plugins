@@ -1,6 +1,7 @@
 #pragma once
 #include "pluginshared/component.hpp"
 #include "pluginshared/preset_panel.hpp"
+#include "pluginshared/bpm_sync_ui.hpp"
 
 #include "qwqdsp/spectral/real_fft.hpp"
 #include "shared.hpp"
@@ -57,7 +58,7 @@ public:
 
     void resized() override {
         auto b = getLocalBounds();
-        auto top = b.removeFromTop(title_.getFont().getHeight() * 1.5f);
+        auto top = b.removeFromTop(static_cast<int>(title_.getFont().getHeight() * 1.5f));
         reload_.setBounds(top.removeFromRight(60).reduced(1, 1));
         copy_.setBounds(top.removeFromRight(50).reduced(1, 1));
         clear_.setBounds(top.removeFromRight(50).reduced(1, 1));
@@ -94,7 +95,7 @@ public:
 
     void resized() override {
         auto b = getLocalBounds();
-        title_.setBounds(b.removeFromTop(title_.getFont().getHeight()));
+        title_.setBounds(b.removeFromTop(static_cast<int>(title_.getFont().getHeight())));
     }
 
     void UpdateGui();
@@ -148,6 +149,7 @@ private:
     DeepPhaserAudioProcessor& p_;
     pluginshared::PresetPanel preset_panel_;
 
+    juce::Rectangle<int> basic_bound_;
     juce::Label allpass_title_{"basic", "basic"};
     ui::Dial state_{"state"};
     ui::Dial allpass_blend_{"blend"};
@@ -155,6 +157,7 @@ private:
     ui::Dial fb_damp_{"damp"};
     ui::FlatButton panic_;
 
+    juce::Rectangle<int> fir_bound_;
     juce::Label fir_title_{"fir", "fir"};
     ui::Dial cutoff_{"cutoff"};
     ui::Dial coeff_len_{"steep"};
@@ -163,11 +166,20 @@ private:
     ui::Switch highpass_{"highpass"};
     ui::Switch custom_{"custom"};
 
+    juce::Rectangle<int> barber_bound_;
     juce::Label barber_title_{"barberpole", "barberpole"};
     ui::Switch barber_enable_{"barberpole"};
     ui::Dial barber_phase_{"phase"};
-    ui::Dial barber_speed_{"speed"};
+    ui::BpmSyncDial barber_speed_{"speed", "tempo"};
+    ui::Dial barber_stereo_{"stereo"};
     ui::FlatButton barber_reset_phase_;
+
+    juce::Rectangle<int> blend_lfo_bound_;
+    juce::Label blend_lfo_title_{"", "blend_lfo"};
+    ui::FlatButton blend_lfo_reset_phase_{"reset phase"};
+    ui::Dial blend_range_{"range"};
+    ui::BpmSyncDial blend_speed_{"speed", "tempo"};
+    ui::Dial blend_phase_{"phase"};
 
     TimeView timeview_;
     SpectralView spectralview_;

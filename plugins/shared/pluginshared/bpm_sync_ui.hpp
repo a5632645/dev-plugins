@@ -12,8 +12,9 @@ public:
         addChildComponent(tempo_dial_);
     }
 
-    void BindParam(pluginshared::BpmSyncLFO& lfo_state) {
-        using LFOTempoType = pluginshared::BpmSyncLFO::LFOTempoType;
+    template<bool NegPos>
+    void BindParam(pluginshared::BpmSyncLFO<NegPos>& lfo_state) {
+        using LFOTempoType = pluginshared::BpmSyncLFO<NegPos>::LFOTempoType;
         auto sync_type_changed = [this, &lfo_state](float){
             LFOTempoType type = static_cast<LFOTempoType>(lfo_state.param_lfo_tempo_type_->get());
             if (type == LFOTempoType::Free) {
@@ -58,6 +59,9 @@ public:
             menu.addSeparator();
             menu.addItem("hz", [&attach = sync_type_attach_]{
                 attach->setValueAsCompleteGesture(static_cast<float>(LFOTempoType::Free));
+            });
+            menu.addItem("tempo", [&attach = sync_type_attach_] {
+                attach->setValueAsCompleteGesture(static_cast<float>(LFOTempoType::Sync));
             });
             menu.addItem("dot", [&attach = sync_type_attach_]{
                 attach->setValueAsCompleteGesture(static_cast<float>(LFOTempoType::SyncDot));

@@ -1,10 +1,11 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include "pluginshared/version.hpp"
 #include "qwqdsp/filter/window_fir.hpp"
 #include "qwqdsp/window/kaiser.hpp"
-#include "qwqdsp/polymath.hpp"
 #include "qwqdsp/convert.hpp"
+#include "qwqdsp/polymath.hpp"
 #include "x86/sse2.h"
 
 //==============================================================================
@@ -35,12 +36,46 @@ DeepPhaserAudioProcessor::DeepPhaserAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{"blend", 1},
             "blend",
-            juce::NormalisableRange<float>{-0.95f, 0.95f, 0.001f},
-            -0.6f
-            // juce::NormalisableRange<float>{0.01f, 0.4f, 0.001f},
-            // 0.2f
+            juce::NormalisableRange<float>{-1.0f, 1.0f, 0.001f},
+            0.3f
         );
         param_allpass_blend_ = p.get();
+        layout.add(std::move(p));
+    }
+
+    // allpass lfo
+    {
+        auto p = blend_lfo_state_.MakeLfoHzParam("blend_hz", 0.01f, 10.0f, 0.01f, false, 0.2f);
+        blend_lfo_state_.param_lfo_hz_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = blend_lfo_state_.MakeLfoTempoSpeedParam("blend_tempo", "2");
+        blend_lfo_state_.param_tempo_speed_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = blend_lfo_state_.MakeLfoTempoTypeParam("blend_lfo_sync",
+            pluginshared::BpmSyncLFO<false>::LFOTempoType::Sync);
+        blend_lfo_state_.param_lfo_tempo_type_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{"blend_phase", 1},
+            "blend_phase",
+            0.0f, 1.0f, 0.0f
+        );
+        param_blend_phase_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{"blend_range", 1},
+            "blend_range",
+            0.0f, 1.0f, 0.0f
+        );
+        param_blend_range_ = p.get();
         layout.add(std::move(p));
     }
 
@@ -151,7 +186,28 @@ DeepPhaserAudioProcessor::DeepPhaserAudioProcessor()
             juce::NormalisableRange<float>{-10.0f, 10.0f, 0.01f},
             0.5f
         );
-        param_barber_speed_ = p.get();
+        barber_lfo_state_.param_lfo_hz_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = barber_lfo_state_.MakeLfoTempoSpeedParam("barber_tempo", "1");
+        barber_lfo_state_.param_tempo_speed_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = barber_lfo_state_.MakeLfoTempoTypeParam("barber_lfo_type",
+            pluginshared::BpmSyncLFO<true>::LFOTempoType::Sync);
+        barber_lfo_state_.param_lfo_tempo_type_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{"barber_stereo", 1},
+            "barber_stereo",
+            juce::NormalisableRange<float>{0.0f, 1.0f, 0.01f},
+            0.0f
+        );
+        param_barber_stereo_ = p.get();
         layout.add(std::move(p));
     }
     {
@@ -331,8 +387,18 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
     std::ignore = midiMessages;
-
     juce::ScopedNoDenormals noDenormals;
+
+    if (auto* head = getPlayHead()) {
+        barber_lfo_state_.SyncBpm(head->getPosition());
+        blend_lfo_state_.SyncBpm(head->getPosition());
+    }
+    if (barber_lfo_state_.ShouldSync()) {
+        barber_oscillator_.Reset(barber_lfo_state_.GetSyncPhase() * std::numbers::pi_v<float> * 2);
+    }
+    if (blend_lfo_state_.ShouldSync()) {
+        blend_lfo_phase_ = blend_lfo_state_.GetSyncPhase();
+    }
 
     size_t const len = static_cast<size_t>(buffer.getNumSamples());
     auto* left_ptr = buffer.getWritePointer(0);
@@ -356,7 +422,8 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         damp_lowpass_coeff_ = damp_.ComputeCoeff(damp_w);
 
         barber_phase_smoother_.SetTarget(param_barber_phase_->get());
-        barber_oscillator_.SetFreq(param_barber_speed_->get(), fs);
+        barber_oscillator_.SetFreq(barber_lfo_state_.GetLfoFreq(), fs);
+        float const barber_stereo_phase = param_barber_stereo_->get() * std::numbers::pi_v<float> / 2;
 
         float const max_base_state = AllpassBuffer2::kMaxIndex / static_cast<float>(coeff_len_);
         float current_num_state = static_cast<float>(param_state_->get());
@@ -380,13 +447,41 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             simde_mm_store_ps(delta_coeffs[i].x, delta);
         }
 
-        float target_allpass_coeff = param_allpass_blend_->get();
-        float delta_allpass_coeff = (target_allpass_coeff - last_allpass_coeff_) * inv_samples;
+        float frac_temp;
+        float const blend_lfo_phase_inc = blend_lfo_state_.GetLfoFreq() * static_cast<float>(num_process) / fs;
+        blend_lfo_phase_ += blend_lfo_phase_inc;
+        blend_lfo_phase_ = std::modf(blend_lfo_phase_, &frac_temp);
+        float blend_lfo_second_phase = param_blend_phase_->get() + blend_lfo_phase_;
+        blend_lfo_second_phase = std::modf(blend_lfo_second_phase, &frac_temp);
+
+        // -1~1
+        float const left_lfo_val = 4.0f * (std::abs(blend_lfo_phase_ - 0.5f)) - 1.0f;
+        float const right_lfo_val = 4.0f * (std::abs(blend_lfo_second_phase - 0.5f)) - 1.0f;
+
+        float const blend_lfo_center = param_allpass_blend_->get();
+        float const blend_lfo_range = param_blend_range_->get();
+        // -1~1
+        float target_left_allpass_coeff = std::clamp(blend_lfo_center + left_lfo_val * blend_lfo_range, -1.0f, 1.0f);
+        float target_right_allpass_coeff = std::clamp(blend_lfo_center + right_lfo_val * blend_lfo_range, -1.0f, 1.0f);
+        // 0~1
+        target_left_allpass_coeff = target_left_allpass_coeff * 0.5f + 0.5f;
+        target_right_allpass_coeff = target_right_allpass_coeff * 0.5f + 0.5f;
+        target_left_allpass_coeff = kMinPitch + (kMaxPitch - kMinPitch) * target_left_allpass_coeff;
+        target_right_allpass_coeff = kMinPitch + (kMaxPitch - kMinPitch) * target_right_allpass_coeff;
+        target_left_allpass_coeff = qwqdsp::convert::Pitch2Freq(target_left_allpass_coeff);
+        target_right_allpass_coeff = qwqdsp::convert::Pitch2Freq(target_right_allpass_coeff);
+        target_left_allpass_coeff = qwqdsp::convert::Freq2W(target_left_allpass_coeff, fs);
+        target_right_allpass_coeff = qwqdsp::convert::Freq2W(target_right_allpass_coeff, fs);
+        target_left_allpass_coeff = AllpassBuffer2::ComputeCoeff(target_left_allpass_coeff);
+        target_right_allpass_coeff = AllpassBuffer2::ComputeCoeff(target_right_allpass_coeff);
+        float const delta_left_allpass_coeff = (target_left_allpass_coeff - last_left_allpass_coeff_) * inv_samples;
+        float const delta_right_allpass_coeff = (target_right_allpass_coeff - last_right_allpass_coeff_) * inv_samples;
 
         if (!param_barber_enable_->get()) {
             for (size_t j = 0; j < num_process; ++j) {
                 curr_damp_coeff += delta_damp_coeff;
-                last_allpass_coeff_ += delta_allpass_coeff;
+                last_left_allpass_coeff_ += delta_left_allpass_coeff;
+                last_right_allpass_coeff_ += delta_right_allpass_coeff;
 
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
                     last_coeffs_[i] += delta_coeffs[i];
@@ -400,7 +495,8 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 current_delay.x[3] = num_state * 3;
                 SimdIntType delay_inc = SimdIntType::FromSingle(num_state * 4);
                 float right_sum = 0;
-                delay_.Push(*left_ptr + left_fb_ * feedback_mul, *right_ptr + right_fb_ * feedback_mul, last_allpass_coeff_, num_calc_apf);
+                delay_.Push(*left_ptr + left_fb_ * feedback_mul, *right_ptr + right_fb_ * feedback_mul,
+                    last_left_allpass_coeff_, last_right_allpass_coeff_, num_calc_apf);
                 SimdType damp_x = delay_.GetLR(num_calc_apf - 1);
                 damp_x = damp_.TickLowpass(damp_x, SimdType::FromSingle(curr_damp_coeff));
                 left_fb_ = damp_x.x[0];
@@ -432,13 +528,15 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         else {
             for (size_t j = 0; j < num_process; ++j) {
                 curr_damp_coeff += delta_damp_coeff;
-                last_allpass_coeff_ += delta_allpass_coeff;
+                last_left_allpass_coeff_ += delta_left_allpass_coeff;
+                last_right_allpass_coeff_ += delta_right_allpass_coeff;
 
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
                     last_coeffs_[i] += delta_coeffs[i];
                 }
 
-                delay_.Push(*left_ptr + left_fb_ * feedback_mul, *right_ptr + right_fb_ * feedback_mul, last_allpass_coeff_, num_calc_apf);
+                delay_.Push(*left_ptr + left_fb_ * feedback_mul, *right_ptr + right_fb_ * feedback_mul,
+                    last_left_allpass_coeff_, last_right_allpass_coeff_, num_calc_apf);
                 SimdType feedback_x = delay_.GetLR(num_calc_apf - 1);
                 feedback_x = damp_.TickLowpass(feedback_x, SimdType::FromSingle(curr_damp_coeff));
                 left_fb_ = feedback_x.x[0];
@@ -457,6 +555,7 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 auto const rotation_2 = rotation_once * rotation_once;
                 auto const rotation_3 = rotation_once * rotation_2;
                 auto const rotation_4 = rotation_2 * rotation_2;
+                auto const right_channel_rotation = std::polar(1.0f, barber_stereo_phase);
                 Vec4Complex left_rotation_coeff;
                 left_rotation_coeff.re.x[0] = 1;
                 left_rotation_coeff.re.x[1] = rotation_once.real();
@@ -467,15 +566,14 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 left_rotation_coeff.im.x[2] = rotation_2.imag();
                 left_rotation_coeff.im.x[3] = rotation_3.imag();
                 Vec4Complex right_rotation_coeff = left_rotation_coeff;
-                Vec4Complex left_rotation_mul;
-                left_rotation_mul.re.x[0] = rotation_4.real();
-                left_rotation_mul.re.x[1] = rotation_4.real();
-                left_rotation_mul.re.x[2] = rotation_4.real();
-                left_rotation_mul.re.x[3] = rotation_4.real();
-                left_rotation_mul.im.x[0] = rotation_4.imag();
-                left_rotation_mul.im.x[1] = rotation_4.imag();
-                left_rotation_mul.im.x[2] = rotation_4.imag();
-                left_rotation_mul.im.x[3] = rotation_4.imag();
+                right_rotation_coeff *= Vec4Complex{
+                    .re = SimdType::FromSingle(right_channel_rotation.real()),
+                    .im = SimdType::FromSingle(right_channel_rotation.imag())
+                };
+                Vec4Complex left_rotation_mul{
+                    .re = SimdType::FromSingle(rotation_4.real()),
+                    .im = SimdType::FromSingle(rotation_4.imag())
+                };
                 Vec4Complex right_rotation_mul = left_rotation_mul;
 
                 float left_re_sum = 0;
@@ -587,6 +685,35 @@ void DeepPhaserAudioProcessor::setStateInformation (const void* data, int sizeIn
                 }
                 should_update_fir_ = true;
             }
+        }
+
+        auto const& version_var = state.getProperty(preset_manager_->kVersionProperty);
+        int major{};
+        int minor{};
+        int patch{};
+        if (!version_var.isVoid()) {
+            std::tie(major, minor, patch) = pluginshared::version::ParseVersionString(version_var.toString());
+        }
+        if (minor <= 1 && patch <= 0) {
+            // version 0.1.0 or below doesn't have tempo/freq control
+            blend_lfo_state_.SetTempoTypeToFree();
+            barber_lfo_state_.SetTempoTypeToFree();
+            // version 0.1.0 or below doesn't have barber_stereo
+            param_barber_stereo_->setValueNotifyingHost(param_barber_stereo_->convertTo0to1(0));
+            param_blend_range_->setValueNotifyingHost(param_barber_stereo_->convertTo0to1(0));
+            param_blend_phase_->setValueNotifyingHost(param_barber_stereo_->convertTo0to1(0));
+            blend_lfo_phase_ = 0;
+            // conver raw coeff to pitch
+            float const raw_coeff = state.getProperty("blend");
+            float const omega = AllpassBuffer2::RevertCoeff2Omega(raw_coeff);
+            float const freq = omega * static_cast<float>(getSampleRate()) / (std::numbers::pi_v<float> * 2);
+            float const pitch = qwqdsp::convert::Freq2Pitch(freq);
+            float blend = (pitch - kMinPitch) / (kMaxPitch - kMinPitch);
+            blend = 2 * blend - 1;
+            if (std::isnan(blend) || std::isinf(blend)) {
+                blend = 0.3f; // default value
+            }
+            param_allpass_blend_->setValueNotifyingHost(param_allpass_blend_->convertTo0to1(blend));
         }
     }
     suspendProcessing(false);

@@ -149,6 +149,7 @@ private:
     SteepFlangerAudioProcessor& p_;
     pluginshared::PresetPanel preset_panel_;
 
+    juce::Rectangle<int> lfo_bound_;
     juce::Label lfo_title_{"lfo", "lfo"};
     ui::Dial delay_{"delay"};
     ui::Dial depth_{"depth"};
@@ -156,6 +157,7 @@ private:
     ui::Dial phase_{"phase"};
     ui::FlatButton lfo_reset_phase_;
 
+    juce::Rectangle<int> fir_bound_;
     juce::Label fir_title_{"fir", "fir"};
     ui::Dial cutoff_{"cutoff"};
     ui::Dial coeff_len_{"steep"};
@@ -164,12 +166,14 @@ private:
     ui::Switch highpass_{"highpass"};
     ui::Switch custom_{"custom"};
 
+    juce::Rectangle<int> feedback_bound_;
     juce::Label feedback_title_{"feedback", "feedback"};
     ui::Switch fb_enable_{"feedback"};
     ui::Dial fb_value_{"feedback"};
     ui::Dial fb_damp_{"damp"};
     ui::FlatButton panic_;
 
+    juce::Rectangle<int> barber_bound_;
     juce::Label barber_title_{"barberpole", "barberpole"};
     ui::Switch barber_enable_{"enable"};
     ui::Dial barber_phase_{"phase"};
@@ -177,6 +181,7 @@ private:
     ui::Dial barber_stereo_{"stereo"};
     ui::FlatButton barber_reset_phase_;
 
+    juce::Rectangle<int> abount_bound_;
     juce::Label about_title_;
     juce::Label cpu_arch_;
     juce::Label build_time_;

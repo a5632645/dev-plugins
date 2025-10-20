@@ -147,6 +147,9 @@ VitalChorusAudioProcessorEditor::VitalChorusAudioProcessorEditor (VitalChorusAud
         menu.addItem("hz", [&attach = sync_type_attach_]{
             attach->setValueAsCompleteGesture(static_cast<float>(LFOTempoType::Free));
         });
+        menu.addItem("tempo", [&attach = sync_type_attach_]{
+            attach->setValueAsCompleteGesture(static_cast<float>(LFOTempoType::Sync));
+        });
         menu.addItem("dot", [&attach = sync_type_attach_]{
             attach->setValueAsCompleteGesture(static_cast<float>(LFOTempoType::SyncDot));
         });

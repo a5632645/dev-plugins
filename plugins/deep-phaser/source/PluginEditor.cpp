@@ -31,11 +31,12 @@ void TimeView::paint(juce::Graphics& g) {
     g.setColour(ui::line_fore);
     float lasty = juce::jmap(coeff_buffer_[0], -1.0f, 1.0f, bf.getBottom(), bf.getY());
     float lastx = bf.getX();
+    float const fcoeff_len = static_cast<float>(p_.coeff_len_);
     for (int x = 0; x < b.getWidth(); ++x) {
-        size_t const idx = static_cast<size_t>(static_cast<float>(x * p_.coeff_len_) / static_cast<float>(b.getWidth()));
+        size_t const idx = static_cast<size_t>(static_cast<float>(x) * fcoeff_len / static_cast<float>(b.getWidth()));
         float const val = coeff_buffer_[idx];
         float const y = juce::jmap(val, -1.0f, 1.0f, bf.getBottom(), bf.getY());
-        float const xx = x + bf.getX();
+        float const xx = static_cast<float>(x) + bf.getX();
         g.drawLine(lastx, lasty, xx, y);
         lastx = xx;
         lasty = y;
@@ -47,10 +48,10 @@ void TimeView::paint(juce::Graphics& g) {
         lasty = juce::jmap(p_.custom_coeffs_[0], -1.0f, 1.0f, bf.getBottom(), bf.getY());
         lastx = bf.getX();
         for (int x = 0; x < b.getWidth(); ++x) {
-            size_t const idx = static_cast<size_t>(static_cast<float>(x * p_.coeff_len_) / static_cast<float>(b.getWidth()));
+            size_t const idx = static_cast<size_t>(static_cast<float>(x) * fcoeff_len / static_cast<float>(b.getWidth()));
             float const val = p_.custom_coeffs_[idx];
             float const y = juce::jmap(val, -1.0f, 1.0f, bf.getBottom(), bf.getY());
-            float const xx = x + bf.getX();
+            float const xx = static_cast<float>(x) + bf.getX();
             g.drawLine(lastx, lasty, xx, y);
             lastx = xx;
             lasty = y;
@@ -68,9 +69,10 @@ void TimeView::mouseDrag(const juce::MouseEvent& e) {
     pos.x = std::clamp(pos.x, b.getX(), b.getRight());
     pos.y = std::clamp(pos.y, b.getY(), b.getBottom());
 
+    float const fcoeff_len = static_cast<float>(p_.coeff_len_);
     auto bf = b.toFloat();
-    size_t idx = (pos.getX() - bf.getX()) * p_.coeff_len_ / bf.getWidth();
-    idx = std::min(idx, p_.coeff_len_ - 1);
+    size_t idx = static_cast<size_t>((static_cast<float>(pos.getX()) - bf.getX()) * fcoeff_len / static_cast<float>(bf.getWidth()));
+    idx = std::clamp(idx, 0ull, p_.coeff_len_ - 1);
 
     float val = juce::jmap(static_cast<float>(pos.y), bf.getY(), bf.getBottom(), 1.0f, -1.0f);
     if (e.mods.isRightButtonDown()) {
@@ -94,6 +96,7 @@ void TimeView::RepaintTimeAndSpectralView() {
 }
 
 void TimeView::mouseUp(const juce::MouseEvent& e) {
+    std::ignore = e;
     SendCoeffs();
 }
 
@@ -131,15 +134,16 @@ void SpectralView::paint(juce::Graphics& g) {
     g.fillRect(b);
     
     // 绘制频谱音量数字
+    float const fcoeff_len = static_cast<float>(time_.p_.coeff_len_);
     constexpr size_t kNumLines = 5;
     float const centerx = text_bound.getCentreX();
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font{12});
+    g.setFont(juce::Font{juce::FontOptions{}.withHeight(12)});
     for (size_t i = 0; i < kNumLines; ++i) {
-        float const centery = text_bound.getY() + i * text_bound.getHeight() / (kNumLines - 1.0f);
+        float const centery = text_bound.getY() + static_cast<float>(i) * static_cast<float>(text_bound.getHeight()) / (kNumLines - 1.0f);
         juce::Rectangle<float> text{0.0, 0.0, text_bound.getWidth(), 12.0f};
         text = text.withCentre({centerx, centery});
-        float const val = max_db_ - i * (max_db_ - min_db_) / (kNumLines - 1.0f);
+        float const val = max_db_ - static_cast<float>(i) * (max_db_ - min_db_) / (kNumLines - 1.0f);
         g.drawText(juce::String{val, 1}, text, juce::Justification::right);
     }
 
@@ -148,11 +152,11 @@ void SpectralView::paint(juce::Graphics& g) {
     float lasty = juce::jmap(gains_[0], bf.getBottom(), bf.getY());
     float lastx = bf.getX();
     for (int x = 0; x < b.getWidth(); ++x) {
-        size_t idx = static_cast<size_t>(static_cast<float>(x * gains_.size()) / static_cast<float>(b.getWidth()));
+        size_t idx = static_cast<size_t>(static_cast<float>(static_cast<size_t>(x) * gains_.size()) / static_cast<float>(b.getWidth()));
         idx = std::min(idx, gains_.size() - 1);
         float const val = gains_[idx];
         float const y = juce::jmap(val, bf.getBottom(), bf.getY());
-        float const xx = x + bf.getX();
+        float const xx = static_cast<float>(x) + bf.getX();
         g.drawLine(lastx, lasty, xx, y);
         lastx = xx;
         lasty = y;
@@ -164,10 +168,10 @@ void SpectralView::paint(juce::Graphics& g) {
         lasty = juce::jmap(time_.p_.custom_spectral_gains[0], bf.getBottom(), bf.getY());
         lastx = bf.getX();
         for (int x = 0; x < b.getWidth(); ++x) {
-            size_t const idx = static_cast<size_t>(static_cast<float>(x * time_.p_.coeff_len_) / static_cast<float>(b.getWidth()));
+            size_t const idx = static_cast<size_t>(static_cast<float>(static_cast<float>(x) * fcoeff_len) / static_cast<float>(b.getWidth()));
             float const val = time_.p_.custom_spectral_gains[idx];
             float const y = juce::jmap(val, bf.getBottom(), bf.getY());
-            float const xx = x + bf.getX();
+            float const xx = static_cast<float>(x) + bf.getX();
             g.drawLine(lastx, lasty, xx, y);
             lastx = xx;
             lasty = y;
@@ -181,8 +185,7 @@ void SpectralView::UpdateGui() {
     fft_.FFTGainPhase(fft_buffer, gains_);
 
     for (auto& x : gains_) {
-        x = qwqdsp::convert::Gain2Db(x);
-        x = std::max(x, -100.0f);
+        x = qwqdsp::convert::Gain2Db<-100.0f>(x);
     }
 
     auto[pmin, pmax] = std::minmax_element(gains_.begin(), gains_.end());
@@ -211,8 +214,9 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
     pos.y = std::clamp(pos.y, b.getY(), b.getBottom());
 
     size_t const coeff_len = time_.p_.coeff_len_;
-    size_t idx = (pos.getX() - bf.getX()) * coeff_len / bf.getWidth();
-    idx = std::min(idx, coeff_len - 1);
+    float const fcoeff_len = static_cast<float>(coeff_len);
+    size_t idx = static_cast<size_t>((static_cast<float>(pos.getX()) - bf.getX()) * fcoeff_len / bf.getWidth());
+    idx = std::clamp(idx, 0ull, coeff_len - 1);
 
     float val = juce::jmap(static_cast<float>(pos.y), bf.getY(), bf.getBottom(), 1.0f, 0.0f);
     if (e.mods.isRightButtonDown()) {
@@ -225,7 +229,7 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
     std::array<qwqdsp::oscillor::MCFSineOsc, kMaxCoeffLen> oscs;
     std::array<float, kMaxCoeffLen> true_gains;
     for (size_t i = 0; i < coeff_len; ++i) {
-        oscs[i].Reset(i * std::numbers::pi_v<float> / coeff_len, static_cast<float>(rand()) / static_cast<float>(RAND_MAX));
+        oscs[i].Reset(static_cast<float>(i) * std::numbers::pi_v<float> / fcoeff_len, 0.0f);
         float const db = std::lerp(-101.0f, 0.0f, time_.p_.custom_spectral_gains[i]);
         if (db < -100.0f) {
             true_gains[i] = 0;
@@ -249,6 +253,7 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
 }
 
 void SpectralView::mouseUp(const juce::MouseEvent& e) {
+    std::ignore = e;
     time_.SendCoeffs();
 }
 
@@ -296,8 +301,6 @@ DeepPhaserAudioProcessorEditor::DeepPhaserAudioProcessorEditor (DeepPhaserAudioP
     };
     addAndMakeVisible(custom_);
 
-    // fb_enable_.BindParam(apvts, "fb_enable");
-    // addAndMakeVisible(fb_enable_);
     fb_value_.BindParam(apvts, "fb_value");
     addAndMakeVisible(fb_value_);
     panic_.setButtonText("panic");
@@ -311,7 +314,7 @@ DeepPhaserAudioProcessorEditor::DeepPhaserAudioProcessorEditor (DeepPhaserAudioP
     addAndMakeVisible(barber_title_);
     barber_phase_.BindParam(apvts, "barber_phase");
     addAndMakeVisible(barber_phase_);
-    barber_speed_.BindParam(apvts, "barber_speed");
+    barber_speed_.BindParam(p.barber_lfo_state_);
     addAndMakeVisible(barber_speed_);
     barber_enable_.BindParam(apvts, "barber_enable");
     addAndMakeVisible(barber_enable_);
@@ -321,10 +324,21 @@ DeepPhaserAudioProcessorEditor::DeepPhaserAudioProcessorEditor (DeepPhaserAudioP
         p_.barber_oscillator_.Reset();
     };
     addAndMakeVisible(barber_reset_phase_);
+    barber_stereo_.BindParam(p.param_barber_stereo_);
+    addAndMakeVisible(barber_stereo_);
 
-    addAndMakeVisible(allpass_title_);
-    allpass_blend_.BindParam(p.param_allpass_blend_);
-    addAndMakeVisible(allpass_blend_);
+    addAndMakeVisible(blend_lfo_title_);
+    addAndMakeVisible(blend_lfo_reset_phase_);
+    blend_lfo_reset_phase_.onClick = [this] {
+        juce::ScopedLock _{p_.getCallbackLock()};
+        p_.blend_lfo_phase_ = 0;
+    };
+    blend_phase_.BindParam(p.param_blend_phase_);
+    addAndMakeVisible(blend_phase_);
+    blend_range_.BindParam(p.param_blend_range_);
+    addAndMakeVisible(blend_range_);
+    blend_speed_.BindParam(p.blend_lfo_state_);
+    addAndMakeVisible(blend_speed_);
 
     addAndMakeVisible(timeview_);
     addAndMakeVisible(spectralview_);
@@ -347,23 +361,10 @@ void DeepPhaserAudioProcessorEditor::paint (juce::Graphics& g) {
     auto b = getLocalBounds();
     g.fillRect(b.removeFromTop(50 - 2));
     b.removeFromTop(2);
-    {
-        auto topblock = b.removeFromTop(125);
-        {
-            auto lfo_block = topblock.removeFromLeft(80 * 4);
-            g.fillRect(lfo_block);
-        }
-        topblock.removeFromLeft(8);
-        {
-            auto fir_block = topblock.removeFromLeft(80 * 4);
-            g.fillRect(fir_block);
-        }
-    }
-    b.removeFromTop(8);
-    {
-        auto bottom_block = b.removeFromTop(125);
-        g.fillRect(bottom_block.removeFromLeft(280));
-    }
+    g.fillRect(basic_bound_);
+    g.fillRect(fir_bound_);
+    g.fillRect(barber_bound_);
+    g.fillRect(blend_lfo_bound_);
 }
 
 void DeepPhaserAudioProcessorEditor::resized() {
@@ -372,18 +373,20 @@ void DeepPhaserAudioProcessorEditor::resized() {
     {
         auto topblock = b.removeFromTop(125);
         {
-            auto lfo_block = topblock.removeFromLeft(80 * 4);
-            auto lfo_block_top = lfo_block.removeFromTop(25);
-            panic_.setBounds(lfo_block_top.removeFromRight(80).reduced(2, 2));
-            allpass_title_.setBounds(lfo_block_top);
-            state_.setBounds(lfo_block.removeFromLeft(80));;
-            allpass_blend_.setBounds(lfo_block.removeFromLeft(80));
-            fb_value_.setBounds(lfo_block.removeFromLeft(80));
-            fb_damp_.setBounds(lfo_block.removeFromLeft(80));
+            auto basic_bound = topblock.removeFromLeft(80 * 4);
+            basic_bound_ = basic_bound;
+            auto basic_bound_top = basic_bound.removeFromTop(25);
+            panic_.setBounds(basic_bound_top.removeFromRight(80).reduced(2, 2));
+            allpass_title_.setBounds(basic_bound_top);
+            state_.setBounds(basic_bound.removeFromLeft(80));;
+            allpass_blend_.setBounds(basic_bound.removeFromLeft(80));
+            fb_value_.setBounds(basic_bound.removeFromLeft(80));
+            fb_damp_.setBounds(basic_bound.removeFromLeft(80));
         }
         topblock.removeFromLeft(8);
         {
             auto fir_block = topblock.removeFromLeft(80 * 4);
+            fir_bound_ = fir_block;
             {
                 auto fir_title = fir_block.removeFromTop(25);
                 minum_phase_.setBounds(fir_title.removeFromRight(100).reduced(2, 0));
@@ -399,15 +402,28 @@ void DeepPhaserAudioProcessorEditor::resized() {
     b.removeFromTop(8);
     {
         auto bottom_block = b.removeFromTop(125);
+        {
+            barber_bound_ = bottom_block.removeFromLeft(260);
+            auto barber_block = barber_bound_;
+            auto barber_title_bound = barber_block.removeFromTop(25);
+            barber_enable_.setBounds(barber_title_bound.removeFromRight(100).reduced(2));
+            barber_title_.setBounds(barber_title_bound);
+            barber_phase_.setBounds(barber_block.removeFromLeft(80));
+            barber_speed_.setBounds(barber_block.removeFromLeft(80));
+            auto e = barber_block.removeFromLeft(100);
+            barber_stereo_.setBounds(e.removeFromTop(70).withWidth(50));
+            barber_reset_phase_.setBounds(e.reduced(4));
+        }
         bottom_block.removeFromLeft(8);
         {
-            barber_title_.setBounds(bottom_block.removeFromTop(25));
-            barber_phase_.setBounds(bottom_block.removeFromLeft(80));
-            barber_speed_.setBounds(bottom_block.removeFromLeft(80));
-            auto e = bottom_block.removeFromLeft(100);
-            auto barber_enable_block = e.removeFromTop(e.getHeight() / 2);
-            barber_enable_.setBounds(barber_enable_block.withSizeKeepingCentre(e.getWidth(), 25));
-            barber_reset_phase_.setBounds(e.withSizeKeepingCentre(e.getWidth(), 25));
+            blend_lfo_bound_ = bottom_block.removeFromLeft(240);
+            auto blend_lfo_block = blend_lfo_bound_;
+            auto blend_lfo_top_block = blend_lfo_block.removeFromTop(25);
+            blend_lfo_reset_phase_.setBounds(blend_lfo_top_block.removeFromRight(100).reduced(2));
+            blend_lfo_title_.setBounds(blend_lfo_top_block);
+            blend_speed_.setBounds(blend_lfo_block.removeFromLeft(80));
+            blend_range_.setBounds(blend_lfo_block.removeFromLeft(80));
+            blend_phase_.setBounds(blend_lfo_block.removeFromLeft(80));
         }
     }
     b.removeFromTop(8);

@@ -1,6 +1,7 @@
 #pragma once
 #include "pluginshared/juce_param_listener.hpp"
 #include "pluginshared/preset_manager.hpp"
+#include "pluginshared/bpm_sync_lfo.hpp"
 #include "shared.hpp"
 
 #include "qwqdsp/misc/smoother.hpp"
@@ -10,7 +11,7 @@
 #include "qwqdsp/filter/one_pole_tpt_simd.hpp"
 #include "qwqdsp/filter/iir_cpx_hilbert_stereo_simd.hpp"
 #include "qwqdsp/force_inline.hpp"
-#include "x86/sse2.h"
+#include "qwqdsp/convert.hpp"
 
 using SimdType = qwqdsp::psimd::Vec4f32;
 using SimdIntType = qwqdsp::psimd::Vec4i32;
@@ -53,12 +54,12 @@ public:
     }
 
     QWQDSP_FORCE_INLINE
-    void Push(float left_x, float rightx, float coeff, size_t num_cascade) noexcept {
+    void Push(float left_x, float rightx, float left_coeff, float right_coeff, size_t num_cascade) noexcept {
         float* xlag_ptr = xlags_.data();
         float* ylag_ptr = output_buffer_.data();
         for (size_t i = 0; i < num_cascade; ++i) {
-            float left_y = xlag_ptr[0] + coeff * (left_x - ylag_ptr[0]);
-            float righty = xlag_ptr[1] + coeff * (rightx - ylag_ptr[1]);
+            float left_y = xlag_ptr[0] + left_coeff * (left_x - ylag_ptr[0]);
+            float righty = xlag_ptr[1] + right_coeff * (rightx - ylag_ptr[1]);
             xlag_ptr[0] = left_x;
             xlag_ptr[1] = rightx;
             ylag_ptr[0] = left_y;
@@ -79,6 +80,19 @@ public:
         for (size_t i = begin_idx; i < end_idx; ++i) {
             xlags_[i] = 0;
         }
+    }
+
+    /**
+     * @note won't check w
+     * @param w [0~pi]
+     */
+    static float ComputeCoeff(float w) noexcept {
+        auto k = std::tan(w / 2);
+        return (k - 1) / (k + 1);
+    }
+
+    static float RevertCoeff2Omega(float coeff) noexcept {
+        return std::atan((1 - coeff) / (1 + coeff));
     }
 
     SimdType GetLR(size_t filter_idx) const noexcept {
@@ -142,17 +156,17 @@ public:
     juce::AudioParameterFloat* param_feedback_;
     juce::AudioParameterFloat* param_damp_pitch_;
     juce::AudioParameterFloat* param_barber_phase_;
-    juce::AudioParameterFloat* param_barber_speed_;
     juce::AudioParameterBool* param_barber_enable_;
     juce::AudioParameterFloat* param_allpass_blend_;
+    juce::AudioParameterFloat* param_barber_stereo_;
+    juce::AudioParameterFloat* param_blend_range_;
+    juce::AudioParameterFloat* param_blend_phase_;
 
     std::atomic<bool> should_update_fir_{};
     std::atomic<bool> have_new_coeff_{};
 
     static constexpr size_t kSIMDMaxCoeffLen = ((kMaxCoeffLen + 3) / 4) * 4;
 
-    // AllpassBuffer delay_left_;
-    // AllpassBuffer delay_right_;
     AllpassBuffer2 delay_;
     // fir
     alignas(16) std::array<float, kSIMDMaxCoeffLen> coeffs_{};
@@ -162,9 +176,13 @@ public:
     size_t coeff_len_{};
     size_t coeff_len_div_4_{};
 
-    // allpass
-    float last_allpass_coeff_{};
+    // allpass, basicly this is onepole allpass pole
+    inline static float const kMinPitch = qwqdsp::convert::Freq2Pitch(20.0f);
+    inline static float const kMaxPitch = qwqdsp::convert::Freq2Pitch(20000.0f);
+    float last_left_allpass_coeff_{};
+    float last_right_allpass_coeff_{};
     size_t last_num_calc_apfs_{};
+    float blend_lfo_phase_{};
 
     // feedback
     float left_fb_{};
@@ -182,6 +200,9 @@ public:
 
     std::atomic<bool> is_using_custom_{};
     qwqdsp::spectral::ComplexFFT complex_fft_;
+
+    pluginshared::BpmSyncLFO<true> barber_lfo_state_;
+    pluginshared::BpmSyncLFO<false> blend_lfo_state_;
     
     void Panic();
 private:
