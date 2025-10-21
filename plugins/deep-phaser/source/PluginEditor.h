@@ -153,6 +153,8 @@ private:
     juce::Label allpass_title_{"basic", "basic"};
     ui::Dial state_{"state"};
     ui::Dial allpass_blend_{"blend"};
+    juce::Label feedback_style_label_{"", "feedback from"};
+    ui::Switch fb_style_{"fir", "apf"};
     ui::Dial fb_value_{"feedback"};
     ui::Dial fb_damp_{"damp"};
     ui::Dial drywet_{"drywet"};

@@ -157,6 +157,8 @@ public:
     juce::AudioParameterFloat* param_damp_pitch_;
     juce::AudioParameterFloat* param_barber_phase_;
     juce::AudioParameterBool* param_barber_enable_;
+    // true: from fir, false: from apf
+    juce::AudioParameterBool* param_feedback_style_;
     juce::AudioParameterFloat* param_allpass_blend_;
     juce::AudioParameterFloat* param_barber_stereo_;
     juce::AudioParameterFloat* param_blend_range_;
@@ -187,8 +189,9 @@ public:
     float blend_lfo_phase_{};
 
     // feedback
-    float left_fb_{};
-    float right_fb_{};
+    SimdType feedback_lag_{};
+    float feedback_mul_from_apf_{};
+    float feedback_mul_from_fir_{1.0f};
     qwqdsp::filter::OnePoleTPTSimd<SimdType> damp_;
     float damp_lowpass_coeff_{1.0f};
     float last_damp_lowpass_coeff_{1.0f};

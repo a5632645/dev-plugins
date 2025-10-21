@@ -152,7 +152,7 @@ DeepPhaserAudioProcessor::DeepPhaserAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{"fb_value", 1},
             "fb_value",
-            -0.98f, 0.98f, 0.0f
+            -0.95f, 0.95f, 0.0f
         );
         param_feedback_ = p.get();
         layout.add(std::move(p));
@@ -165,6 +165,15 @@ DeepPhaserAudioProcessor::DeepPhaserAudioProcessor()
             90.0f
         );
         param_damp_pitch_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{"fb_style", 1},
+            "fb_style",
+            false
+        );
+        param_feedback_style_ = p.get();
         layout.add(std::move(p));
     }
 
@@ -430,8 +439,17 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         warp_drywet = (warp_drywet - kWarpFactor) / (1.0f - warp_drywet * kWarpFactor);
         warp_drywet = 0.5f * warp_drywet + 0.5f;
         warp_drywet = std::clamp(warp_drywet, 0.0f, 1.0f);
-
         float const feedback_mul = param_feedback_->get() * warp_drywet;
+        bool const feedback_style = param_feedback_style_->get();
+        if (feedback_style) {
+            feedback_mul_from_fir_ = feedback_mul;
+            feedback_mul_from_apf_ = 0;
+        }
+        else {
+            feedback_mul_from_fir_ = 0;
+            feedback_mul_from_apf_ = feedback_mul;
+        }
+
         float const damp_pitch = param_damp_pitch_->get();
         float const damp_freq = qwqdsp::convert::Pitch2Freq(damp_pitch);
         float const damp_w = qwqdsp::convert::Freq2W(damp_freq, fs);
@@ -513,19 +531,17 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 }
     
                 float left_sum = 0;
+                float right_sum = 0;
                 SimdIntType current_delay;
                 current_delay.x[0] = 0;
                 current_delay.x[1] = num_state;
                 current_delay.x[2] = num_state * 2;
                 current_delay.x[3] = num_state * 3;
                 SimdIntType delay_inc = SimdIntType::FromSingle(num_state * 4);
-                float right_sum = 0;
-                delay_.Push(*left_ptr + left_fb_ * feedback_mul, *right_ptr + right_fb_ * feedback_mul,
+                delay_.Push(*left_ptr + feedback_lag_.x[0], *right_ptr + feedback_lag_.x[1],
                     last_left_allpass_coeff_, last_right_allpass_coeff_, num_calc_apf);
-                SimdType damp_x = delay_.GetLR(num_calc_apf - 1);
-                damp_x = damp_.TickLowpass(damp_x, SimdType::FromSingle(curr_damp_coeff));
-                left_fb_ = damp_x.x[0];
-                right_fb_ = damp_x.x[1];
+                feedback_lag_ = delay_.GetLR(num_calc_apf - 1) * SimdType::FromSingle(feedback_mul_from_apf_);
+
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
                     auto taps_out = delay_.GetAfterPush(current_delay);
 
@@ -548,6 +564,8 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 *right_ptr = right_sum;
                 ++left_ptr;
                 ++right_ptr;
+                SimdType feedback_fir = damp_.TickLowpass(SimdType{left_sum, right_sum}, SimdType::FromSingle(curr_damp_coeff));
+                feedback_lag_ += feedback_fir * SimdType::FromSingle(feedback_mul_from_fir_);
             }
         }
         else {
@@ -560,12 +578,9 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     last_coeffs_[i] += delta_coeffs[i];
                 }
 
-                delay_.Push(*left_ptr + left_fb_ * feedback_mul, *right_ptr + right_fb_ * feedback_mul,
+                delay_.Push(*left_ptr + feedback_lag_.x[0], *right_ptr + feedback_lag_.x[1],
                     last_left_allpass_coeff_, last_right_allpass_coeff_, num_calc_apf);
-                SimdType feedback_x = delay_.GetLR(num_calc_apf - 1);
-                feedback_x = damp_.TickLowpass(feedback_x, SimdType::FromSingle(curr_damp_coeff));
-                left_fb_ = feedback_x.x[0];
-                right_fb_ = feedback_x.x[1];
+                feedback_lag_ = delay_.GetLR(num_calc_apf - 1) * SimdType::FromSingle(feedback_mul_from_apf_);
 
                 SimdIntType current_delay;
                 current_delay.x[0] = 0;
@@ -646,6 +661,8 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 *right_ptr = output_y.x[1] ;
                 ++left_ptr;
                 ++right_ptr;
+                SimdType feedback_fir = damp_.TickLowpass(output_y, SimdType::FromSingle(curr_damp_coeff));
+                feedback_lag_ += feedback_fir * SimdType::FromSingle(feedback_mul_from_fir_);
             }
         }
         last_damp_lowpass_coeff_ = damp_lowpass_coeff_;
@@ -739,6 +756,13 @@ void DeepPhaserAudioProcessor::setStateInformation (const void* data, int sizeIn
                 blend = 0.3f; // default value
             }
             param_allpass_blend_->setValueNotifyingHost(param_allpass_blend_->convertTo0to1(blend));
+            // version 0.1.0 is from apf, before is from fir
+            if (version_var.isVoid()) {
+                param_feedback_style_->setValueNotifyingHost(param_feedback_style_->convertTo0to1(1.0f));
+            }
+            else {
+                param_feedback_style_->setValueNotifyingHost(param_feedback_style_->convertTo0to1(0.0f));
+            }
         }
     }
     suspendProcessing(false);
@@ -781,12 +805,12 @@ void DeepPhaserAudioProcessor::UpdateCoeff() {
     }
 
     std::span<float> kernel{coeffs_.data(), coeff_len};
+    float pad[kFFTSize]{};
+    constexpr size_t num_bins = complex_fft_.NumBins(kFFTSize);
+    std::array<float, num_bins> gains{};
+    std::copy(kernel.begin(), kernel.end(), pad);
+    complex_fft_.FFTGainPhase(pad, gains);
     if (param_fir_min_phase_->get()) {
-        float pad[kFFTSize]{};
-        constexpr size_t num_bins = complex_fft_.NumBins(kFFTSize);
-        std::array<float, num_bins> gains{};
-        std::copy(kernel.begin(), kernel.end(), pad);
-        complex_fft_.FFTGainPhase(pad, gains);
 
         float log_gains[num_bins]{};
         for (size_t i = 0; i < num_bins; ++i) {
@@ -809,13 +833,10 @@ void DeepPhaserAudioProcessor::UpdateCoeff() {
         }
     }
 
-    float energy = 0;
-    for (auto x : kernel) {
-        energy += x * x;
-    }
-    float g = 1.0f / std::sqrt(energy + 1e-10f);
+    float const max_spectral_gain = *std::max_element(gains.begin(), gains.end());
+    float const gain = 1.0f / (max_spectral_gain + 1e-10f);
     for (auto& x : kernel) {
-        x *= g;
+        x *= gain;
     }
 
     have_new_coeff_ = true;
@@ -823,8 +844,8 @@ void DeepPhaserAudioProcessor::UpdateCoeff() {
 
 void DeepPhaserAudioProcessor::Panic() {
     juce::ScopedLock _{getCallbackLock()};
-    left_fb_ = 0;
-    right_fb_ = 0;
+    feedback_lag_ = SimdType::FromSingle(0.0f);
     delay_.Reset();
     hilbert_complex_.Reset();
+    damp_.Reset();
 }

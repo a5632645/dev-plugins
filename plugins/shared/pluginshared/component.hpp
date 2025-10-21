@@ -273,8 +273,11 @@ public:
 
     void BindParam(juce::AudioProcessorValueTreeState& apvts, juce::StringRef id) {
         auto* param = apvts.getParameter(id);
-        jassert(param != nullptr);
+        BindParam(param);
+    }
 
+    void BindParam(juce::RangedAudioParameter* param) {
+        jassert(param != nullptr);
         attach_ = std::make_unique<juce::ButtonParameterAttachment>(
             *param, *this
         );
