@@ -560,8 +560,8 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     current_delay += delay_inc;
                 }
 
-                *left_ptr = left_sum;
-                *right_ptr = right_sum;
+                *left_ptr = left_sum * fir_gain_;
+                *right_ptr = right_sum * fir_gain_;
                 ++left_ptr;
                 ++right_ptr;
 
@@ -658,8 +658,8 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 });
                 // this will mirror the positive spectrum to negative domain, forming a real value signal
                 SimdType output_y = remove_negative_spectrum.Shuffle<0, 2, 1, 3>();
-                *left_ptr = output_y.x[0];
-                *right_ptr = output_y.x[1] ;
+                *left_ptr = output_y.x[0] * fir_gain_;
+                *right_ptr = output_y.x[1] * fir_gain_;
                 ++left_ptr;
                 ++right_ptr;
                 feedback_lag_ += output_y * SimdType::FromSingle(feedback_mul_from_fir_);
@@ -839,6 +839,12 @@ void DeepPhaserAudioProcessor::UpdateCoeff() {
     for (auto& x : kernel) {
         x *= gain;
     }
+
+    float energy = 0;
+    for (auto x : kernel) {
+        energy += x * x;
+    }
+    fir_gain_ = 1.0f / std::sqrt(energy + 1e-10f);
 
     have_new_coeff_ = true;
 }

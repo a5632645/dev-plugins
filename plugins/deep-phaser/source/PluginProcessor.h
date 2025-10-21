@@ -178,7 +178,7 @@ public:
     std::array<float, kMaxCoeffLen> custom_spectral_gains{};
     size_t coeff_len_{};
     size_t coeff_len_div_4_{};
-    float last_drywet_{1.0f};
+    float fir_gain_{1.0f};
 
     // allpass, basicly this is onepole allpass pole
     inline static float const kMinPitch = qwqdsp::convert::Freq2Pitch(20.0f);

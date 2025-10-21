@@ -227,8 +227,8 @@ void SteepFlanger::ProcessVec8(
                 Float32x4 damp_x;
                 damp_x.x[0] = left_sum;
                 damp_x.x[1] = right_sum;
-                *left_ptr = left_sum;
-                *right_ptr = right_sum;
+                *left_ptr = left_sum * fir_gain_;
+                *right_ptr = right_sum * fir_gain_;
                 ++left_ptr;
                 ++right_ptr;
                 damp_x = damp_.TickLowpass(damp_x, Float32x4::FromSingle(curr_damp_coeff));
@@ -340,8 +340,8 @@ void SteepFlanger::ProcessVec8(
                 });
                 // this will mirror the positive spectrum to negative domain, forming a real value signal
                 Float32x4 damp_x = remove_positive_spectrum.Shuffle<0, 2, 1, 3>();
-                *left_ptr = damp_x.x[0];
-                *right_ptr = damp_x.x[1];
+                *left_ptr = damp_x.x[0] * fir_gain_;
+                *right_ptr = damp_x.x[1] * fir_gain_;
                 ++left_ptr;
                 ++right_ptr;
                 damp_x = damp_.TickLowpass(damp_x, Float32x4::FromSingle(curr_damp_coeff));

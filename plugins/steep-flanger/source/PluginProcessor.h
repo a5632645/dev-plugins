@@ -269,17 +269,13 @@ private:
             }
         }
 
-        if (!param.feedback_enable) {
-            float energy = 0;
-            for (auto x : kernel) {
-                energy += x * x;
-            }
-            float g = 1.0f / std::sqrt(energy + 1e-18f);
-            for (auto& x : kernel) {
-                x *= g;
-            }
+        float energy = 0;
+        for (auto x : kernel) {
+            energy += x * x;
         }
-        else {
+        fir_gain_ = 1.0f / std::sqrt(energy + 1e-10f);
+
+        if (param.feedback_enable) {
             float const max_spectral_gain = *std::max_element(gains.begin(), gains.end());
             float const gain = 1.0f / (max_spectral_gain + 1e-10f);
             for (auto& x : kernel) {
@@ -301,7 +297,7 @@ private:
     // fir
     alignas(32) std::array<float, kSIMDMaxCoeffLen> coeffs_{};
     alignas(32) std::array<float, kSIMDMaxCoeffLen> last_coeffs_{};
-
+    float fir_gain_{1.0f};
     size_t coeff_len_{};
 
     // delay time lfo
