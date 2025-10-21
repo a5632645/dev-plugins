@@ -564,8 +564,9 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 *right_ptr = right_sum;
                 ++left_ptr;
                 ++right_ptr;
-                SimdType feedback_fir = damp_.TickLowpass(SimdType{left_sum, right_sum}, SimdType::FromSingle(curr_damp_coeff));
-                feedback_lag_ += feedback_fir * SimdType::FromSingle(feedback_mul_from_fir_);
+
+                feedback_lag_ += SimdType{left_sum, right_sum} * SimdType::FromSingle(feedback_mul_from_fir_);
+                feedback_lag_ = damp_.TickLowpass(feedback_lag_, SimdType::FromSingle(curr_damp_coeff));
             }
         }
         else {
@@ -661,8 +662,8 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 *right_ptr = output_y.x[1] ;
                 ++left_ptr;
                 ++right_ptr;
-                SimdType feedback_fir = damp_.TickLowpass(output_y, SimdType::FromSingle(curr_damp_coeff));
-                feedback_lag_ += feedback_fir * SimdType::FromSingle(feedback_mul_from_fir_);
+                feedback_lag_ += output_y * SimdType::FromSingle(feedback_mul_from_fir_);
+                feedback_lag_ = damp_.TickLowpass(feedback_lag_, SimdType::FromSingle(curr_damp_coeff));
             }
         }
         last_damp_lowpass_coeff_ = damp_lowpass_coeff_;
