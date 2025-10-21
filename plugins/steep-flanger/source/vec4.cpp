@@ -75,6 +75,13 @@ void SteepFlanger::ProcessVec4(
             UpdateCoeff(param);
         }
 
+        constexpr float kWarpFactor = -0.8f;
+        float warp_drywet = param.drywet;
+        warp_drywet = 2.0f * warp_drywet - 1.0f;
+        warp_drywet = (warp_drywet - kWarpFactor) / (1.0f - warp_drywet * kWarpFactor);
+        warp_drywet = 0.5f * warp_drywet + 0.5f;
+        warp_drywet = std::clamp(warp_drywet, 0.0f, 1.0f);
+
         float feedback_mul = 0;
         if (param.feedback_enable) {
             float db = param.feedback;
@@ -91,6 +98,7 @@ void SteepFlanger::ProcessVec4(
                 feedback_mul = abs_gain;
             }
         }
+        feedback_mul *= warp_drywet;
 
         float const damp_pitch = param.damp_pitch;
         float const damp_freq = qwqdsp::convert::Pitch2Freq(damp_pitch);
@@ -134,8 +142,12 @@ void SteepFlanger::ProcessVec4(
         std::array<Float32x4, kSIMDMaxCoeffLen / 4> delta_coeffs;
         Float32x4* coeffs_ptr = reinterpret_cast<Float32x4*>(coeffs_.data());
         Float32x4* last_coeffs_ptr = reinterpret_cast<Float32x4*>(last_coeffs_.data());
+        float const wet_mix = param.drywet;
+        Float32x4 dry_coeff{1.0f - wet_mix, 0.0f, 0.0f, 0.0f};
         for (size_t i = 0; i < coeff_len_div_4; ++i) {
-            delta_coeffs[i] = (coeffs_ptr[i] - last_coeffs_ptr[i]) * Float32x4::FromSingle(inv_samples);
+            Float32x4 target_wet_coeff = coeffs_ptr[i] * Float32x4::FromSingle(wet_mix) + dry_coeff;
+            delta_coeffs[i] = (target_wet_coeff - last_coeffs_ptr[i]) * Float32x4::FromSingle(inv_samples);
+            dry_coeff = Float32x4::FromSingle(0.0f);
         }
 
         // fir polyphase filtering

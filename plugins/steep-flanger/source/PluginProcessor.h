@@ -113,6 +113,7 @@ public:
     float barber_speed; // hz
     bool barber_enable;
     float barber_stereo_phase; // 0~pi/2
+    float drywet; // 0~1
     std::atomic<bool> should_update_fir_{}; // tell flanger to update coeffs
     std::atomic<bool> is_using_custom_{};
     std::array<float, kMaxCoeffLen> custom_coeffs_{};
@@ -382,6 +383,7 @@ public:
     juce::AudioParameterBool* param_feedback_enable_;
     juce::AudioParameterFloat* param_barber_phase_;
     juce::AudioParameterFloat* param_barber_stereo_;
+    juce::AudioParameterFloat* param_drywet_;
     juce::AudioParameterBool* param_barber_enable_;
     
     SteepFlanger dsp_;

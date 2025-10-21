@@ -39,7 +39,7 @@ public:
             SimdType right;
         };
 
-        float const* buffer = output_buffer_.data();
+        float const* buffer = xlags_.data();
         SimdType y0;
         y0.x[0] = buffer[irpos.x[0] * 2];
         y0.x[1] = buffer[irpos.x[1] * 2];
@@ -96,7 +96,7 @@ public:
     }
 
     SimdType GetLR(size_t filter_idx) const noexcept {
-        return SimdType{output_buffer_[filter_idx * 2], output_buffer_[filter_idx * 2 + 1]};
+        return SimdType{xlags_[filter_idx * 2], xlags_[filter_idx * 2 + 1]};
     }
 private:
     alignas(16) std::array<float, kRealNumApf * 2> output_buffer_{};
@@ -161,6 +161,7 @@ public:
     juce::AudioParameterFloat* param_barber_stereo_;
     juce::AudioParameterFloat* param_blend_range_;
     juce::AudioParameterFloat* param_blend_phase_;
+    juce::AudioParameterFloat* param_drywet_;
 
     std::atomic<bool> should_update_fir_{};
     std::atomic<bool> have_new_coeff_{};
@@ -175,6 +176,7 @@ public:
     std::array<float, kMaxCoeffLen> custom_spectral_gains{};
     size_t coeff_len_{};
     size_t coeff_len_div_4_{};
+    float last_drywet_{1.0f};
 
     // allpass, basicly this is onepole allpass pole
     inline static float const kMinPitch = qwqdsp::convert::Freq2Pitch(20.0f);

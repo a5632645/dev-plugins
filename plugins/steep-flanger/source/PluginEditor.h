@@ -155,6 +155,7 @@ private:
     ui::Dial depth_{"depth"};
     ui::BpmSyncDial speed_{"speed", "tempo"};
     ui::Dial phase_{"phase"};
+    ui::Dial drywet_{"drywet"};
     ui::FlatButton lfo_reset_phase_;
 
     juce::Rectangle<int> fir_bound_;

@@ -136,6 +136,15 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         });
         layout.add(std::move(p));
     }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{"drywet", 1},
+            "drywet",
+            0.0f, 1.0f, 1.0f
+        );
+        param_drywet_ = p.get();
+        layout.add(std::move(p));
+    }
 
     // feedback
     {
@@ -376,6 +385,7 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     dsp_param_.barber_speed = barber_lfo_state_.GetLfoFreq();
     dsp_param_.barber_enable = param_barber_enable_->get();
     dsp_param_.barber_stereo_phase = param_barber_stereo_->get() * std::numbers::pi_v<float> / 2;
+    dsp_param_.drywet = param_drywet_->get();
 
     size_t const len = static_cast<size_t>(buffer.getNumSamples());
     auto* left_ptr = buffer.getWritePointer(0);
@@ -452,6 +462,7 @@ void SteepFlangerAudioProcessor::setStateInformation (const void* data, int size
             barber_lfo_state_.SetTempoTypeToFree();
             // version 0.1.0 or below doesn't have barber_stereo
             param_barber_stereo_->setValueNotifyingHost(param_barber_stereo_->convertTo0to1(0));
+            param_drywet_->setValueNotifyingHost(param_drywet_->convertTo0to1(1));
         }
     }
     suspendProcessing(false);

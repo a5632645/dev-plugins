@@ -275,6 +275,8 @@ DeepPhaserAudioProcessorEditor::DeepPhaserAudioProcessorEditor (DeepPhaserAudioP
     addAndMakeVisible(allpass_blend_);
     state_.BindParam(p.param_state_);
     addAndMakeVisible(state_);
+    drywet_.BindParam(p.param_drywet_);
+    addAndMakeVisible(drywet_);
 
     cutoff_.BindParam(apvts, "cutoff");
     addAndMakeVisible(cutoff_);
@@ -378,10 +380,11 @@ void DeepPhaserAudioProcessorEditor::resized() {
             auto basic_bound_top = basic_bound.removeFromTop(25);
             panic_.setBounds(basic_bound_top.removeFromRight(80).reduced(2, 2));
             allpass_title_.setBounds(basic_bound_top);
-            state_.setBounds(basic_bound.removeFromLeft(80));;
-            allpass_blend_.setBounds(basic_bound.removeFromLeft(80));
-            fb_value_.setBounds(basic_bound.removeFromLeft(80));
-            fb_damp_.setBounds(basic_bound.removeFromLeft(80));
+            state_.setBounds(basic_bound.removeFromLeft(64));;
+            allpass_blend_.setBounds(basic_bound.removeFromLeft(64));
+            fb_value_.setBounds(basic_bound.removeFromLeft(64));
+            fb_damp_.setBounds(basic_bound.removeFromLeft(64));
+            drywet_.setBounds(basic_bound.removeFromLeft(64));
         }
         topblock.removeFromLeft(8);
         {

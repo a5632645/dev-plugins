@@ -155,6 +155,7 @@ private:
     ui::Dial allpass_blend_{"blend"};
     ui::Dial fb_value_{"feedback"};
     ui::Dial fb_damp_{"damp"};
+    ui::Dial drywet_{"drywet"};
     ui::FlatButton panic_;
 
     juce::Rectangle<int> fir_bound_;

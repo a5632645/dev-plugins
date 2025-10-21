@@ -152,7 +152,7 @@ DeepPhaserAudioProcessor::DeepPhaserAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{"fb_value", 1},
             "fb_value",
-            -0.95f, 0.95f, 0.0f
+            -0.98f, 0.98f, 0.0f
         );
         param_feedback_ = p.get();
         layout.add(std::move(p));
@@ -217,6 +217,15 @@ DeepPhaserAudioProcessor::DeepPhaserAudioProcessor()
             true
         );
         param_barber_enable_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{"drywet", 1},
+            "drywet",
+            0.0f, 1.0f, 1.0f
+        );
+        param_drywet_ = p.get();
         layout.add(std::move(p));
     }
 
@@ -415,7 +424,14 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             UpdateCoeff();
         }
 
-        float const feedback_mul = param_feedback_->get();
+        constexpr float kWarpFactor = -0.8f;
+        float warp_drywet = param_drywet_->get();
+        warp_drywet = 2.0f * warp_drywet - 1.0f;
+        warp_drywet = (warp_drywet - kWarpFactor) / (1.0f - warp_drywet * kWarpFactor);
+        warp_drywet = 0.5f * warp_drywet + 0.5f;
+        warp_drywet = std::clamp(warp_drywet, 0.0f, 1.0f);
+
+        float const feedback_mul = param_feedback_->get() * warp_drywet;
         float const damp_pitch = param_damp_pitch_->get();
         float const damp_freq = qwqdsp::convert::Pitch2Freq(damp_pitch);
         float const damp_w = qwqdsp::convert::Freq2W(damp_freq, fs);
@@ -436,15 +452,24 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         int const num_state = static_cast<int>(current_num_state);
 
         float curr_damp_coeff = last_damp_lowpass_coeff_;
-        float delta_damp_coeff = (damp_lowpass_coeff_ - curr_damp_coeff) / (static_cast<float>(num_process));
+        float const delta_damp_coeff = (damp_lowpass_coeff_ - curr_damp_coeff) / (static_cast<float>(num_process));
 
-        float inv_samples = 1.0f / static_cast<float>(num_process);
+        float const inv_samples = 1.0f / static_cast<float>(num_process);
+        float const wet_coeff_mix = param_drywet_->get();
+        float const dry_coeff_mix = 1.0f - wet_coeff_mix;
         std::array<SimdType, kSIMDMaxCoeffLen / 4> delta_coeffs;
+        SimdType dry_coeff{dry_coeff_mix, 0.0f, 0.0f, 0.0f};
         for (size_t i = 0; i < coeff_len_div_4_; ++i) {
-            auto last = simde_mm_load_ps(last_coeffs_[i].x);
-            auto target = simde_mm_load_ps(coeffs_.data() + 4 * i);
-            auto delta = simde_mm_mul_ps(simde_mm_sub_ps(target, last), simde_mm_set_ps1(inv_samples));
-            simde_mm_store_ps(delta_coeffs[i].x, delta);
+            SimdType last = last_coeffs_[i];
+            SimdType target{
+                coeffs_[4 * i + 0],
+                coeffs_[4 * i + 1],
+                coeffs_[4 * i + 2],
+                coeffs_[4 * i + 3],
+            };
+            SimdType mixed_target = target * SimdType::FromSingle(wet_coeff_mix) + dry_coeff;
+            delta_coeffs[i] = (mixed_target - last) * SimdType::FromSingle(inv_samples);
+            dry_coeff = SimdType::FromSingle(0.0f);
         }
 
         float frac_temp;
@@ -612,13 +637,13 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     right_rotation_coeff *= right_rotation_mul;
                 }
                 
-                SimdType remove_positive_spectrum = hilbert_complex_.Tick(SimdType{
+                SimdType remove_negative_spectrum = hilbert_complex_.Tick(SimdType{
                     left_re_sum, left_im_sum, right_re_sum, right_im_sum
                 });
                 // this will mirror the positive spectrum to negative domain, forming a real value signal
-                SimdType output_y = remove_positive_spectrum.Shuffle<0, 2, 1, 3>();
+                SimdType output_y = remove_negative_spectrum.Shuffle<0, 2, 1, 3>();
                 *left_ptr = output_y.x[0];
-                *right_ptr = output_y.x[1];
+                *right_ptr = output_y.x[1] ;
                 ++left_ptr;
                 ++right_ptr;
             }
@@ -702,6 +727,7 @@ void DeepPhaserAudioProcessor::setStateInformation (const void* data, int sizeIn
             param_barber_stereo_->setValueNotifyingHost(param_barber_stereo_->convertTo0to1(0));
             param_blend_range_->setValueNotifyingHost(param_blend_range_->convertTo0to1(0));
             param_blend_phase_->setValueNotifyingHost(param_blend_phase_->convertTo0to1(0));
+            param_drywet_->setValueNotifyingHost(param_drywet_->convertTo0to1(1.0f));
             // conver raw coeff to pitch
             float const raw_coeff = state.getProperty("blend");
             float const omega = AllpassBuffer2::RevertCoeff2Omega(raw_coeff);

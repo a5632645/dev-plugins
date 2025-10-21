@@ -282,6 +282,8 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
         p_.dsp_.SetLFOPhase(0);
     };
     addAndMakeVisible(lfo_reset_phase_);
+    drywet_.BindParam(p.param_drywet_);
+    addAndMakeVisible(drywet_);
 
     cutoff_.BindParam(apvts, "cutoff");
     addAndMakeVisible(cutoff_);
@@ -402,10 +404,11 @@ void SteepFlangerAudioProcessorEditor::resized() {
             auto lfo_block_top = lfo_block.removeFromTop(25);
             lfo_reset_phase_.setBounds(lfo_block_top.removeFromRight(100).reduced(1, 1));
             lfo_title_.setBounds(lfo_block_top);
-            delay_.setBounds(lfo_block.removeFromLeft(80));;
-            depth_.setBounds(lfo_block.removeFromLeft(80));
-            speed_.setBounds(lfo_block.removeFromLeft(80));
-            phase_.setBounds(lfo_block.removeFromLeft(80));
+            delay_.setBounds(lfo_block.removeFromLeft(64));;
+            depth_.setBounds(lfo_block.removeFromLeft(64));
+            speed_.setBounds(lfo_block.removeFromLeft(64));
+            phase_.setBounds(lfo_block.removeFromLeft(64));
+            drywet_.setBounds(lfo_block.removeFromLeft(64));
         }
         topblock.removeFromLeft(8);
         {
