@@ -9,7 +9,7 @@ class PresetManager : juce::ValueTree::Listener
 {
 public:
     inline static const juce::File defaultDirectory{ juce::File::getSpecialLocation(
-    juce::File::SpecialLocationType::commonDocumentsDirectory)
+    juce::File::SpecialLocationType::userDocumentsDirectory)
         .getChildFile(JucePlugin_Manufacturer)
         .getChildFile(JucePlugin_Name)
     };
@@ -58,6 +58,9 @@ public:
         juce::MemoryBlock block;
         processor_.getStateInformation(block);
         const auto presetFile = defaultDirectory.getChildFile(presetName + "." + extension);
+        if (presetFile.existsAsFile()) {
+            presetFile.deleteFile();
+        }
         
         juce::FileOutputStream stream{presetFile};
         if (!stream.write(block.getData(), block.getSize()))
