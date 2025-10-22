@@ -6,6 +6,7 @@
 
 namespace widget {
 
+template<bool kShowGainFrame>
 class Gain : public juce::Component {
 public:
     static constexpr float kMinDb = -60.0f;
@@ -26,11 +27,13 @@ public:
         for (int channel = 0; channel < nchannel; ++channel) {
             total += gain_.GetPeak(channel);
         }
-        total /= nchannel;
+        total /= static_cast<float>(nchannel);
 
-        auto b = getLocalBounds();
-        g.setColour(total > 1.0f ? juce::Colours::orange : juce::Colours::green);
-        g.drawRect(b);
+        if constexpr (kShowGainFrame) {
+            auto b = getLocalBounds();
+            g.setColour(total > 1.0f ? juce::Colours::orange : juce::Colours::green);
+            g.drawRect(b);
+        }
     }
     
     ui::VerticalSlider gain_slide_;

@@ -29,7 +29,7 @@ static constexpr auto kSideChannelConfig = "side_ch_config";
 
 static constexpr auto kVocoderType = "vocoder_type";
 
-static constexpr auto kPreLowpass = "pre_lowpass";
+static constexpr auto kPreTilt = "pre_tilt";
 
 static constexpr auto kShiftPitch = "shift_pitch";
 static constexpr auto kEnableShifter = "shift_enable";

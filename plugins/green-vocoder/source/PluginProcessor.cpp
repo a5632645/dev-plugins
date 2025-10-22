@@ -38,30 +38,13 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kPreLowpass, 1},
-            id::kPreLowpass,
-            qwqdsp::convert::Freq2Pitch(1000.0f), 135.1f, 135.0f
+            juce::ParameterID{id::kPreTilt, 1},
+            id::kPreTilt,
+            0.0f, 40.0f, 20.0f
         );
-        paramListeners_.Add(p, [this](float pitch) {
+        paramListeners_.Add(p, [this](float db) {
             juce::ScopedLock lock{getCallbackLock()};
-            if (pitch > 135.0f) {
-                for (auto& f : pre_lowpass_) {
-                    f.Set(1.0f, 0.0f, 0.0f, 0.0f, 0.0f);
-                }
-            }
-            else {
-                float const freq = qwqdsp::convert::Pitch2Freq(pitch);
-                float const w = qwqdsp::convert::Freq2W(freq, getSampleRate());
-                qwqdsp::filter::RBJ design;
-                design.Lowpass(w, 0.50979558f);
-                pre_lowpass_[0].Set(design.b0, design.b1, design.b2, design.a1, design.a2);
-                design.Lowpass(w, 0.60134489f);
-                pre_lowpass_[1].Set(design.b0, design.b1, design.b2, design.a1, design.a2);
-                design.Lowpass(w, 0.89997622f);
-                pre_lowpass_[2].Set(design.b0, design.b1, design.b2, design.a1, design.a2);
-                design.Lowpass(w, 2.5629154f);
-                pre_lowpass_[3].Set(design.b0, design.b1, design.b2, design.a1, design.a2);
-            }
+            pre_tilt_filter_.SetTilt(static_cast<float>(getSampleRate()), db);
         });
         layout.add(std::move(p));
     }
@@ -448,7 +431,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kEnsembleDetune, 1},
             id::kEnsembleDetune,
-            0.05f, dsp::Ensemble::kMaxSemitone, 0.1f
+            0.01f, dsp::Ensemble::kMaxSemitone, 0.1f
         );
         paramListeners_.Add(p, [this](float detune) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -496,8 +479,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kEnsembleRate, 1},
             id::kEnsembleRate,
-            juce::NormalisableRange<float>(dsp::Ensemble::kMinFrequency, 1.0f, 0.01f, 0.4f),
-            0.2f
+            juce::NormalisableRange<float>(dsp::Ensemble::kMinFrequency, 0.2f, 0.01f, 0.4f),
+            0.1f
         );
         paramListeners_.Add(p, [this](float rate) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -698,12 +681,13 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     yin_segement_.SetHop(512);
     yin_segement_.SetSize(2048);
     yin_segement_.Reset();
-    yin_.Init(sampleRate, 2048);
+    yin_.Init(static_cast<float>(sampleRate), 2048);
     pitch_filter_.Reset();
     osc_wpos_ = 0;
     osc_want_write_frac_ = 0;
     pitch_glide_.Reset();
     first_init_ = true;
+    pre_tilt_filter_.Reset();
 
     paramListeners_.CallAll();
 }
@@ -860,21 +844,15 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         }
         osc_wpos_ -= cancopy;
     }
-
-    for (auto& f : main_buffer_) {
-        float const out = f - 0.68f * pre_emphasis_;
-        pre_emphasis_ = f;
-        f = out;
-    }
-    for (auto& f : pre_lowpass_) {
-        for (auto& s : main_buffer_) {
-            s = f.Tick(s);
-        }
-    }
-
+    
     if (shifter_enabled_->get()) {
         shifter_.Process(main_buffer_);
     }
+
+    for (auto& f : main_buffer_) {
+        f = pre_tilt_filter_.Tick(f);
+    }
+
     main_gain_.Process(main_buffer_);
     side_gain_.Process(side_buffer_);
 

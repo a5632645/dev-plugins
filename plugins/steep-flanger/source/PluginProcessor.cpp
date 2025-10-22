@@ -236,6 +236,8 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
     preset_manager_->external_load_default_operations = [this]{
         dsp_param_.is_using_custom_ = false;
+        dsp_param_.should_update_fir_ = true;
+        dsp_.have_new_coeff_ = true;
         std::ranges::fill(dsp_param_.custom_coeffs_, float{});
         std::ranges::fill(dsp_param_.custom_spectral_gains, float{});
     };

@@ -1,34 +1,37 @@
 [
     {
-        "name": "Empty",
-        "version": "0.1.0"
-    },
-    {
         "name": "DeepPhaser",
-        "version": "0.1.0"
+        "version": "0.1.0",
+        "changelog": ""
     },
     {
         "name": "DispersiveDelay",
-        "version": "0.1.0"
+        "version": "0.1.0",
+        "changelog": ""
     },
     {
         "name": "Green Vocoder",
-        "version": "0.1.0"
+        "version": "0.1.0",
+        "changelog": ""
     },
     {
         "name": "Resonator",
-        "version": "0.1.0"
+        "version": "0.1.0",
+        "changelog": ""
     },
     {
         "name": "SteepFlanger",
-        "version": "0.1.0"
+        "version": "0.1.0",
+        "changelog": ""
     },
     {
         "name": "VitalChorus",
-        "version": "0.1.0"
+        "version": "0.1.0",
+        "changelog": ""
     },
     {
         "name": "VitalReverb",
-        "version": "0.1.0"
+        "version": "0.1.0",
+        "changelog": ""
     }
 ]

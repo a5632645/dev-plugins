@@ -26,7 +26,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     auto& apvts = *p.value_tree_;
     addAndMakeVisible(preset_panel_);
 
-    pre_lowpass_.BindParameter(apvts, id::kPreLowpass);
+    pre_lowpass_.BindParameter(apvts, id::kPreTilt);
     addAndMakeVisible(pre_lowpass_);
 
     addAndMakeVisible(shifter_);

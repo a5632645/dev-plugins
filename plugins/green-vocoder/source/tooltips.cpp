@@ -24,8 +24,8 @@ void Tooltips::MakeEnglishTooltips() {
     tooltips_[id::kOutputgain] = "control the output gain";
     labels_[id::kVocoderType] = "TYPE";
     tooltips_[id::kVocoderType] = "change the vocoder type";
-    labels_[id::kPreLowpass] = "LP";
-    tooltips_[id::kPreLowpass] = "set main lowpass filter, 48db/oct";
+    labels_[id::kPreTilt] = "TILT";
+    tooltips_[id::kPreTilt] = "enchance main input high frequency";
     labels_[id::kShiftPitch] = "PITCH";
     tooltips_[id::kShiftPitch] = "set main pitch shifter, this cause formant shift like effects";
 
@@ -131,8 +131,8 @@ void Tooltips::MakeChineseTooltips() {
     tooltips_[id::kOutputgain] = juce::String::fromUTF8("输出增益");
     labels_[id::kVocoderType] = juce::String::fromUTF8("类型");
     tooltips_[id::kVocoderType] = juce::String::fromUTF8("更改声码器类型");
-    labels_[id::kPreLowpass] = JSTR("低通");
-    tooltips_[id::kPreLowpass] = JSTR("调制源低通滤波器");
+    labels_[id::kPreTilt] = JSTR("倾斜");
+    tooltips_[id::kPreTilt] = JSTR("增强调制源的高频");
     labels_[id::kShiftPitch] = juce::String::fromUTF8("音高");
     tooltips_[id::kShiftPitch] = juce::String::fromUTF8("调制源音高移动,这会导致共振峰移动的效果");
 

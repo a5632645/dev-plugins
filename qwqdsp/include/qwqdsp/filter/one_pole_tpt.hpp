@@ -11,20 +11,25 @@ public:
     void MakeLowpass(float w) noexcept {
         auto k = std::tan(w / 2);
         g_ = k / (1 + k);
+        G_ = 1 / (1 + k);
     }
 
     void MakePass() noexcept {
         g_ = 1;
+        G_ = 0;
     }
 
     void CopyFrom(OnePoleTPT const& other) noexcept {
         g_ = other.g_;
+        G_ = other.G_;
     }
 
     /**
-     * @note highpass = x - lowpass
+     * @note 多模式输出
+     *       hp = x - lp
+     *       ap = lp - hp or ap = 2*lp - x
      */
-    float Tick(float x) noexcept {
+    float TickLowpass(float x) noexcept {
         float const delta = g_ * (x - lag_);
         lag_ += delta;
         float const y = lag_;
@@ -33,23 +38,20 @@ public:
     }
 
     float TickHighpass(float x) noexcept {
-        float const delta = g_ * (x - lag_);
-        lag_ += delta;
-        float const y = lag_;
-        lag_ += delta;
-        return x - y;
-    }
-
-    float TickHighshelf(float x, float gain) noexcept {
-        float lp = Tick(x);
-        return lp + gain * (x - lp);
+        float const xs = x - lag_;
+        float const y = xs * G_;
+        lag_ += y * 2 * g_;
+        return y;
     }
 
     float TickAllpass(float x) noexcept {
-        return 2 * Tick(x) - x;
+        float const xs = x - lag_;
+        lag_ += xs * 2 * G_;
+        return lag_ - xs;
     }
 private:
     float g_{};
+    float G_{};
     float lag_{};
 };
 }

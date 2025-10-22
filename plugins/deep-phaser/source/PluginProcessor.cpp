@@ -242,6 +242,8 @@ DeepPhaserAudioProcessor::DeepPhaserAudioProcessor()
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
     preset_manager_->external_load_default_operations = [this]{
         is_using_custom_ = false;
+        have_new_coeff_ = true;
+        should_update_fir_ = true;
         std::ranges::fill(custom_coeffs_, float{});
         std::ranges::fill(custom_spectral_gains, float{});
     };
@@ -455,7 +457,7 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         float const damp_w = qwqdsp::convert::Freq2W(damp_freq, fs);
         damp_lowpass_coeff_ = damp_.ComputeCoeff(damp_w);
 
-        barber_phase_smoother_.SetTarget(param_barber_phase_->get());
+        barber_phase_smoother_.SetTarget(param_barber_phase_->get() * std::numbers::pi_v<float> * 2);
         barber_oscillator_.SetFreq(barber_lfo_state_.GetLfoFreq(), fs);
         float const barber_stereo_phase = param_barber_stereo_->get() * std::numbers::pi_v<float> / 2;
 
@@ -590,7 +592,7 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 current_delay.x[3] = num_state * 3;
                 SimdIntType delay_inc = SimdIntType::FromSingle(num_state * 4);
 
-                auto const addition_rotation = std::polar(1.0f, barber_phase_smoother_.Tick() * std::numbers::pi_v<float> * 2);
+                auto const addition_rotation = std::polar(1.0f, barber_phase_smoother_.Tick());
                 barber_oscillator_.Tick();
                 auto const rotation_once = barber_oscillator_.GetCpx() * addition_rotation;
                 auto const rotation_2 = rotation_once * rotation_once;

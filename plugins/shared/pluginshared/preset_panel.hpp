@@ -252,11 +252,14 @@ private:
                         return;
                     }
 
+                    auto changelog = plugin.getProperty("changelog", "").toString();
+                    juce::String s;
+                    s << "new version avaliable: " << version.toString() << "\n";
+                    s << "chanelog: " << changelog;
+
                     juce::MessageManagerLock lock;
-                    juce::MessageManager::callAsync([p = panel_, v = version.toString()]{
-                        juce::String s;
-                        s << "new version avaliable: " << v;
-                        p->update_message_.label.setText(s, juce::dontSendNotification);
+                    juce::MessageManager::callAsync([p = panel_, text = std::move(s)]{
+                        p->update_message_.label.setText(text, juce::dontSendNotification);
                         p->update_message_.button.setButtonText("ok");
                     });
                     return;

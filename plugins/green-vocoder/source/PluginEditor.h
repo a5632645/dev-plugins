@@ -46,9 +46,9 @@ private:
     juce::Label shifter_{"", "Enable"};
     ui::ToggleButton shift_enable_;
     ui::VerticalSlider shift_pitch_;
-    widget::Gain main_gain_;
-    widget::Gain side_gain_;
-    widget::Gain output_gain_;
+    widget::Gain<false> main_gain_;
+    widget::Gain<false> side_gain_;
+    widget::Gain<true> output_gain_;
     widget::ChannelSelector main_channel_selector_;
     widget::ChannelSelector side_channel_selector_;
     juce::ComboBox language_box_;

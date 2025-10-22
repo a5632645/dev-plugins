@@ -1,6 +1,5 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
-#include <vector>
 #include "pluginshared/preset_manager.hpp"
 #include "pluginshared/juce_param_listener.hpp"
 
@@ -9,8 +8,7 @@
 #include "dsp/rls_lpc.hpp"
 #include "dsp/stft_vocoder.hpp"
 #include "dsp/channel_vocoder.hpp"
-
-#include "dsp/filter.hpp"
+#include "dsp/tilt_filter.hpp"
 #include "dsp/ensemble.hpp"
 #include "dsp/gain.hpp"
 
@@ -21,7 +19,6 @@
 #include "qwqdsp/pitch/fast_yin.hpp"
 #include "qwqdsp/segement/analyze.hpp"
 #include "qwqdsp/misc/smoother.hpp"
-#include "qwqdsp/filter/biquad.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -75,14 +72,13 @@ public:
     juce::AudioParameterInt* main_channel_config_;
     juce::AudioParameterInt* side_channel_config_;
 
-    float pre_emphasis_{};
-    std::array<qwqdsp::filter::Biquad, 4> pre_lowpass_;
     dsp::PitchShifter shifter_;
     dsp::BurgLPC burg_lpc_;
     dsp::RLSLPC rls_lpc_;
     dsp::STFTVocoder stft_vocoder_;
     dsp::ChannelVocoder channel_vocoder_;
     dsp::Ensemble ensemble_;
+    dsp::TiltFilter pre_tilt_filter_;
 
     // pitch tracking
     qwqdsp::segement::Analyze<8192> yin_segement_;
