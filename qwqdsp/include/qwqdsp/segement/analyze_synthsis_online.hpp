@@ -25,7 +25,6 @@ public:
             std::copy(in.begin(), in.end(), input_buffer_.begin() + input_wpos_);
             input_wpos_ += in.size();
             if (input_wpos_ >= size_) {
-                std::copy(input_buffer_.begin(), input_buffer_.end(), process_buffer_.begin());
                 func(std::span<const float>{input_buffer_.data(), size_}, std::span<float>{process_buffer_.data(), size_});
                 input_wpos_ -= hop_;
                 for (int i = 0; i < input_wpos_; i++) {

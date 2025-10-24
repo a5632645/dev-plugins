@@ -16,12 +16,13 @@ public:
      *        low shelf -> H(0)=-db*2 H(pi)= 1
      *       tilt shelf -> H(0)= -db  H(pi)= db
      *       high shelf -> H(0)=  1   H(pi)=2*db
+     * @note 如果是lowshelf, 提供-db才会是增强db
      */
     void SetCoeffSVF(float w, float r2, float db) noexcept {
         float const m = std::pow(10.0f, db / 80.0f);
         m2_ = m * m;
         invm2_ = 1 / m2_;
-        g_ = std::tan(w / 2) / m;
+        g_ = std::tan(w / 2) * m;
         R2_ = r2;
         g1_ = r2 + g_;
         d_ = 1 / (1 + r2 * g_ + g_ * g_);
@@ -33,17 +34,17 @@ public:
 
     float TickLowshelf(float x) noexcept {
         auto[hp,bp,lp] = TickMultiMode(x);
-        return lp * invm2_ * invm2_ + bp * invm2_ + hp;
+        return lp * invm2_ * invm2_ + R2_ * bp * invm2_ + hp;
     }
 
     float TickHighshelf(float x) noexcept {
         auto[hp,bp,lp] = TickMultiMode(x);
-        return lp + bp * m2_ + hp * m2_ * m2_;
+        return lp + R2_ * bp * m2_ + hp * m2_ * m2_;
     }
 
     float TickTiltshelf(float x) noexcept {
         auto[hp,bp,lp] = TickMultiMode(x);
-        return lp * invm2_ + bp + hp * m2_;
+        return lp * invm2_ + R2_ * bp + hp * m2_;
     }
 
     /**

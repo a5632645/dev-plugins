@@ -12,8 +12,7 @@ public:
 
     void Process(std::span<const float> time, std::span<float> output_gain) noexcept {
         fft_.FFT(time, spectral_);
-        const float gain = 2.0f / fft_.FFTSizeFloat();
-        for (int bin = 0; bin < fft_.FFTSize() / 2; ++bin) {
+        for (size_t bin = 0; bin < fft_.FFTSize() / 2; ++bin) {
             auto& thisBin = spectral_[bin];
             auto& nextBin = spectral_[bin + 1];
             float ncSum = -(thisBin.real() * nextBin.real() + thisBin.imag() * nextBin.imag());
@@ -21,7 +20,7 @@ public:
                 output_gain[bin] = 0.0f;
             }
             else {
-                output_gain[bin] = std::sqrt(ncSum) * gain;
+                output_gain[bin] = std::sqrt(ncSum);
             }
         }
     }

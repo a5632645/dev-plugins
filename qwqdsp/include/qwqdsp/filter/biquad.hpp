@@ -1,4 +1,5 @@
 #pragma once
+#include "qwqdsp/filter/biquad_coeff.hpp"
 
 namespace qwqdsp::filter {
 /**
@@ -27,6 +28,14 @@ public:
         b2_ = b2;
         a1_ = a1;
         a2_ = a2;
+    }
+
+    void Set(BiquadCoeff const& c) noexcept {
+        b0_ = c.b0;
+        b1_ = c.b1;
+        b2_ = c.b2;
+        a1_ = c.a1;
+        a2_ = c.a2;
     }
 
     void Copy(const Biquad& other) noexcept {

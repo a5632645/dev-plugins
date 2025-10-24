@@ -18,12 +18,16 @@ public:
     }
 
     void SetSmoothTime(float ms, float fs) noexcept {
+        a_ = ComputeSmoothFactor(ms, fs);
+    }
+
+    static float ComputeSmoothFactor(float ms, float fs) noexcept {
         float samples = fs * ms / 1000.0f;
         if (samples < 1.0f) {
-            a_ = 0;
+            return 0;
         }
         else {
-            a_ = std::exp(-1.0f / (fs * ms / 1000.0f));
+            return std::exp(-1.0f / (fs * ms / 1000.0f));
         }
     }
 

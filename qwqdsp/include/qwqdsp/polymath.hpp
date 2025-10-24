@@ -134,4 +134,18 @@ static constexpr inline T SinRemezRat(T x) noexcept {
     p = p * t + t;
     return (p / q) + x;
 }
+
+/**
+ * @brief poly sin approximate from reaktor, -110dB 3rd harmonic
+ * @note x from 0.5 is sin, 0 is cos
+ * @param x [0.0, 1.0]
+ */
+static inline constexpr float SinReaktor(float x) noexcept {
+    x = 2 * std::abs(x - 0.5f) - 0.5f;
+    float const x2 = x * x;
+    float u = -0.540347434104161f * x2 + 2.535656174488765f;
+    u = u * x2 -5.166512943349853f;
+    u = u * x2 + 3.141592653589793f;
+    return u * x;
+}
 }

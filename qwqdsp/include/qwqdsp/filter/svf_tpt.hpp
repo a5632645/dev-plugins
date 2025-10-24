@@ -39,6 +39,27 @@ public:
         return {hp, bp, lp};
     }
 
+    float TickLowpass(float x) noexcept {
+        float bp = d_ * (g_ * (x - s2_) + s1_);
+        float v1 = bp - s1_;
+        float v2 = g_ * bp;
+        float lp = v2 + s2_;
+        s1_ = bp + v1;
+        s2_ = lp + v2;
+        return lp;
+    }
+
+    float TickHighpass(float x) noexcept {
+        float hp = (x - g1_ * s1_ - s2_) * d_;
+        float v1 = g_ * hp;
+        float bp = v1 + s1_;
+        float v2 = g_ * bp;
+        float lp = v2 + s2_;
+        s1_ = bp + v1;
+        s2_ = lp + v2;
+        return hp;
+    }
+
     /**
      * @return [bp, lp]
      */
@@ -55,8 +76,8 @@ public:
     float TickBandpass(float x) noexcept {
         float bp = d_ * (g_ * (x - s2_) + s1_);
         float bp2 = bp + bp;
+        s1_ = bp2 - s1_;
         float v22 = g_ * bp2;
-        s1_ -= bp2;
         s2_ += v22;
         return bp;
     }

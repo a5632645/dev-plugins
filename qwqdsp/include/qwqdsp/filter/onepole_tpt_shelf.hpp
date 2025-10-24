@@ -21,6 +21,7 @@ public:
      *        low shelf -> H(0)=-db*2 H(pi)= 1
      *       tilt shelf -> H(0)= -db  H(pi)= db
      *       high shelf -> H(0)=  1   H(pi)=2*db
+     * @note 如果是lowshelf, 提供-db才会是增强db
      */
     void Set(float w, float gain) noexcept {
         m_ = gain;
