@@ -18,28 +18,41 @@ if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
         message(STATUS FATAL_ERROR "msvc on macos?")
     else()
         set(PLUGIN_VEC4_COMPLIER_OPTION -march=native)
+        set(PLUGIN_VEC4_LESS_COMPLIER_OPTION -march=native)
         set(PLUGIN_VEC8_COMPLIER_OPTION -march=native)
         set(PLUGIN_VEC8_LESS_COMPLIER_OPTION -march=native)
         add_compile_definitions(PLUGIN_VEC4_DISPATCH_ISET=NEON)
+        add_compile_definitions(PLUGIN_VEC4_LESS_DISPATCH_ISET=NEON)
         add_compile_definitions(PLUGIN_VEC8_DISPATCH_ISET=NEON)
         add_compile_definitions(PLUGIN_VEC8_LESS_DISPATCH_ISET=NEON)
     endif()
 else()
     if (MSVC)
         set(PLUGIN_VEC4_COMPLIER_OPTION /arch:SSE4.2)
+        set(PLUGIN_VEC4_LESS_COMPLIER_OPTION /arch:SSE2)
         set(PLUGIN_VEC8_COMPLIER_OPTION /arch:avx2)
         set(PLUGIN_VEC8_LESS_COMPLIER_OPTION /arch:avx)
     else()
         set(PLUGIN_VEC4_COMPLIER_OPTION -msse4.1)
+        set(PLUGIN_VEC4_LESS_COMPLIER_OPTION -msse4.1)
         set(PLUGIN_VEC8_COMPLIER_OPTION -mavx2)
         set(PLUGIN_VEC8_LESS_COMPLIER_OPTION -mavx)
     endif()
     # basic sse support
+    add_compile_definitions(PLUGIN_VEC4_LESS_DISPATCH_ISET=SSE2)
+    # most sse support
     add_compile_definitions(PLUGIN_VEC4_DISPATCH_ISET=SSE4_1)
     # most avx2 support
     add_compile_definitions(PLUGIN_VEC8_DISPATCH_ISET=AVX2)
     # if a plugin don't use avx2 intergal instruction, use this
     add_compile_definitions(PLUGIN_VEC8_LESS_DISPATCH_ISET=AVX)
+endif()
+
+# optimise most, i don't care about float accuracy
+if (MSVC)
+  add_compile_options(/fp:fast)
+else()
+  add_compile_options(-ffast-math)
 endif()
 
 # folders

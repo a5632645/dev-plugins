@@ -6,27 +6,44 @@
 namespace qwqdsp::oscillor {
 class WhiteNoise {
 public:
+    using SeedType = uint32_t;
+
+    /**
+     * @param seed 设置种子,直接改变寄存器的值
+     */
     void SetSeed(uint32_t seed) noexcept {
         reg_ = seed;
     }
 
+    /**
+     * @return [0,1]之间的随机数
+     */
     float Next01() noexcept {
         reg_ *= 1103515245;
         reg_ += 12345;
         return static_cast<float>(reg_) / static_cast<float>(std::numeric_limits<uint32_t>::max());
     }
 
+    /**
+     * @return [-1,1]之间的随机数
+     */
     float Next() noexcept {
         auto e = Next01();
         return e * 2 - 1;
     }
 
+    /**
+     * @return 下一个32位数
+     */
     uint32_t NextUInt() noexcept {
         reg_ *= 1103515245;
         reg_ += 12345;
         return reg_;
     }
 
+    /**
+     * @return 获取寄存器的值
+     */
     uint32_t GetReg() const noexcept {
         return reg_;
     }
@@ -40,10 +57,30 @@ private:
  */
 class PinkNoise {
 public:
+    /**
+     * @param seed 寄存器的值
+     */
     void SetSeed(uint32_t seed) noexcept {
         white_.SetSeed(seed);
     }
 
+    WhiteNoise::SeedType GetSeed() const noexcept {
+        return white_.GetReg();
+    }
+
+    void Reset() noexcept {
+        b0_ = 0;
+        b1_ = 0;
+        b2_ = 0;
+        b3_ = 0;
+        b4_ = 0;
+        b5_ = 0;
+        b6_ = 0;
+    }
+
+    /**
+     * @return 可能在[-1,1]之间的随机数
+     */
     float Next() noexcept {
         float const white = white_.Next();
         b0_ = 0.99886f * b0_ + white * 0.0555179f;
@@ -75,20 +112,27 @@ class PinkNoiseHQ {
 public:
     void SetSeed(uint32_t seed) noexcept {
         white_.SetSeed(seed);
+    }
+
+    WhiteNoise::SeedType GetSeed() const noexcept {
+        return white_.GetReg();
+    }
+
+    void Reset() noexcept {
+        update_phase_ = 0;
         for (auto& s : captrue_noise_) {
-            s = white_.Next();
+            s = 0;
         }
     }
 
     float Next() noexcept {
-        uint32_t const old = update_phase_;
+        uint16_t const old = update_phase_;
         ++update_phase_;
         uint32_t diff = update_phase_ ^ old;
         while (diff) {
-            // uint32_t const pos = __builtin_ctzl(diff);
             auto const pos = std::countr_zero(diff);
             captrue_noise_[pos] = white_.Next();
-            diff &= ~(static_cast<uint32_t>(1) << pos);
+            diff &= ~(1 << pos);
         }
 
         float sum{};
@@ -99,14 +143,22 @@ public:
     }
 private:
     WhiteNoise white_;
-    uint32_t update_phase_{};
-    float captrue_noise_[32]{};
+    uint16_t update_phase_{};
+    float captrue_noise_[16]{};
 };
 
 class BrownNoise {
 public:
     void SetSeed(uint32_t seed) noexcept {
         white_.SetSeed(seed);
+    }
+
+    WhiteNoise::SeedType GetSeed() const noexcept {
+        return white_.GetReg();
+    }
+
+    void Reset() noexcept {
+        latch_ = 0;
     }
 
     float Next() noexcept {

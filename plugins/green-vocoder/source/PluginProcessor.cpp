@@ -6,8 +6,7 @@
 
 #include "param_ids.hpp"
 #include "channel_mix.hpp"
-#include "qwqdsp/convert.hpp"
-#include "qwqdsp/filter/rbj.hpp"
+#include "qwqdsp/polymath.hpp"
 
 static const juce::StringArray kVocoderNames{
     "Burg-LPC",
@@ -682,7 +681,6 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     yin_segement_.SetSize(2048);
     yin_segement_.Reset();
     yin_.Init(static_cast<float>(sampleRate), 2048);
-    pitch_filter_.Reset();
     osc_wpos_ = 0;
     osc_want_write_frac_ = 0;
     pitch_glide_.Reset();
@@ -750,51 +748,15 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     auto& main_buffer_ = channels[0];
     auto& side_buffer_ = channels[1];
 
-    auto burg_lp = [this](std::span<float> x) {
-        float eb[512]{};
-        for (size_t i = 0; i < x.size(); ++i) {
-            x[i] = x[i] + noise_.Next() * 1e-5f;
-            eb[i] = x[i];
-        }
-        // poles
-        for (int p = 0; p < 2; ++p) {
-            float lag{};
-            float up{};
-            float down{};
-            for (size_t i = 0; i < x.size(); ++i) {
-                up += x[i] * lag;
-                down += x[i] * x[i];
-                down += lag * lag;
-                lag = eb[i];
-            }
-            float k = -2.0f * up / down;
-
-            lag = 0;
-            for (size_t i = 0; i < x.size(); ++i) {
-                float const upgo = x[i] + lag * k;
-                float const downgo = lag + x[i] * k;
-                lag = eb[i];
-                x[i] = upgo;
-                eb[i] = downgo;
-            }
-        }
-    };
     if (side_ch == 6) {
-        // pitch tracking step
-        // 1. yin detect pitch
-        // 2. median filter
-        // 3. generate waveform
-
-        // burg_lp({temp.data(), num_write});
         yin_segement_.Push(main_buffer_);
 
-        qwqdsp::pitch::FastYin::Result pitch{};
         float const noise_threshold = tracking_noise_->get();
         while (yin_segement_.CanProcess()) {
             yin_.Process(yin_segement_.GetBlock());
             yin_segement_.Advance();
 
-            pitch = yin_.GetPitch();
+            auto pitch = yin_.GetPitch();
             float const want_write = yin_segement_.GetHop() + osc_want_write_frac_;
             size_t const iwant = static_cast<size_t>(want_write);
             {
@@ -808,10 +770,6 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 }
             }
             else {
-                pitch = pitch_filter_.Tick(pitch, [](auto const& a, auto const& b) {
-                    return a.pitch <=> b.pitch;
-                });
-                
                 [[unlikely]]
                 if (first_init_) {
                     pitch_glide_.SetTargetImmediately(pitch.pitch * frequency_mul_);
@@ -876,6 +834,12 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     ensemble_.Process(main_buffer_, side_buffer_);
     output_gain_.Process(channels);
+
+    size_t const num_samples = main_buffer_.size();
+    for (size_t i = 0; i < num_samples; ++i) {
+        main_buffer_[i] = qwqdsp::polymath::ArctanFast(main_buffer_[i]);
+        side_buffer_[i] = qwqdsp::polymath::ArctanFast(side_buffer_[i]);
+    }
 
     if (latency_.load() != old_latency_) {
         old_latency_ = latency_.load();

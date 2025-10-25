@@ -6,6 +6,7 @@
 #include <cstdint>
 
 namespace qwqdsp::oscillor {
+// qwqfixme: 增强http://www.rossbencina.com/code/sinusoids
 template<class T, size_t kTableBits = 16>
 class TableSineV2 {
 public:

@@ -5,8 +5,6 @@
 #include "qwqdsp/filter/window_fir.hpp"
 #include "qwqdsp/window/kaiser.hpp"
 #include "qwqdsp/convert.hpp"
-#include "qwqdsp/polymath.hpp"
-#include "x86/sse2.h"
 
 //==============================================================================
 DeepPhaserAudioProcessor::DeepPhaserAudioProcessor()
@@ -73,7 +71,7 @@ DeepPhaserAudioProcessor::DeepPhaserAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{"blend_range", 1},
             "blend_range",
-            0.0f, 1.0f, 0.0f
+            juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f}, 0.0f
         );
         param_blend_range_ = p.get();
         layout.add(std::move(p));

@@ -43,7 +43,7 @@ int main() {
         qwqdsp::filter::Biquad dsp;
         qwqdsp::filter::MatchBiquad design;
         auto coeff = design.Allpass(w.get_value(), Q.get_value());
-        dsp = coeff;
+        dsp.Set(coeff);
 
         float ir[2048];
         ir[0] = dsp.Tick(1);

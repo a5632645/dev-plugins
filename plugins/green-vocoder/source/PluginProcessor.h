@@ -15,8 +15,8 @@
 #include "qwqdsp/osciilor/polyblep.hpp"
 #include "qwqdsp/osciilor/noise.hpp"
 
-#include "qwqdsp/filter/median.hpp"
 #include "qwqdsp/pitch/fast_yin.hpp"
+#include "qwqdsp/pitch/acf.hpp"
 #include "qwqdsp/segement/analyze.hpp"
 #include "qwqdsp/misc/smoother.hpp"
 
@@ -83,7 +83,6 @@ public:
     // pitch tracking
     qwqdsp::segement::Analyze<8192> yin_segement_;
     qwqdsp::pitch::FastYin yin_;
-    qwqdsp::filter::Median<qwqdsp::pitch::FastYin::Result, 3> pitch_filter_;
     std::array<float, 8192> osc_buffer_{};
     size_t osc_wpos_{};
     float osc_want_write_frac_{};

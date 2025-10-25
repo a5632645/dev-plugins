@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <span>
-#include "../source/elliptic_blep.hpp"
+#include "qwqdsp/fx/elliptic_blep.hpp"
 
 namespace qwqdsp::fx {
 /**

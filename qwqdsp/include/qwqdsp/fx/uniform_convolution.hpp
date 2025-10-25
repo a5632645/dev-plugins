@@ -9,18 +9,22 @@
 namespace qwqdsp::fx {
 class UniformConvolution {
 public:
-    void Init(size_t latency) {
-        size_t fft_size = latency * 2;
-        block_size_ = latency;
+    void Init(size_t block_size) {
+        size_t fft_size = block_size * 2;
+        block_size_ = block_size;
         fft_.Init(fft_size);
-        if (input_buffer_.size() < latency) {
-            input_buffer_.resize(latency);
+        if (input_buffer_.size() < block_size) {
+            input_buffer_.resize(block_size);
         }
         if (output_buffer_.size() < fft_size * 2) {
             output_buffer_.resize(fft_size * 2);
         }
         process_buffer_.resize(fft_size);
         Reset();
+    }
+
+    float Latency(size_t first_block_size) const noexcept {
+        return first_block_size < block_size_ ? static_cast<float>(block_size_) : 0.0f;
     }
 
     void Reset() noexcept {
@@ -52,7 +56,6 @@ public:
             fft_.FFT(process_buffer_, ir_frames_[i]);
             ++i;
         });
-        Reset();
     }
 
     void Process(std::span<float> block) noexcept {

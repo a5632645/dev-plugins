@@ -108,13 +108,13 @@ public:
             }
             else {
                 // 无峰值，大概是噪声或者在外面吧
-                pitch_.pitch = 0.0f;
+                // pitch_.pitch = 0.0f;
                 pitch_.non_period_ratio = 1.0f;
             }
         }
         else {
             // 在两侧，可能是噪声
-            pitch_.pitch = 0.0f;
+            // pitch_.pitch = 0.0f;
             pitch_.non_period_ratio = 1.0f;
         }
     }

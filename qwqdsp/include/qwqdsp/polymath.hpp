@@ -148,4 +148,66 @@ static inline constexpr float SinReaktor(float x) noexcept {
     u = u * x2 + 3.141592653589793f;
     return u * x;
 }
+
+/**
+ * 12.071x cycle
+ * @ref https://math.stackexchange.com/questions/107292/rapid-approximation-of-tanhx
+ * @param x [-5,+5] have a error less than -80dB
+ */
+static inline constexpr float TanhSlow(float x) noexcept {
+    float x2 = x * x;
+    float a = x * (135135.0f + x2 * (17325.0f + x2 * (378.0f + x2)));
+    float b = 135135.0f + x2 * (62370.0f + x2 * (3150.0f + x2 * 28.0f));
+    return a / b;
+}
+
+/**
+ * 7.757x cycle
+ * @ref https://math.stackexchange.com/questions/107292/rapid-approximation-of-tanhx
+ * @param x [-1,+1] have a error less than -70dB
+ */
+static inline constexpr float TanhFastest(float x) noexcept {
+    float x2 = x * x;
+    return x / (1 + x2 / (3 + x2 * 0.2f));
+}
+
+/**
+ * 10.918x cycle
+ * @ref https://math.stackexchange.com/questions/107292/rapid-approximation-of-tanhx
+ * @param x [-5.5,+5.5] have a error less than -70dB
+ */
+static inline constexpr float TanhFast(float x) noexcept {
+    float x2 = x * x;
+    float x4 = x2 * x2;
+    float x6 = x4 * x2;
+    float up = x * (10 + x2) * (60 + x2);
+    float down = 600 + 270 * x2 + 11 * x4 + x6 / 24;
+    return up / down;
+}
+
+/**
+ * 8.122x cycle -Ofast, slower than Pade -O2
+ * @ref https://math.stackexchange.com/questions/490652/about-a-function-approximating-the-arctanx
+ * @param x a peak -40dB erro at 3.1
+ */
+static inline constexpr float ArctanFast(float x) noexcept {
+    constexpr float kGainNorm = std::numbers::pi_v<float>/2;
+    constexpr float m = 16/std::numbers::pi_v<float>;
+    constexpr float m2 = m * m;
+    return 8*kGainNorm*x/(3+std::sqrt(25+m2*x*x));
+}
+
+/**
+ * 9.064x cycle
+ * @ref https://pmc.ncbi.nlm.nih.gov/articles/PMC5285437/
+ * @param x [-1,1] have a error less than -59dB
+ * @note 这个函数不是发散而是有界的,inf趋近于0
+ *       最大值 (2.64575, 1.1024)
+ */
+static inline constexpr float ArctanPade(float x) noexcept {
+    float x2 = x * x;
+    float x3 = x2 * x;
+    float x4 = x2 * x2;
+    return (55*x3+105*x)/(9*x4+90*x2+105);
+}
 }
