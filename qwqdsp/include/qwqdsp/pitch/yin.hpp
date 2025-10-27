@@ -2,36 +2,58 @@
 #include <vector>
 #include <span>
 #include <cmath>
+#include "qwqdsp/spectral/oouras_real_fft.hpp"
 
 namespace qwqdsp::pitch {
 /**
- * @ref http://recherche.ircam.fr/equipes/pcm/cheveign/ps/2002_JASA_YIN_proof.pdf
+ * @ref https://zhuanlan.zhihu.com/p/1932764646655390362
  */
 class Yin {
 public:
-    void Init(float fs, int size) {
+    void Init(float fs, int block_size) {
         fs_ = fs;
-        delta_corr_.resize(size);
-        dicimate_ = std::round(fs / 6000.0f);
+        block_size_ = block_size;
         SetMinPitch(min_pitch_);
         SetMaxPitch(max_pitch_);
+
+        delta_corr_.resize(block_size);
+        fft_in_buffer_.resize(block_size*2);
+        fft_out_buffer_.resize(block_size*2+2);
+        fft_.Init(block_size*2);
     }
 
-    void Process(std::span<float> block) noexcept {
-        int num_samples = block.size();
-        int max_tal = num_samples / 2;
+    void Process(std::span<float const> block) noexcept {
+        int num_samples = static_cast<int>(block.size());
 
         // step1 delta auto correlation
-        for (int i = 0; i < max_tal; ++i) {
-            float sum = 0.0f;
-            for (int j = 0; j < num_samples; j += dicimate_) {
-                float a = block[j];
-                float b = block[(i + j) % num_samples];
-                sum += (a - b) * (a - b);
+        // this is a linear autocorrelation x[0:N] and x[0:N]
+        {
+            std::copy_n(block.begin(), block.size(), fft_in_buffer_.begin());
+            std::fill_n(fft_in_buffer_.begin() + block.size(), block.size(), 0);
+            fft_.FFT(fft_in_buffer_.data(), fft_out_buffer_.data());
+            size_t const num_bins = fft_.GetFFTSize() / 2 + 1;
+            for (size_t i = 0; i < num_bins; ++i) {
+                float re = fft_out_buffer_[2*i];
+                float im = fft_out_buffer_[2*i + 1];
+                fft_out_buffer_[2*i] = (re*re + im*im);
+                fft_out_buffer_[2*i + 1]=0;
             }
-            delta_corr_[i] = sum;
+            fft_.IFFT(fft_out_buffer_.data(), fft_in_buffer_.data());
+
+            for (int i = 0; i < num_samples; ++i) {
+                delta_corr_[0] += block[i] * block[i];
+            }
+            for (int tau = 1; tau < num_samples; ++tau) {
+                delta_corr_[tau] = delta_corr_[tau - 1] - block[tau - 1] * block[tau - 1];
+            }
+
+            float const first_power = delta_corr_[0];
+            for (int i = 0; i < num_samples; ++i) {
+                delta_corr_[i] = first_power + delta_corr_[i] - 2 * fft_in_buffer_[i];
+            }
         }
 
+        int max_tal = num_samples;
         // step2 CMNDF
         {
             float sum = 0.0f;
@@ -80,13 +102,11 @@ public:
             }
             else {
                 // 无峰值，大概是噪声或者在外面吧
-                pitch_.pitch = 0.0f;
                 pitch_.non_period_ratio = 1.0f;
             }
         }
         else {
             // 在两侧，可能是噪声
-            pitch_.pitch = 0.0f;
             pitch_.non_period_ratio = 1.0f;
         }
     }
@@ -102,26 +122,31 @@ public:
 
     void SetMinPitch(float min_val) noexcept {
         min_pitch_ = min_val;
-        max_bin_ = std::round(fs_ / min_val);
+        max_bin_ = static_cast<int>(std::round(fs_ / min_val));
+        max_bin_ = std::min(max_bin_, block_size_);
     }
 
     void SetMaxPitch(float max_val) noexcept {
         max_pitch_ = max_val;
-        min_bin_ = std::round(fs_ / max_val);
+        min_bin_ = static_cast<int>(std::round(fs_ / max_val));
+        min_bin_ = std::max(min_bin_, 2);
     }
 
     void SetThreshold(float threshold) noexcept {
         threshold_ = threshold;
     }
 private:
+    spectral::OourasRealFFT fft_;
+    std::vector<float> fft_in_buffer_;
+    std::vector<float> fft_out_buffer_;
     std::vector<float> delta_corr_;
     float fs_{};
     Result pitch_{};
-    int dicimate_{};
-    float threshold_{0.15f};
+    float threshold_{0.2f};
     float min_pitch_{};
     float max_pitch_{};
     int min_bin_{};
     int max_bin_{};
+    int block_size_{};
 };
 }

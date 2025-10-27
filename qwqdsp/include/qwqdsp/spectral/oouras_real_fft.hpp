@@ -19,7 +19,6 @@ public:
 
         ip_.resize(2 + std::ceil(std::sqrt(fft_size / 2.0f)));
         w_.resize(fft_size / 2);
-        buffer_.resize(fft_size);
         const size_t size4 = fft_size / 4;
         makewt(size4, ip_.data(), w_.data());
         makect(size4, ip_.data(), w_.data() + size4);
@@ -30,56 +29,14 @@ public:
      * @param output size()=fft_size+2,[re,im]*num_bins
      */
     void FFT(const float* input, float* output) noexcept {
-        std::copy_n(input, fft_size_, buffer_.data());
-        rdft(fft_size_, 1, buffer_.data(), ip_.data(), w_.data());
-        output[0] = buffer_[0];
-        output[1] = 0.0f;
-        output[fft_size_] = -buffer_[1];
+        std::copy_n(input, fft_size_, output);
+        rdft(fft_size_, 1, output, ip_.data(), w_.data());
+        output[fft_size_] = -output[1];
         output[fft_size_ + 1] = 0.0f;
-        const size_t n = fft_size_ / 2;
-        for (size_t i = 1; i < n; ++i) {
-            output[2 * i] = buffer_[i * 2];
-            output[2 * i + 1] = -buffer_[i * 2 + 1];
-        }
-    }
-
-    /**
-     * @note input using GetFftInput,size=fft_size
-     * @param output size()=fft_size+2,[re,im]*num_bins
-     */
-    void FFT(float* output) noexcept {
-        rdft(fft_size_, 1, buffer_.data(), ip_.data(), w_.data());
-        output[0] = buffer_[0];
         output[1] = 0.0f;
-        output[fft_size_] = -buffer_[1];
-        output[fft_size_ + 1] = 0.0f;
         const size_t n = fft_size_ / 2;
         for (size_t i = 1; i < n; ++i) {
-            output[2 * i] = buffer_[i * 2];
-            output[2 * i + 1] = -buffer_[i * 2 + 1];
-        }
-    }
-
-    std::vector<float>& GetFftInput() noexcept {
-        return buffer_;
-    }
-
-    /**
-     * @param input size()=fft_size+2,[re,im]*num_bins
-     * @note output is using GetIfftOutput
-     */
-    void IFFT(const float* input) noexcept {
-        buffer_[0] = input[0];
-        buffer_[1] = -input[fft_size_];
-        const size_t n = fft_size_ / 2;
-        for (size_t i = 1; i < n; ++i) {
-            buffer_[2 * i] = input[2 * i];
-            buffer_[2 * i + 1] = -input[2 * i + 1];
-        }
-        rdft(fft_size_, -1, buffer_.data(), ip_.data(), w_.data());
-        float gain = 2.0f / fft_size_;
-        for (size_t i = 0; i < fft_size_; ++i) {
-            buffer_[i] *= gain;
+            output[2 * i + 1] = -output[i * 2 + 1];
         }
     }
 
@@ -88,28 +45,28 @@ public:
      * @param output size()=fft_size
      */
     void IFFT(const float* input, float* output) noexcept {
-        buffer_[0] = input[0];
-        buffer_[1] = -input[fft_size_];
+        output[0] = input[0];
+        output[1] = -input[fft_size_];
         const size_t n = fft_size_ / 2;
         for (size_t i = 1; i < n; ++i) {
-            buffer_[2 * i] = input[2 * i];
-            buffer_[2 * i + 1] = -input[2 * i + 1];
+            output[2 * i] = input[2 * i];
+            output[2 * i + 1] = -input[2 * i + 1];
         }
-        rdft(fft_size_, -1, buffer_.data(), ip_.data(), w_.data());
+        rdft(fft_size_, -1, output, ip_.data(), w_.data());
         float gain = 2.0f / fft_size_;
         for (size_t i = 0; i < fft_size_; ++i) {
-            output[i] = buffer_[i] * gain;
+            output[i] *= gain;
         }
-    }
-
-    std::vector<float> const& GetIfftOutput() const noexcept {
-        return buffer_;
     }
 
     size_t GetFFTSize() const noexcept {
         return fft_size_;
     }
 private:
+    size_t fft_size_{};
+    std::vector<int> ip_;
+    std::vector<float> w_;
+
     static void cftmdl(int n, int l, float *a, float *w) noexcept
     {
         int j, j1, j2, j3, k, k1, k2, m, m2;
@@ -659,10 +616,5 @@ private:
             }
         }
     }
-
-    size_t fft_size_{};
-    std::vector<int> ip_;
-    std::vector<float> w_;
-    std::vector<float> buffer_;
 };
 }

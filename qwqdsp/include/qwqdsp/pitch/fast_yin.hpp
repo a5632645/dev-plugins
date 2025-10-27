@@ -28,21 +28,27 @@ public:
         int num_samples = block.size();
         int max_tal = num_samples / 2;
 
-        // step1 delta auto correlation
+        // step1 delta auto correlation(x[0:N/2] and x[0:N])
+        // using x = block, len(x) = N
+        // using y = difference correlation, len(y) = N/2
+        // y[tau] = sum (x[i]-x[tau+i])^2, i from 0 to N/2
+        //        = sum x[i]^2 + sum x[tau+i]^2 - 2*sum x[i]*x[i+tau]
         {
             std::fill(powers_.begin(), powers_.end(), 0.0f);
+            // powers[0] = sum x[i]^2, i from 0 to N/2
             for (int i = 0; i < max_tal; ++i) {
                 powers_[0] += block[i] * block[i];
             }
 
+            // powers[tau] = sum x[i+tau]^2 = sum x[j]^2, j from tau to N/2+tau
             for (int tau = 1; tau < max_tal; ++tau) {
                 powers_[tau] = powers_[tau - 1] - block[tau - 1] * block[tau - 1] + block[tau + max_tal] * block[tau + max_tal];
             }
 
+            // fft circular correlation of x[0:N/2] and x[tau:N/2+tau]
             fft_.FFT(block, fft1_);
-
             for (int i = 0; i < max_tal; ++i) {
-                temp_[i] = block[max_tal - 1 - i];
+                temp_[i] = block[max_tal - 1 - i]; // why reverse x[0:N/2]?
                 temp_[i + max_tal] = 0;
             }
             fft_.FFT(temp_, fft2_);
@@ -56,7 +62,7 @@ public:
             fft_.IFFT(temp_, fft1_);
 
             for (int i = 0; i < max_tal; ++i) {
-                delta_corr_[i] = powers_[0] + powers_[i] - 2 * temp_[max_tal - 1 + i];
+                delta_corr_[i] = powers_[0] + powers_[i] - 2 * temp_[max_tal - 1 + i]; // why reverse correlation
             }
         }
 
@@ -108,13 +114,11 @@ public:
             }
             else {
                 // 无峰值，大概是噪声或者在外面吧
-                // pitch_.pitch = 0.0f;
                 pitch_.non_period_ratio = 1.0f;
             }
         }
         else {
             // 在两侧，可能是噪声
-            // pitch_.pitch = 0.0f;
             pitch_.non_period_ratio = 1.0f;
         }
     }
@@ -151,7 +155,7 @@ private:
     std::vector<std::complex<float>> fft2_;
 
     float fs_{};
-    float threshold_{0.15f};
+    float threshold_{0.2f};
     Result pitch_{};
     float min_pitch_{};
     float max_pitch_{};

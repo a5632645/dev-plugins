@@ -1,8 +1,5 @@
+#ifdef QWQDSP_HAVE_IPP
 #pragma once
-
-#ifndef QWQDSP_HAVE_IPP
-#error "no intel ipp found"
-#endif
 
 #include <bit>
 #include <cassert>
@@ -71,6 +68,10 @@ public:
     void IFFT(float const* input, float* output) noexcept {
         ippsFFTInv_CCSToR_32f(input, output, p_fft_spec_, p_buffer_);
     }
+
+    size_t GetFFTSize() const noexcept {
+        return fft_size_;
+    }
 private:
     size_t fft_size_{};
     Ipp8u* p_spec_{};
@@ -79,3 +80,4 @@ private:
     IppsFFTSpec_R_32f* p_fft_spec_{};
 };
 }
+#endif

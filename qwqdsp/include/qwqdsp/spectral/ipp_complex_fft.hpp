@@ -1,10 +1,7 @@
+#ifdef QWQDSP_HAVE_IPP
 #pragma once
 #include <bit>
 #include <ipp/ipps.h>
-
-#ifndef QWQDSP_HAVE_IPP
-#error "no intel ipp found"
-#endif
 
 namespace qwqdsp::spectral {
 // output frequency: 0~2pi
@@ -83,3 +80,4 @@ private:
     IppsFFTSpec_C_32f* p_fft_spec_{};
 };
 }
+#endif
