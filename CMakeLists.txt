@@ -48,11 +48,21 @@ else()
     add_compile_definitions(PLUGIN_VEC8_LESS_DISPATCH_ISET=AVX)
 endif()
 
-# optimise most, i don't care about float accuracy
-if (MSVC)
-  add_compile_options(/fp:fast)
-else()
-  add_compile_options(-ffast-math)
+# floating point optimise
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(
+        -ffast-math
+        -fno-finite-math-only
+    )
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(
+        -ffast-math
+        -fno-finite-math-only
+    )
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    add_compile_options(
+        /fp:fast # msvc won't delete std::isnan std::isinf
+    )
 endif()
 
 # folders
