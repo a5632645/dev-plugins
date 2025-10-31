@@ -1,9 +1,8 @@
 #pragma once
-#include <cstddef>
 #include <span>
-#include <vector>
-#include "qwqdsp/noise.hpp"
+#include "qwqdsp/osciilor/smooth_noise.hpp"
 #include "qwqdsp/fx/delay_line.hpp"
+#include "qwqdsp/filter/fast_set_iir_paralle.hpp"
 
 namespace dsp {
 
@@ -12,7 +11,8 @@ public:
     static constexpr int kMaxVoices = 16;
     static constexpr float kMaxSemitone = 0.15f;
     static constexpr float kMinFrequency = 0.01f;
-    static constexpr float kMaxTime = 30.0f;
+    static constexpr float kMaxTime = 50.0f;
+    static constexpr float kMinTime = 15.0f;
 
     enum class Mode {
         Sine,
@@ -45,10 +45,8 @@ private:
     float gain_{};
     
     qwqdsp::fx::DelayLine<qwqdsp::fx::DelayLineInterp::Lagrange3rd> delay_;
-    // std::vector<float> buffer_;
-    // size_t buffer_wpos_{};
-    // size_t buffer_len_mask_{};
-    qwqdsp::Noise noises_[kMaxVoices];
+    qwqdsp::oscillor::SmoothNoise noises_[kMaxVoices];
+    qwqdsp::filter::FastSetIirParalle<qwqdsp::filter::fastset_coeff::Order2_1e7> delay_samples_smoother_;
 };
 
 }

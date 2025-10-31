@@ -173,7 +173,7 @@ public:
         auto up = xdh.imag() * xh.real() - xdh.real() * xh.imag();
         auto down = std::norm(xh);
         auto freq_c = -up / down;
-        return (idx + freq_c) / fft_.FFTSizeFloat();
+        return (idx + freq_c) / static_cast<float>(fft_.FFTSize());
     }
 
     void GetFrequency(std::span<float> freq) const noexcept {

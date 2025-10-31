@@ -48,7 +48,7 @@ private:
     ui::VerticalSlider shift_pitch_;
     widget::Gain<false> main_gain_;
     widget::Gain<false> side_gain_;
-    widget::Gain<true> output_gain_;
+    widget::Gain<false> output_gain_;
     widget::ChannelSelector main_channel_selector_;
     widget::ChannelSelector side_channel_selector_;
     juce::ComboBox language_box_;

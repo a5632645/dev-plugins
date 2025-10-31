@@ -78,8 +78,8 @@ void Tooltips::MakeEnglishTooltips() {
     tooltips_[id::kTrackingPwm] = "oscillator pulse width";
     labels_[id::kTrackingWaveform] = "WAVE";
     tooltips_[id::kTrackingWaveform] = "oscillator waveform";
-    labels_[id::kTrackingNoise] = "NT";
-    tooltips_[id::kTrackingNoise] = "noise threshould";
+    labels_[id::kTrackingNoise] = "NM";
+    tooltips_[id::kTrackingNoise] = "noise mix";
     labels_[id::kTrackingGlide] = "GL";
     tooltips_[id::kTrackingGlide] = "pitch glide";
 
@@ -185,8 +185,8 @@ void Tooltips::MakeChineseTooltips() {
     tooltips_[id::kTrackingPwm] = JSTR("振荡器脉冲宽度");
     labels_[id::kTrackingWaveform] = JSTR("波形");
     tooltips_[id::kTrackingWaveform] = JSTR("振荡器波形");
-    labels_[id::kTrackingNoise] = JSTR("阈值");
-    tooltips_[id::kTrackingNoise] = JSTR("噪声阈值");
+    labels_[id::kTrackingNoise] = JSTR("噪声");
+    tooltips_[id::kTrackingNoise] = JSTR("噪声音量");
     labels_[id::kTrackingGlide] = JSTR("滑动");
     tooltips_[id::kTrackingGlide] = JSTR("音高平滑时间");
 

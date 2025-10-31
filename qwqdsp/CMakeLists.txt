@@ -20,10 +20,6 @@ set(qwqdsp_have_ipp ${IPP_FOUND})
 if(NOT TARGET eigen)
     message(FATAL_ERROR "need a eigen target")
 endif()
-# check for simde
-if (NOT TARGET simde)
-    message(FATAL_ERROR "need a simde target")
-endif()
 
 # set warnings
 include(cmake/warnings.cmake)
@@ -41,7 +37,7 @@ target_include_directories(qwqdsp PUBLIC "./include")
 set_target_properties(qwqdsp PROPERTIES CXX_STANDARD 20)
 
 # external library
-target_link_libraries(qwqdsp PUBLIC Eigen3::Eigen simde)
+target_link_libraries(qwqdsp PUBLIC Eigen3::Eigen)
 if (qwqdsp_have_ipp)
     target_link_libraries(qwqdsp PUBLIC IPP::ipps)
     target_compile_definitions(qwqdsp PUBLIC QWQDSP_HAVE_IPP)
@@ -52,6 +48,7 @@ if (qwqdsp_have_raylib)
     add_executable(playing
         "playing/playing.cpp"
         "playing/slider.cpp"
+        "playing/miniaudio.c"
     )
     target_link_libraries(playing PUBLIC qwqdsp raylib)
     set_target_properties(playing PROPERTIES CXX_STANDARD 20)

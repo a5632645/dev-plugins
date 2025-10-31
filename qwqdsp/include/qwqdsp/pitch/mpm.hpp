@@ -28,6 +28,7 @@
 #include <span>
 #include <vector>
 #include "qwqdsp/spectral/oouras_real_fft.hpp"
+#include "qwqdsp/pitch/pitch.hpp"
 
 namespace qwqdsp::pitch {
 class MPM {
@@ -90,17 +91,12 @@ public:
 
         float pitch_estimate = fs_ / period;
         if (pitch_estimate > MPM_LOWER_PITCH_CUTOFF) {
-            pitch_.pitch = pitch_estimate;
+            pitch_.pitch_hz = pitch_estimate;
         }
         pitch_.non_period_ratio = GetNonPeriodRatio(block, period);
     }
 
-    struct Result {
-        float pitch;
-        // larger means the result is like a noise
-        float non_period_ratio;
-    };
-    Result GetPitch() const noexcept {
+    Pitch GetPitch() const noexcept {
         return pitch_;
     }
 
@@ -114,10 +110,6 @@ public:
         max_pitch_ = max_val;
         min_bin_ = static_cast<int>(std::round(fs_ / max_val));
         min_bin_ = std::max(min_bin_, 2);
-    }
-
-    void SetThreshold(float threshold) noexcept {
-        threshold_ = threshold;
     }
 private:
     static constexpr float MPM_CUTOFF = 0.93f;
@@ -135,10 +127,9 @@ private:
     std::vector<int> max_positions_;
     std::vector<std::pair<float, float>> estimates_;
     float fs_{};
-    Result pitch_{};
-    float threshold_{0.2f};
-    float min_pitch_{};
-    float max_pitch_{};
+    Pitch pitch_{};
+    float min_pitch_{50.0f};
+    float max_pitch_{500.0f};
     int min_bin_{};
     int max_bin_{};
     int block_size_{};

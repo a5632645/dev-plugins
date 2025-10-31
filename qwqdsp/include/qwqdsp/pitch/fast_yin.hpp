@@ -5,6 +5,7 @@
 #include <span>
 #include <cmath>
 #include "qwqdsp/spectral/real_fft.hpp"
+#include "qwqdsp/pitch/pitch.hpp"
 
 namespace qwqdsp::pitch {
 /**
@@ -109,7 +110,7 @@ public:
             if (s1 < s0 && s1 < s2) {
                 float frac = 0.5f * (s2 - s0) / (2.0f * s1 - s2 - s0 + 1e-18f);
                 preiod = where + frac;
-                pitch_.pitch = fs_ / preiod;
+                pitch_.pitch_hz = fs_ / preiod;
                 pitch_.non_period_ratio = delta_corr_[where];
             }
             else {
@@ -123,12 +124,7 @@ public:
         }
     }
 
-    struct Result {
-        float pitch;
-        // larger means the result is like a noise
-        float non_period_ratio;
-    };
-    Result GetPitch() const noexcept {
+    Pitch GetPitch() const noexcept {
         return pitch_;
     }
 
@@ -156,9 +152,9 @@ private:
 
     float fs_{};
     float threshold_{0.2f};
-    Result pitch_{};
-    float min_pitch_{};
-    float max_pitch_{};
+    Pitch pitch_{};
+    float min_pitch_{50.0f};
+    float max_pitch_{500.0f};
     int min_bin_{};
     int max_bin_{};
 };

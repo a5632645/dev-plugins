@@ -80,7 +80,7 @@ struct RBJ {
     }
 
     /**
-     * |H(z=exp(jw))| = 0
+     * |H(z=exp(jw))| = 1
      */
     void BandpassKeep0(float w, float Q) noexcept {
         auto a = std::sin(w) / (2 * Q);

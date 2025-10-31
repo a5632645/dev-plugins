@@ -223,24 +223,6 @@ public:
 private:
     static constexpr auto kPi = std::numbers::pi_v<double>;
 
-    struct DoubleBiquadCoeff {
-        double b0;
-        double b1;
-        double b2;
-        double a1;
-        double a2;
-
-        BiquadCoeff ToFloat() const noexcept {
-            return BiquadCoeff{
-                static_cast<float>(b0),
-                static_cast<float>(b1),
-                static_cast<float>(b2),
-                static_cast<float>(a1),
-                static_cast<float>(a2)
-            };
-        }
-    };
-
     static inline DoubleBiquadCoeff ImpluseInvarant(float wc, float Q) noexcept {
         auto zeta = 1 / (2 * Q);
         auto exp_qwc = std::exp(-zeta * wc);

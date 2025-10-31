@@ -15,4 +15,22 @@ struct BiquadCoeff {
     }
 };
 inline static constexpr BiquadCoeff kBiquadPassthrough{1,0,0,0,0};
+
+struct DoubleBiquadCoeff {
+    double b0{};
+    double b1{};
+    double b2{};
+    double a1{};
+    double a2{};
+
+    BiquadCoeff ToFloat() const noexcept {
+        return BiquadCoeff{
+            static_cast<float>(b0),
+            static_cast<float>(b1),
+            static_cast<float>(b2),
+            static_cast<float>(a1),
+            static_cast<float>(a2)
+        };
+    }
+};
 }

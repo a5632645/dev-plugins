@@ -16,9 +16,14 @@
 #include "qwqdsp/osciilor/noise.hpp"
 
 #include "qwqdsp/pitch/fast_yin.hpp"
-#include "qwqdsp/pitch/acf.hpp"
+#include "qwqdsp/pitch/yin.hpp"
+#include "qwqdsp/pitch/mpm.hpp"
+#include "qwqdsp/pitch/helmholtz.hpp"
+
 #include "qwqdsp/segement/analyze.hpp"
 #include "qwqdsp/misc/smoother.hpp"
+#include "qwqdsp/filter/fast_set_iir_paralle.hpp"
+#include "qwqdsp/algebraic_waveshaper.hpp"
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -86,6 +91,8 @@ public:
     std::array<float, 8192> osc_buffer_{};
     size_t osc_wpos_{};
     float osc_want_write_frac_{};
+    float last_osc_mix_{};
+    float last_noise_mix_{};
     
     // tracking oscillator
     qwqdsp::oscillor::PolyBlep<float, false> tracking_osc_;
@@ -93,12 +100,14 @@ public:
     juce::AudioParameterChoice* tracking_waveform_{};
     juce::AudioParameterFloat* tracking_noise_{};
     float frequency_mul_{};
-    qwqdsp::misc::ExpSmoother pitch_glide_;
+    qwqdsp::filter::FastSetIirParalle<qwqdsp::filter::fastset_coeff::Order2_1e7> pitch_glide_;
     bool first_init_{};
 
     dsp::Gain<1> main_gain_;
     dsp::Gain<1> side_gain_;
     dsp::Gain<2> output_gain_;
+    qwqdsp::AlgebraicWaveshaper output_drive_left_;
+    qwqdsp::AlgebraicWaveshaper output_drive_right_;
 
     int old_latency_{};
     std::atomic<int> latency_{};

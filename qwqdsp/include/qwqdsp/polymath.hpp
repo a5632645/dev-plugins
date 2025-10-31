@@ -190,11 +190,10 @@ static inline constexpr float TanhFast(float x) noexcept {
  * @ref https://math.stackexchange.com/questions/490652/about-a-function-approximating-the-arctanx
  * @param x a peak -40dB erro at 3.1
  */
-static inline constexpr float ArctanFast(float x) noexcept {
-    constexpr float kGainNorm = std::numbers::pi_v<float>/2;
+static inline float ArctanFast(float x) noexcept {
     constexpr float m = 16/std::numbers::pi_v<float>;
     constexpr float m2 = m * m;
-    return 8*kGainNorm*x/(3+std::sqrt(25+m2*x*x));
+    return 8*x/(3+std::sqrt(25+m2*x*x));
 }
 
 /**
