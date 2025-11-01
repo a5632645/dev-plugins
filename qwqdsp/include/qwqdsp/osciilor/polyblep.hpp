@@ -118,7 +118,6 @@ concept CBlepCoeff = requires (float x) {
 }
 
 /**
- * visualizer https://www.desmos.com/calculator?lang=zh-CN
  * @ref https://ccrma.stanford.edu/~juhan/vas.html
  * @ref https://www.researchgate.net/publication/307990687_Rounding_Corners_with_BLAMP
  */
@@ -142,9 +141,15 @@ public:
     float Sawtooth() noexcept {
         phase_ += phase_inc_;
         phase_ -= std::floor(phase_);
+        // -------------------- high quality --------------------
         float const t = phase_ * 2 - 1;
         float const blep = 2 * Blep(phase_, phase_inc_);
         return t - blep;
+        // -------------------- faster --------------------
+        // float dt = std::min(phase_inc_, 0.5f / TCoeff::kHalfLen);
+        // float naive = Frac(phase_ + 0.5f);
+        // float blep = BlepOffset(phase_, dt, 0.5f);
+        // return 2 * (naive - blep) - 1;
     }
 
     // qwqfixme: still have artifacts in extreme sync parameter
@@ -195,7 +200,15 @@ public:
         phase_ += phase_inc_;
         phase_ -= std::floor(phase_);
         float const t = phase_ < static_cast<float>(0.5) ? 1 : -1;
-        float const blep = Blep(phase_, phase_inc_) - BlepOffset(phase_, phase_inc_, 0.5f);
+        // -------------------- high quality --------------------
+        // float dt = phase_inc_;
+        // float const blep = Blep(phase_, phase_inc_)
+        //     - BlepOffset(phase_, dt, 0.5f) 
+        //     - BlepOffset(phase_, dt, 1.5f) 
+        //     - BlepOffset(phase_, dt, -0.5f);
+        // -------------------- fast --------------------
+        float dt = std::min(phase_inc_, 0.5f / TCoeff::kHalfLen);
+        float const blep = Blep(phase_, phase_inc_) - BlepOffset(phase_, dt, 0.5f);
         return t + 2 * blep;
     }
 
@@ -249,14 +262,25 @@ public:
     }
 
     /**
-     * 或许应该添加边界条件的blep，如图saw_sync一样
-     * @note 该波形需要限制pwm在[phase_inc*blep_len,1-phase_inc*blep_len]之间
+     * @note 如果是faster代码,该波形需要限制pwm在[phase_inc*blep_len,1-phase_inc*blep_len]之间
      */
     float PWM_Classic() noexcept {
         phase_ += phase_inc_;
         phase_ -= std::floor(phase_);
-        float const t = phase_ < static_cast<float>(pwm_) ? 1 : -1;
-        float const blep = Blep(phase_, phase_inc_) - BlepOffset(phase_, phase_inc_, pwm_);
+        // -------------------- faster --------------------
+        // float const t = phase_ < static_cast<float>(pwm_) ? 1 : -1;
+        // float const blep = Blep(phase_, phase_inc_) - BlepOffset(phase_, phase_inc_, pwm_);
+        // -------------------- faster auto clamp --------------------
+        float dt = std::min(phase_inc_, 0.5f / TCoeff::kHalfLen);
+        auto pwm = std::clamp(pwm_, TCoeff::kHalfLen * dt, 1 - TCoeff::kHalfLen * dt);
+        float const t = phase_ < static_cast<float>(pwm) ? 1 : -1;
+        float const blep = Blep(phase_, phase_inc_) - BlepOffset(phase_, dt, pwm);
+        // -------------------- high quality --------------------
+        // float const t = phase_ < static_cast<float>(pwm_) ? 1 : -1;
+        // float const blep = Blep(phase_, phase_inc_) 
+        //     - BlepOffset(phase_, phase_inc_, pwm_) 
+        //     - BlepOffset(phase_, phase_inc_, pwm_ + 1) 
+        //     - BlepOffset(phase_, phase_inc_, pwm_ - 1);
         auto v = t + 2 * blep;
         return v;
     }
