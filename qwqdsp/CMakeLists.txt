@@ -48,7 +48,7 @@ if (qwqdsp_have_raylib)
     add_executable(playing
         "playing/playing.cpp"
         "playing/slider.cpp"
-        "playing/miniaudio.c"
+        # "playing/miniaudio.c"
     )
     target_link_libraries(playing PUBLIC qwqdsp raylib)
     set_target_properties(playing PROPERTIES CXX_STANDARD 20)
