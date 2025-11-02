@@ -5,16 +5,16 @@ namespace qwqdsp::fx {
 /**
  * @brief holters-parker IIR重采样器，使用Elliptic-blep库实现，移除了高通滤波器系数
  */
-template<class TCoeff, size_t kPartialSteps>
+template<class TCoeff, size_t kPartialSteps, size_t kBufferSize = 512>
 class ResampleIIRDynamic {
 public:
     using T = typename TCoeff::TSample;
 
     void Init(T source_fs) {
         source_fs_ = source_fs;
-        blep_.Init(source_fs);
         Reset();
     }
+    
     void Reset() noexcept {
         first_init_ = true;
         need_ = 1;
@@ -41,7 +41,7 @@ public:
         if (ratio > 1.0f) {
             cutoff /= ratio;
         }
-        blep_.SetCutoff(cutoff * TCoeff::fpass / TCoeff::fstop);
+        blep_.SetCutoff(cutoff, source_fs_);
     }
     void SetPitchShift(T shift) noexcept {
         SetRatio(std::exp2(shift / 12.0f));
@@ -49,16 +49,26 @@ public:
 
     void Push(T x) noexcept {
         buffer_[wpos_++] = x;
-        wpos_ &= 63;
+        wpos_ &= (kBufferSize - 1);
         ++buffer_size_;
     }
+
+    void Push(T* x, size_t num) noexcept {
+        assert(buffer_size_ + num <= kBufferSize);
+        for (size_t i = 0; i < num; ++i) {
+            buffer_[wpos_++] = x;
+            wpos_ &= (kBufferSize - 1);
+        }
+        buffer_size_ += num;
+    }
+
     T Read() noexcept {
         first_init_ = false;
 
         for (size_t i = 0; i < need_; ++i) {
             blep_.Step();
             blep_.Add(buffer_[rpos_++], 0);
-            rpos_ &= 63;
+            rpos_ &= (kBufferSize - 1);
         }
         buffer_size_ -= need_;
 
@@ -78,7 +88,7 @@ public:
     }
 private:
     signalsmith::blep::EllipticBlep<TCoeff, T, kPartialSteps> blep_;
-    T buffer_[64]{};
+    T buffer_[kBufferSize]{};
     size_t wpos_{};
     size_t rpos_{};
     size_t buffer_size_{};

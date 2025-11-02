@@ -1,11 +1,24 @@
 /**
  * Copyright 2024 Signalsmith Audio Ltd. / Geraint Luff
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation
+ * files (the “Software”), to deal in the Software without restriction,
+ * including without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to permit
+ * persons to whom the Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef SIGNALSMITH_ELLIPTIC_BLEP_H
@@ -16,28 +29,44 @@
 #include <numbers>
 
 namespace signalsmith { namespace blep {
+template<class T>
+concept CEllipticBlepCoeff = requires {
+    T::fpass;
+    T::fstop;
+    T::complexPoles;
+    T::realPoles;
+    T::complexCoeffsDirect;
+    T::realCoeffsDirect;
+};
 
-template<class TCoeffs, class Sample, size_t kPartialLUTSize>
+template<CEllipticBlepCoeff TCoeffs, class Sample, size_t kPartialLUTSize>
 struct EllipticBlep {
     using Complex = std::complex<Sample>;
 
-    void Init(Sample srate) noexcept {
-        hz_to_omega_ = (2 * std::numbers::pi_v<Sample>) / srate;
-        Reset();
+    void SetCutoffByFpass(Sample pass_freq, Sample fs) noexcept {
+        Sample w = pass_freq * std::numbers::pi_v<Sample> * 2 / fs;
+        SetScale(w / TCoeffs::fpass);
     }
 
-    void SetCutoff(Sample cutoff) noexcept {
-        Sample scale = cutoff / 20000;
+    void SetCutoffByFstop(Sample stop_freq, Sample fs) noexcept {
+        Sample w = stop_freq * std::numbers::pi_v<Sample> * 2 / fs;
+        SetScale(w / TCoeffs::fstop);
+    }
 
+    /**
+     * @param scale 缩放滤波器系数从而改变截止频率scale倍
+     * @note TCoeff:fpass和TCoeff:fstop均为角频率，这意味着它和采样率有关
+     */
+    void SetScale(Sample scale) noexcept {
         auto addPole = [&](size_t index, Complex pole, Complex coeff, Complex impulseCoeff){
             // Set up partial powers of the pole (so we can move forward/back by fractional samples)
             for (size_t s = 0; s <= kPartialLUTSize; ++s) {
                 Sample partial = Sample(s) / kPartialLUTSize;
-                partial_step_poles_[s][index] = std::exp(partial * pole * hz_to_omega_);
+                partial_step_poles_[s][index] = std::exp(partial * pole);
             }
 
             // Impulse coeffs are always direct
-            impluse_coeffs_[index] = impulseCoeff * hz_to_omega_;
+            impluse_coeffs_[index] = impulseCoeff;
 
             // 这是为blep服务的，升频采样不需要它们
             std::ignore = coeff;
@@ -139,7 +168,6 @@ private:
     using Array = std::array<Complex, count>;
     Array state_;
     Array impluse_coeffs_;
-    Sample hz_to_omega_;
     
     // Lookup table for std::pow(pole, fractional)
     std::array<Array, kPartialLUTSize + 1> partial_step_poles_;

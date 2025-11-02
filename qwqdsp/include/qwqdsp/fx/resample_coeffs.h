@@ -9,28 +9,28 @@ struct FastCoeffs {
 	static constexpr size_t complexCount = 5;
 	static constexpr size_t realCount = 1;
 	static constexpr size_t filterOrder = 11;
-	static constexpr Sample fpass = Sample(20000.000000);
-	static constexpr Sample fstop = Sample(24162.255926);
+	static constexpr Sample fpass = Sample(2.513274);
+	static constexpr Sample fstop = Sample(3.036339);
 	static constexpr std::array<std::complex<Sample>, complexCount> complexPoles{{
-		{Sample(-5561.982558545558), Sample(7721.564144482831)},
-		{Sample(-3936.7227375705806), Sample(13650.197801811304)},
-		{Sample(-2348.139919173165), Sample(17360.271619482097)},
-		{Sample(-1177.5927594523114), Sample(19350.80475283362)},
-		{Sample(-351.83634005467775), Sample(20192.238514865294)}
+		{Sample(-0.6989393418128478), Sample(0.9703203676211847)},
+		{Sample(-0.4947031692628868), Sample(1.715334445368665)},
+		{Sample(-0.29507596478690645), Sample(2.181556071363739)},
+		{Sample(-0.14798067048083013), Sample(2.431693842101818)},
+		{Sample(-0.04421305844716346), Sample(2.5374315271134855)}
 	}};
 	static constexpr std::array<Sample, realCount> realPoles{{
-		Sample(-6297.9970566057245)
+		Sample(-0.7914296514145094)
 	}};
 	// Coeffs for direct bandlimited synthesis of a polynomial-segment waveform
 	static constexpr std::array<std::complex<Sample>, complexCount> complexCoeffsDirect{{
-		{Sample(-16437.98665421065), Sample(-7224.765894589879)},
-		{Sample(7790.757942544076), Sample(9526.642450543113)},
-		{Sample(-840.5346697125525), Sample(-6786.810488747387)},
-		{Sample(-1524.1587677384439), Sample(2562.99591951713)},
-		{Sample(754.6036883901486), Sample(-311.82754418710147)}
+		{Sample(-2.065658324507031), Sample(-0.9078908583339848)},
+		{Sample(0.979015516727601), Sample(1.1971531974398337)},
+		{Sample(-0.10562470173803516), Sample(-0.8528557589105944)},
+		{Sample(-0.1915314395049395), Sample(0.32207556607792426)},
+		{Sample(0.09482629615230087), Sample(-0.03918540488002405)}
 	}};
 	static constexpr std::array<Sample, realCount> realCoeffsDirect{{
-		Sample(10260.028875848706)
+		Sample(1.2893132536794139)
 	}};
 };
 	
@@ -40,42 +40,42 @@ struct BestCoeffs {
 	static constexpr size_t complexCount = 12;
 	static constexpr size_t realCount = 1;
 	static constexpr size_t filterOrder = 25;
-	static constexpr Sample fpass = Sample(20000.000000);
-	static constexpr Sample fstop = Sample(21519.444876);
+	static constexpr Sample fpass = Sample(2.895477);
+	static constexpr Sample fstop = Sample(3.116319);
 	static constexpr std::array<std::complex<Sample>, complexCount> complexPoles{{
-		{Sample(-3107.20033188021), Sample(3937.2767519207428)},
-		{Sample(-2796.8774913957623), Sample(7594.756479446776)},
-		{Sample(-2365.3544452925835), Sample(10768.381294489338)},
-		{Sample(-1897.3856301331662), Sample(13364.957940627544)},
-		{Sample(-1458.0144993104516), Sample(15389.983964901507)},
-		{Sample(-1082.507625108592), Sample(16910.579125449884)},
-		{Sample(-781.1559131200345), Sample(18018.5367689135)},
-		{Sample(-547.7046243450372), Sample(18804.09729515833)},
-		{Sample(-373.4740738743549), Sample(19347.60842644775)},
-		{Sample(-233.77919322514572), Sample(19702.644871990433)},
-		{Sample(-135.28926799549754), Sample(19921.188456038082)},
-		{Sample(-40.438395472254115), Sample(20022.29903816022)}
+		{Sample(-0.449841370316435), Sample(0.5700147335937048)},
+		{Sample(-0.4049147364045492), Sample(1.0995221733462006)},
+		{Sample(-0.3424414811978542), Sample(1.5589800721865674)},
+		{Sample(-0.2746918450081236), Sample(1.9348964872200827)},
+		{Sample(-0.21108213502673095), Sample(2.2280671510490717)},
+		{Sample(-0.15672148344516706), Sample(2.4482120426368112)},
+		{Sample(-0.11307192807807198), Sample(2.6085945453086588)},
+		{Sample(-0.07938429749470799), Sample(2.722428255485527)},
+		{Sample(-0.053775001103282316), Sample(2.800792519009313)},
+		{Sample(-0.03444640346565042), Sample(2.852775127680546)},
+		{Sample(-0.018917713153412785), Sample(2.8838774109201255)},
+		{Sample(-0.006141637786219206), Sample(2.8987130416992755)}
 	}};
 	static constexpr std::array<Sample, realCount> realPoles{{
-		Sample(-3220.8580773215253)
+		Sample(-0.46629604027505667)
 	}};
 	// Coeffs for direct bandlimited synthesis of a polynomial-segment waveform
 	static constexpr std::array<std::complex<Sample>, complexCount> complexCoeffsDirect{{
-		{Sample(-11919.560816626928), Sample(-3187.094087204454)},
-		{Sample(9573.988224127786), Sample(5583.81708412599)},
-		{Sample(-6473.456636950629), Sample(-6730.189208126382)},
-		{Sample(3407.4300575641755), Sample(6619.944984894173)},
-		{Sample(-947.4387125888132), Sample(-5588.352305214937)},
-		{Sample(-659.5593971973356), Sample(4096.061890356017)},
-		{Sample(1436.828633360112), Sample(-2552.3776755275653)},
-		{Sample(-1552.5358812051302), Sample(1240.0339328949058)},
-		{Sample(1236.9831816533112), Sample(-299.0830011099097)},
-		{Sample(-725.3145127398764), Sample(-185.6291417942369)},
-		{Sample(238.53811357512163), Sample(245.88830839157475)},
-		{Sample(-14.863693809439255), Sample(-95.41444051497662)}
+		{Sample(-1.7256407693789952), Sample(-0.4614078972654235)},
+		{Sample(1.3860631829387793), Sample(0.808390724913999)},
+		{Sample(-0.9371872760474355), Sample(-0.9743554343905493)},
+		{Sample(0.49330666406306806), Sample(0.9583950359761884)},
+		{Sample(-0.13716661488257498), Sample(-0.8090462117543589)},
+		{Sample(-0.09551116316420961), Sample(0.5930070550305229)},
+		{Sample(0.20787536772377396), Sample(-0.3695496327953412)},
+		{Sample(-0.2251169432839332), Sample(0.17916954912983377)},
+		{Sample(0.1791931627959512), Sample(-0.04432972540228242)},
+		{Sample(-0.10364878727895342), Sample(-0.027025027087609708)},
+		{Sample(0.03435922742842181), Sample(0.03743760158527816)},
+		{Sample(-0.0029283057297882094), Sample(-0.01409042764748796)}
 	}};
 	static constexpr std::array<Sample, realCount> realCoeffsDirect{{
-		Sample(6398.961287622787)
+		Sample(0.9264022936314068)
 	}};
 };
 	
@@ -85,48 +85,48 @@ struct MedianCoeffs {
 	static constexpr size_t complexCount = 15;
 	static constexpr size_t realCount = 1;
 	static constexpr size_t filterOrder = 31;
-	static constexpr Sample fpass = Sample(20000.000000);
-	static constexpr Sample fstop = Sample(22860.703061);
+	static constexpr Sample fpass = Sample(2.731820);
+	static constexpr Sample fstop = Sample(3.122579);
 	static constexpr std::array<std::complex<Sample>, complexCount> complexPoles{{
-		{Sample(-1657.064991727588), Sample(2030.3709936736682)},
-		{Sample(-1631.5155526840529), Sample(4039.9076334216516)},
-		{Sample(-1589.22455609047), Sample(6007.98935371133)},
-		{Sample(-1530.6259676390623), Sample(7914.42098391937)},
-		{Sample(-1456.3210744583446), Sample(9739.639746935942)},
-		{Sample(-1367.072303344283), Sample(11464.918812590095)},
-		{Sample(-1263.7959846637345), Sample(13072.536002741135)},
-		{Sample(-1147.5537515429705), Sample(14546.098345342754)},
-		{Sample(-1019.4902800952609), Sample(15870.05342459448)},
-		{Sample(-881.261296572322), Sample(17032.185897416777)},
-		{Sample(-732.8349611763269), Sample(18017.257290243266)},
-		{Sample(-579.9625583636853), Sample(18821.168970742823)},
-		{Sample(-415.41300947022137), Sample(19427.835254646732)},
-		{Sample(-253.85373389728466), Sample(19837.696087655913)},
-		{Sample(-83.83083222809682), Sample(20043.733916645127)}
+		{Sample(-0.22634013932749542), Sample(0.2773303738168163)},
+		{Sample(-0.22285031628275645), Sample(0.5518149627096891)},
+		{Sample(-0.2170737474331995), Sample(0.8206371833945857)},
+		{Sample(-0.209069708661684), Sample(1.0810385553734105)},
+		{Sample(-0.1989203164753688), Sample(1.330347014898734)},
+		{Sample(-0.18672995172068274), Sample(1.5660043120546343)},
+		{Sample(-0.17262159172200614), Sample(1.785591881258153)},
+		{Sample(-0.15675300733310138), Sample(1.9868608678821662)},
+		{Sample(-0.13922867760628455), Sample(2.1677203716401476)},
+		{Sample(-0.12042779679874738), Sample(2.3264132464815215)},
+		{Sample(-0.1000110003346909), Sample(2.4610407687259532)},
+		{Sample(-0.07931358472014319), Sample(2.5707522059170658)},
+		{Sample(-0.056669494843696655), Sample(2.6537012114192398)},
+		{Sample(-0.034710233132946855), Sample(2.7096375283128786)},
+		{Sample(-0.01144123876518588), Sample(2.7377957604523786)}
 	}};
 	static constexpr std::array<Sample, realCount> realPoles{{
-		Sample(-1665.6107015924313)
+		Sample(-0.2275074062549286)
 	}};
 	// Coeffs for direct bandlimited synthesis of a polynomial-segment waveform
 	static constexpr std::array<std::complex<Sample>, complexCount> complexCoeffsDirect{{
-		{Sample(-7269.7460840146705), Sample(-1153.6269644681408)},
-		{Sample(6873.9542615465725), Sample(2249.49832298613)},
-		{Sample(-6233.112927451221), Sample(-3231.169694944071)},
-		{Sample(5375.748825117238), Sample(4044.9447064582955)},
-		{Sample(-4342.417812290342), Sample(-4641.588122002079)},
-		{Sample(3186.3241606693873), Sample(4978.553313650463)},
-		{Sample(-1973.9766005177996), Sample(-5022.861171159246)},
-		{Sample(785.8873993487103), Sample(4756.269778694196)},
-		{Sample(282.71569506386146), Sample(-4178.84598080273)},
-		{Sample(-1128.9180148279086), Sample(3326.1903438907666)},
-		{Sample(1631.5917883946736), Sample(-2275.2905592146767)},
-		{Sample(-1707.0096964687405), Sample(1163.2285588293264)},
-		{Sample(1328.988643728629), Sample(-240.92580418306122)},
-		{Sample(-645.8144945563864), Sample(-213.67190644324154)},
-		{Sample(134.01030057976817), Sample(147.25859917059154)}
+		{Sample(-0.9929817778695934), Sample(-0.1575750433287008)},
+		{Sample(0.9389201830003855), Sample(0.3072611915340411)},
+		{Sample(-0.8513870346951454), Sample(-0.4413486518403211)},
+		{Sample(0.7342788076317839), Sample(0.5525029704372728)},
+		{Sample(-0.5931353898262084), Sample(-0.6339991996986816)},
+		{Sample(0.4352210290430343), Sample(0.6800246950487017)},
+		{Sample(-0.2696380329844943), Sample(-0.6860826282271187)},
+		{Sample(0.10731248272712221), Sample(0.649639815820781)},
+		{Sample(0.03856147620927125), Sample(-0.5708656499550461)},
+		{Sample(-0.15422130462080583), Sample(0.454194918424052)},
+		{Sample(0.2229426098747146), Sample(-0.3108762187602678)},
+		{Sample(-0.23302757942745528), Sample(0.15895995656575948)},
+		{Sample(0.18153501928218618), Sample(-0.032741250608135056)},
+		{Sample(-0.08828374758794753), Sample(-0.029093132802625522)},
+		{Sample(0.018274238820460486), Sample(0.02010869929273181)}
 	}};
 	static constexpr std::array<Sample, realCount> realCoeffsDirect{{
-		Sample(3701.7745354960616)
+		Sample(0.5056290298243583)
 	}};
 };
 	}

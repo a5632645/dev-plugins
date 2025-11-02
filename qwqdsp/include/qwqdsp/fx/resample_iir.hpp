@@ -13,8 +13,7 @@ public:
     using T = typename TCoeff::TSample;
 
     void Init(T source_fs, T target_fs) {
-        blep_.Init(source_fs);
-        blep_.SetCutoff(target_fs / 2 * TCoeff::fpass / TCoeff::fstop);
+        blep_.SetCutoffByFpass(std::min(target_fs, source_fs) / 2, source_fs);
         phase_inc_ = source_fs / target_fs;
     }
 
