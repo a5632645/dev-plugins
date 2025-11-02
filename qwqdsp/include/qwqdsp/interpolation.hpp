@@ -141,6 +141,16 @@ struct Interpolation {
         return y0 + frac * (y1 - y0);
     }
 
+    static float Parabola(
+        float yn1, float y0, float y1,
+        float frac
+    ) noexcept {
+        auto C = y0;
+        auto B = y1 - y0;
+        auto A = (y1 + yn1) * 0.5f - y0;
+        return A * frac * (1.0f - frac) + B * frac + C;
+    }
+
     /**
      * @ref https://blogs.mathworks.com/cleve/2019/04/29/makima-piecewise-cubic-interpolation/?from=cn
      */

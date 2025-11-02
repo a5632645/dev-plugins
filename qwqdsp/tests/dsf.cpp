@@ -7,6 +7,7 @@ int main() {
     static constexpr float w = 3.0f * std::numbers::pi_v<float> * 2.0f / 1024.0f;
     {
         // figure 15 上面那个
+        // sum cos 3kt 纯上
         float test[1024]{};
         qwqdsp::oscillor::DSFCorrect<> dsf;
         dsf.SetAmpFactor(0.99f);
@@ -20,6 +21,7 @@ int main() {
     }
     {
         // figure 15 下面那个
+        // 180相位移动
         float test[1024]{};
         qwqdsp::oscillor::DSFCorrect<> dsf;
         dsf.SetAmpFactor(-0.99f);
@@ -33,6 +35,7 @@ int main() {
     }
     {
         // figure 16下面那个
+        // sum cos 1+2n t 上下上下
         float test[1024]{};
         qwqdsp::oscillor::DSFCorrect<> dsf;
         dsf.SetAmpFactor(0.99f);
@@ -46,6 +49,7 @@ int main() {
     }
     {
         // figure 17上面那个
+        // 有pwm的纯上
         float test[1024]{};
         qwqdsp::oscillor::DSFCorrectComplex<false> dsf;
         dsf.SetAmpFactor(0.99f, std::numbers::pi_v<float> / 4.0f);
@@ -59,6 +63,7 @@ int main() {
     }
     {
         // figure 17 下面那个
+        // 有pwm的上下
         float test[1024]{};
         qwqdsp::oscillor::DSFCorrectComplex<true> dsf;
         dsf.SetAmpFactor(0.99f, std::numbers::pi_v<float> / 4.0f);

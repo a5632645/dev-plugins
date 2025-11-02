@@ -4,6 +4,7 @@
 #include "../playing/slider.hpp"
 
 #include "qwqdsp/osciilor/polyblep.hpp"
+#include "qwqdsp/osciilor/polyblep_sync.hpp"
 #include "qwqdsp/convert.hpp"
 
 static constexpr int kWidth = 800;
@@ -33,6 +34,7 @@ static constexpr const char* kWaveformNames[]{
 };
 
 static qwqdsp::oscillor::PolyBlep<qwqdsp::oscillor::blep_coeff::BlackmanNutall> dsp;
+static qwqdsp::oscillor::PolyBlepSync<qwqdsp::oscillor::blep_coeff::BlackmanNutall> dsp2;
 static Waveform waveform = Waveform::Sawtooth;
 
 static void AudioInputCallback(void* _buffer, unsigned int frames) {
@@ -44,7 +46,8 @@ static void AudioInputCallback(void* _buffer, unsigned int frames) {
     switch (waveform) {
         case Sawtooth:
             for (auto& s : buffer) {
-                s.l = dsp.Sawtooth() * 0.5f;
+                // s.l = dsp.Sawtooth() * 0.5f;
+                s.l = dsp2.Sawtooth(false, 0) * 0.5f;
                 s.r = s.l;
             }
             break;
@@ -75,6 +78,7 @@ static void AudioInputCallback(void* _buffer, unsigned int frames) {
         case SyncSawtooth:
             for (auto& s : buffer) {
                 s.l = dsp.SawtoothSync() * 0.5f;
+                // s.l = dsp.SawtoothSync() * 0.5f;
                 s.r = s.l;
             }
             break;
@@ -117,6 +121,7 @@ int main(void) {
     Knob pitch;
     pitch.on_value_change = [](float pitch) {
         dsp.SetFreq(qwqdsp::convert::Pitch2Freq(pitch), kFs);
+        dsp2.SetFreq(qwqdsp::convert::Pitch2Freq(pitch), kFs);
     };
     pitch.set_bound(dsf_bound);
     pitch.set_range(0.0f, 127.0f, 0.1f, 0.0f);
@@ -127,6 +132,7 @@ int main(void) {
     Knob pwm;
     pwm.on_value_change = [](float width) {
         dsp.SetPWM(width);
+        dsp2.SetPWM(width);
     };
     dsf_bound.y += dsf_bound.height;
     pwm.set_bound(dsf_bound);

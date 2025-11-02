@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <span>
 
@@ -7,12 +8,37 @@
 #include "../playing/slider.hpp"
 
 #include "qwqdsp/osciilor/blit.hpp"
+#include "qwqdsp/osciilor/blit_pwm.hpp"
 
 static constexpr int kWidth = 500;
 static constexpr int kHeight = 400;
 static constexpr float kFs = 48000.0f;
 
+enum Waveform {
+    Impluse = 0,
+    OddImpluse,
+    Sawtooth,
+    Square,
+    Triangle,
+    Sine,
+    PwmImpluse,
+    PWM,
+    NumWaveforms
+};
+static constexpr const char* kWaveformNames[]{
+    "impluse",
+    "odd impluse",
+    "saw",
+    "square",
+    "triangle",
+    "sine",
+    "pwm_impluse",
+    "pwm"
+};
+
+static Waveform waveform = Waveform::Sawtooth;
 static qwqdsp::oscillor::Blit dsp;
+static qwqdsp::oscillor::BlitPWM dsp2;
 
 static void AudioInputCallback(void* _buffer, unsigned int frames) {
     struct T {
@@ -20,14 +46,63 @@ static void AudioInputCallback(void* _buffer, unsigned int frames) {
         float r;
     };
     std::span buffer{reinterpret_cast<T*>(_buffer), frames};
-    for (auto& s : buffer) {
-        s.l = dsp.Triangle();
-        s.r = s.l;
+
+    switch (waveform) {
+    case Impluse:
+        for (auto& s : buffer) {
+            s.l = dsp.Impluse();
+            s.r = s.l;
+        }
+        break;
+    case OddImpluse:
+        for (auto& s : buffer) {
+            s.l = dsp.OddImpluse();
+            s.r = s.l;
+        }
+        break;
+    case Sawtooth:
+        for (auto& s : buffer) {
+            s.l = dsp.Sawtooth();
+            s.r = s.l;
+        }
+        break;
+    case Square:
+        for (auto& s : buffer) {
+            s.l = dsp.Sqaure();
+            s.r = s.l;
+        }
+        break;
+    case Triangle:
+        for (auto& s : buffer) {
+            s.l = dsp.Triangle();
+            s.r = s.l;
+        }
+        break;
+    case Sine:
+        for (auto& s : buffer) {
+            s.l = dsp.Sine();
+            s.r = s.l;
+        }
+        break;
+    case PwmImpluse:
+        for (auto& s : buffer) {
+            s.l = dsp2.Impluse();
+            s.r = s.l;
+        }
+        break;
+    case PWM:
+        for (auto& s : buffer) {
+            s.l = dsp2.PWM();
+            s.r = s.l;
+        }
+        break;
+    default:
+        assert(false);
     }
 }
 
 int main(void) {
-    InitWindow(kWidth, kHeight, "formant");
+    InitWindow(kWidth, kHeight, "simple blit oscillator");
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(512);
@@ -44,6 +119,7 @@ int main(void) {
     Knob w;
     w.on_value_change = [](float v) {
         dsp.SetW(v);
+        dsp2.SetW(v);
     };
     dsf_bound.y += dsf_bound.height;
     w.set_bound(dsf_bound);
@@ -51,9 +127,11 @@ int main(void) {
     w.set_bg_color(BLACK);
     w.set_fore_color(RAYWHITE);
     w.set_title("w");
+
     Knob N;
     N.on_value_change = [](float v) {
-        // dsp.SetN(v);
+        dsp.SetNLimit(v);
+        dsp2.SetNLimit(v);
     };
     dsf_bound.y += dsf_bound.height;
     N.set_bound(dsf_bound);
@@ -61,9 +139,11 @@ int main(void) {
     N.set_bg_color(BLACK);
     N.set_fore_color(RAYWHITE);
     N.set_title("n");
+
     Knob amp;
     amp.on_value_change = [](float v) {
         dsp.SetAmp(v);
+        dsp2.SetAmp(v);
     };
     dsf_bound.y += dsf_bound.height;
     amp.set_bound(dsf_bound);
@@ -71,9 +151,10 @@ int main(void) {
     amp.set_bg_color(BLACK);
     amp.set_fore_color(RAYWHITE);
     amp.set_title("amp");
+    
     Knob pwm;
     pwm.on_value_change = [](float v) {
-        // dsp.SetPWM(v);
+        dsp2.SetPWM(v);
     };
     dsf_bound.y += dsf_bound.height;
     pwm.set_bound(dsf_bound);
@@ -81,6 +162,13 @@ int main(void) {
     pwm.set_bg_color(BLACK);
     pwm.set_fore_color(RAYWHITE);
     pwm.set_title("pwm");
+
+    dsf_bound.y += dsf_bound.height;
+    auto waveform_bound = dsf_bound;
+    waveform_bound.width = GetScreenWidth();
+    waveform_bound.height = 30;
+    float each_width = waveform_bound.width / static_cast<float>(NumWaveforms);
+    size_t num_waveforms = static_cast<size_t>(NumWaveforms);
     
     SetTargetFPS(30);
     while (!WindowShouldClose()) {
@@ -92,6 +180,26 @@ int main(void) {
             N.display();
             amp.display();
             pwm.display();
+
+            auto mouse_pos = GetMousePosition();
+            for (size_t i = 0; i < num_waveforms; ++i) {
+                float x = i * each_width;
+                float y = waveform_bound.y;
+                float w = each_width - 2;
+                float h = waveform_bound.height;
+                if (CheckCollisionPointRec(mouse_pos, Rectangle{x,y,w,h}) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    waveform = static_cast<Waveform>(i);
+                }
+
+                if (i != waveform) {
+                    DrawRectangleLines(x, y, w, h, WHITE);
+                    DrawText(kWaveformNames[i], x, y, 12, WHITE);
+                }
+                else {
+                    DrawRectangle(x, y, w, h, WHITE);
+                    DrawText(kWaveformNames[i], x, y, 12, BLACK);
+                }
+            }
         }
         EndDrawing();
     }

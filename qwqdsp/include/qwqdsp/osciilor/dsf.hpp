@@ -2,7 +2,7 @@
 #include <complex>
 #include <cstddef>
 #include <numbers>
-#include "qwqdsp/osciilor/table_sine_osc.hpp"
+#include "qwqdsp/osciilor/table_sine_v3.hpp"
 
 namespace qwqdsp::oscillor {
 /**
@@ -15,15 +15,16 @@ template<size_t kLookupTableFrac = 13>
 class DSFClassic {
 public:
     void Reset() noexcept {
-        w_osc_.Reset();
-        w0_osc_.Reset();
+        w0_phase_ = 0;
+        w_phase_ = 0;
     }
 
     std::complex<float> Tick() noexcept {
-        w_osc_.Tick();
-        w0_osc_.Tick();
-        auto up = w0_osc_.GetCpx() * (1.0f - a_pow_n_ * w_osc_.GetNPhaseCpx(n_));
-        auto down = 1.0f - a_ * w_osc_.GetCpx();
+        w_phase_ += w_inc_;
+        w0_phase_ += w0_inc_;
+
+        auto up = sine_lut_.GetCpx(w0_phase_) * (1.0f - a_pow_n_ * sine_lut_.GetCpx(n_ * w_phase_));
+        auto down = 1.0f - a_ * sine_lut_.GetCpx(w_phase_);
         return up / down;
     }
 
@@ -31,7 +32,7 @@ public:
      * @param w0 0~pi
      */
     void SetW0(float w0) noexcept {
-        w0_osc_.SetFreq(w0);
+        w0_inc_ = sine_lut_.Omega2PhaseInc(w0);
         w0_ = w0;
         CheckAlasing();
     }
@@ -40,7 +41,7 @@ public:
      * @param w 0~pi
      */
     void SetWSpace(float w) noexcept {
-        w_osc_.SetFreq(w);
+        w_inc_ = sine_lut_.Omega2PhaseInc(w);
         w_ = w;
         CheckAlasing();
     }
@@ -48,7 +49,7 @@ public:
     /**
      * @param n >0
      */
-    void SetN(size_t n) noexcept {
+    void SetN(uint32_t n) noexcept {
         set_n_ = n;
         CheckAlasing();
     }
@@ -90,14 +91,17 @@ private:
         a_pow_n_ = std::pow(a_, static_cast<float>(n_));
     }
 
-    TableSineOsc<kLookupTableFrac> w0_osc_{};
-    TableSineOsc<kLookupTableFrac> w_osc_{};
+    TableSineV3<float, kLookupTableFrac> sine_lut_;
+    uint32_t w0_phase_{};
+    uint32_t w_phase_{};
+    uint32_t w0_inc_{};
+    uint32_t w_inc_{};
     float w_{};
     float w0_{};
     float a_{};
     float a_pow_n_{};
-    size_t n_{};
-    size_t set_n_{};
+    uint32_t n_{};
+    uint32_t set_n_{};
 };
 
 /**
@@ -111,31 +115,31 @@ template<size_t kLookupTableFrac = 13>
 class DSFComplexFactor {
 public:
     void Reset() noexcept {
-        w_osc_.Reset();
-        w0_osc_.Reset();
+        w_phase_ = 0;
+        w0_phase_ = 0;
     }
     
     std::complex<float> Tick() noexcept {
-        w_osc_.Tick();
-        w0_osc_.Tick();
-        auto up = w0_osc_.GetCpx() * (1.0f - a_pow_n_ * w_osc_.GetNPhaseCpx(n_));
-        auto down = 1.0f - a_ * w_osc_.GetCpx();
+        w_phase_ += w_inc_;
+        w0_phase_ += w0_inc_;
+        auto up = sine_lut_.GetCpx(w0_phase_) * (1.0f - a_pow_n_ * sine_lut_.GetCpx(n_ * w_phase_));
+        auto down = 1.0f - a_ * sine_lut_.GetCpx(w_phase_);
         return up / down;
     }
 
     void SetW0(float w0) noexcept {
-        w0_osc_.SetFreq(w0);
+        w0_inc_ = sine_lut_.Omega2PhaseInc(w0);
         w0_ = w0;
         CheckAlasing();
     }
 
     void SetWSpace(float w) noexcept {
-        w_osc_.SetFreq(w);
+        w_inc_ = sine_lut_.Omega2PhaseInc(w);
         w_ = w;
         CheckAlasing();
     }
 
-    void SetN(size_t n) noexcept {
+    void SetN(uint32_t n) noexcept {
         set_n_ = n;
         CheckAlasing();
     }
@@ -185,15 +189,18 @@ private:
         a_pow_n_ = std::pow(a_, static_cast<float>(n_));
     }
 
-    TableSineOsc<kLookupTableFrac> w0_osc_{};
-    TableSineOsc<kLookupTableFrac> w_osc_{};
+    TableSineV3<float, kLookupTableFrac> sine_lut_;
+    uint32_t w0_phase_{};
+    uint32_t w_phase_{};
+    uint32_t w0_inc_{};
+    uint32_t w_inc_{};
     float w_{};
     float w0_{};
     float factor_gain_{};
     float factor_phase_{};
     std::complex<float> a_{};
     std::complex<float> a_pow_n_{};
-    size_t n_{};
-    size_t set_n_{};
+    uint32_t n_{};
+    uint32_t set_n_{};
 };
 }

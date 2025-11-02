@@ -1,30 +1,34 @@
 #pragma once
-#include "qwqdsp/osciilor/table_sine_osc.hpp"
+#include <complex>
+#include "qwqdsp/osciilor/table_sine_v3.hpp"
 
 namespace qwqdsp::oscillor {
 /**
  * @ref https://www.verklagekasper.de/synths/dsfsynthesis/dsfsynthesis.html
  * @ref https://ccrma.stanford.edu/~stilti/papers/blit.pdf
  */
-template<size_t kLookupTableFracBits = 13>
+template<size_t kLookupTableFracBits = 10>
 class DSFCorrect {
 public:
     void Reset() noexcept {
-        w_osc_.Reset();
-        w0_osc_.Reset();
+        w0_phase_ = 0;
+        w_phase_ = 0;
     }
 
     float Tick() noexcept {
-        float const sinu = w0_osc_.Tick();
-        float const cosu = w0_osc_.Cosine();
-        float const sinv = w_osc_.Tick();
-        float const cosv = w_osc_.Cosine();
-        auto const v_nsub1 = w_osc_.GetNPhaseCpx(n_ - 1);
-        float const cosv_nsub1 = v_nsub1.real();
-        float const sinv_nsub1 = v_nsub1.imag();
-        auto const v_n = w_osc_.GetNPhaseCpx(n_);
-        float const cosv_n = v_n.real();
-        float const sinv_n = v_n.imag();
+        w_phase_ += w_inc_;
+        w0_phase_ += w0_inc_;
+
+        float const sinu = sine_lut_.Sine(w0_phase_);
+        float const cosu = sine_lut_.Cosine(w0_phase_);
+        float const sinv = sine_lut_.Sine(w_phase_);
+        float const cosv = sine_lut_.Cosine(w_phase_);
+        uint32_t v_nsub1_phase = (n_ - 1) * w_phase_;
+        float const cosv_nsub1 = sine_lut_.Cosine(v_nsub1_phase);
+        float const sinv_nsub1 = sine_lut_.Sine(v_nsub1_phase);
+        uint32_t v_n = n_ * w_phase_;
+        float const cosv_n = sine_lut_.Cosine(v_n);
+        float const sinv_n = sine_lut_.Sine(v_n);
 
         float const up1 = -a_ * (cosv * cosu + sinv * sinu);
         float const up2 = cosu;
@@ -40,7 +44,7 @@ public:
      * @param w0 0~pi
      */
     void SetW0(float w0) noexcept {
-        w0_osc_.SetFreq(w0);
+        w0_inc_ = sine_lut_.Omega2PhaseInc(w0);
         w0_ = w0;
         CheckAlasing();
     }
@@ -49,7 +53,7 @@ public:
      * @param w 0~pi
      */
     void SetWSpace(float w) noexcept {
-        w_osc_.SetFreq(w);
+        w_inc_ = sine_lut_.Omega2PhaseInc(w);
         w_ = w;
         CheckAlasing();
     }
@@ -57,7 +61,7 @@ public:
     /**
      * @param n >0
      */
-    void SetN(size_t n) noexcept {
+    void SetN(uint32_t n) noexcept {
         set_n_ = n;
         CheckAlasing();
     }
@@ -86,8 +90,8 @@ private:
             UpdateA();
         }
         else {
-            size_t max_n = static_cast<size_t>((std::numbers::pi_v<float> - w0_) / w_);
-            size_t newn = std::min(max_n, set_n_);
+            uint32_t max_n = static_cast<uint32_t>((std::numbers::pi_v<float> - w0_) / w_);
+            uint32_t newn = std::min(max_n, set_n_);
             if (n_ != newn) {
                 n_ = newn;
                 UpdateA();
@@ -99,10 +103,14 @@ private:
         a_pow_n_ = std::pow(a_, static_cast<float>(n_));
     }
 
-    oscillor::TableSineOsc<kLookupTableFracBits> w0_osc_;
-    oscillor::TableSineOsc<kLookupTableFracBits> w_osc_;
-    size_t n_{};
-    size_t set_n_{};
+    oscillor::TableSineV3<float, kLookupTableFracBits> sine_lut_;
+    uint32_t w0_phase_{};
+    uint32_t w_phase_{};
+    uint32_t w0_inc_{};
+    uint32_t w_inc_{};
+
+    uint32_t n_{};
+    uint32_t set_n_{};
     float a_{};
     float a_pow_n_{};
     float w0_{};
@@ -115,25 +123,28 @@ private:
  *           true: sum(w^n * sin(u + nv))
  *          false: sum(w^n * cos(u + nv))
  */
-template<bool kFlipDown, size_t kLookupTableFracBits = 13>
+template<bool kFlipDown, size_t kLookupTableFracBits = 10>
 class DSFCorrectComplex {
 public:
     void Reset() noexcept {
-        w_osc_.Reset();
-        w0_osc_.Reset();
+        w0_osc_phase_ = 0;
+        w_osc_phase_ = 0;
     }
     
     float Tick() noexcept {
-        float const sinu = w0_osc_.Tick();
-        float const cosu = w0_osc_.Cosine();
-        float const sinv = w_osc_.Tick();
-        float const cosv = w_osc_.Cosine();
-        auto const v_nsub1 = w_osc_.GetNPhaseCpx(n_ - 1);
-        float const cosv_nsub1 = v_nsub1.real();
-        float const sinv_nsub1 = v_nsub1.imag();
-        auto const v_n = w_osc_.GetNPhaseCpx(n_);
-        float const cosv_n = v_n.real();
-        float const sinv_n = v_n.imag();
+        w_osc_phase_ += w_osc_inc_;
+        w0_osc_phase_ += w0_osc_inc_;
+
+        float const sinu = sine_lut_.Sine(w0_osc_phase_);
+        float const cosu = sine_lut_.Cosine(w0_osc_phase_);
+        float const sinv = sine_lut_.Sine(w_osc_phase_);
+        float const cosv = sine_lut_.Cosine(w_osc_phase_);
+        uint32_t v_nsub1_phase = (n_ - 1) * w_osc_phase_;
+        float const cosv_nsub1 = sine_lut_.Cosine(v_nsub1_phase);
+        float const sinv_nsub1 = sine_lut_.Sine(v_nsub1_phase);
+        uint32_t v_n = n_ * w_osc_phase_;
+        float const cosv_n = sine_lut_.Cosine(v_n);
+        float const sinv_n = sine_lut_.Sine(v_n);
 
         if constexpr (kFlipDown) {
             auto const up1 = a_ * (sinv * cosu - cosv * sinu);
@@ -161,7 +172,7 @@ public:
      * @param w0 0~pi
      */
     void SetW0(float w0) noexcept {
-        w0_osc_.SetFreq(w0);
+        w0_osc_inc_ = sine_lut_.Omega2PhaseInc(w0);
         w0_ = w0;
         CheckAlasing();
     }
@@ -170,7 +181,7 @@ public:
      * @param w 0~pi
      */
     void SetWSpace(float w) noexcept {
-        w_osc_.SetFreq(w);
+        w_osc_inc_ = sine_lut_.Omega2PhaseInc(w);
         w_ = w;
         CheckAlasing();
     }
@@ -178,7 +189,7 @@ public:
     /**
      * @param n >0
      */
-    void SetN(size_t n) noexcept {
+    void SetN(uint32_t n) noexcept {
         set_n_ = n;
         CheckAlasing();
     }
@@ -207,8 +218,8 @@ private:
             UpdateA();
         }
         else {
-            size_t max_n = static_cast<size_t>((std::numbers::pi_v<float> - w0_) / w_);
-            size_t newn = std::min(max_n, set_n_);
+            uint32_t max_n = static_cast<uint32_t>((std::numbers::pi_v<float> - w0_) / w_);
+            uint32_t newn = std::min(max_n, set_n_);
             if (n_ != newn) {
                 n_ = newn;
                 UpdateA();
@@ -220,10 +231,14 @@ private:
         a_pow_n_ = std::pow(a_, static_cast<float>(n_));
     }
 
-    oscillor::TableSineOsc<kLookupTableFracBits> w0_osc_;
-    oscillor::TableSineOsc<kLookupTableFracBits> w_osc_;
-    size_t n_{};
-    size_t set_n_{};
+    oscillor::TableSineV3<float, kLookupTableFracBits> sine_lut_;
+    uint32_t w_osc_phase_{};
+    uint32_t w_osc_inc_{};
+    uint32_t w0_osc_phase_{};
+    uint32_t w0_osc_inc_{};
+
+    uint32_t n_{};
+    uint32_t set_n_{};
     std::complex<float> a_{};
     std::complex<float> a_pow_n_{};
     float w0_{};
