@@ -4,7 +4,7 @@
 
 namespace qwqdsp::misc {
 template <bool kUseClamp = true>
-class Integrator {
+class IntegratorNaive {
 public:
     void Reset() noexcept {
         latch_ = 0.0f;
@@ -24,7 +24,7 @@ private:
 };
 
 template<class T, T kLeak = T(0.997)>
-class IntegratorLeak {
+class IntegratorNaiveLeak {
 public:
     void Reset() noexcept {
         sum_ = 0;
@@ -44,36 +44,36 @@ private:
     T sum_{};
 };
 
+template<class T>
 class IntegratorTrapezoidal {
 public:
     void Reset() noexcept {
         lag_ = 0;
     }
 
-    float Tick(float x) noexcept {
-        x *= 0.5f;
+    T Tick(float x) noexcept {
+        x *= T(0.5);
         float const y = x + lag_;
         lag_ = x + y;
         return y;
     }
 private:
-    float lag_{};
+    T lag_{};
 };
 
 template <class T, T kLeak = T(0.997)>
 class IntegratorTrapezoidalLeak {
 public:
     void Reset() noexcept {
-        sum_ = 0;
-        latch_ = 0;
+        lag_ = 0;
     }
 
     T Tick(T x) noexcept {
-        T const t = (x + latch_) / 2;
-        latch_ = x;
-        sum_ *= kLeak;
-        sum_ += t;
-        return sum_;
+        T const x_prime = x * T(0.5); 
+        lag_ *= kLeak; 
+        T const y = x_prime + lag_;
+        lag_ += x_prime; 
+        return y;
     }
 
     T Gain(T const w) const noexcept {
@@ -82,7 +82,6 @@ public:
         return std::sqrt(down / up);
     }
 private:
-    T sum_{};
-    T latch_{};
+    T lag_{};
 };
 }

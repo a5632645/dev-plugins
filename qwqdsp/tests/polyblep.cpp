@@ -7,7 +7,7 @@
 #include "qwqdsp/osciilor/polyblep_sync.hpp"
 #include "qwqdsp/convert.hpp"
 
-static constexpr int kWidth = 800;
+static constexpr int kWidth = 1000;
 static constexpr int kHeight = 400;
 static constexpr float kFs = 48000.0f;
 
@@ -18,8 +18,9 @@ enum Waveform {
     PwmNoDC,
     Triangle,
     SyncSawtooth,
-    SyncSquare,
     SyncPWM,
+    Sine,
+    SyncTriangle,
     NumWaveforms
 };
 static constexpr const char* kWaveformNames[]{
@@ -29,13 +30,16 @@ static constexpr const char* kWaveformNames[]{
     "pwm noDC",
     "triangle",
     "sync saw",
-    "sync square",
-    "sync pwm"
+    "sync pwm",
+    "sine",
+    "sync tri"
 };
 
-static qwqdsp::oscillor::PolyBlep<qwqdsp::oscillor::blep_coeff::BlackmanNutall> dsp;
-static qwqdsp::oscillor::PolyBlepSync<qwqdsp::oscillor::blep_coeff::BlackmanNutall> dsp2;
+static qwqdsp::oscillor::PolyBlep<qwqdsp::oscillor::blep_coeff::BlackmanNutallApprox> dsp;
+static qwqdsp::oscillor::PolyBlepSync<qwqdsp::oscillor::blep_coeff::BlackmanNutallApprox> dsp2;
 static Waveform waveform = Waveform::Sawtooth;
+static float master_phase_{};
+static float master_phase_inc_{0.00001f};
 
 static void AudioInputCallback(void* _buffer, unsigned int frames) {
     struct T {
@@ -46,8 +50,8 @@ static void AudioInputCallback(void* _buffer, unsigned int frames) {
     switch (waveform) {
         case Sawtooth:
             for (auto& s : buffer) {
-                // s.l = dsp.Sawtooth() * 0.5f;
-                s.l = dsp2.Sawtooth(false, 0) * 0.5f;
+                s.l = dsp.Sawtooth() * 0.5f;
+                // s.l = dsp2.Sawtooth(false, 0) * 0.5f;
                 s.r = s.l;
             }
             break;
@@ -77,20 +81,38 @@ static void AudioInputCallback(void* _buffer, unsigned int frames) {
             break;
         case SyncSawtooth:
             for (auto& s : buffer) {
-                s.l = dsp.SawtoothSync() * 0.5f;
-                // s.l = dsp.SawtoothSync() * 0.5f;
+                master_phase_ += master_phase_inc_;
+                bool reset = master_phase_ > 1.0f;
+                master_phase_ -= std::floor(master_phase_);
+                s.l = dsp2.Sawtooth(reset, master_phase_ / master_phase_inc_) * 0.5f;
                 s.r = s.l;
             }
             break;
         case SyncPWM:
             for (auto& s : buffer) {
-                s.l = dsp.PWMSync() * 0.5f;
+                master_phase_ += master_phase_inc_;
+                bool reset = master_phase_ > 1.0f;
+                master_phase_ -= std::floor(master_phase_);
+                s.l = dsp2.PWM(reset, master_phase_ / master_phase_inc_) * 0.5f;
+                // s.l = dsp.PWMSync() * 0.5f;
                 s.r = s.l;
             }
             break;
-        case SyncSquare:
+        case Sine:
             for (auto& s : buffer) {
-                s.l = dsp.SqaureSync() * 0.5f;
+                master_phase_ += master_phase_inc_;
+                bool reset = master_phase_ > 1.0f;
+                master_phase_ -= std::floor(master_phase_);
+                s.l = dsp2.Sine(reset, master_phase_ / master_phase_inc_) * 0.5f;
+                s.r = s.l;
+            }
+            break;
+        case SyncTriangle:
+            for (auto& s : buffer) {
+                master_phase_ += master_phase_inc_;
+                bool reset = master_phase_ > 1.0f;
+                master_phase_ -= std::floor(master_phase_);
+                s.l = dsp2.Triangle(reset, master_phase_ / master_phase_inc_) * 0.5f;
                 s.r = s.l;
             }
             break;
@@ -115,19 +137,31 @@ int main(void) {
     Rectangle dsf_bound;
     dsf_bound.x = 0;
     dsf_bound.y = 0;
-    dsf_bound.width = 100;
-    dsf_bound.height = 100;
+    dsf_bound.width = 50;
+    dsf_bound.height = 50;
 
     Knob pitch;
     pitch.on_value_change = [](float pitch) {
-        dsp.SetFreq(qwqdsp::convert::Pitch2Freq(pitch), kFs);
-        dsp2.SetFreq(qwqdsp::convert::Pitch2Freq(pitch), kFs);
+        float f = qwqdsp::convert::Pitch2Freq(pitch);
+        dsp.SetFreq(f, kFs);
+        master_phase_inc_ = f / kFs;
     };
     pitch.set_bound(dsf_bound);
     pitch.set_range(0.0f, 127.0f, 0.1f, 0.0f);
     pitch.set_bg_color(BLACK);
     pitch.set_fore_color(RAYWHITE);
     pitch.set_title("pitch");
+
+    Knob slave_pitch;
+    slave_pitch.on_value_change = [](float pitch) {
+        dsp2.SetFreq(qwqdsp::convert::Pitch2Freq(pitch), kFs);
+    };
+    dsf_bound.y += dsf_bound.height;
+    slave_pitch.set_bound(dsf_bound);
+    slave_pitch.set_range(0.0f, 127.0f, 0.1f, 0.0f);
+    slave_pitch.set_bg_color(BLACK);
+    slave_pitch.set_fore_color(RAYWHITE);
+    slave_pitch.set_title("slave_pitch");
 
     Knob pwm;
     pwm.on_value_change = [](float width) {
@@ -168,6 +202,7 @@ int main(void) {
             pitch.display();
             pwm.display();
             sync.display();
+            slave_pitch.display();
 
             auto mouse_pos = GetMousePosition();
             for (size_t i = 0; i < num_waveforms; ++i) {

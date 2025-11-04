@@ -1,124 +1,15 @@
 #pragma once
 #include <algorithm>
-#include <cmath>
-#include <numbers>
-#include <complex>
+#include "qwqdsp/osciilor/blep_coeff.hpp"
+#include "qwqdsp/polymath.hpp"
 
 namespace qwqdsp::oscillor {
-namespace blep_coeff2 {
-static constexpr float x2(float x) noexcept {
-    return x * x;
-}
-static constexpr float x3(float x) noexcept {
-    return x2(x) * x;
-}
-static constexpr float x4(float x) noexcept {
-    return x2(x) * x2(x);
-}
-static constexpr float x5(float x) noexcept {
-    return x2(x) * x3(x);
-}
-
-struct Triangle {
-    static constexpr float kHalfLen = 1.0f;
-    /**
-     * @param x[0..kHalfLen]
-     */
-    static constexpr float GetHalf(float x) noexcept {
-        float v = x - 1.0f;
-        return -v * v * 0.5f;
-    }
-
-    /**
-     * @param x[0..kHalfLen]
-     */
-    static constexpr float GetBlampHalf(float x) noexcept {
-        float v = x - 1;
-        return -v * v * v / 6;
-    }
-};
-
-struct Hann {
-    static constexpr float kHalfLen = 2.0f;
-    static float GetHalf(float x) noexcept {
-        constexpr float half_pi = std::numbers::pi_v<float> / 2;
-        constexpr float inv_twopi = 1.0f / (std::numbers::pi_v<float> * 2);
-        return x * 0.25f + std::sin(half_pi * x) * inv_twopi - 0.5f;
-    }
-
-    static float GetBlampHalf(float x) noexcept {
-        constexpr float inv_pi2 = 1.0f / x2(std::numbers::pi_v<float>);
-        constexpr float half_pi = std::numbers::pi_v<float> / 2;
-        return (1.0f - x) / 2.0f + x2(x) / 8.0f - inv_pi2 * (1.0f + std::cos(half_pi * x));
-    }
-};
-
-struct BSpline {
-    static constexpr float kHalfLen = 2.0f;
-    static constexpr float GetHalf(float x) noexcept {
-        const float is_less_than_one_mask = x - 1.0f; 
-        const float result_if_less = (x2(x) - 2.0f) * (6.0f - 8.0f * x + 3.0f * x2(x)) / 24.0f;
-        const float result_if_greater = -x4(x - 2.0f) / 24.0f;
-        return (is_less_than_one_mask < 0.0f) 
-            ? result_if_less 
-            : result_if_greater;
-    }
-
-    static constexpr float GetBlampHalf(float x) noexcept {
-        const float is_less_than_one_mask = x - 1.0f; 
-        const float result_if_less = (28.0f - 60.0f * x + 40.0f * x2(x) - 10.0f * x4(x) + 3.0f * x5(x)) / 120.0f;
-        const float result_if_greater = -x5(x - 2.0f) / 120.0f;
-        return (is_less_than_one_mask < 0.0f) 
-            ? result_if_less 
-            : result_if_greater;
-    }
-};
-
-struct BlackmanNutall {
-    static constexpr float kHalfLen = 3.0f;
-    static float GetHalf(float x) noexcept {
-        constexpr auto invpi = std::numbers::inv_pi_v<float>;
-        constexpr auto pi = std::numbers::pi_v<float>;
-        constexpr auto a1 = 0.166666666666667f;
-        constexpr auto a2 = 0.672719819110907f * invpi;
-        constexpr auto a3 = 0.0939262240502071f * invpi;
-        constexpr auto a4 = 0.00487790142101867f * invpi;
-
-        auto c = std::polar(1.0f, x * (pi / 3));
-        auto r = c;
-
-        float y = 0;
-        y += a1 * x;
-        y += a2 * r.imag();
-        r *= c;
-        y += a3 * r.imag();
-        r *= c;
-        y += a4 * r.imag();
-        r *= c;
-        y -= 0.5f;
-        return y;
-    }
-
-    static float GetBlampHalf(float x) noexcept {
-        const float is_less_than_one_mask = x - 1.0f; 
-        const float result_if_less = (28.0f - 60.0f * x + 40.0f * x2(x) - 10.0f * x4(x) + 3.0f * x5(x)) / 120.0f;
-        const float result_if_greater = -x5(x - 2.0f) / 120.0f;
-        return (is_less_than_one_mask < 0.0f) 
-            ? result_if_less 
-            : result_if_greater;
-    }
-};
-
-template<class T>
-concept CBlepCoeff = requires (float x) {
-    {T::GetHalf(x)} -> std::same_as<float>;
-    {T::GetBlampHalf(x)} -> std::same_as<float>;
-    T::kHalfLen;
-};
-}
-
-// qwqfixme: 增强
-template<qwqdsp::oscillor::blep_coeff2::CBlepCoeff TCoeff>
+/**
+ * @note
+ * 一个省脑子的编写Hardsync的方法是先写出无嵌套分支的blep代码，然后假设所有跳跃都会发生
+ *       屏蔽发生在sync之后的跳跃,最后再检测一次重置之后的跳跃
+ */
+template<qwqdsp::oscillor::blep_coeff::CBlepCoeff TCoeff>
 class PolyBlepSync {
 public:
     static constexpr size_t kDelay = static_cast<size_t>(TCoeff::kHalfLen);
@@ -138,50 +29,176 @@ public:
     }
 
     float Sawtooth(bool reset, float sync_samples_before) noexcept {
-        // float last_phase = phase_;
-        // phase_ += phase_inc_;
-        // if (phase_ > 1) {
-        //     phase_ -= 1;
-        //     float happen_before = phase_ / phase_inc_;
-        //     if (reset) {
-        //         if (happen_before > sync_samples_before) {
-        //             AddBlep(wpos_, happen_before, -1.0f);
-        //             AddBlep(wpos_, sync_samples_before, -phase_inc_ * (happen_before - sync_samples_before));
-        //             phase_ = sync_samples_before * phase_inc_;
-        //         }
-        //         else {
-        //             AddBlep(wpos_, sync_samples_before, -(last_phase + (1-sync_samples_before)*phase_inc_));
-        //             phase_ = sync_samples_before * phase_inc_;
-        //         }
-        //     }
-        //     else {
-        //         AddBlep(wpos_, happen_before, -1.0f);
-        //     }
-        // }
-        // else if (reset) {
-        //     AddBlep(wpos_, sync_samples_before, -phase_);
-        //     phase_ = sync_samples_before * phase_inc_;
-        // }
-
+        phase_ += phase_inc_;
+        if (phase_ > 1) {
+            phase_ -= 1;
+            float self_reset_samples_before = phase_ / phase_inc_;
+            // 无硬同步或者硬同步发生在溢出之后
+            if (!reset || self_reset_samples_before > sync_samples_before) {
+                AddBlep(wpos_, self_reset_samples_before, -1);
+            }
+            // 有硬同步且发生在溢出之前,用于计算jump
+            else {
+                phase_ += 1;
+            }
+        }
         if (reset) {
-            AddBlep(wpos_, sync_samples_before, -phase_);
-            phase_ = sync_samples_before * phase_inc_;
+            float sync_going = phase_inc_ * sync_samples_before;
+            float jump_size = phase_ - sync_going;
+            AddBlep(wpos_, sync_samples_before, -jump_size);
+            phase_ = sync_going;
         }
         if (phase_ > 1) {
             phase_ -= 1;
-            float happen_before = phase_ / phase_inc_;
-            AddBlep(wpos_, happen_before, -1);
         }
-        buffer_[wpos_] += phase_;
-        naive_buffer_[wpos_] = phase_;
+        buffer_[wpos_] += NaiveSaw(phase_);
         float out = buffer_[rpos_];
         buffer_[rpos_] = 0;
         rpos_ = (rpos_ + 1) & kDelayMask;
         wpos_ = (wpos_ + 1) & kDelayMask;
-        phase_ += phase_inc_;
         return 2 * out - 1;
     }
+
+    // qwqfixme: add sync
+    // float PWM(bool reset, float sync_frac_samples_before) noexcept {
+    //     float last_phase = phase_;
+    //     phase_ += phase_inc_;
+    //     if (last_phase < pwm_ && phase_ > pwm_) {
+    //         float t = (phase_ - pwm_) / phase_inc_;
+    //         AddBlep(wpos_, t, -1.0f);
+    //     }
+    //     if (phase_ > 1) {
+    //         phase_ -= 1;
+    //         float t = phase_ / phase_inc_;
+    //         AddBlep(wpos_, t, 1.0f);
+    //         if (phase_ > pwm_) {
+    //             float t = (phase_ - pwm_) / phase_inc_;
+    //             AddBlep(wpos_, t, -1.0f);
+    //         }
+    //     }
+    //     buffer_[wpos_] += NaivePwm(phase_);
+    //     float out = buffer_[rpos_];
+    //     buffer_[rpos_] = 0;
+    //     rpos_ = (rpos_ + 1) & kDelayMask;
+    //     wpos_ = (wpos_ + 1) & kDelayMask;
+    //     return 2 * out - 1;
+    // }
+    float PWM(bool reset, float sync_frac_samples_before) noexcept {
+        bool high = phase_ < pwm_;
+        phase_ += phase_inc_;
+        if (!high && phase_ > 1) {
+            phase_ -= 1;
+            auto t = phase_ / phase_inc_;
+            if (!reset || t > sync_frac_samples_before) {
+                AddBlep(wpos_, t, 1);
+                high = true;
+            }
+        }
+        if (high && phase_ > pwm_) {
+            auto t = (phase_ - pwm_) / phase_inc_;
+            if (!reset || t > sync_frac_samples_before) {
+                AddBlep(wpos_, t, -1);
+                high = false;
+            }
+        }
+        if (!high && phase_ > 1) {
+            phase_ -= 1;
+            auto t = phase_ / phase_inc_;
+            if (!reset || t > sync_frac_samples_before) {
+                AddBlep(wpos_, t, 1);
+                high = true;
+            }
+        }
+        if (reset) {
+            phase_ = sync_frac_samples_before * phase_inc_;
+            float trans = !high ? 1.0f : 0.0f;
+            AddBlep(wpos_, sync_frac_samples_before, trans);
+
+            auto tphase = phase_inc_ * sync_frac_samples_before;
+            if (tphase > pwm_) {
+                auto t = (tphase - pwm_) / phase_inc_;
+                AddBlep(wpos_, t, -1);
+            }
+        }
+
+        buffer_[wpos_] += NaivePwm(phase_);
+        float out = buffer_[rpos_];
+        buffer_[rpos_] = 0;
+        rpos_ = (rpos_ + 1) & kDelayMask;
+        wpos_ = (wpos_ + 1) & kDelayMask;
+        return 2 * out - 1;
+    }
+
+    // qwqfixme: 高频有混叠
+    float Sine(bool reset, float sync_frac_samples_before) noexcept {
+        phase_ += phase_inc_;
+        phase_ -= std::floor(phase_);
+
+        if (reset) {
+            phase_ -= sync_frac_samples_before * phase_inc_;
+            auto jump = 0 - std::sin(phase_ * std::numbers::pi_v<float> * 2);
+            AddBlep(wpos_, sync_frac_samples_before, jump);
+            phase_ = sync_frac_samples_before * phase_inc_;
+        }
+
+        buffer_[wpos_] += std::sin(phase_ * std::numbers::pi_v<float> * 2);
+        float out = buffer_[rpos_];
+        buffer_[rpos_] = 0;
+        rpos_ = (rpos_ + 1) & kDelayMask;
+        wpos_ = (wpos_ + 1) & kDelayMask;
+        return out;
+    }
+
+    // qwqfixme: 高频有混叠
+    float Triangle(bool reset, float sync_frac_samples_before) noexcept {
+        phase_ += phase_inc_;
+        phase_ -= std::floor(phase_);
+
+        if (reset) {
+            phase_ -= sync_frac_samples_before * phase_inc_;
+            phase_ -= std::floor(phase_);
+            auto jump = NaiveTriangle(0) - NaiveTriangle(phase_);
+            AddBlep(wpos_, sync_frac_samples_before, jump);
+            phase_ = sync_frac_samples_before * phase_inc_;
+        }
+
+        buffer_[wpos_] += NaiveTriangle(phase_);
+        float out = buffer_[rpos_];
+        buffer_[rpos_] = 0;
+        rpos_ = (rpos_ + 1) & kDelayMask;
+        wpos_ = (wpos_ + 1) & kDelayMask;
+        return out;
+    }
 private:
+    static float NaiveSaw(float phase) noexcept {
+        return phase;
+    }
+
+    float NaivePwm(float phase) noexcept {
+        return phase < pwm_ ? 1.0f : 0.0f;
+    }
+
+    float NaiveTriangle(float phase) noexcept {
+        float naive_tri = 0;
+        if (phase < static_cast<float>(0.5)) {
+            naive_tri = 1 - 4 * phase;
+        }
+        else {
+            naive_tri = 4 * phase - 3;
+        }
+
+        float const phase2 = phase + static_cast<float>(0.5);
+        float const phase2_wrap = phase2 - std::floor(phase2);
+        float tri = naive_tri + 8 * phase_inc_ * (-Blamp(phase, phase_inc_) + Blamp(phase2_wrap, phase_inc_));
+        return tri;
+    }
+
+    static constexpr float Blamp(float t, float dt) noexcept {
+        auto t1 = std::min(t / dt, TCoeff::kHalfLen);
+        auto t2 = std::min((1.0f - t) / dt, TCoeff::kHalfLen);
+        return TCoeff::GetBlampHalf(t1) + TCoeff::GetBlampHalf(t2);
+    }
+
     /**
      * @brief 在buffer_idx前frac_samples处(采样点)插入一个scale大小的blep
      * @param buffer_idx 缓冲区绝对索引
@@ -194,47 +211,10 @@ private:
         for (size_t i = 0; i < 2 * kDelay; ++i) {
             begin_idx &= kDelayMask;
             float t = std::clamp(x, -TCoeff::kHalfLen, TCoeff::kHalfLen);
-            buffer_[begin_idx] -= scale * std::copysign(TCoeff::GetHalf(std::abs(t)), t);
-            blep_buffer_[begin_idx] = -scale * std::copysign(TCoeff::GetHalf(std::abs(t)), t);
+            buffer_[begin_idx] -= scale * std::copysign(TCoeff::GetBlepHalf(std::abs(t)), t);
             ++begin_idx;
             x += 1.0f;
         }
-    }
-
-    static float Frac(float x) noexcept {
-        return x - std::floor(x);
-    }
-
-    /**
-     * @param t [0..1]
-     * @param dt [0..1]
-     */
-    static constexpr float Blep(float t, float dt) noexcept {
-        auto t1 = std::min(t / dt, TCoeff::kHalfLen);
-        auto t2 = std::min((1.0f - t) / dt, TCoeff::kHalfLen);
-        return TCoeff::GetHalf(t1) - TCoeff::GetHalf(t2);
-    }
-
-    /**
-     * @brief 以offset为0的blep
-     */
-    static float BlepOffset(float t, float dt, float offset) noexcept {
-        float x = (t - offset) / dt;
-        x = std::clamp(x, -TCoeff::kHalfLen, TCoeff::kHalfLen);
-        return -std::copysign(TCoeff::GetHalf(std::abs(x)), x);
-    }
-
-    // 此Blep使用sync作为右边界
-    static constexpr float BlepSync(float t, float dt, float sync) noexcept {
-        auto t1 = std::min(t / dt, TCoeff::kHalfLen);
-        auto t2 = std::min((sync - t) / dt, TCoeff::kHalfLen);
-        return TCoeff::GetHalf(t1) - TCoeff::GetHalf(t2);
-    }
-
-    static constexpr float Blamp(float t, float dt) noexcept {
-        auto t1 = std::min(t / dt, TCoeff::kHalfLen);
-        auto t2 = std::min((1.0f - t) / dt, TCoeff::kHalfLen);
-        return TCoeff::GetBlampHalf(t1) + TCoeff::GetBlampHalf(t2);
     }
 
     float phase_{};
@@ -242,8 +222,6 @@ private:
     float pwm_{};
 
     float buffer_[kDelaySize]{};
-    float naive_buffer_[kDelaySize]{};
-    float blep_buffer_[kDelaySize]{};
     size_t wpos_{kDelay};
     size_t rpos_{};
 };
