@@ -16,14 +16,12 @@ EmptyAudioProcessor::EmptyAudioProcessor()
 
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
-            "attack",
-            "attack",
-            0, 1000,
-            0
+            "lookahead",
+            "lookahead",
+            0.0f, qwqdsp::fx::SimpleLimiter::kMaxLookaheadTime, 2.0f
         );
         param_listener_.Add(p, [this](float v) {
-            juce::ScopedLock _{getCallbackLock()};
-            dsp_.SetAttack(v, getSampleRate());
+            limiter_param_.lookahead_ms = v;
         });
         layout.add(std::move(p));
     }
@@ -31,51 +29,43 @@ EmptyAudioProcessor::EmptyAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             "release",
             "release",
-            0, 1000,
-            0
+            0.0f, 5000.0f, 50.0f
         );
         param_listener_.Add(p, [this](float v) {
-            juce::ScopedLock _{getCallbackLock()};
-            dsp_.SetRelease(v, getSampleRate());
+            limiter_param_.release_ms = v;
         });
         layout.add(std::move(p));
     }
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
-            "threshold",
-            "threshold",
-            -60, 6,
-            0
+            "limit",
+            "limit",
+            -20, 0, 0
         );
         param_listener_.Add(p, [this](float v) {
-            juce::ScopedLock _{getCallbackLock()};
-            dsp_.SetThreshould(v);
+            limiter_param_.limit_db = v;
         });
         layout.add(std::move(p));
     }
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
-            "knee",
-            "knee",
-            0, 18,
-            6
+            "hold",
+            "hold",
+            0, 100, 15
         );
         param_listener_.Add(p, [this](float v) {
-            juce::ScopedLock _{getCallbackLock()};
-            dsp_.knee_db_ = v;
+            limiter_param_.hold_ms = v;
         });
         layout.add(std::move(p));
     }
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
-            "ratio",
-            "ratio",
-            0, 1,
-            0
+            "makeup",
+            "makeup",
+            0, 20, 0
         );
         param_listener_.Add(p, [this](float v) {
-            juce::ScopedLock _{getCallbackLock()};
-            dsp_.ratio_ = v;
+            limiter_param_.makeup_db = v;
         });
         layout.add(std::move(p));
     }
@@ -156,7 +146,9 @@ void EmptyAudioProcessor::changeProgramName (int index, const juce::String& newN
 //==============================================================================
 void EmptyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    dsp_.Init(sampleRate);
+    float fs = static_cast<float>(sampleRate);
+    limiter_.Init(fs);
+    limiter_param_.fs = fs;
     param_listener_.CallAll();
 }
 
@@ -195,14 +187,16 @@ void EmptyAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 {
     juce::ScopedNoDenormals noDenormals;
 
-    size_t const len = buffer.getNumSamples();
+    size_t const len = static_cast<size_t>(buffer.getNumSamples());
     float* left_ptr = buffer.getWritePointer(0);
     float* right_ptr = buffer.getWritePointer(1);
     std::span<float> left_block{left_ptr, len};
 
-    dsp_.ProcessRMS({left_ptr, len});
+    limiter_.Update(limiter_param_);
+    limiter_.Process(left_block);
+    
     for (size_t i = 0; i < len; ++i) {
-        jassert(!(std::isnan(left_ptr[i]) || std::isinf(left_ptr[i])));
+        jassert(std::isfinite(left_ptr[i]));
         right_ptr[i] = left_ptr[i];
     }
 }
@@ -215,8 +209,8 @@ bool EmptyAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* EmptyAudioProcessor::createEditor()
 {
-    // return new SteepFlangerAudioProcessorEditor (*this);
-    return new juce::GenericAudioProcessorEditor(*this);
+    return new SteepFlangerAudioProcessorEditor (*this);
+    // return new juce::GenericAudioProcessorEditor(*this);
 }
 
 //==============================================================================

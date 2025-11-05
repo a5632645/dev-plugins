@@ -21,13 +21,30 @@ public:
         a_ = ComputeSmoothFactor(ms, fs);
     }
 
+    /**
+     * 一阶指数系数,给定单位跃阶将在ms之后到达1/e(63.2%)
+     */
     static float ComputeSmoothFactor(float ms, float fs) noexcept {
         float samples = fs * ms / 1000.0f;
         if (samples < 1.0f) {
-            return 0;
+            return 0.0f;
         }
         else {
-            return std::exp(-1.0f / (fs * ms / 1000.0f));
+            return std::exp(-1.0f / samples);
+        }
+    }
+
+    /**
+     * 一阶指数系数,给定单位跃阶将在ms之后到达close_ratio指定的误差值
+     * @param close_ratio 误差值,如0.1% => log10(0.001) => -3
+     */
+    static float ComputeSmoothFactor(float ms, float fs, float close_ratio) noexcept {
+        float samples = fs * ms / 1000.0f;
+        if (samples < 1.0f) {
+            return 0.0f;
+        }
+        else {
+            return std::pow(10.0f, -close_ratio / samples);
         }
     }
 

@@ -129,7 +129,7 @@ private:
 
 class Dial : public juce::Component {
 public:
-    Dial() : Dial("") {}
+    Dial() : Dial("unname") {}
 
     Dial(juce::StringRef title)
         : slider_menu_(slider) {

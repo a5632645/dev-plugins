@@ -24,16 +24,28 @@ static inline float Mel2Freq(float mel) noexcept {
     return 700.0f * (std::exp(mel / 1127.0f) - 1.0f);
 }
 
+/**
+ * @brief 计算使得a^samples=gain的结果，可能用于延迟线的decay计算
+ * @param samples 环路延迟采样数
+ * @param gain 最终的增益
+ * @return 系数,每个采样x*=a,samples采样后x变成原来的gain倍
+ */
 static inline float Samples2Decay(float samples, float gain) noexcept {
     if (samples < 1.0f) {
-        return 0.0f;
+        return gain;
     }
     return std::pow(gain, 1.0f / samples);
 }
 
+/**
+ * @brief 计算使得a^samples=gain(db)的结果，可能用于延迟线的decay计算
+ * @param samples 环路延迟采样数
+ * @param db 最终的增益
+ * @return 系数,每个采样x*=a,samples采样后x变成原来的gain(db)倍
+ */
 static inline float Samples2DecayDb(float samlpes, float db) noexcept {
     if (samlpes < 1.0f) {
-        return 0.0f;
+        return std::pow(10.0f, db / 20.0f);
     }
     return std::pow(10.0f, db / (20.0f * samlpes));
 }
@@ -97,16 +109,6 @@ static inline float DigitalBW2AnalogQ(float w, float bw) noexcept {
     auto w1 = w + bw * 0.5f;
     auto octave = w1 / w0;
     return DigitalOctave2AnalogQ(w, octave);
-}
-
-[[deprecated("might have numeric issue")]]
-static inline float Gain2Db(float gain) noexcept {
-    if (gain > 1e-10f) {
-        return 20.0f * std::log10(gain);
-    }
-    else {
-        return -200.0f;
-    }
 }
 
 static inline float Db2Gain(float db) noexcept {

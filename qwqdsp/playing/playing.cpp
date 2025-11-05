@@ -7,7 +7,7 @@
 #include "qwqdsp/osciilor/polyblep_sync.hpp"
 #include "qwqdsp/convert.hpp"
 
-static constexpr int kWidth = 800;
+static constexpr int kWidth = 1000;
 static constexpr int kHeight = 400;
 static constexpr float kFs = 48000.0f;
 
@@ -18,8 +18,9 @@ enum Waveform {
     PwmNoDC,
     Triangle,
     SyncSawtooth,
-    SyncSquare,
     SyncPWM,
+    Sine,
+    SyncTriangle,
     NumWaveforms
 };
 static constexpr const char* kWaveformNames[]{
@@ -29,12 +30,13 @@ static constexpr const char* kWaveformNames[]{
     "pwm noDC",
     "triangle",
     "sync saw",
-    "sync square",
-    "sync pwm"
+    "sync pwm",
+    "sine",
+    "sync tri"
 };
 
-static qwqdsp::oscillor::PolyBlep<qwqdsp::oscillor::blep_coeff::BlackmanNutall> dsp;
-static qwqdsp::oscillor::PolyBlepSync<qwqdsp::oscillor::blep_coeff::BlackmanNutall> dsp2;
+static qwqdsp::oscillor::PolyBlep<qwqdsp::oscillor::blep_coeff::BlackmanNutallApprox> dsp;
+static qwqdsp::oscillor::PolyBlepSync<qwqdsp::oscillor::blep_coeff::BlackmanNutallApprox> dsp2;
 static Waveform waveform = Waveform::Sawtooth;
 static float master_phase_{};
 static float master_phase_inc_{0.00001f};
@@ -88,13 +90,29 @@ static void AudioInputCallback(void* _buffer, unsigned int frames) {
             break;
         case SyncPWM:
             for (auto& s : buffer) {
-                s.l = dsp.PWMSync() * 0.5f;
+                master_phase_ += master_phase_inc_;
+                bool reset = master_phase_ > 1.0f;
+                master_phase_ -= std::floor(master_phase_);
+                s.l = dsp2.PWM(reset, master_phase_ / master_phase_inc_) * 0.5f;
+                // s.l = dsp.PWMSync() * 0.5f;
                 s.r = s.l;
             }
             break;
-        case SyncSquare:
+        case Sine:
             for (auto& s : buffer) {
-                s.l = dsp.SqaureSync() * 0.5f;
+                master_phase_ += master_phase_inc_;
+                bool reset = master_phase_ > 1.0f;
+                master_phase_ -= std::floor(master_phase_);
+                s.l = dsp2.Sine(reset, master_phase_ / master_phase_inc_) * 0.5f;
+                s.r = s.l;
+            }
+            break;
+        case SyncTriangle:
+            for (auto& s : buffer) {
+                master_phase_ += master_phase_inc_;
+                bool reset = master_phase_ > 1.0f;
+                master_phase_ -= std::floor(master_phase_);
+                s.l = dsp2.Triangle(reset, master_phase_ / master_phase_inc_) * 0.5f;
                 s.r = s.l;
             }
             break;

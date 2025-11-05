@@ -95,7 +95,7 @@ public:
     float last_noise_mix_{};
     
     // tracking oscillator
-    qwqdsp::oscillor::PolyBlep<float, false> tracking_osc_;
+    qwqdsp::oscillor::PolyBlep<qwqdsp::oscillor::blep_coeff::BSpline> tracking_osc_;
     qwqdsp::oscillor::WhiteNoise noise_;
     juce::AudioParameterChoice* tracking_waveform_{};
     juce::AudioParameterFloat* tracking_noise_{};

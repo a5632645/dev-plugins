@@ -4,6 +4,7 @@
 #include <array>
 
 namespace qwqdsp::filter {
+// qwqfixme: 系数kSetSamples有误
 namespace fastset_coeff {
 struct Order2_1e2 {
 static constexpr double kSetSamples = 9.3;
@@ -298,7 +299,6 @@ std::complex<double>{-4.322445596824106, 7.107469243773443},
 };
 }
 
-// qwqfixme: 系数设置时间有误
 /**
  * @brief 尽可能无过冲的快速跃阶响应,并行形式IIR滤波器
  * @ref https://vicanek.de/articles/FastSettlingFilters.pdf

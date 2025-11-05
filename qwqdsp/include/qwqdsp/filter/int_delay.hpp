@@ -28,7 +28,9 @@ public:
     }
 
     float GetAfterPush(size_t delay_samples) noexcept {
-        return Get(delay_samples + 1);
+        size_t rpos = wpos_ + mask_ - delay_samples;
+        size_t irpos = rpos & mask_;
+        return buffer_[irpos];
     }
 
     /**
@@ -40,12 +42,6 @@ public:
         return buffer_[irpos];
     }
 private:
-    float Get(size_t delay) noexcept {
-        size_t rpos = wpos_ + buffer_.size() - delay;
-        size_t irpos = rpos & mask_;
-        return buffer_[irpos];
-    }
-
     std::vector<float> buffer_;
     size_t wpos_{};
     size_t mask_{};

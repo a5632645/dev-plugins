@@ -244,7 +244,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kLPCGainAttack, 1},
             id::kLPCGainAttack,
             juce::NormalisableRange<float>{1.0f, 100.0f, 1.0f, 0.4f},
-            1.0f
+            5.0f
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -770,6 +770,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             size_t const can_write = std::min(osc_buffer_.size() - osc_wpos_, iwant);
 
             float target_pitch = pitch.pitch_hz * frequency_mul_;
+            target_pitch = std::max(target_pitch, 0.1f);
 
             // fill trival wave
             float curr_trival_wave_gain = last_osc_mix_;
@@ -786,7 +787,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 for (size_t i = 0; i < can_write; ++i) {
                     curr_trival_wave_gain += delta_trival_wave_gain;
                     tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), getSampleRate());
-                    osc_buffer_[osc_wpos++] = tracking_osc_.PWM() * curr_trival_wave_gain;
+                    osc_buffer_[osc_wpos++] = tracking_osc_.PWM_NoDC() * curr_trival_wave_gain;
                 }
             }
             last_osc_mix_ = 1.0f - pitch.non_period_ratio;
