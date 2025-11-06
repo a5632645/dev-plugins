@@ -59,30 +59,6 @@ public:
         return 2 * out - 1;
     }
 
-    // qwqfixme: add sync
-    // float PWM(bool reset, float sync_frac_samples_before) noexcept {
-    //     float last_phase = phase_;
-    //     phase_ += phase_inc_;
-    //     if (last_phase < pwm_ && phase_ > pwm_) {
-    //         float t = (phase_ - pwm_) / phase_inc_;
-    //         AddBlep(wpos_, t, -1.0f);
-    //     }
-    //     if (phase_ > 1) {
-    //         phase_ -= 1;
-    //         float t = phase_ / phase_inc_;
-    //         AddBlep(wpos_, t, 1.0f);
-    //         if (phase_ > pwm_) {
-    //             float t = (phase_ - pwm_) / phase_inc_;
-    //             AddBlep(wpos_, t, -1.0f);
-    //         }
-    //     }
-    //     buffer_[wpos_] += NaivePwm(phase_);
-    //     float out = buffer_[rpos_];
-    //     buffer_[rpos_] = 0;
-    //     rpos_ = (rpos_ + 1) & kDelayMask;
-    //     wpos_ = (wpos_ + 1) & kDelayMask;
-    //     return 2 * out - 1;
-    // }
     float PWM(bool reset, float sync_frac_samples_before) noexcept {
         bool high = phase_ < pwm_;
         phase_ += phase_inc_;
@@ -129,15 +105,17 @@ public:
         return 2 * out - 1;
     }
 
-    // qwqfixme: 高频有混叠
     float Sine(bool reset, float sync_frac_samples_before) noexcept {
         phase_ += phase_inc_;
         phase_ -= std::floor(phase_);
 
         if (reset) {
             phase_ -= sync_frac_samples_before * phase_inc_;
-            auto jump = 0 - std::sin(phase_ * std::numbers::pi_v<float> * 2);
+            float jump = 0 - std::sin(phase_ * std::numbers::pi_v<float> * 2);
+            float old_d = std::numbers::pi_v<float> * 2 * phase_inc_ * std::cos(std::numbers::pi_v<float> * 2 * phase_);
+            float new_d = std::numbers::pi_v<float> * 2 * phase_inc_;
             AddBlep(wpos_, sync_frac_samples_before, jump);
+            AddBlamp(wpos_, sync_frac_samples_before, new_d - old_d);
             phase_ = sync_frac_samples_before * phase_inc_;
         }
 
@@ -149,17 +127,47 @@ public:
         return out;
     }
 
-    // qwqfixme: 高频有混叠
     float Triangle(bool reset, float sync_frac_samples_before) noexcept {
+        bool high = phase_ < 0.5f;
         phase_ += phase_inc_;
-        phase_ -= std::floor(phase_);
-
+        if (!high && phase_ > 1) {
+            phase_ -= 1;
+            auto t = phase_ / phase_inc_;
+            if (!reset || t > sync_frac_samples_before) {
+                AddBlamp(wpos_, t, -8 * phase_inc_);
+                high = true;
+            }
+        }
+        if (high && phase_ > 0.5f) {
+            auto t = (phase_ - 0.5f) / phase_inc_;
+            if (!reset || t > sync_frac_samples_before) {
+                AddBlamp(wpos_, t, 8 * phase_inc_);
+                high = false;
+            }
+        }
+        if (!high && phase_ > 1) {
+            phase_ -= 1;
+            auto t = phase_ / phase_inc_;
+            if (!reset || t > sync_frac_samples_before) {
+                AddBlamp(wpos_, t, -8 * phase_inc_);
+                high = true;
+            }
+        }
         if (reset) {
             phase_ -= sync_frac_samples_before * phase_inc_;
             phase_ -= std::floor(phase_);
             auto jump = NaiveTriangle(0) - NaiveTriangle(phase_);
             AddBlep(wpos_, sync_frac_samples_before, jump);
-            phase_ = sync_frac_samples_before * phase_inc_;
+            if (!high) {
+                AddBlamp(wpos_, sync_frac_samples_before, 8 * phase_inc_);
+            }
+
+            auto tphase = phase_inc_ * sync_frac_samples_before;
+            if (tphase > 0.5f) {
+                auto t = (tphase - 0.5f) / phase_inc_;
+                AddBlamp(wpos_, t, 8 * phase_inc_);
+            }
+            phase_ = tphase;
         }
 
         buffer_[wpos_] += NaiveTriangle(phase_);
@@ -186,11 +194,7 @@ private:
         else {
             naive_tri = 4 * phase - 3;
         }
-
-        float const phase2 = phase + static_cast<float>(0.5);
-        float const phase2_wrap = phase2 - std::floor(phase2);
-        float tri = naive_tri + 8 * phase_inc_ * (-Blamp(phase, phase_inc_) + Blamp(phase2_wrap, phase_inc_));
-        return tri;
+        return naive_tri;
     }
 
     static constexpr float Blamp(float t, float dt) noexcept {
@@ -212,6 +216,18 @@ private:
             begin_idx &= kDelayMask;
             float t = std::clamp(x, -TCoeff::kHalfLen, TCoeff::kHalfLen);
             buffer_[begin_idx] -= scale * std::copysign(TCoeff::GetBlepHalf(std::abs(t)), t);
+            ++begin_idx;
+            x += 1.0f;
+        }
+    }
+
+    void AddBlamp(size_t buffer_idx, float frac_samples_before, float scale) noexcept {
+        size_t begin_idx = buffer_idx - kDelay;
+        float x = frac_samples_before - kDelay;
+        for (size_t i = 0; i < 2 * kDelay; ++i) {
+            begin_idx &= kDelayMask;
+            float t = std::clamp(x, -TCoeff::kHalfLen, TCoeff::kHalfLen);
+            buffer_[begin_idx] += scale * TCoeff::GetBlampHalf(std::abs(t));
             ++begin_idx;
             x += 1.0f;
         }

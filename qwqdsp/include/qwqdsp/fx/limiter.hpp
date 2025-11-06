@@ -102,7 +102,7 @@ private:
             counter_ = std::min(counter_, hold_samples_);
         }
     private:
-        float lag_{};
+        float lag_{-1.0f};
         int hold_samples_{};
         int counter_{};
     };
@@ -127,7 +127,7 @@ private:
             return lag_;
         }
     private:
-        float lag_{};
+        float lag_{-1.0f};
         float attack_factor_{};
         float release_factor_{};
     };
@@ -137,7 +137,7 @@ private:
     qwqdsp::filter::IntDelay lookahead_delay_;
     size_t lookahead_delay_samples_{};
     float limit_gain_{};
-    float reduce_gain_{};
+    float reduce_gain_{1.0f};
     float makeup_gain_{};
 };
 }

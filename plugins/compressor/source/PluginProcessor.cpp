@@ -148,6 +148,7 @@ void EmptyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     float fs = static_cast<float>(sampleRate);
     limiter_.Init(fs);
+    limiter_.Reset();
     limiter_param_.fs = fs;
     param_listener_.CallAll();
 }
