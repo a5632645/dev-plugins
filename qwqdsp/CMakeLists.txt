@@ -28,7 +28,6 @@ include(cmake/warnings.cmake)
 add_library(qwqdsp
     STATIC
         "source/oouras.cpp"
-        "source/fir_design.cpp"
         "source/real_fft.cpp"
         "source/complex_fft.cpp"
 )
