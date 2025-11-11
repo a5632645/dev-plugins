@@ -274,7 +274,6 @@ void SimpleReverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             temp_in[j].x[1] = *right_ptr;
             temp_in[j].x[2] = *left_ptr;
             temp_in[j].x[3] = *right_ptr;
-            temp_in[j] *= SimdType::FromSingle(0.5f);
             ++left_ptr;
             ++right_ptr;
         }
@@ -286,8 +285,8 @@ void SimpleReverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         right_ptr -= cando;
         for (size_t j = 0; j < cando; ++j) {
             SimdType t = temp_out[j];
-            *left_ptr = t.x[0] + t.x[2];
-            *right_ptr = t.x[1] + t.x[3];
+            *left_ptr = t.x[0];
+            *right_ptr = t.x[1];
             jassert(!std::isnan(*left_ptr));
             jassert(!std::isnan(*right_ptr));
             ++left_ptr;

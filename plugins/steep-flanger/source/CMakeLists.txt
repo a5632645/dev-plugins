@@ -50,6 +50,7 @@ target_link_libraries(${QWQ_PLUGIN_NAME}
         qwqdsp
         cpp_simd_detector
         PluginShared
+        simde
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
