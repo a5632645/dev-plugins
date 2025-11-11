@@ -10,6 +10,7 @@ AnalogSynthAudioProcessorEditor::AnalogSynthAudioProcessorEditor (AnalogSynthAud
     , osc1_(p.synth_)
     , osc2_(p.synth_)
     , osc3_(p.synth_)
+    , osc4_(p.synth_)
     , vol_env_(p.synth_, 1)
     , filter_env_(p.synth_, 2)
     , filter_(p.synth_)
@@ -27,6 +28,7 @@ AnalogSynthAudioProcessorEditor::AnalogSynthAudioProcessorEditor (AnalogSynthAud
     addAndMakeVisible(osc1_);
     addAndMakeVisible(osc3_);
     addAndMakeVisible(osc2_);
+    addAndMakeVisible(osc4_);
     addAndMakeVisible(vol_env_);
     addAndMakeVisible(filter_env_);
     addAndMakeVisible(filter_);
@@ -60,6 +62,7 @@ void AnalogSynthAudioProcessorEditor::resized() {
     osc1_.setBounds(osc_bound.removeFromTop(130));
     osc2_.setBounds(osc_bound.removeFromTop(130));
     osc3_.setBounds(osc_bound.removeFromTop(240));
+    osc4_.setBounds(osc_bound.removeFromTop(210));
 
     // most right
     auto fx_bound = b.removeFromRight(200);

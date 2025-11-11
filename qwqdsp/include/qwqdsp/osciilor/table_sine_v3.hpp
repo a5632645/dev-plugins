@@ -75,6 +75,10 @@ public:
         return static_cast<uint32_t>(omega * static_cast<T>(kScale));
     }
 
+    static constexpr uint32_t FloatPhase2Phase(T phase01) noexcept {
+        return static_cast<uint32_t>(phase01 * static_cast<T>(kScale));
+    }
+
     static constexpr uint32_t FreqPhaseInc(T f, T fs) noexcept {
         return static_cast<uint32_t>(f * static_cast<T>(kScale) / fs);
     }

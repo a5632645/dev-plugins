@@ -18,6 +18,7 @@
 #include "delay.hpp"
 #include "chorus.hpp"
 #include "reverb.hpp"
+#include "osc4.hpp"
 
 namespace analogsynth {
 static constexpr int kMaxUnison = 16;
@@ -629,6 +630,24 @@ public:
          juce::NormalisableRange<float>{0.01f, 0.99f, 0.01f},
          0.5f
     };
+    // oscillator 2
+    BoolParam param_osc2_sync{"osc2_sync", false};
+    FloatParam param_osc2_detune{"osc2_detune",
+         juce::NormalisableRange<float>{-24.0f, 24.0f, 0.1f},
+         0.0f
+    };
+    FloatParam param_osc2_vol{"osc2_vol",
+         juce::NormalisableRange<float>{0.0f, 1.0f, 0.01f},
+         0.0f
+    };
+    ChoiceParam param_osc2_shape{"osc2_shape",
+        juce::StringArray{"saw","tri","pwm","sin"},
+        "saw"
+    };
+    FloatParam param_osc2_pwm{"osc2_pwm",
+         juce::NormalisableRange<float>{0.01f, 0.99f, 0.01f},
+         0.5f
+    };
     // oscillator 3
     FloatParam param_osc3_detune{"osc3_detune",
          juce::NormalisableRange<float>{-24.0f, 24.0f, 0.1f},
@@ -667,23 +686,35 @@ public:
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.01f},
         0.0f
     };
-    // oscillator 2
-    BoolParam param_osc2_sync{"osc2_sync", false};
-    FloatParam param_osc2_detune{"osc2_detune",
-         juce::NormalisableRange<float>{-24.0f, 24.0f, 0.1f},
-         0.0f
+    // oscillator 4
+    FloatParam param_osc4_slope{"osc4.slope",
+        juce::NormalisableRange<float>{0.1f,0.99f,0.01f},
+        0.9f
     };
-    FloatParam param_osc2_vol{"osc2_vol",
-         juce::NormalisableRange<float>{0.0f, 1.0f, 0.01f},
-         0.0f
+    FloatParam param_osc4_width{"osc4.width",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.01f},
+        0.25f
     };
-    ChoiceParam param_osc2_shape{"osc2_shape",
-        juce::StringArray{"saw","tri","pwm","sin"},
-        "saw"
+    FloatParam param_osc4_n{"osc4.n",
+        juce::NormalisableRange<float>{1.0f, 2048.0f, 1.0f, 0.4f},
+        5.0f
     };
-    FloatParam param_osc2_pwm{"osc2_pwm",
-         juce::NormalisableRange<float>{0.01f, 0.99f, 0.01f},
-         0.5f
+    FloatParam param_osc4_w0_detune{"osc4.w0_detune",
+        juce::NormalisableRange<float>{-24.0f,24.0f,0.1f},
+        0.0f
+    };
+    FloatParam param_osc4_w_ratio{"osc4.w_ratio",
+        juce::NormalisableRange<float>{0.1f, 12.0f, 0.01f},
+        1.0f
+    };
+    BoolParam param_osc4_use_max_n{"osc4.use_max_n",false};
+    ChoiceParam param_osc4_shape{"osc4.shape",
+        juce::StringArray{"up","down"},
+        "up"
+    };
+    FloatParam param_osc4_vol{"osc4.vol",
+        juce::NormalisableRange<float>{0.0f,1.0f,0.01f},
+        0.0f
     };
     // volume envelope
     FloatParam param_env_volume_attack{"vol_env_attack",
@@ -943,6 +974,7 @@ private:
     float osc1_pwm_{};
     qwqdsp::oscillor::PolyBlep<BlepCoeff> osc1_;
     qwqdsp::oscillor::PolyBlepSync<BlepCoeff> osc2_;
+    Osc4 osc4_;
     
     std::array<float, kMaxUnison> osc3_phases_{};
     std::array<float, kMaxUnison> osc3_freq_ratios_{};

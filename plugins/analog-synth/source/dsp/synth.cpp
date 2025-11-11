@@ -13,10 +13,11 @@ void Synth::Reset() noexcept {
     chorus_.Reset();
     saturator_.Reset();
     reverb_.Reset();
+    osc4_.Reset(0);
 }
 
 void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept {
-    // -------------------- ticl modulators --------------------
+    // -------------------- tick modulators --------------------
     // tick lfos
     Lfo::Parameter lfo_param;
     lfo_param.phase_inc = param_lfo1_freq.GetModCR() / fs_;
@@ -214,6 +215,38 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
             jassertfalse;
     }
 
+    // oscillator 4
+    {
+        float w0_detune = param_osc4_w0_detune.GetModCR();
+        float pitch = w0_detune + current_note_;
+        float w0_freq = qwqdsp::convert::Pitch2Freq(pitch);
+        float w0 = qwqdsp::convert::Freq2W(w0_freq, fs_);
+        osc4_.w0 = w0;
+        float w_ratio = param_osc4_w_ratio.GetModCR();
+        osc4_.w = w0 * w_ratio;
+        osc4_.a = param_osc4_slope.GetModCR();
+        osc4_.width = param_osc4_width.GetModCR() * std::numbers::pi_v<float> * 2;
+        osc4_.n = static_cast<uint32_t>(param_osc4_n.GetModCR());
+        osc4_.use_max_n = param_osc4_use_max_n.Get();
+        float osc_vol = param_osc4_vol.GetModCR();
+        osc4_.Update();
+        switch (param_osc4_shape.Get().second) {
+            case 0:
+                for (size_t i = 0; i < num_samples; ++i) {
+                    osc_buffer[i] += osc_vol * osc4_.Tick<false>();
+                }
+                break;
+            case 1:
+                for (size_t i = 0; i < num_samples; ++i) {
+                    osc_buffer[i] += osc_vol * osc4_.Tick<true>();
+                }
+                break;
+            default:
+                jassertfalse;
+                break;
+        }
+    }
+
     // -------------------- tick filter --------------------
     float const filter_Q = param_Q.GetModCR();
     float const filter_cutoff = param_cutoff_pitch.GetModCR();
@@ -236,13 +269,13 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
         osc_buffer[i] *= volume_env_buffer[i];
     }
 
+    // -------------------- tick effects --------------------
     std::array<qwqdsp::psimd::Float32x4, kBlockSize> fx_temp;
     for (size_t i = 0; i < num_samples; ++i) {
         fx_temp[i].x[0] = osc_buffer[i];
         fx_temp[i].x[1] = osc_buffer[i];
     }
     std::span fx_block{fx_temp.data(), num_samples};
-    // -------------------- tick effects --------------------
     // delay
     if (param_delay_enable.Get()) {
         delay_.fs = fs_;

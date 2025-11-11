@@ -33,6 +33,7 @@ target_sources(${QWQ_PLUGIN_NAME}
         ui/osc1.cpp
         ui/osc2.cpp
         ui/osc3.cpp
+        ui/osc4.cpp
         ui/filter.cpp
         ui/lfo.cpp
         ui/modulations.cpp

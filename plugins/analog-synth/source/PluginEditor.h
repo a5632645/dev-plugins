@@ -3,6 +3,7 @@
 #include "ui/osc1.hpp"
 #include "ui/osc2.hpp"
 #include "ui/osc3.hpp"
+#include "ui/osc4.hpp"
 #include "ui/adsr.hpp"
 #include "ui/filter.hpp"
 #include "ui/lfo.hpp"
@@ -33,6 +34,7 @@ private:
     analogsynth::Osc1Gui osc1_;
     analogsynth::Osc2Gui osc2_;
     analogsynth::Osc3Gui osc3_;
+    analogsynth::Osc4Gui osc4_;
     analogsynth::AdsrGui vol_env_;
     analogsynth::AdsrGui filter_env_;
     analogsynth::FilterGui filter_;
