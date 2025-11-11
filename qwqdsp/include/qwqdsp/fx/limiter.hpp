@@ -114,7 +114,7 @@ private:
         }
 
         void SetAttackTime(float ms, float fs) noexcept {
-            attack_factor_ = qwqdsp::misc::ExpSmoother::ComputeSmoothFactor(ms, fs, -3);
+            attack_factor_ = qwqdsp::misc::ExpSmoother::ComputeSmoothFactor(ms, fs, 3);
         }
 
         void SetReleaseTime(float ms, float fs) noexcept {

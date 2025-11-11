@@ -10,6 +10,9 @@ public:
         lag_ = SimdType::FromSingle(0);
     }
     
+    /**
+     * @param w any, <0 will no pass, >pi will all pass
+     */
     static float ComputeCoeff(float w) noexcept {
         constexpr float kMaxOmega = std::numbers::pi_v<float> - 1e-5f;
         [[unlikely]]

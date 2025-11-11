@@ -7,6 +7,7 @@ namespace qwqdsp::oscillor {
 class WhiteNoise {
 public:
     using SeedType = uint32_t;
+    static constexpr float kScale = 1.0f / static_cast<float>(std::numeric_limits<uint32_t>::max());
 
     /**
      * @param seed 设置种子,直接改变寄存器的值
@@ -21,7 +22,7 @@ public:
     float Next01() noexcept {
         reg_ *= 1103515245;
         reg_ += 12345;
-        return static_cast<float>(reg_) / static_cast<float>(std::numeric_limits<uint32_t>::max());
+        return static_cast<float>(reg_) * kScale;
     }
 
     /**

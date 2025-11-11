@@ -28,6 +28,20 @@ public:
         return phase_;
     }
 
+    float Sawtooth() noexcept {
+        phase_ += phase_inc_;
+        if (phase_ > 1) {
+            phase_ -= 1;
+            AddBlep(wpos_, phase_ / phase_inc_, -1);
+        }
+        buffer_[wpos_] += NaiveSaw(phase_);
+        float out = buffer_[rpos_];
+        buffer_[rpos_] = 0;
+        rpos_ = (rpos_ + 1) & kDelayMask;
+        wpos_ = (wpos_ + 1) & kDelayMask;
+        return 2 * out - 1;
+    }
+
     float Sawtooth(bool reset, float sync_samples_before) noexcept {
         phase_ += phase_inc_;
         if (phase_ > 1) {
@@ -105,6 +119,30 @@ public:
         return 2 * out - 1;
     }
 
+    float PWM() noexcept {
+        float last_phase = phase_;
+        phase_ += phase_inc_;
+        if (last_phase < pwm_ && phase_ > pwm_) {
+            float t = (phase_ - pwm_) / phase_inc_;
+            AddBlep(wpos_, t, -1.0f);
+        }
+        if (phase_ > 1) {
+            phase_ -= 1;
+            float t = phase_ / phase_inc_;
+            AddBlep(wpos_, t, 1.0f);
+            if (phase_ > pwm_) {
+                t = (phase_ - pwm_) / phase_inc_;
+                AddBlep(wpos_, t, -1.0f);
+            }
+        }
+        buffer_[wpos_] += NaivePwm(phase_);
+        float out = buffer_[rpos_];
+        buffer_[rpos_] = 0;
+        rpos_ = (rpos_ + 1) & kDelayMask;
+        wpos_ = (wpos_ + 1) & kDelayMask;
+        return 2 * out - 1;
+    }
+
     float Sine(bool reset, float sync_frac_samples_before) noexcept {
         phase_ += phase_inc_;
         phase_ -= std::floor(phase_);
@@ -118,6 +156,18 @@ public:
             AddBlamp(wpos_, sync_frac_samples_before, new_d - old_d);
             phase_ = sync_frac_samples_before * phase_inc_;
         }
+
+        buffer_[wpos_] += std::sin(phase_ * std::numbers::pi_v<float> * 2);
+        float out = buffer_[rpos_];
+        buffer_[rpos_] = 0;
+        rpos_ = (rpos_ + 1) & kDelayMask;
+        wpos_ = (wpos_ + 1) & kDelayMask;
+        return out;
+    }
+
+    float Sine() noexcept {
+        phase_ += phase_inc_;
+        phase_ -= std::floor(phase_);
 
         buffer_[wpos_] += std::sin(phase_ * std::numbers::pi_v<float> * 2);
         float out = buffer_[rpos_];
@@ -168,6 +218,35 @@ public:
                 AddBlamp(wpos_, t, 8 * phase_inc_);
             }
             phase_ = tphase;
+        }
+
+        buffer_[wpos_] += NaiveTriangle(phase_);
+        float out = buffer_[rpos_];
+        buffer_[rpos_] = 0;
+        rpos_ = (rpos_ + 1) & kDelayMask;
+        wpos_ = (wpos_ + 1) & kDelayMask;
+        return out;
+    }
+
+    float Triangle() noexcept {
+        bool high = phase_ < 0.5f;
+        phase_ += phase_inc_;
+        if (!high && phase_ > 1) {
+            phase_ -= 1;
+            auto t = phase_ / phase_inc_;
+            AddBlamp(wpos_, t, -8 * phase_inc_);
+            high = true;
+        }
+        if (high && phase_ > 0.5f) {
+            auto t = (phase_ - 0.5f) / phase_inc_;
+            AddBlamp(wpos_, t, 8 * phase_inc_);
+            high = false;
+        }
+        if (!high && phase_ > 1) {
+            phase_ -= 1;
+            auto t = phase_ / phase_inc_;
+            AddBlamp(wpos_, t, -8 * phase_inc_);
+            high = true;
         }
 
         buffer_[wpos_] += NaiveTriangle(phase_);

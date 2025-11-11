@@ -274,6 +274,15 @@ struct alignas(16) Vec4f32 {
         return x[0] + x[1] + x[2] + x[3];
     }
 
+    static Vec4f32 Sqrt(Vec4f32 const& x) noexcept {
+        return Vec4f32{
+            std::sqrt(x.x[0]),
+            std::sqrt(x.x[1]),
+            std::sqrt(x.x[2]),
+            std::sqrt(x.x[3]),
+        };
+    }
+
     static constexpr Vec4f32 FMA(const Vec4f32& mula, const Vec4f32& mulb, const Vec4f32& add) noexcept {
         return Vec4f32{
             mula.x[0] * mulb.x[0] + add.x[0],

@@ -21,6 +21,10 @@ public:
         inc_ = f / fs;
     }
 
+    void SetRate(float phase_inc) noexcept {
+        inc_ = phase_inc;
+    }
+
     inline float Tick() {
         phase_ += inc_;
         if (phase_ > 1.0f) {

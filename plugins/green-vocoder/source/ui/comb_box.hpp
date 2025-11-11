@@ -6,6 +6,7 @@
 #include "juce_gui_basics/juce_gui_basics.h"
 #include "tooltips.hpp"
 #include <memory>
+#include <pluginshared/component.hpp>
 
 namespace ui {
 
@@ -14,6 +15,12 @@ public:
     CombBox() {
         addAndMakeVisible(label_);
         addAndMakeVisible(combobox_);
+
+        setLookAndFeel(&look_);
+    }
+
+    ~CombBox() override {
+        setLookAndFeel(nullptr);
     }
 
     void BindParam(juce::AudioProcessorValueTreeState& apvts, const char* id) {
@@ -58,6 +65,7 @@ public:
     }
 
     juce::ComboBox combobox_;
+    ui::CustomLookAndFeel look_;
 private:
     juce::Label label_;
     const char* id_{};

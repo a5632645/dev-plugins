@@ -209,4 +209,12 @@ static inline constexpr float ArctanPade(float x) noexcept {
     float x4 = x2 * x2;
     return (55*x3+105*x)/(9*x4+90*x2+105);
 }
+
+/**
+ * @param x [0..1]
+ * @return [-1..1]
+ */
+static inline float Triangle(float x) noexcept {
+    return 4.0f * std::abs(x - 0.5f) - 1.0f;
+}
 }

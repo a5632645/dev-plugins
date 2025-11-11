@@ -27,7 +27,7 @@ public:
         if (buffer_.size() < a) {
             buffer_.resize(a);
         }
-        mask_ = a - 1;
+        mask_ = static_cast<int>(a - 1);
     }
 
     void Reset() noexcept {
@@ -36,7 +36,7 @@ public:
     }
 
     void Push(SIMD_TYPE x) noexcept {
-        buffer_[wpos_++] = x;
+        buffer_[static_cast<size_t>(wpos_++)] = x;
         wpos_ &= mask_;
     }
 

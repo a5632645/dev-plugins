@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "preset_manager.hpp"
+#include "pluginshared/component.hpp"
 
 namespace pluginshared {
 class PresetPanel : public juce::Component, juce::Button::Listener, juce::ComboBox::Listener {
@@ -286,10 +287,10 @@ private:
     };
 
     PresetManager& presetManager;
-    juce::TextButton saveButton, deleteButton, previousPresetButton, nextPresetButton;
-    juce::ComboBox presetList;
+    ui::FlatButton saveButton, deleteButton, previousPresetButton, nextPresetButton;
+    ui::FlatCombobox presetList;
     std::unique_ptr<juce::FileChooser> fileChooser;
-    juce::TextButton options_button_;
+    ui::FlatButton options_button_;
     UpdateMessageComponent update_message_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetPanel)

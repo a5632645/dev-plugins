@@ -168,6 +168,11 @@ public:
         }
         processor_.suspendProcessing(false);
     }
+
+    juce::ValueTree GetDefaultValueTree() {
+        return default_state_;
+    }
+    
     /**
      * @brief make audio processor goes into default state, value tree is automatic done
      * @note when call this, the processor will automatic suspend

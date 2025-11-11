@@ -277,6 +277,19 @@ struct alignas(32) Vec8f32 {
         return r;
     }
 
+    static Vec8f32 Sqrt(Vec8f32 const& x) noexcept {
+        return Vec8f32{
+            std::sqrt(x.x[0]),
+            std::sqrt(x.x[1]),
+            std::sqrt(x.x[2]),
+            std::sqrt(x.x[3]),
+            std::sqrt(x.x[4]),
+            std::sqrt(x.x[5]),
+            std::sqrt(x.x[6]),
+            std::sqrt(x.x[7]),
+        };
+    }
+
     constexpr float ReduceAdd() const noexcept {
         return x[0] + x[1] + x[2] + x[3] + x[4] + x[5] + x[6] + x[7];
     }
