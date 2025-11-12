@@ -41,6 +41,8 @@ AnalogSynthAudioProcessor::AnalogSynthAudioProcessor()
     layout.add(synth_.param_osc4_use_max_n.Build());
     layout.add(synth_.param_osc4_shape.Build());
     layout.add(synth_.param_osc4_vol.Build());
+    layout.add(synth_.param_noise_type.Build());
+    layout.add(synth_.param_noise_vol.Build());
     layout.add(synth_.param_env_volume_attack.Build());
     layout.add(synth_.param_env_volume_decay.Build());
     layout.add(synth_.param_env_volume_sustain.Build());
@@ -99,6 +101,16 @@ AnalogSynthAudioProcessor::AnalogSynthAudioProcessor()
     layout.add(synth_.param_reverb_decay.Build());
     layout.add(synth_.param_reverb_size.Build());
     layout.add(synth_.param_reverb_damp.Build());
+    layout.add(synth_.param_phaser_enable.Build());
+    layout.add(synth_.param_phaser_mix.Build());
+    layout.add(synth_.param_phaser_center.Build());
+    layout.add(synth_.param_phaser_depth.Build());
+    layout.add(synth_.param_phaser_rate.Build1());
+    layout.add(synth_.param_phaser_rate.Build2());
+    layout.add(synth_.param_phaser_rate.Build3());
+    layout.add(synth_.param_phase_feedback.Build());
+    layout.add(synth_.param_phaser_Q.Build());
+    layout.add(synth_.param_phaser_stereo.Build());
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
     
@@ -181,6 +193,7 @@ void AnalogSynthAudioProcessor::changeProgramName (int index, const juce::String
 //==============================================================================
 void AnalogSynthAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    std::ignore = samplesPerBlock;
     synth_.Init(static_cast<float>(sampleRate));
     synth_.Reset();
     param_listener_.CallAll();
@@ -240,11 +253,10 @@ juce::AudioProcessorEditor* AnalogSynthAudioProcessor::createEditor()
 void AnalogSynthAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     suspendProcessing(true);
-    auto parameters = value_tree_->copyState();
-    auto modulations = synth_.modulation_matrix.SaveState();
     juce::ValueTree state{"State"};
-    state.appendChild(parameters, nullptr);
-    state.appendChild(modulations, nullptr);
+    state.appendChild(value_tree_->copyState(), nullptr);
+    state.appendChild(synth_.modulation_matrix.SaveState(), nullptr);
+    state.appendChild(synth_.SaveFxChainState(), nullptr);
     if (auto xml = state.createXml(); xml != nullptr) {
         copyXmlToBinary(*xml, destData);
     }
@@ -259,6 +271,7 @@ void AnalogSynthAudioProcessor::setStateInformation (const void* data, int sizeI
     if (state.isValid()) {
         value_tree_->replaceState(state.getChildWithName("PARAMETERS"));
         synth_.modulation_matrix.LoadState(state);
+        synth_.LoadFxChainState(state);
     }
     suspendProcessing(false);
 }

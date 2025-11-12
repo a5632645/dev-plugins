@@ -222,6 +222,38 @@ struct alignas(16) Vec4f32 {
         return *this;
     }
 
+    constexpr Vec4f32& operator+=(float v) noexcept {
+        x[0] += v;
+        x[1] += v;
+        x[2] += v;
+        x[3] += v;
+        return *this;
+    }
+
+    constexpr  Vec4f32& operator-=(float v) noexcept {
+        x[0] -= v;
+        x[1] -= v;
+        x[2] -= v;
+        x[3] -= v;
+        return *this;
+    }
+
+    constexpr  Vec4f32& operator*=(float v) noexcept {
+        x[0] *= v;
+        x[1] *= v;
+        x[2] *= v;
+        x[3] *= v;
+        return *this;
+    }
+
+    constexpr Vec4f32& operator/=(float v) noexcept {
+        x[0] /= v;
+        x[1] /= v;
+        x[2] /= v;
+        x[3] /= v;
+        return *this;
+    }
+
     constexpr Vec4f32 Frac() const noexcept {
         #if QWQDSP_HAS_SSE41
         return Vec4f32{
@@ -283,6 +315,15 @@ struct alignas(16) Vec4f32 {
         };
     }
 
+    static Vec4f32 Abs(Vec4f32 const& x) noexcept {
+        return Vec4f32{
+            std::abs(x.x[0]),
+            std::abs(x.x[1]),
+            std::abs(x.x[2]),
+            std::abs(x.x[3]),
+        };
+    }
+
     static constexpr Vec4f32 FMA(const Vec4f32& mula, const Vec4f32& mulb, const Vec4f32& add) noexcept {
         return Vec4f32{
             mula.x[0] * mulb.x[0] + add.x[0],
@@ -310,6 +351,48 @@ static constexpr Vec4f32 operator*(const Vec4f32& a, const Vec4f32& b) noexcept 
 }
 static constexpr Vec4f32 operator/(const Vec4f32& a, const Vec4f32& b) noexcept {
     Vec4f32 r = a;
+    r /= b;
+    return r;
+}
+
+static constexpr Vec4f32 operator+(const Vec4f32& a, float b) noexcept {
+    Vec4f32 r = a;
+    r += b;
+    return r;
+}
+static constexpr Vec4f32 operator-(const Vec4f32& a, float b) noexcept {
+    Vec4f32 r = a;
+    r -= b;
+    return r;
+}
+static constexpr Vec4f32 operator*(const Vec4f32& a, float b) noexcept {
+    Vec4f32 r = a;
+    r *= b;
+    return r;
+}
+static constexpr Vec4f32 operator/(const Vec4f32& a, float b) noexcept {
+    Vec4f32 r = a;
+    r /= b;
+    return r;
+}
+
+static constexpr Vec4f32 operator+(float a, const Vec4f32& b) noexcept {
+    Vec4f32 r = Vec4f32::FromSingle(a);
+    r += b;
+    return r;
+}
+static constexpr Vec4f32 operator-(float a, const Vec4f32& b) noexcept {
+    Vec4f32 r = Vec4f32::FromSingle(a);
+    r -= b;
+    return r;
+}
+static constexpr Vec4f32 operator*(float a, const Vec4f32& b) noexcept {
+    Vec4f32 r = Vec4f32::FromSingle(a);
+    r *= b;
+    return r;
+}
+static constexpr Vec4f32 operator/(float a, const Vec4f32& b) noexcept {
+    Vec4f32 r = Vec4f32::FromSingle(a);
     r /= b;
     return r;
 }

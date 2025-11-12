@@ -1,3 +1,4 @@
+#pragma once
 #include <pluginshared/component.hpp>
 #include "bpm_dial.hpp"
 

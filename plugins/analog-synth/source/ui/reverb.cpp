@@ -35,15 +35,15 @@ void ReverbGui::resized() {
 
     auto top_bound = content_bound.removeFromTop(25);
     enable_.setBounds(top_bound.removeFromLeft(25).reduced(2));
-    title_.setBounds(top_bound);
+    title_.setBounds(top_bound.removeFromLeft(100));
 
-    auto line1 = content_bound.removeFromTop(70);
+    auto line1 = content_bound.removeFromTop(65);
     auto w = line1.getWidth() / 3;
     size_.setBounds(line1.removeFromLeft(w));
     decay_.setBounds(line1.removeFromLeft(w));
     mix_.setBounds(line1.removeFromLeft(w));
 
-    auto line2 = content_bound.removeFromTop(70);
+    auto line2 = content_bound.removeFromTop(65);
     w = line2.getWidth() / 3;
     lowpass_.setBounds(line2.removeFromLeft(w));
     predelay_.setBounds(line2.removeFromLeft(w));

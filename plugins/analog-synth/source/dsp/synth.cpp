@@ -1,6 +1,37 @@
 #include "synth.hpp"
 
 namespace analogsynth {
+Synth::Synth() {
+    AddModulateModulator(lfo1_);
+    AddModulateModulator(lfo2_);
+    AddModulateModulator(lfo3_);
+    AddModulateModulator(mod_env_);
+    AddModulateModulator(volume_env_);
+    
+    AddModulateParam(param_osc1_detune);
+    AddModulateParam(param_osc1_vol);
+    AddModulateParam(param_osc1_pwm);
+    AddModulateParam(param_osc3_detune);
+    AddModulateParam(param_osc3_vol);
+    AddModulateParam(param_osc3_pwm);
+    AddModulateParam(param_osc2_detune);
+    AddModulateParam(param_osc2_vol);
+    AddModulateParam(param_osc2_pwm);
+    AddModulateParam(param_cutoff_pitch);
+    AddModulateParam(param_Q);
+    AddModulateParam(param_filter_direct);
+    AddModulateParam(param_filter_lp);
+    AddModulateParam(param_filter_hp);
+    AddModulateParam(param_filter_bp);
+    AddModulateParam(param_lfo1_freq.freq_);
+    AddModulateParam(param_lfo2_freq.freq_);
+    AddModulateParam(param_lfo3_freq.freq_);
+
+    InitFxSection();
+
+    modulation_matrix.Add(&lfo1_, &param_cutoff_pitch);
+}
+
 void Synth::Init(float fs) noexcept {
     fs_ = fs;
     delay_.Init(fs);
@@ -14,6 +45,102 @@ void Synth::Reset() noexcept {
     saturator_.Reset();
     reverb_.Reset();
     osc4_.Reset(0);
+    phaser_.Reset();
+}
+
+void Synth::InitFxSection() {
+    fx_chain_.clear();
+    fx_chain_.push_back({"delay", [](Synth& s, std::span<SimdType> block) {
+        if (s.param_delay_enable.Get()) {
+            s.delay_.fs = s.fs_;
+            s.delay_.delay_ms = s.param_delay_ms.GetModCR();
+            s.delay_.feedback = s.param_delay_feedback.GetModCR();
+            s.delay_.mix = s.param_delay_mix.GetModCR();
+            s.delay_.pingpong = s.param_delay_pingpong.Get();
+            s.delay_.lowcut_f = s.param_delay_lp.GetModCR();
+            s.delay_.highcut_f = s.param_delay_hp.GetModCR();
+            s.delay_.Process(block);
+        }
+    }});
+    fx_chain_.push_back({"chorus", [](Synth& s, std::span<SimdType> block) {
+        if (s.param_chorus_enable.Get()) {
+            s.chorus_.fs = s.fs_;
+            s.chorus_.delay = s.param_chorus_delay.GetModCR();
+            s.chorus_.depth = s.param_chorus_depth.GetModCR();
+            s.chorus_.feedback = s.param_chorus_feedback.GetModCR();
+            s.chorus_.mix = s.param_chorus_mix.GetModCR();
+            s.chorus_.rate = s.param_chorus_rate.GetModCR();
+            s.chorus_.Process(block);
+        }
+    }});
+    fx_chain_.push_back({"phaser", [](Synth& s, std::span<SimdType> block) {
+        if (s.param_phaser_enable.Get()) {
+            float center_pitch = s.param_phaser_center.GetModCR();
+            float depth_pitch = s.param_phaser_depth.GetModCR();
+            float begin = center_pitch - depth_pitch;
+            float end = center_pitch + depth_pitch;
+            begin = std::clamp(begin, kPitch20, kPitch20000);
+            end = std::clamp(end, kPitch20, kPitch20000);
+            begin = qwqdsp::convert::Pitch2Freq(begin);
+            end = qwqdsp::convert::Pitch2Freq(end);
+            s.phaser_.begin_w = qwqdsp::convert::Freq2W(begin, s.fs_);
+            s.phaser_.end_w = qwqdsp::convert::Freq2W(end, s.fs_);
+            s.phaser_.fs = s.fs_;
+            s.phaser_.feedback = s.param_phase_feedback.GetModCR();
+            s.phaser_.mix = s.param_phaser_mix.GetModCR();
+            s.phaser_.Q = s.param_phaser_Q.GetModCR();
+            s.phaser_.rate = s.param_phaser_rate.GetModCR();
+            s.phaser_.stereo = s.param_phaser_stereo.GetModCR();
+            s.phaser_.Process(block);
+        }
+    }});
+    fx_chain_.push_back({"distortion", [](Synth& s, std::span<SimdType> block) {
+        if (s.param_distortion_enable.Get()) {
+            float db = s.param_distortion_drive.GetModCR();
+            float gain = qwqdsp::convert::Db2Gain(db);
+            for (auto& x : block) {
+                x *= qwqdsp::psimd::Float32x4::FromSingle(gain);
+                x = s.saturator_.ADAA_MV_Compensation(x);
+            }
+        }
+    }});
+    fx_chain_.push_back({"reverb", [](Synth& s, std::span<SimdType> block) {
+        // tick reverb
+        if (s.param_reverb_enable.Get()) {
+            s.reverb_.damping = s.param_reverb_damp.GetNoMod();
+            s.reverb_.decay = s.param_reverb_decay.GetNoMod();
+            s.reverb_.lowpass = s.param_reverb_lowpass.GetNoMod();
+            s.reverb_.mix = s.param_reverb_mix.GetNoMod();
+            s.reverb_.predelay = s.param_reverb_predelay.GetNoMod();
+            s.reverb_.size = s.param_reverb_size.GetNoMod();
+            s.reverb_.Process(block);
+        }
+    }});
+}
+
+void Synth::SyncBpm(juce::AudioProcessor& p) {
+    if (auto* head = p.getPlayHead()) {
+        param_lfo1_freq.state_.SyncBpm(head->getPosition());
+        param_lfo2_freq.state_.SyncBpm(head->getPosition());
+        param_lfo3_freq.state_.SyncBpm(head->getPosition());
+        param_chorus_rate.state_.SyncBpm(head->getPosition());
+        param_phaser_rate.state_.SyncBpm(head->getPosition());
+    }
+    if (param_lfo1_freq.state_.ShouldSync()) {
+        lfo1_.Reset(param_lfo1_freq.state_.GetSyncPhase());
+    }
+    if (param_lfo2_freq.state_.ShouldSync()) {
+        lfo1_.Reset(param_lfo2_freq.state_.GetSyncPhase());
+    }
+    if (param_lfo3_freq.state_.ShouldSync()) {
+        lfo1_.Reset(param_lfo3_freq.state_.GetSyncPhase());
+    }
+    if (param_chorus_rate.state_.ShouldSync()) {
+        chorus_.SyncBpm(param_chorus_rate.state_.GetSyncPhase());
+    }
+    if (param_phaser_rate.state_.ShouldSync()) {
+        phaser_.SyncBpm(param_phaser_rate.state_.GetSyncPhase());
+    }
 }
 
 void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept {
@@ -21,13 +148,13 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
     // tick lfos
     Lfo::Parameter lfo_param;
     lfo_param.phase_inc = param_lfo1_freq.GetModCR() / fs_;
-    lfo_param.shape = static_cast<Lfo::Shape>(param_lfo1_shape.Get().second);
+    lfo_param.shape = static_cast<Lfo::Shape>(param_lfo1_shape.Get());
     lfo1_.Process(lfo_param, num_samples);
     lfo_param.phase_inc = param_lfo2_freq.GetModCR() / fs_;
-    lfo_param.shape = static_cast<Lfo::Shape>(param_lfo2_shape.Get().second);
+    lfo_param.shape = static_cast<Lfo::Shape>(param_lfo2_shape.Get());
     lfo2_.Process(lfo_param, num_samples);
     lfo_param.phase_inc = param_lfo3_freq.GetModCR() / fs_;
-    lfo_param.shape = static_cast<Lfo::Shape>(param_lfo3_shape.Get().second);
+    lfo_param.shape = static_cast<Lfo::Shape>(param_lfo3_shape.Get());
     lfo3_.Process(lfo_param, num_samples);
     // tick envelopes
     qwqdsp::AdsrEnvelope::Parameter env_param;
@@ -61,7 +188,7 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
     std::array<bool, kBlockSize> sync_buffer;
     std::array<float, kBlockSize> frac_sync_buffer;
     float osc_gain = param_osc1_vol.GetModCR();
-    switch (param_osc1_shape.Get().second) {
+    switch (param_osc1_shape.Get()) {
         case 0:
             for (size_t i = 0; i < num_samples; ++i) {
                 osc1_phase_ += osc1_phase_inc_;
@@ -98,7 +225,7 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
     float osc_pwm = param_osc2_pwm.GetModCR();
     osc2_.SetPWM(osc_pwm);
     if (param_osc2_sync.Get()) {
-        switch (param_osc2_shape.Get().second) {
+        switch (param_osc2_shape.Get()) {
             case 0:
                 for (size_t i = 0; i < num_samples; ++i) {
                     osc_buffer[i] += osc_gain * osc2_.Sawtooth(sync_buffer[i], frac_sync_buffer[i]);
@@ -124,7 +251,7 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
         }
     }
     else {
-        switch (param_osc2_shape.Get().second) {
+        switch (param_osc2_shape.Get()) {
             case 0:
                 for (size_t i = 0; i < num_samples; ++i) {
                     osc_buffer[i] += osc_gain * osc2_.Sawtooth();
@@ -155,7 +282,7 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
     float osc3_unison_detune = param_osc3_unison_detune.GetModCR();
     int osc3_unison_num = static_cast<int>(param_osc3_unison.GetNoMod());
     std::array<float, kMaxUnison> phase_incs_;
-    switch (param_osc3_uniso_type.Get().second) {
+    switch (param_osc3_uniso_type.Get()) {
         case 0: {
             auto& unison_look_table = kPanTable[static_cast<size_t>(osc3_unison_num) - 1];
             for (int i = 0; i < osc3_unison_num; ++i) {
@@ -177,7 +304,7 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
     }
     osc_gain = param_osc3_vol.GetModCR();
     osc_pwm = param_osc3_pwm.GetModCR();
-    switch (param_osc3_shape.Get().second) {
+    switch (param_osc3_shape.Get()) {
         case 0:
             for (size_t i = 0; i < num_samples; ++i) {
                 float sum{};
@@ -230,7 +357,7 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
         osc4_.use_max_n = param_osc4_use_max_n.Get();
         float osc_vol = param_osc4_vol.GetModCR();
         osc4_.Update();
-        switch (param_osc4_shape.Get().second) {
+        switch (param_osc4_shape.Get()) {
             case 0:
                 for (size_t i = 0; i < num_samples; ++i) {
                     osc_buffer[i] += osc_vol * osc4_.Tick<false>();
@@ -243,6 +370,30 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
                 break;
             default:
                 jassertfalse;
+                break;
+        }
+    }
+
+    // noise
+    {
+        float vol = param_noise_vol.GetModCR();
+        switch (param_noise_type.Get()) {
+            case NoiseType_White:
+                for (size_t i = 0; i < num_samples; ++i) {
+                    osc_buffer[i] += vol * white_noise_.Next();
+                }
+                break;
+            case NoiseType_Pink:
+                for (size_t i = 0; i < num_samples; ++i) {
+                    osc_buffer[i] += vol * pink_noise_.Next();
+                }
+                break;
+            case NoiseType_Brown:
+                for (size_t i = 0; i < num_samples; ++i) {
+                    osc_buffer[i] += vol * brown_noise_.Next();
+                }
+                break;
+            default:
                 break;
         }
     }
@@ -276,35 +427,8 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
         fx_temp[i].x[1] = osc_buffer[i];
     }
     std::span fx_block{fx_temp.data(), num_samples};
-    // delay
-    if (param_delay_enable.Get()) {
-        delay_.fs = fs_;
-        delay_.delay_ms = param_delay_ms.GetModCR();
-        delay_.feedback = param_delay_feedback.GetModCR();
-        delay_.mix = param_delay_mix.GetModCR();
-        delay_.pingpong = param_delay_pingpong.Get();
-        delay_.lowcut_f = param_delay_lp.GetModCR();
-        delay_.highcut_f = param_delay_hp.GetModCR();
-        delay_.Process(fx_block);
-    }
-    // chorus
-    if (param_chorus_enable.Get()) {
-        chorus_.fs = fs_;
-        chorus_.delay = param_chorus_delay.GetModCR();
-        chorus_.depth = param_chorus_depth.GetModCR();
-        chorus_.feedback = param_chorus_feedback.GetModCR();
-        chorus_.mix = param_chorus_mix.GetModCR();
-        chorus_.rate = param_chorus_rate.GetModCR();
-        chorus_.Process(fx_block);
-    }
-    // distortion
-    if (param_distortion_enable.Get()) {
-        float db = param_distortion_drive.GetModCR();
-        float gain = qwqdsp::convert::Db2Gain(db);
-        for (auto& x : fx_block) {
-            x *= qwqdsp::psimd::Float32x4::FromSingle(gain);
-            x = saturator_.ADAA_MV_Compensation(x);
-        }
+    for (auto& fx : fx_chain_) {
+        fx.doing(*this, fx_block);
     }
 
     // -------------------- output --------------------
@@ -312,15 +436,105 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
         left[i] = fx_block[i].x[0];
         right[i] = fx_block[i].x[1];
     }
-    // tick reverb
-    if (param_reverb_enable.Get()) {
-        reverb_.damping = param_reverb_damp.GetNoMod();
-        reverb_.decay = param_reverb_decay.GetNoMod();
-        reverb_.lowpass = param_reverb_lowpass.GetNoMod();
-        reverb_.mix = param_reverb_mix.GetNoMod();
-        reverb_.predelay = param_reverb_predelay.GetNoMod();
-        reverb_.size = param_reverb_size.GetNoMod();
-        reverb_.Process(left, right, num_samples);
+    // // tick reverb
+    // if (param_reverb_enable.Get()) {
+    //     reverb_.damping = param_reverb_damp.GetNoMod();
+    //     reverb_.decay = param_reverb_decay.GetNoMod();
+    //     reverb_.lowpass = param_reverb_lowpass.GetNoMod();
+    //     reverb_.mix = param_reverb_mix.GetNoMod();
+    //     reverb_.predelay = param_reverb_predelay.GetNoMod();
+    //     reverb_.size = param_reverb_size.GetNoMod();
+    //     reverb_.Process(left, right, num_samples);
+    // }
+}
+
+juce::ValueTree Synth::SaveFxChainState() {
+    juce::ValueTree r{"fx_order"};
+    for (auto& fx : fx_chain_) {
+        r.appendChild(juce::ValueTree{
+            "fx", {
+                {"name", fx.name}
+            }
+        }, nullptr);
+    }
+    return r;
+}
+
+void Synth::LoadFxChainState(juce::ValueTree& tree) {
+    auto r = tree.getChildWithName("fx_order");
+    if (!r.isValid()) {
+        InitFxSection();
+        fx_order_changed = true;
+        return;
+    }
+
+    std::vector<FxSection> new_section;
+    new_section.reserve(fx_chain_.size());
+
+    for (auto const& fx : r) {
+        auto fx_name = fx.getProperty("name").toString();
+        auto it = std::find_if(fx_chain_.begin(), fx_chain_.end(), [fx_name](auto const& fx_it) {
+            return fx_it.name == fx_name;
+        });
+        if (it != fx_chain_.end()) {
+            new_section.push_back({fx_name, it->doing});
+            fx_chain_.erase(it);
+        }
+    }
+    for (auto const& fx : fx_chain_) {
+        new_section.push_back(fx);
+    }
+    fx_chain_.swap(new_section);
+    fx_order_changed = true;
+}
+
+std::vector<juce::String> Synth::GetCurrentFxChainNames() const {
+    std::vector<juce::String> r;
+    for (auto const& fx : fx_chain_) {
+        r.push_back(fx.name);
+    }
+    return r;
+}
+
+void Synth::MoveFxOrder(juce::StringRef name, int new_index) {
+    if (new_index < 0 || new_index >= static_cast<int>(fx_chain_.size())) return;
+
+    auto it = std::find_if(fx_chain_.begin(), fx_chain_.end(), [name](auto const& fx_it) {
+        return fx_it.name == name;
+    });
+    if (it == fx_chain_.end()) return;
+
+    int current_index = static_cast<int>(std::distance(fx_chain_.begin(), it));
+    if (current_index == new_index) {
+        return;
+    }
+    
+    if (current_index < new_index) {
+        auto new_pos = fx_chain_.begin() + new_index + 1;
+        std::rotate(it, it + 1, new_pos);
+    }
+    else {
+        auto start_pos = fx_chain_.begin() + new_index;
+        std::rotate(start_pos, it, it + 1);
+    }
+}
+
+void Synth::MoveFxOrder(int old_index, int new_index) {
+    if (new_index < 0 || new_index >= static_cast<int>(fx_chain_.size())) return;
+
+    int current_index = old_index;
+    if (current_index == new_index) {
+        return;
+    }
+    
+    auto it = fx_chain_.begin() + old_index;
+    if (current_index < new_index) {
+        auto new_pos = fx_chain_.begin() + new_index + 1;
+        std::rotate(it, it + 1, new_pos);
+    }
+    else {
+        auto start_pos = fx_chain_.begin() + new_index;
+        std::rotate(start_pos, it, it + 1);
     }
 }
 }

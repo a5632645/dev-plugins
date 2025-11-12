@@ -6,9 +6,10 @@
 
 #include <qwqdsp/osciilor/polyblep_sync.hpp>
 #include <qwqdsp/osciilor/polyblep.hpp>
+#include <qwqdsp/osciilor/noise.hpp>
 #include <qwqdsp/convert.hpp>
 #include <qwqdsp/filter/svf_tpt.hpp>
-#include <qwqdsp/algebraic_waveshaper.hpp>
+#include <qwqdsp/simd_element/algebraic_waveshaper.hpp>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <pluginshared/bpm_sync_lfo.hpp>
 
@@ -19,6 +20,7 @@
 #include "chorus.hpp"
 #include "reverb.hpp"
 #include "osc4.hpp"
+#include "phaser.hpp"
 
 namespace analogsynth {
 static constexpr int kMaxUnison = 16;
@@ -175,8 +177,8 @@ public:
         return p;
     }
 
-    std::pair<bool, int> Get() noexcept {
-        return {true, ptr_->getIndex()};
+    int Get() noexcept {
+        return ptr_->getIndex();
     }
 
     juce::AudioParameterChoice* ptr_{};
@@ -294,37 +296,15 @@ public:
     }
 
     void Remove(IModulator* source, FloatParam* target) {
-        // auto& param_modulations = parameter_counter_[target];
-        // auto exist_it = std::remove_if(param_modulations.begin(), param_modulations.end(), [source](auto m) {
-            // return m->source == source;
-        // });
-        // if (exist_it == param_modulations.end()) {
-            // return;
-        // }
-        // param_modulations.erase(exist_it);
-
-        // auto modulator_modulations = modulator_counter_[source];
-        // auto exist_it2 = std::remove_if(modulator_modulations.begin(), modulator_modulations.end(), [source](auto m) {
-            // return m->source == source;
-        // });
-        // modulator_modulations.erase(exist_it2);
-
-        // remove from doing
         auto exist_it3 = std::remove_if(doing_modulations_.begin(), doing_modulations_.end(), [source, target](auto m) {
             return m->source == source && m->target == target;
         });
         if (exist_it3 == doing_modulations_.end()) return;
         auto* pinfo = *exist_it3;
-        doing_modulations_.erase(exist_it3);
+        doing_modulations_.erase(exist_it3, doing_modulations_.end());
         free_modulations_.push_back(pinfo);
         RemoveModInfoFromModulator(pinfo, source);
         RemoveModInfoFromParameter(pinfo, target);
-
-        // if (param_modulations.empty()) {
-            // auto it4 = std::remove(parameters_.begin(), parameters_.end(), target);
-            // target->buffer[0] = 0;
-            // parameters_.erase(it4);
-        // }
         changed = true;
     }
 
@@ -364,7 +344,7 @@ public:
         // Remove(info->source, info->target);
         auto exist_it3 = std::remove(doing_modulations_.begin(), doing_modulations_.end(), info);
         if (exist_it3 == doing_modulations_.end()) return;
-        doing_modulations_.erase(exist_it3);
+        doing_modulations_.erase(exist_it3, doing_modulations_.end());
         free_modulations_.push_back(info);
         RemoveModInfoFromModulator(info, info->source);
         RemoveModInfoFromParameter(info, info->target);
@@ -460,7 +440,7 @@ private:
         auto it = modulator_counter_.find(source);
         if (it == modulator_counter_.end()) return;
         auto remove_it = std::remove(it->second.begin(), it->second.end(), info);
-        it->second.erase(remove_it);
+        it->second.erase(remove_it, it->second.end());
     }
     void AddModInfoToParameter(ModulationInfo* info, FloatParam* target) {
         auto it = parameter_counter_.find(target);
@@ -473,11 +453,11 @@ private:
         auto it = parameter_counter_.find(target);
         if (it == parameter_counter_.end()) return;
         auto remove_it = std::remove(it->second.begin(), it->second.end(), info);
-        it->second.erase(remove_it);
+        it->second.erase(remove_it, it->second.end());
         if (it->second.empty()) {
             auto remove_param_it = std::remove(parameters_.begin(), parameters_.end(), target);
             target->buffer[0] = 0;
-            parameters_.erase(remove_param_it);
+            parameters_.erase(remove_param_it, parameters_.end());
         }
     }
 
@@ -517,34 +497,9 @@ private:
 
 class Synth {
 public:
-    Synth() {
-        AddModulateModulator(lfo1_);
-        AddModulateModulator(lfo2_);
-        AddModulateModulator(lfo3_);
-        AddModulateModulator(mod_env_);
-        AddModulateModulator(volume_env_);
-        
-        AddModulateParam(param_osc1_detune);
-        AddModulateParam(param_osc1_vol);
-        AddModulateParam(param_osc1_pwm);
-        AddModulateParam(param_osc3_detune);
-        AddModulateParam(param_osc3_vol);
-        AddModulateParam(param_osc3_pwm);
-        AddModulateParam(param_osc2_detune);
-        AddModulateParam(param_osc2_vol);
-        AddModulateParam(param_osc2_pwm);
-        AddModulateParam(param_cutoff_pitch);
-        AddModulateParam(param_Q);
-        AddModulateParam(param_filter_direct);
-        AddModulateParam(param_filter_lp);
-        AddModulateParam(param_filter_hp);
-        AddModulateParam(param_filter_bp);
-        AddModulateParam(param_lfo1_freq.freq_);
-        AddModulateParam(param_lfo2_freq.freq_);
-        AddModulateParam(param_lfo3_freq.freq_);
+    using SimdType = qwqdsp::psimd::Float32x4;
 
-        modulation_matrix.Add(&lfo1_, &param_cutoff_pitch);
-    }
+    Synth();
 
     void Init(float fs) noexcept;
 
@@ -565,26 +520,7 @@ public:
         }
     }
 
-    void SyncBpm(juce::AudioProcessor& p) {
-        if (auto* head = p.getPlayHead()) {
-            param_lfo1_freq.state_.SyncBpm(head->getPosition());
-            param_lfo2_freq.state_.SyncBpm(head->getPosition());
-            param_lfo3_freq.state_.SyncBpm(head->getPosition());
-            param_chorus_rate.state_.SyncBpm(head->getPosition());
-        }
-        if (param_lfo1_freq.state_.ShouldSync()) {
-            lfo1_.Reset(param_lfo1_freq.state_.GetSyncPhase());
-        }
-        if (param_lfo2_freq.state_.ShouldSync()) {
-            lfo1_.Reset(param_lfo2_freq.state_.GetSyncPhase());
-        }
-        if (param_lfo3_freq.state_.ShouldSync()) {
-            lfo1_.Reset(param_lfo3_freq.state_.GetSyncPhase());
-        }
-        if (param_chorus_rate.state_.ShouldSync()) {
-            chorus_.SyncBpm(param_chorus_rate.state_.GetSyncPhase());
-        }
-    }
+    void SyncBpm(juce::AudioProcessor& p);
 
     void Process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi_buffer) {
         size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
@@ -610,6 +546,13 @@ public:
         ProcessRaw(left_ptr + buffer_pos, right_ptr + buffer_pos, num_samples - static_cast<size_t>(buffer_pos));
     }
 
+    // -------------------- effect chain --------------------
+    std::atomic<bool> fx_order_changed{false};
+    juce::ValueTree SaveFxChainState();
+    void LoadFxChainState(juce::ValueTree& tree);
+    std::vector<juce::String> GetCurrentFxChainNames() const;
+    void MoveFxOrder(juce::StringRef name, int new_index);
+    void MoveFxOrder(int old_index, int new_index);
     // -------------------- for modulations --------------------
     ModulationMatrix modulation_matrix;
     // -------------------- parameters --------------------
@@ -655,7 +598,7 @@ public:
     };
     FloatParam param_osc3_vol{"osc3_vol",
          juce::NormalisableRange<float>{0.0f, 1.0f, 0.01f},
-         0.5f
+         0.0f
     };
     ChoiceParam param_osc3_shape{"osc3_shape",
         juce::StringArray{"saw","tri","pwm"},
@@ -688,7 +631,7 @@ public:
     };
     // oscillator 4
     FloatParam param_osc4_slope{"osc4.slope",
-        juce::NormalisableRange<float>{0.1f,0.99f,0.01f},
+        juce::NormalisableRange<float>{0.1f,0.995f,0.001f},
         0.9f
     };
     FloatParam param_osc4_width{"osc4.width",
@@ -696,7 +639,7 @@ public:
         0.25f
     };
     FloatParam param_osc4_n{"osc4.n",
-        juce::NormalisableRange<float>{1.0f, 2048.0f, 1.0f, 0.4f},
+        juce::NormalisableRange<float>{1.0f, 4096.0f, 1.0f, 0.2f},
         5.0f
     };
     FloatParam param_osc4_w0_detune{"osc4.w0_detune",
@@ -715,6 +658,20 @@ public:
     FloatParam param_osc4_vol{"osc4.vol",
         juce::NormalisableRange<float>{0.0f,1.0f,0.01f},
         0.0f
+    };
+    // noise
+    FloatParam param_noise_vol{"noise.vol",
+        juce::NormalisableRange<float>{0.0f,1.0f,0.01f},
+        0.0f
+    };
+    ChoiceParam param_noise_type{"noise.type",
+        juce::StringArray{"white","pink","brown"},
+        "pink"
+    };
+    enum {
+        NoiseType_White = 0,
+        NoiseType_Pink,
+        NoiseType_Brown
     };
     // volume envelope
     FloatParam param_env_volume_attack{"vol_env_attack",
@@ -901,14 +858,49 @@ public:
         0.6f
     };
     FloatParam param_reverb_size{"reverb.size",
-        juce::NormalisableRange<float>{0.0f,2.0f,0.01f},
+        juce::NormalisableRange<float>{0.5f,2.0f,0.01f},
         1.3f
     };
     FloatParam param_reverb_damp{"reverb.damp",
         juce::NormalisableRange<float>{20.0f, 20000.0f, 1.0f, 0.4f},
         10000.0f
     };
+    // fx-phaser
+    BoolParam param_phaser_enable{"phaser.enable",false};
+    FloatParam param_phaser_mix{"phaser.mix",
+        juce::NormalisableRange<float>{0.0f,1.0f,0.01f},
+        0.5f
+    };
+    FloatParam param_phaser_center{"phaser.center",
+        juce::NormalisableRange<float>{kPitch20,kPitch20000,0.1f},
+        85.0f
+    };
+    FloatParam param_phaser_depth{"phaser.depth",
+        juce::NormalisableRange<float>{0.0f,kPitch20000-kPitch20,0.1f},
+        10.0f
+    };
+    BpmSyncFreqParam<false> param_phaser_rate{"phaser.rate",
+        juce::NormalisableRange<float>{0.0f,10.0f,0.1f},
+        0.2f,
+        BpmSyncFreqParam<false>::LFOSyncType::Sync,
+        "1"
+    };
+    FloatParam param_phase_feedback{"phaser.feedback",
+        juce::NormalisableRange<float>{-0.99f,0.99f,0.01f},
+        0.4f
+    };
+    FloatParam param_phaser_Q{"phaser.Q",
+        juce::NormalisableRange<float>{0.1f,10.0f,0.01f},
+        1.0f / std::numbers::sqrt2_v<float>
+    };
+    FloatParam param_phaser_stereo{"phaser.stereo",
+        juce::NormalisableRange<float>{0.0f,1.0f,0.01f},
+        0.25f
+    };
 private:
+    inline static const float kPitch20 = qwqdsp::convert::Freq2Pitch(20.0f);
+    inline static const float kPitch20000 = qwqdsp::convert::Freq2Pitch(20000.0f);
+
     void AddModulateParam(FloatParam& p) {
         modulation_matrix.AddModulateParam(p);
     }
@@ -968,6 +960,7 @@ private:
 
     void ProcessBlock(float* left, float* right, size_t num_samples) noexcept;
 
+    // oscillator section
     using BlepCoeff = qwqdsp::oscillor::blep_coeff::BlackmanNutallApprox;
     float osc1_phase_inc_{1e-7f};
     float osc1_phase_{};
@@ -975,6 +968,9 @@ private:
     qwqdsp::oscillor::PolyBlep<BlepCoeff> osc1_;
     qwqdsp::oscillor::PolyBlepSync<BlepCoeff> osc2_;
     Osc4 osc4_;
+    qwqdsp::oscillor::WhiteNoise white_noise_;
+    qwqdsp::oscillor::PinkNoise pink_noise_;
+    qwqdsp::oscillor::BrownNoise brown_noise_;
     
     std::array<float, kMaxUnison> osc3_phases_{};
     std::array<float, kMaxUnison> osc3_freq_ratios_{};
@@ -982,13 +978,23 @@ private:
     std::uniform_real_distribution<float> unison_distribution_{-1.0f, 1.0f};
     std::default_random_engine random_generator_;
 
+    // filter section
     qwqdsp::filter::SvfTPT tpt_svf_;
 
+    // effect section
+    struct FxSection {
+        juce::String name;
+        void(*doing)(Synth& synth, std::span<SimdType> block);
+    };
+    std::vector<FxSection> fx_chain_;
+    void InitFxSection();
     Delay delay_;
     Chorus chorus_;
-    qwqdsp::AlgebraicWaveshaperSimd<qwqdsp::psimd::Float32x4> saturator_;
+    qwqdsp::simd_element::AlgebraicWaveshaperSimd<SimdType> saturator_;
     Reverb reverb_;
+    Phaser phaser_;
 
+    // modulator section
     Lfo lfo1_{"lfo1"};
     Lfo lfo2_{"lfo2"};
     Lfo lfo3_{"lfo3"};

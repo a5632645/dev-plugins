@@ -35,16 +35,16 @@ void Osc2Gui::resized() {
     {
         auto& cubes = waveform_.GetAllCubes();
         auto bound = waveform_.getLocalBounds();
-        auto w = bound.getWidth() / cubes.size();
+        auto w = bound.getWidth() / static_cast<int>(cubes.size());
         for (auto& cube : cubes) {
             cube->setBounds(bound.removeFromLeft(w).reduced(2));
         }
     }
 
-    auto w = b.getWidth() / 3;
+    auto w = (b.getWidth() - 20) / 3;
     detune_.setBounds(b.removeFromLeft(w));
     volume_.setBounds(b.removeFromLeft(w));
-    sync_.setBounds(b.removeFromTop(20).reduced(2));
-    pwm_.setBounds(b);
+    pwm_.setBounds(b.removeFromLeft(w));
+    sync_.setBounds(b.removeFromLeft(20).withSizeKeepingCentre(20, 20));
 }
 }

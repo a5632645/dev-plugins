@@ -5,17 +5,14 @@
 namespace analogsynth {
 class Synth;
 
-class Osc2Gui : public juce::Component {
+class NoiseGui : public juce::Component {
 public:
-    Osc2Gui(Synth& synth);
+    NoiseGui(Synth& synth);
     void resized() override;
     void paint(juce::Graphics& g) override;
 private:
-    juce::Label title_{"", "Oscillator2"};
-    ui::Dial detune_{"detune"};
+    juce::Label title_{"", "Noise"};
     ui::Dial volume_{"volume"};
-    ui::Dial pwm_{"pwm"};
-    ui::CubeSelector waveform_;
-    ui::Switch sync_{"s"};
+    ui::CubeSelector type_;
 };
 }

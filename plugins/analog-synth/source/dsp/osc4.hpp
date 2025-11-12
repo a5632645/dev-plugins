@@ -8,6 +8,7 @@ public:
     void Reset(float phase) {
         w_phase_ = 0;
         w0_phase_ = 0;
+        std::ignore = phase;
     }
 
     void Update() noexcept {

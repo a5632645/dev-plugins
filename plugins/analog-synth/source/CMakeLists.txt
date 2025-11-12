@@ -34,6 +34,7 @@ target_sources(${QWQ_PLUGIN_NAME}
         ui/osc2.cpp
         ui/osc3.cpp
         ui/osc4.cpp
+        ui/noise.cpp
         ui/filter.cpp
         ui/lfo.cpp
         ui/modulations.cpp
@@ -41,6 +42,8 @@ target_sources(${QWQ_PLUGIN_NAME}
         ui/chorus.cpp
         ui/distortion.cpp
         ui/reverb.cpp
+        ui/phaser.cpp
+        ui/fx_chain.cpp
 )
 set_target_properties(${QWQ_PLUGIN_NAME} PROPERTIES CXX_STANDARD 20)
 

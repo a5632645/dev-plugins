@@ -4,6 +4,7 @@
 #include "ui/osc2.hpp"
 #include "ui/osc3.hpp"
 #include "ui/osc4.hpp"
+#include "ui/noise.hpp"
 #include "ui/adsr.hpp"
 #include "ui/filter.hpp"
 #include "ui/lfo.hpp"
@@ -12,6 +13,8 @@
 #include "ui/chorus.hpp"
 #include "ui/distortion.hpp"
 #include "ui/reverb.hpp"
+#include "ui/phaser.hpp"
+#include "ui/fx_chain.hpp"
 
 // ---------------------------------------- editor ----------------------------------------
 
@@ -35,6 +38,7 @@ private:
     analogsynth::Osc2Gui osc2_;
     analogsynth::Osc3Gui osc3_;
     analogsynth::Osc4Gui osc4_;
+    analogsynth::NoiseGui noise_;
     analogsynth::AdsrGui vol_env_;
     analogsynth::AdsrGui filter_env_;
     analogsynth::FilterGui filter_;
@@ -42,10 +46,12 @@ private:
     analogsynth::LfoGui lfo2_;
     analogsynth::LfoGui lfo3_;
     analogsynth::ModulationMatrixLayout modulations_;
-    analogsynth::DelayGui delay_;
-    analogsynth::ChorusGui chorus_;
-    analogsynth::DistortionGui distortion_;
-    analogsynth::ReverbGui reverb_;
+    // analogsynth::DelayGui delay_;
+    // analogsynth::ChorusGui chorus_;
+    // analogsynth::PhaserGui phaser_;
+    // analogsynth::DistortionGui distortion_;
+    // analogsynth::ReverbGui reverb_;
+    analogsynth::FxChainGui fx_chain_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AnalogSynthAudioProcessorEditor)
 };

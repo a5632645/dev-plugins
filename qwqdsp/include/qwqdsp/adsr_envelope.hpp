@@ -128,7 +128,7 @@ public:
                     break;
                 }
                 case State::Attack: {
-                    float factor = ComputeSmoothFactor(attack_samples_);
+                    float factor = ComputeSmoothFactor(static_cast<float>(attack_samples_));
                     float target = 1.0f;
                     float u_cap = last_out_;
                     while (u_cap < 1.0f - 1e-3f && samples != 0) {
@@ -144,7 +144,7 @@ public:
                     break;
                 }
                 case State::Decay: {
-                    float factor = ComputeSmoothFactor(decay_samples_);
+                    float factor = ComputeSmoothFactor(static_cast<float>(decay_samples_));
                     float target = sustain_level_;
                     float u_cap = last_out_;
                     while (u_cap > target && samples != 0) {
@@ -173,7 +173,7 @@ public:
                     break;
                 }
                 case State::Release: {
-                    float factor = ComputeSmoothFactor(release_samples_);
+                    float factor = ComputeSmoothFactor(static_cast<float>(release_samples_));
                     float target = 0.0f;
                     float u_cap = last_out_;
                     while (u_cap > 1e-3f && samples != 0) {

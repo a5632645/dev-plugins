@@ -131,9 +131,9 @@ public:
         ++update_phase_;
         uint32_t diff = update_phase_ ^ old;
         while (diff) {
-            auto const pos = std::countr_zero(diff);
+            auto const pos = static_cast<uint32_t>(std::countr_zero(diff));
             captrue_noise_[pos] = white_.Next();
-            diff &= ~(1 << pos);
+            diff &= ~(static_cast<uint32_t>(1) << pos);
         }
 
         float sum{};

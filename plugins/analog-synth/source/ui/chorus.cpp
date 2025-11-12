@@ -33,15 +33,15 @@ void ChorusGui::resized() {
 
     auto top_bound = content_bound.removeFromTop(25);
     enable_.setBounds(top_bound.removeFromLeft(25).reduced(2));
-    title_.setBounds(top_bound);
+    title_.setBounds(top_bound.removeFromLeft(100));
 
-    auto line1 = content_bound.removeFromTop(70);
+    auto line1 = content_bound.removeFromTop(65);
     auto w = line1.getWidth() / 3;
     rate_.setBounds(line1.removeFromLeft(w));
     delay_.setBounds(line1.removeFromLeft(w));
     depth_.setBounds(line1.removeFromLeft(w));
 
-    auto line2 = content_bound.removeFromTop(70);
+    auto line2 = content_bound.removeFromTop(65);
     w = line2.getWidth() / 3;
     feedback_.setBounds(line2.removeFromLeft(w));
     mix_.setBounds(line2.removeFromLeft(w));

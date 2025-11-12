@@ -42,22 +42,21 @@ void Osc4Gui::resized() {
     
     auto shape_bound = content_bound.removeFromTop(25);
     label_shape_.setBounds(shape_bound.removeFromLeft(50));
-    shape_.setBounds(shape_bound);
+    shape_.setBounds(shape_bound.reduced(2));
 
-    auto line1 = content_bound.removeFromTop(70);
+    auto line1 = content_bound.removeFromTop(65);
     auto w = line1.getWidth() / 3;
     volume_.setBounds(line1.removeFromLeft(w));
     detune_.setBounds(line1.removeFromLeft(w));
     ratio_.setBounds(line1.removeFromLeft(w));
 
-    line1 = content_bound.removeFromTop(70);
+    line1 = content_bound.removeFromTop(65);
     w = line1.getWidth() / 3;
     slope_.setBounds(line1.removeFromLeft(w));
     width_.setBounds(line1.removeFromLeft(w));
 
-    line1 = content_bound.removeFromTop(70);
-    w = line1.getWidth() / 2;
-    n_.setBounds(line1.removeFromLeft(w));
-    use_max_n_.setBounds(line1.removeFromLeft(w));
+    line1 = content_bound;
+    use_max_n_.setBounds(line1.removeFromRight(70).reduced(2));
+    n_.setBounds(line1.reduced(2,1));
 }
 }

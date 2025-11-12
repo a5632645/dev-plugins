@@ -37,36 +37,35 @@ void Osc3Gui::paint(juce::Graphics& g) {
 
 void Osc3Gui::resized() {
     auto content_bound = getLocalBounds().reduced(1);
-    auto const ref = content_bound;
-    auto b = ref;
 
-    title_.setBounds(b.removeFromTop(25));
+    title_.setBounds(content_bound.removeFromTop(20));
     
-    waveform_.setBounds(b.removeFromTop(25));
+    waveform_.setBounds(content_bound.removeFromTop(25));
     {
         auto& cubes = waveform_.GetAllCubes();
         auto bound = waveform_.getLocalBounds();
-        auto w = bound.getWidth() / cubes.size();
+        auto w = bound.getWidth() / static_cast<int>(cubes.size());
         for (auto& cube : cubes) {
             cube->setBounds(bound.removeFromLeft(w).reduced(2));
         }
     }
 
-    auto unison_bound = b.removeFromTop(40);
+    auto unison_bound = content_bound.removeFromTop(40);
     unison_.setBounds(unison_bound.removeFromLeft(unison_bound.getWidth() / 2).reduced(2));
     unison_detune_.setBounds(unison_bound.reduced(2));
 
-    auto type_bound = b.removeFromTop(25);
+    auto type_bound = content_bound.removeFromTop(25);
     unison_type_.setBounds(type_bound.removeFromLeft(type_bound.getWidth() / 2).reduced(2));
     retrigger_.setBounds(type_bound.reduced(2));
 
-    auto phase_bound = b.removeFromTop(40);
+    auto phase_bound = content_bound.removeFromTop(40);
     phase_.setBounds(phase_bound.removeFromLeft(phase_bound.getWidth() / 2).reduced(2));
     random_.setBounds(phase_bound.reduced(2));
 
-    auto dial_bound = b.removeFromTop(80);
-    detune_.setBounds(dial_bound.removeFromLeft(ref.proportionOfWidth(0.3f)));
-    volume_.setBounds(dial_bound.removeFromLeft(ref.proportionOfWidth(0.3f)));
-    pwm_.setBounds(dial_bound.removeFromLeft(ref.proportionOfWidth(0.3f)));
+    auto dial_bound = content_bound;
+    auto w = dial_bound.getWidth() / 3;
+    detune_.setBounds(dial_bound.removeFromLeft(w));
+    volume_.setBounds(dial_bound.removeFromLeft(w));
+    pwm_.setBounds(dial_bound.removeFromLeft(w));
 }
 }

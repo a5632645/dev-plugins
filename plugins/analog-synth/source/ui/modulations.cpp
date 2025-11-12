@@ -139,6 +139,7 @@ int ModulationMatrixLayout::getNumRows() {
 }
 
 void ModulationMatrixLayout::paintRowBackground(juce::Graphics& g, int rowNumber, int width, int height, bool rowIsSelected) {
+    std::ignore = width = height = rowIsSelected;
     auto alternateColour = getLookAndFeel().findColour(juce::ListBox::backgroundColourId)
         .interpolatedWith(getLookAndFeel().findColour(juce::ListBox::textColourId), 0.03f);
     if (rowIsSelected)
@@ -148,6 +149,7 @@ void ModulationMatrixLayout::paintRowBackground(juce::Graphics& g, int rowNumber
 }
 
 void ModulationMatrixLayout::paintCell(juce::Graphics& g, int rowNumber, int columnId, int width, int height, bool rowIsSelected) {
+    std::ignore = rowIsSelected;
     if (columnId != 1 && columnId != 2) {
         return;
     }
@@ -167,6 +169,7 @@ void ModulationMatrixLayout::paintCell(juce::Graphics& g, int rowNumber, int col
 }
 
 juce::Component* ModulationMatrixLayout::refreshComponentForCell(int rowNumber, int columnId, bool isRowSelected, juce::Component* existingComponentToUpdate) {
+    juce::ignoreUnused(isRowSelected);
     if (rowNumber >= getNumRows()) {
         return nullptr;
     }

@@ -117,7 +117,7 @@ public:
         // Tanks
         float maxModDepth = float (8.0 * kMaxSize * r);
         leftTank.resetDelayLines (
-                                  (int)std::ceil (kMaxSize * 672 * r), (float)-0.7, // apf1
+                                  (size_t)std::ceil (kMaxSize * 672 * r), (float)-0.7, // apf1
                                   maxModDepth,
                                   (size_t)std::ceil (kMaxSize * 4453 * r),      // del1
                                   (size_t)std::ceil (kMaxSize * 1800 * r), 0.5, // apf2
@@ -258,7 +258,7 @@ public:
 
     void process (float* l, float* r, size_t num)
     {
-        for (auto i = 0; i < num; i++)
+        for (size_t i = 0; i < num; i++)
             process (l[i], r[i], &l[i], &r[i]);
     }
 
@@ -362,10 +362,10 @@ public:
         {
             // We always want to be able to properly handle any delay value that
             // gets passed in here, without going past the original size.
-            assert(delay <= size);
+            assert(delay <= static_cast<float>(size));
 
             size_t d = (size_t)delay;
-            float frac = 1 - (delay - d);
+            float frac = 1 - (delay - static_cast<float>(d));
 
             size_t readIdx = (writeIdx - 1) - d;
             float a = buffer[size_t ((readIdx - 1) & mask)];
@@ -510,7 +510,7 @@ public:
         ) {
             apf1Size = apf1Size_;
             maxModDepth = maxModDepth_;
-            float maxApf1Size = apf1Size + maxModDepth + 1;
+            float maxApf1Size = static_cast<float>(apf1Size) + maxModDepth + 1;
             apf1.reset(new DelayAllpass (size_t (maxApf1Size), apf1Gain_));
 
             del1.reset(new DelayLine(delay1Size_));
@@ -584,12 +584,12 @@ public:
 
         void recalcSizeRatio() {
 
-            apf1Delay = apf1Size * sizeRatio;
+            apf1Delay = static_cast<float>(apf1Size) * sizeRatio;
             modDepth = maxModDepth * sizeRatio;
 
-            apf2Delay = apf2->getSize() * sizeRatio;
-            del1Delay = del1->getSize() * sizeRatio;
-            del2Delay = del2->getSize() * sizeRatio;
+            apf2Delay = static_cast<float>(apf2->getSize()) * sizeRatio;
+            del1Delay = static_cast<float>(del1->getSize()) * sizeRatio;
+            del2Delay = static_cast<float>(del2->getSize()) * sizeRatio;
         }
     };
 

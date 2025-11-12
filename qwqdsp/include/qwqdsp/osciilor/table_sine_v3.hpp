@@ -55,8 +55,8 @@ public:
         // Sine(t) = y0 + d1 * t + (d2/2) * t * (t-1)
         // 简化为：Sine(t) = y0 + t * (d1 + d2/2 * (t-1))
         
-        T const t_minus_1 = t - 1.0;
-        T const quad_term = d2 * 0.5 * t_minus_1; // 二次校正项：(d2/2) * (t-1)
+        T const t_minus_1 = t - static_cast<T>(1.0);
+        T const quad_term = d2 * static_cast<T>(0.5) * t_minus_1; // 二次校正项：(d2/2) * (t-1)
         
         return y0 + t * (d1 + quad_term);
     }

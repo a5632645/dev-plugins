@@ -25,23 +25,22 @@ void Osc1Gui::paint(juce::Graphics& g) {
 
 void Osc1Gui::resized() {
     auto content_bound = getLocalBounds().reduced(1);
-    auto const ref = content_bound;
-    auto b = ref;
 
-    title_.setBounds(b.removeFromTop(20));
+    title_.setBounds(content_bound.removeFromTop(20));
     
-    waveform_.setBounds(b.removeFromTop(25));
+    waveform_.setBounds(content_bound.removeFromTop(25));
     {
         auto& cubes = waveform_.GetAllCubes();
         auto bound = waveform_.getLocalBounds();
-        auto w = bound.getWidth() / cubes.size();
+        auto w = bound.getWidth() / static_cast<int>(cubes.size());
         for (auto& cube : cubes) {
             cube->setBounds(bound.removeFromLeft(w).reduced(2));
         }
     }
 
-    detune_.setBounds(b.removeFromLeft(ref.proportionOfWidth(0.3f)));
-    volume_.setBounds(b.removeFromLeft(ref.proportionOfWidth(0.3f)));
-    pwm_.setBounds(b.removeFromLeft(ref.proportionOfWidth(0.3f)));
+    auto w = content_bound.getWidth() / 3;
+    detune_.setBounds(content_bound.removeFromLeft(w));
+    volume_.setBounds(content_bound.removeFromLeft(w));
+    pwm_.setBounds(content_bound.removeFromLeft(w));
 }
 }

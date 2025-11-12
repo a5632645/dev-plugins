@@ -11,6 +11,7 @@ AnalogSynthAudioProcessorEditor::AnalogSynthAudioProcessorEditor (AnalogSynthAud
     , osc2_(p.synth_)
     , osc3_(p.synth_)
     , osc4_(p.synth_)
+    , noise_(p.synth_)
     , vol_env_(p.synth_, 1)
     , filter_env_(p.synth_, 2)
     , filter_(p.synth_)
@@ -18,10 +19,12 @@ AnalogSynthAudioProcessorEditor::AnalogSynthAudioProcessorEditor (AnalogSynthAud
     , lfo2_(p.synth_, 2)
     , lfo3_(p.synth_, 3)
     , modulations_(p)
-    , delay_(p.synth_)
-    , chorus_(p.synth_)
-    , distortion_(p.synth_)
-    , reverb_(p.synth_)
+    // , delay_(p.synth_)
+    // , chorus_(p.synth_)
+    // , phaser_(p.synth_)
+    // , distortion_(p.synth_)
+    // , reverb_(p.synth_)
+    , fx_chain_(p.synth_, p)
 {
     addAndMakeVisible(preset_);
 
@@ -36,10 +39,13 @@ AnalogSynthAudioProcessorEditor::AnalogSynthAudioProcessorEditor (AnalogSynthAud
     addAndMakeVisible(lfo2_);
     addAndMakeVisible(lfo3_);
     addAndMakeVisible(modulations_);
-    addAndMakeVisible(delay_);
-    addAndMakeVisible(chorus_);
-    addAndMakeVisible(distortion_);
-    addAndMakeVisible(reverb_);
+    // addAndMakeVisible(delay_);
+    // addAndMakeVisible(chorus_);
+    // addAndMakeVisible(distortion_);
+    // addAndMakeVisible(reverb_);
+    // addAndMakeVisible(phaser_);
+    addAndMakeVisible(fx_chain_);
+    addAndMakeVisible(noise_);
 
     setSize(1150, 800);
 }
@@ -59,17 +65,20 @@ void AnalogSynthAudioProcessorEditor::resized() {
 
     // left
     auto osc_bound = b.removeFromLeft(200);
-    osc1_.setBounds(osc_bound.removeFromTop(130));
-    osc2_.setBounds(osc_bound.removeFromTop(130));
-    osc3_.setBounds(osc_bound.removeFromTop(240));
-    osc4_.setBounds(osc_bound.removeFromTop(210));
+    osc1_.setBounds(osc_bound.removeFromTop(110));
+    osc2_.setBounds(osc_bound.removeFromTop(110));
+    osc3_.setBounds(osc_bound.removeFromTop(215));
+    osc4_.setBounds(osc_bound.removeFromTop(200));
+    noise_.setBounds(osc_bound.removeFromTop(110));
 
     // most right
     auto fx_bound = b.removeFromRight(200);
-    delay_.setBounds(fx_bound.removeFromTop(170));
-    chorus_.setBounds(fx_bound.removeFromTop(170));
-    distortion_.setBounds(fx_bound.removeFromTop(100));
-    reverb_.setBounds(fx_bound.removeFromTop(170));
+    // delay_.setBounds(fx_bound.removeFromTop(160));
+    // chorus_.setBounds(fx_bound.removeFromTop(160));
+    // phaser_.setBounds(fx_bound.removeFromTop(160));
+    // distortion_.setBounds(fx_bound.removeFromTop(90));
+    // reverb_.setBounds(fx_bound.removeFromTop(160));
+    fx_chain_.setBounds(fx_bound);
 
     // right
     auto env_bound = b.removeFromRight(220);

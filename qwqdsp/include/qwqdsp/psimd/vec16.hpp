@@ -284,6 +284,86 @@ struct alignas(64) Vec16f32 {
         return *this;
     }
 
+    constexpr Vec16f32& operator+=(float v) noexcept {
+        x[0]  += v;
+        x[1]  += v;
+        x[2]  += v;
+        x[3]  += v;
+        x[4]  += v;
+        x[5]  += v;
+        x[6]  += v;
+        x[7]  += v;
+        x[8]  += v;
+        x[9]  += v;
+        x[10] += v;
+        x[11] += v;
+        x[12] += v;
+        x[13] += v;
+        x[14] += v;
+        x[15] += v;
+        return *this;
+    }
+
+    constexpr Vec16f32& operator-=(float v) noexcept {
+        x[0]  -= v;
+        x[1]  -= v;
+        x[2]  -= v;
+        x[3]  -= v;
+        x[4]  -= v;
+        x[5]  -= v;
+        x[6]  -= v;
+        x[7]  -= v;
+        x[8]  -= v;
+        x[9]  -= v;
+        x[10] -= v;
+        x[11] -= v;
+        x[12] -= v;
+        x[13] -= v;
+        x[14] -= v;
+        x[15] -= v;
+        return *this;
+    }
+
+    constexpr Vec16f32& operator*=(float v) noexcept {
+        x[0]  *= v;
+        x[1]  *= v;
+        x[2]  *= v;
+        x[3]  *= v;
+        x[4]  *= v;
+        x[5]  *= v;
+        x[6]  *= v;
+        x[7]  *= v;
+        x[8]  *= v;
+        x[9]  *= v;
+        x[10] *= v;
+        x[11] *= v;
+        x[12] *= v;
+        x[13] *= v;
+        x[14] *= v;
+        x[15] *= v;
+        return *this;
+    }
+
+    constexpr Vec16f32& operator/=(float v) noexcept {
+        x[0]  /= v;
+        x[1]  /= v;
+        x[2]  /= v;
+        x[3]  /= v;
+        x[4]  /= v;
+        x[5]  /= v;
+        x[6]  /= v;
+        x[7]  /= v;
+        x[8]  /= v;
+        x[9]  /= v;
+        x[10] /= v;
+        x[11] /= v;
+        x[12] /= v;
+        x[13] /= v;
+        x[14] /= v;
+        x[15] /= v;
+        return *this;
+    }
+
     constexpr Vec16f32 Frac() const noexcept {
         return Vec16f32{
             x[0]  - std::floor(x[0]),
@@ -366,6 +446,27 @@ struct alignas(64) Vec16f32 {
         };
     }
 
+    static Vec16f32 Abs(Vec16f32 const& x) noexcept {
+        return Vec16f32{
+            std::abs(x.x[0]),
+            std::abs(x.x[1]),
+            std::abs(x.x[2]),
+            std::abs(x.x[3]),
+            std::abs(x.x[4]),
+            std::abs(x.x[5]),
+            std::abs(x.x[6]),
+            std::abs(x.x[7]),
+            std::abs(x.x[8]),
+            std::abs(x.x[9]),
+            std::abs(x.x[10]),
+            std::abs(x.x[11]),
+            std::abs(x.x[12]),
+            std::abs(x.x[13]),
+            std::abs(x.x[14]),
+            std::abs(x.x[15]),
+        };
+    }
+
     constexpr float ReduceAdd() const noexcept {
         return x[0] + x[1] + x[2] + x[3] + x[4] + x[5] + x[6] + x[7] + x[8] + x[9] + x[10] + x[11] + x[12] + x[13] + x[14] + x[15];
     }
@@ -408,6 +509,48 @@ static constexpr Vec16f32 operator*(const Vec16f32& a, const Vec16f32& b) noexce
 }
 static constexpr Vec16f32 operator/(const Vec16f32& a, const Vec16f32& b) noexcept {
     Vec16f32 r = a;
+    r /= b;
+    return r;
+}
+
+static constexpr Vec16f32 operator+(const Vec16f32& a, float b) noexcept {
+    Vec16f32 r = a;
+    r += b;
+    return r;
+}
+static constexpr Vec16f32 operator-(const Vec16f32& a, float b) noexcept {
+    Vec16f32 r = a;
+    r -= b;
+    return r;
+}
+static constexpr Vec16f32 operator*(const Vec16f32& a, float b) noexcept {
+    Vec16f32 r = a;
+    r *= b;
+    return r;
+}
+static constexpr Vec16f32 operator/(const Vec16f32& a, float b) noexcept {
+    Vec16f32 r = a;
+    r /= b;
+    return r;
+}
+
+static constexpr Vec16f32 operator+(float a, const Vec16f32& b) noexcept {
+    Vec16f32 r = Vec16f32::FromSingle(a);
+    r += b;
+    return r;
+}
+static constexpr Vec16f32 operator-(float a, const Vec16f32& b) noexcept {
+    Vec16f32 r = Vec16f32::FromSingle(a);
+    r -= b;
+    return r;
+}
+static constexpr Vec16f32 operator*(float a, const Vec16f32& b) noexcept {
+    Vec16f32 r = Vec16f32::FromSingle(a);
+    r *= b;
+    return r;
+}
+static constexpr Vec16f32 operator/(float a, const Vec16f32& b) noexcept {
+    Vec16f32 r = Vec16f32::FromSingle(a);
     r /= b;
     return r;
 }

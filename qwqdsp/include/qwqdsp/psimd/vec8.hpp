@@ -238,6 +238,54 @@ struct alignas(32) Vec8f32 {
         return *this;
     }
 
+    constexpr Vec8f32& operator+=(float v) noexcept {
+        x[0] += v;
+        x[1] += v;
+        x[2] += v;
+        x[3] += v;
+        x[4] += v;
+        x[5] += v;
+        x[6] += v;
+        x[7] += v;
+        return *this;
+    }
+
+    constexpr Vec8f32& operator-=(float v) noexcept {
+        x[0] -= v;
+        x[1] -= v;
+        x[2] -= v;
+        x[3] -= v;
+        x[4] -= v;
+        x[5] -= v;
+        x[6] -= v;
+        x[7] -= v;
+        return *this;
+    }
+
+    constexpr Vec8f32& operator*=(float v) noexcept {
+        x[0] *= v;
+        x[1] *= v;
+        x[2] *= v;
+        x[3] *= v;
+        x[4] *= v;
+        x[5] *= v;
+        x[6] *= v;
+        x[7] *= v;
+        return *this;
+    }
+
+    constexpr Vec8f32& operator/=(float v) noexcept {
+        x[0] /= v;
+        x[1] /= v;
+        x[2] /= v;
+        x[3] /= v;
+        x[4] /= v;
+        x[5] /= v;
+        x[6] /= v;
+        x[7] /= v;
+        return *this;
+    }
+
     Vec8f32 Frac() const noexcept {
         return Vec8f32{
             x[0] - std::floor(x[0]),
@@ -287,6 +335,19 @@ struct alignas(32) Vec8f32 {
             std::sqrt(x.x[5]),
             std::sqrt(x.x[6]),
             std::sqrt(x.x[7]),
+        };
+    }
+
+    static Vec8f32 Abs(Vec8f32 const& x) noexcept {
+        return Vec8f32{
+            std::abs(x.x[0]),
+            std::abs(x.x[1]),
+            std::abs(x.x[2]),
+            std::abs(x.x[3]),
+            std::abs(x.x[4]),
+            std::abs(x.x[5]),
+            std::abs(x.x[6]),
+            std::abs(x.x[7]),
         };
     }
 
@@ -351,6 +412,48 @@ static constexpr Vec8f32 operator*(const Vec8f32& a, const Vec8f32& b) noexcept 
 }
 static constexpr Vec8f32 operator/(const Vec8f32& a, const Vec8f32& b) noexcept {
     Vec8f32 r = a;
+    r /= b;
+    return r;
+}
+
+static constexpr Vec8f32 operator+(const Vec8f32& a, float b) noexcept {
+    Vec8f32 r = a;
+    r += b;
+    return r;
+}
+static constexpr Vec8f32 operator-(const Vec8f32& a, float b) noexcept {
+    Vec8f32 r = a;
+    r -= b;
+    return r;
+}
+static constexpr Vec8f32 operator*(const Vec8f32& a, float b) noexcept {
+    Vec8f32 r = a;
+    r *= b;
+    return r;
+}
+static constexpr Vec8f32 operator/(const Vec8f32& a, float b) noexcept {
+    Vec8f32 r = a;
+    r /= b;
+    return r;
+}
+
+static constexpr Vec8f32 operator+(float a, const Vec8f32& b) noexcept {
+    Vec8f32 r = Vec8f32::FromSingle(a);
+    r += b;
+    return r;
+}
+static constexpr Vec8f32 operator-(float a, const Vec8f32& b) noexcept {
+    Vec8f32 r = Vec8f32::FromSingle(a);
+    r -= b;
+    return r;
+}
+static constexpr Vec8f32 operator*(float a, const Vec8f32& b) noexcept {
+    Vec8f32 r = Vec8f32::FromSingle(a);
+    r *= b;
+    return r;
+}
+static constexpr Vec8f32 operator/(float a, const Vec8f32& b) noexcept {
+    Vec8f32 r = Vec8f32::FromSingle(a);
     r /= b;
     return r;
 }

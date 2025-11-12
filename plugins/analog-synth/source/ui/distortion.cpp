@@ -25,9 +25,9 @@ void DistortionGui::resized() {
 
     auto top_bound = content_bound.removeFromTop(25);
     enable_.setBounds(top_bound.removeFromLeft(25).reduced(2));
-    title_.setBounds(top_bound);
+    title_.setBounds(top_bound.removeFromLeft(100));
 
-    auto line1 = content_bound.removeFromTop(70);
+    auto line1 = content_bound.removeFromTop(65);
     auto w = line1.getWidth() / 3;
     drive_.setBounds(line1.removeFromLeft(w));
 }

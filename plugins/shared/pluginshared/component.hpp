@@ -70,7 +70,7 @@ public:
             g.fillAll(inactive_bg);
             juce::Rectangle<int> bound{x,y,width,height};
             g.setColour(orange_fore);
-            g.fillRect(bound.removeFromLeft(sliderPos));
+            g.fillRect(bound.removeFromLeft(static_cast<int>(sliderPos)));
             juce::Rectangle<int> bound2{x,y,width,height};
             g.setColour(juce::Colours::black);
             g.setColour(juce::Colours::black);
@@ -101,6 +101,7 @@ public:
         bool isButtonDown,
         int buttonX, int buttonY, int buttonW, int buttonH,
         juce::ComboBox& box) override {
+        juce::ignoreUnused(width,height,isButtonDown);
         g.fillAll(box.isEnabled() ? ui::light_green_bg : ui::green_bg);
         g.setColour(juce::Colours::black);
         g.drawRect(g.getClipBounds());
@@ -113,6 +114,7 @@ public:
         int width,
         int height
     ) override {
+        juce::ignoreUnused(width,height);
         g.fillAll(ui::light_green_bg);
     }
 
@@ -149,6 +151,7 @@ public:
         const juce::String& shortcutKeyText,
         const juce::Drawable* icon, const juce::Colour* const textColourToUse
     ) override {
+        juce::ignoreUnused(isTicked,textColourToUse);
         if (isSeparator)
         {
             auto r  = area.reduced (5, 0);
@@ -376,14 +379,14 @@ public:
         }
         else if (title_layout == TitleLayout::Top) {
             auto b = getLocalBounds();
-            label.setBounds(b.removeFromTop(label.getFont().getHeight()));
+            label.setBounds(b.removeFromTop(static_cast<int>(label.getFont().getHeight())));
             slider.setBounds(b);
         }
         else {
             auto font = label.getFont();
-            auto width = juce::TextLayout::getStringWidth(font, label.getText());
+            auto width = 1.2f * juce::TextLayout::getStringWidth(font, label.getText());
             auto b = getLocalBounds();
-            label.setBounds(b.removeFromLeft(width));
+            label.setBounds(b.removeFromLeft(static_cast<int>(width)));
             slider.setBounds(b);
         }
     }

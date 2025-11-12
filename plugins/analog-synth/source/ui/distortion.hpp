@@ -1,3 +1,4 @@
+#pragma once
 #include <pluginshared/component.hpp>
 
 namespace analogsynth {
