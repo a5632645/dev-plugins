@@ -17,7 +17,7 @@ public:
 
     void resized() override;
 private:
-    void OnAddButtonClick();
+    void CheckPendingAdd();
     void timerCallback() override;
     void cellClicked (int rowNumber, int columnId, const juce::MouseEvent& mouseEvent) override;
 
@@ -26,9 +26,12 @@ private:
     std::unique_ptr<juce::TableListBox> table_;
     std::vector<ModulationInfo*> local_modulations_;
 
-    ui::FlatCombobox modulators_;
-    ui::FlatCombobox parameters_;
-    ui::FlatButton add_;
+    std::vector<juce::String> modulator_names_;
+    std::vector<juce::String> parameter_names_;
+    juce::PopupMenu modulator_popup_;
+    juce::PopupMenu parameter_popup_;
+    juce::String pending_modulator_name_;
+    juce::String pending_parameter_name_;
 
     // 通过 TableListBoxModel 继承
     int getNumRows() override;

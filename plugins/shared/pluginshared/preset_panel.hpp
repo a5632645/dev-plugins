@@ -37,16 +37,16 @@ public:
     }
 
     void resized() override {
-        auto container = getLocalBounds().reduced(4);
+        auto container = getLocalBounds();
 
-        options_button_.setBounds(container.removeFromLeft(container.proportionOfWidth(0.15f)).reduced(4));
+        options_button_.setBounds(container.removeFromLeft(container.proportionOfWidth(0.15f)).reduced(2));
 
         auto const b = container;
-        deleteButton.setBounds(container.removeFromRight(b.proportionOfWidth(0.15f)).reduced(4));
-        saveButton.setBounds(container.removeFromRight(b.proportionOfWidth(0.15f)).reduced(4));
-        previousPresetButton.setBounds(container.removeFromLeft(container.getHeight()).reduced(4));
-        nextPresetButton.setBounds(container.removeFromRight(container.getHeight()).reduced(4));
-        presetList.setBounds(container.reduced(4));
+        deleteButton.setBounds(container.removeFromRight(b.proportionOfWidth(0.15f)).reduced(2));
+        saveButton.setBounds(container.removeFromRight(b.proportionOfWidth(0.15f)).reduced(2));
+        previousPresetButton.setBounds(container.removeFromLeft(container.getHeight()).reduced(2));
+        nextPresetButton.setBounds(container.removeFromRight(container.getHeight()).reduced(2));
+        presetList.setBounds(container.reduced(2));
     }
 
     std::function<void(juce::PopupMenu&)> on_menu_showup;

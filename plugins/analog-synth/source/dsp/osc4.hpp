@@ -15,8 +15,10 @@ public:
         w0_inc_ = sine_lut_.Omega2PhaseInc(w0);
         w_inc_ = sine_lut_.Omega2PhaseInc(w);
         a_ = std::polar(a, width);
-        uint32_t max_n = static_cast<uint32_t>((std::numbers::pi_v<float> - w0) / w);
-        use_n_ = use_max_n ? max_n : std::min(max_n, n);
+        int max_n = static_cast<int>((std::numbers::pi_v<float> - w0) / w);
+        max_n = std::max<int>(max_n, 1);
+        uint32_t uint_max_n = static_cast<uint32_t>(max_n);
+        use_n_ = use_max_n ? uint_max_n : std::min(uint_max_n, n);
         a_pow_n_ = std::pow(a_, static_cast<float>(use_n_));
         norm_gain_ = (1.0f - std::abs(a_)) / (1.0f - std::abs(a_pow_n_));
     }

@@ -11,6 +11,7 @@ public:
     void resized() override;
     void paint(juce::Graphics& g) override;
 private:
+    ui::Switch enable_{juce::String::fromUTF8("⭘")};
     juce::Label title_{"", "Filter"};
     ui::Dial cutoff_{"cutoff"};
     ui::Dial Q_{"Q"};

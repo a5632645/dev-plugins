@@ -19,12 +19,9 @@ AnalogSynthAudioProcessorEditor::AnalogSynthAudioProcessorEditor (AnalogSynthAud
     , lfo2_(p.synth_, 2)
     , lfo3_(p.synth_, 3)
     , modulations_(p)
-    // , delay_(p.synth_)
-    // , chorus_(p.synth_)
-    // , phaser_(p.synth_)
-    // , distortion_(p.synth_)
-    // , reverb_(p.synth_)
     , fx_chain_(p.synth_, p)
+    , marcos_(p.synth_)
+    , voices_(p.synth_)
 {
     addAndMakeVisible(preset_);
 
@@ -39,15 +36,12 @@ AnalogSynthAudioProcessorEditor::AnalogSynthAudioProcessorEditor (AnalogSynthAud
     addAndMakeVisible(lfo2_);
     addAndMakeVisible(lfo3_);
     addAndMakeVisible(modulations_);
-    // addAndMakeVisible(delay_);
-    // addAndMakeVisible(chorus_);
-    // addAndMakeVisible(distortion_);
-    // addAndMakeVisible(reverb_);
-    // addAndMakeVisible(phaser_);
     addAndMakeVisible(fx_chain_);
     addAndMakeVisible(noise_);
+    addAndMakeVisible(marcos_);
+    addAndMakeVisible(voices_);
 
-    setSize(1150, 800);
+    setSize(1150, 800 - 25);
 }
 
 AnalogSynthAudioProcessorEditor::~AnalogSynthAudioProcessorEditor() {
@@ -61,7 +55,7 @@ void AnalogSynthAudioProcessorEditor::paint (juce::Graphics& g) {
 void AnalogSynthAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
     // top
-    preset_.setBounds(b.removeFromTop(50));
+    preset_.setBounds(b.removeFromTop(30));
 
     // left
     auto osc_bound = b.removeFromLeft(200);
@@ -73,20 +67,17 @@ void AnalogSynthAudioProcessorEditor::resized() {
 
     // most right
     auto fx_bound = b.removeFromRight(200);
-    // delay_.setBounds(fx_bound.removeFromTop(160));
-    // chorus_.setBounds(fx_bound.removeFromTop(160));
-    // phaser_.setBounds(fx_bound.removeFromTop(160));
-    // distortion_.setBounds(fx_bound.removeFromTop(90));
-    // reverb_.setBounds(fx_bound.removeFromTop(160));
     fx_chain_.setBounds(fx_bound);
 
     // right
     auto env_bound = b.removeFromRight(220);
-    vol_env_.setBounds(env_bound.removeFromTop(100));
-    filter_env_.setBounds(env_bound.removeFromTop(100));
-    lfo1_.setBounds(env_bound.removeFromTop(100));
-    lfo2_.setBounds(env_bound.removeFromTop(100));
-    lfo3_.setBounds(env_bound.removeFromTop(100));
+    vol_env_.setBounds(env_bound.removeFromTop(90));
+    filter_env_.setBounds(env_bound.removeFromTop(90));
+    lfo1_.setBounds(env_bound.removeFromTop(90));
+    lfo2_.setBounds(env_bound.removeFromTop(90));
+    lfo3_.setBounds(env_bound.removeFromTop(90));
+    marcos_.setBounds(env_bound.removeFromTop(90));
+    voices_.setBounds(env_bound.removeFromTop(90));
 
     auto center_bound = b;
     // center top

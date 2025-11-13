@@ -44,6 +44,8 @@ target_sources(${QWQ_PLUGIN_NAME}
         ui/reverb.cpp
         ui/phaser.cpp
         ui/fx_chain.cpp
+        ui/marcos.cpp
+        ui/voices.cpp
 )
 set_target_properties(${QWQ_PLUGIN_NAME} PROPERTIES CXX_STANDARD 20)
 

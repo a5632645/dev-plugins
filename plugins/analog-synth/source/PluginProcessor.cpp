@@ -53,6 +53,7 @@ AnalogSynthAudioProcessor::AnalogSynthAudioProcessor()
     layout.add(synth_.param_env_mod_sustain.Build());
     layout.add(synth_.param_env_mod_release.Build());
     layout.add(synth_.param_env_mod_exp.Build());
+    layout.add(synth_.param_filter_enable.Build());
     layout.add(synth_.param_cutoff_pitch.Build());
     layout.add(synth_.param_Q.Build());
     layout.add(synth_.param_filter_direct.Build());
@@ -77,6 +78,10 @@ AnalogSynthAudioProcessor::AnalogSynthAudioProcessor()
     layout.add(synth_.param_lfo3_shape.Build());
     layout.add(synth_.param_lfo3_retrigger.Build());
     layout.add(synth_.param_lfo3_phase.Build());
+    layout.add(synth_.param_marco1.Build());
+    layout.add(synth_.param_marco2.Build());
+    layout.add(synth_.param_marco3.Build());
+    layout.add(synth_.param_marco4.Build());
     layout.add(synth_.param_delay_enable.Build());
     layout.add(synth_.param_delay_ms.Build());
     layout.add(synth_.param_delay_pingpong.Build());

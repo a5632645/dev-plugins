@@ -18,6 +18,8 @@ FilterGui::FilterGui(Synth& synth) {
     addAndMakeVisible(hp_);
     bp_.BindParam(synth.param_filter_bp.ptr_);
     addAndMakeVisible(bp_);
+    enable_.BindParam(synth.param_filter_enable.ptr_);
+    addAndMakeVisible(enable_);
 }
 
 void FilterGui::paint(juce::Graphics& g) {
@@ -29,16 +31,17 @@ void FilterGui::paint(juce::Graphics& g) {
 
 void FilterGui::resized() {
     auto content_bound = getLocalBounds().reduced(1);
-    auto b = content_bound;
 
-    title_.setBounds(b.removeFromTop(20));
+    auto top_bound = content_bound.removeFromTop(25);
+    enable_.setBounds(top_bound.removeFromLeft(25).reduced(2));
+    title_.setBounds(top_bound.removeFromLeft(100));
 
-    auto top = b.removeFromTop(b.getHeight() / 2);
+    auto top = content_bound.removeFromTop(content_bound.getHeight() / 2);
     auto top_w = top.getWidth() / 4;
     cutoff_.setBounds(top.removeFromLeft(top_w));
     Q_.setBounds(top.removeFromLeft(top_w));
 
-    auto bottom = b;
+    auto bottom = content_bound;
     auto bottom_w = bottom.getWidth() / 4;
     direct_.setBounds(bottom.removeFromLeft(bottom_w));
     lp_.setBounds(bottom.removeFromLeft(bottom_w));

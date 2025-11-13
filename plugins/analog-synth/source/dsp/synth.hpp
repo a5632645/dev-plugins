@@ -222,6 +222,17 @@ struct ModulationInfo {
     bool enable{true};
     float amount{0.5f};
     bool bipolar{false};
+
+    // only gui use
+    std::function<void()> changed;
+
+    float ConvertFrom01(float mod_val) const noexcept {
+        float mod = mod_val;
+        if (bipolar) {
+            mod = mod * 2.0f - 1.0f;
+        }
+        return mod * amount;
+    }
 };
 
 class ModulationMatrix {
@@ -710,6 +721,7 @@ public:
     };
     BoolParam param_env_mod_exp{"mod_env.exp", false};
     // filter
+    BoolParam param_filter_enable{"filter.enable", false};
     FloatParam param_cutoff_pitch{"filter_cutoff_pitch",
         juce::NormalisableRange<float>{qwqdsp::convert::Freq2Pitch(20.0f), qwqdsp::convert::Freq2Pitch(20000.0f), 0.1f},
         qwqdsp::convert::Freq2Pitch(1000.0f)
@@ -897,6 +909,23 @@ public:
         juce::NormalisableRange<float>{0.0f,1.0f,0.01f},
         0.25f
     };
+    // marcos
+    FloatParam param_marco1{"marco1",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.0001f},
+        0.0f
+    };
+    FloatParam param_marco2{"marco2",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.0001f},
+        0.0f
+    };
+    FloatParam param_marco3{"marco3",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.0001f},
+        0.0f
+    };
+    FloatParam param_marco4{"marco4",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.0001f},
+        0.0f
+    };
 private:
     inline static const float kPitch20 = qwqdsp::convert::Freq2Pitch(20.0f);
     inline static const float kPitch20000 = qwqdsp::convert::Freq2Pitch(20000.0f);
@@ -916,7 +945,7 @@ private:
 
         // envelopes
         volume_env_.envelope_.NoteOn(false);
-        mod_env_.envelope_.NoteOn(false);
+        mod_env_.envelope_.NoteOn(true);
 
         // lfos
         if (param_lfo1_retrigger.Get()) {
@@ -945,7 +974,7 @@ private:
 
     void StopNote() noexcept {
         volume_env_.envelope_.Noteoff(false);
-        mod_env_.envelope_.Noteoff(false);
+        mod_env_.envelope_.Noteoff(true);
     }
 
     void ProcessRaw(float* left, float* right, size_t num_samples) noexcept {
@@ -1000,6 +1029,23 @@ private:
     Lfo lfo3_{"lfo3"};
     ModEnvelope volume_env_{"vol env"};
     ModEnvelope mod_env_{"mod env"};
+
+    class MarcoModulator : public IModulator {
+    public:
+        MarcoModulator(juce::StringRef name, FloatParam& param) 
+            : IModulator(name)
+            , param_(param) {}
+        
+        void Update() noexcept {
+            this->modulator_output[0] = param_.GetNoMod();
+        }
+    private:
+        FloatParam& param_;
+    };
+    MarcoModulator marco1_{"marco1", param_marco1};
+    MarcoModulator marco2_{"marco2", param_marco2};
+    MarcoModulator marco3_{"marco3", param_marco3};
+    MarcoModulator marco4_{"marco4", param_marco4};
     
     float fs_{};
     float current_note_{};

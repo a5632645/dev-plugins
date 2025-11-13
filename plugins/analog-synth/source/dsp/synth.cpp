@@ -7,16 +7,27 @@ Synth::Synth() {
     AddModulateModulator(lfo3_);
     AddModulateModulator(mod_env_);
     AddModulateModulator(volume_env_);
+    AddModulateModulator(marco1_);
+    AddModulateModulator(marco2_);
+    AddModulateModulator(marco3_);
+    AddModulateModulator(marco4_);
     
     AddModulateParam(param_osc1_detune);
     AddModulateParam(param_osc1_vol);
     AddModulateParam(param_osc1_pwm);
-    AddModulateParam(param_osc3_detune);
-    AddModulateParam(param_osc3_vol);
-    AddModulateParam(param_osc3_pwm);
     AddModulateParam(param_osc2_detune);
     AddModulateParam(param_osc2_vol);
     AddModulateParam(param_osc2_pwm);
+    AddModulateParam(param_osc3_detune);
+    AddModulateParam(param_osc3_vol);
+    AddModulateParam(param_osc3_pwm);
+    AddModulateParam(param_osc4_slope);
+    AddModulateParam(param_osc4_width);
+    AddModulateParam(param_osc4_n);
+    AddModulateParam(param_osc4_w0_detune);
+    AddModulateParam(param_osc4_w_ratio);
+    AddModulateParam(param_osc4_vol);
+    AddModulateParam(param_noise_vol);
     AddModulateParam(param_cutoff_pitch);
     AddModulateParam(param_Q);
     AddModulateParam(param_filter_direct);
@@ -26,6 +37,25 @@ Synth::Synth() {
     AddModulateParam(param_lfo1_freq.freq_);
     AddModulateParam(param_lfo2_freq.freq_);
     AddModulateParam(param_lfo3_freq.freq_);
+    AddModulateParam(param_chorus_delay);
+    AddModulateParam(param_chorus_feedback);
+    AddModulateParam(param_chorus_mix);
+    AddModulateParam(param_chorus_depth);
+    AddModulateParam(param_chorus_rate.freq_);
+    AddModulateParam(param_distortion_drive);
+    AddModulateParam(param_reverb_mix);
+    AddModulateParam(param_reverb_predelay);
+    AddModulateParam(param_reverb_lowpass);
+    AddModulateParam(param_reverb_decay);
+    AddModulateParam(param_reverb_size);
+    AddModulateParam(param_reverb_damp);
+    AddModulateParam(param_phaser_mix);
+    AddModulateParam(param_phaser_center);
+    AddModulateParam(param_phaser_depth);
+    AddModulateParam(param_phaser_rate.freq_);
+    AddModulateParam(param_phase_feedback);
+    AddModulateParam(param_phaser_Q);
+    AddModulateParam(param_phaser_stereo);
 
     InitFxSection();
 
@@ -172,6 +202,11 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
     env_param.sustain_level = param_env_mod_sustain.GetModCR();
     mod_env_.envelope_.Update(env_param);
     mod_env_.Process(param_env_mod_exp.Get(), num_samples);
+    // tick marcos
+    marco1_.Update();
+    marco2_.Update();
+    marco3_.Update();
+    marco4_.Update();
 
     // -------------------- tick parameters --------------------
     modulation_matrix.Process(num_samples);
@@ -399,19 +434,21 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
     }
 
     // -------------------- tick filter --------------------
-    float const filter_Q = param_Q.GetModCR();
-    float const filter_cutoff = param_cutoff_pitch.GetModCR();
-    float const direct_mix = param_filter_direct.GetModCR();
-    float const lp_mix = param_filter_lp.GetModCR();
-    float const hp_mix = param_filter_hp.GetModCR();
-    float const bp_mix = param_filter_bp.GetModCR();
-    float freq = qwqdsp::convert::Pitch2Freq(filter_cutoff);
-    float w = qwqdsp::convert::Freq2W(freq, fs_);
-    tpt_svf_.SetCoeffQ(w, filter_Q);
-    for (size_t i = 0; i < num_samples; ++i) {
-        auto[hp,bp,lp] = tpt_svf_.TickMultiMode(osc_buffer[i]);
-        osc_buffer[i] *= direct_mix;
-        osc_buffer[i] += hp * hp_mix + bp * bp_mix + lp * lp_mix;
+    if (param_filter_enable.Get()) {
+        float const filter_Q = param_Q.GetModCR();
+        float const filter_cutoff = param_cutoff_pitch.GetModCR();
+        float const direct_mix = param_filter_direct.GetModCR();
+        float const lp_mix = param_filter_lp.GetModCR();
+        float const hp_mix = param_filter_hp.GetModCR();
+        float const bp_mix = param_filter_bp.GetModCR();
+        float freq = qwqdsp::convert::Pitch2Freq(filter_cutoff);
+        float w = qwqdsp::convert::Freq2W(freq, fs_);
+        tpt_svf_.SetCoeffQ(w, filter_Q);
+        for (size_t i = 0; i < num_samples; ++i) {
+            auto[hp,bp,lp] = tpt_svf_.TickMultiMode(osc_buffer[i]);
+            osc_buffer[i] *= direct_mix;
+            osc_buffer[i] += hp * hp_mix + bp * bp_mix + lp * lp_mix;
+        }
     }
 
     // -------------------- tick volume envelope --------------------

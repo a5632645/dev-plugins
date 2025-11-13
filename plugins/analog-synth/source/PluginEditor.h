@@ -9,12 +9,9 @@
 #include "ui/filter.hpp"
 #include "ui/lfo.hpp"
 #include "ui/modulations.hpp"
-#include "ui/delay.hpp"
-#include "ui/chorus.hpp"
-#include "ui/distortion.hpp"
-#include "ui/reverb.hpp"
-#include "ui/phaser.hpp"
 #include "ui/fx_chain.hpp"
+#include "ui/marcos.hpp"
+#include "ui/voices.hpp"
 
 // ---------------------------------------- editor ----------------------------------------
 
@@ -46,12 +43,9 @@ private:
     analogsynth::LfoGui lfo2_;
     analogsynth::LfoGui lfo3_;
     analogsynth::ModulationMatrixLayout modulations_;
-    // analogsynth::DelayGui delay_;
-    // analogsynth::ChorusGui chorus_;
-    // analogsynth::PhaserGui phaser_;
-    // analogsynth::DistortionGui distortion_;
-    // analogsynth::ReverbGui reverb_;
     analogsynth::FxChainGui fx_chain_;
+    analogsynth::MarcosGui marcos_;
+    analogsynth::VoicesGui voices_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AnalogSynthAudioProcessorEditor)
 };

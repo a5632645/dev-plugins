@@ -109,6 +109,14 @@ public:
         g.drawText(juce::String::fromUTF8("▼"), b, juce::Justification::centred);
     }
 
+    void positionComboBoxText(juce::ComboBox& box, juce::Label& label) override {
+        label.setBounds(4, 1,
+                        box.getWidth() - 30,
+                        box.getHeight() - 2);
+
+        label.setFont(getComboBoxFont (box));
+    }
+
     void drawPopupMenuBackground(
         juce::Graphics& g,
         int width,
