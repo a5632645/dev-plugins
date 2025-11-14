@@ -193,23 +193,23 @@ public:
     }
 
     /**
-     * @param reset_to_attack 是否强制跳转到0音量，这会导致click
+     * @param reset_vol_to_attack_vol 是否强制跳转到0音量，这会导致click
      */
-    void NoteOn(bool reset_to_attack) noexcept {
+    void NoteOn(bool reset_vol_to_attack_vol) noexcept {
         state_ = State::Attack;
         phase_ = 0;
-        if (reset_to_attack) {
+        if (reset_vol_to_attack_vol) {
             last_out_ = 0;
         }
     }
 
     /**
-     * @param reset_to_release 是否强制跳转到sustain音量，这会导致click
+     * @param reset_vol_to_release_vol 是否强制跳转到sustain音量，这会导致click
      */
-    void Noteoff(bool reset_to_release) noexcept {
+    void Noteoff(bool reset_vol_to_release_vol) noexcept {
         state_ = State::Release;
         phase_ = 0;
-        if (reset_to_release) {
+        if (reset_vol_to_release_vol) {
             last_out_ = sustain_level_;
         }
     }
@@ -230,6 +230,10 @@ public:
     };
     State GetState() const noexcept {
         return state_;
+    }
+
+    float GetLastOutput() const noexcept {
+        return last_out_;
     }
 private:
     static float ComputeSmoothFactor(float samples, float close_ratio = 3) noexcept {

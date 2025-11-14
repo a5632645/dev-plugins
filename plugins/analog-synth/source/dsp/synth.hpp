@@ -23,7 +23,7 @@
 #include "osc4.hpp"
 #include "phaser.hpp"
 #include "constant.hpp"
-#include "synth2.hpp"
+#include "abstract_synth.hpp"
 
 namespace analogsynth {
 using PanTable = std::array<float, kMaxUnison>;
@@ -459,7 +459,7 @@ private:
 
 };
 
-class Synth {
+class Synth : public AbstractSynth<Synth> {
 public:
     using SimdType = qwqdsp::psimd::Float32x4;
 
@@ -476,7 +476,9 @@ public:
         gliding_factor_ = qwqdsp::misc::ExpSmoother::ComputeSmoothFactor(param_glide_time.GetNoMod(), fs_, 2.0f);
         size_t new_num_voices = static_cast<size_t>(param_num_voices.GetNoMod());
         if (new_num_voices != was_num_voices_) {
-            SetNumVoice(new_num_voices);
+            was_num_voices_ = new_num_voices;
+            SetNumVoices(new_num_voices);
+            last_trigger_channel_ = 0;
         }
 
         size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
@@ -485,21 +487,23 @@ public:
 
         int buffer_pos = 0;
         for (auto midi : midi_buffer) {
-            auto message = midi.getMessage();
-            if (message.isNoteOnOrOff()) {
-                ProcessRaw(left_ptr + buffer_pos, right_ptr + buffer_pos, static_cast<size_t>(midi.samplePosition - buffer_pos));
-                buffer_pos = midi.samplePosition;
+            ProcessSection(left_ptr + buffer_pos, right_ptr + buffer_pos, static_cast<size_t>(midi.samplePosition - buffer_pos));
+            buffer_pos = midi.samplePosition;
 
-                if (message.isNoteOn()) {
-                    NoteOn(message.getNoteNumber(), message.getFloatVelocity());
-                }
-                else {
-                    NoteOff(message.getNoteNumber());
-                }
+            auto message = midi.getMessage();
+            if (message.isNoteOn()) {
+                NoteOn(message.getNoteNumber(), message.getFloatVelocity());
+            }
+            else if (message.isNoteOff(true)) {
+                NoteOff(message.getNoteNumber());
+            }
+            else if (message.isAllNotesOff()) {
+                AllNoteOff();
+                last_trigger_channel_ = 0;
             }
         }
 
-        ProcessRaw(left_ptr + buffer_pos, right_ptr + buffer_pos, num_samples - static_cast<size_t>(buffer_pos));
+        ProcessSection(left_ptr + buffer_pos, right_ptr + buffer_pos, num_samples - static_cast<size_t>(buffer_pos));
     }
 
     // -------------------- effect chain --------------------
@@ -881,41 +885,48 @@ public:
         juce::NormalisableRange<float>{1.0f, kMaxPoly, 1.0f},
         kMaxPoly
     };
-private:
-    inline static const float kPitch20 = qwqdsp::convert::Freq2Pitch(20.0f);
-    inline static const float kPitch20000 = qwqdsp::convert::Freq2Pitch(20000.0f);
 
-    void AddModulateParam(FloatParam& p) {
-        modulation_matrix.AddModulateParam(p);
+    // -------------------- implement for CVoice --------------------
+    void StopChannel(uint32_t channel) noexcept {
+        volume_env_.envelope_[channel].Noteoff(false);
+        mod_env_.envelope_[channel].Noteoff(true);
     }
 
-    void AddModulateModulator(IModulator& m) {
-        modulation_matrix.AddModulateModulator(m);
+    uint32_t FindVoiceToSteal() noexcept {
+        // find the min vol voice
+        uint32_t min_vol_channel = 0;
+        uint32_t min_vol_and_release_channel = kMaxPoly;
+        float min_vol = std::numeric_limits<float>::infinity();
+        float min_vol_and_release = std::numeric_limits<float>::infinity();
+        for (auto channel : active_channels_) {
+            float vol_output = volume_env_.modulator_output[channel][0];
+            if (vol_output < min_vol) {
+                min_vol = vol_output;
+                min_vol_channel = channel;
+            }
+
+            if (volume_env_.envelope_[channel].GetState() == qwqdsp::AdsrEnvelope::State::Release) {
+                if (vol_output < min_vol_and_release) {
+                    min_vol_and_release = vol_output;
+                    min_vol_and_release_channel = channel;
+                }
+            }
+        }
+
+        if (min_vol_and_release_channel == kMaxPoly) {
+            min_vol_and_release_channel = min_vol_channel;
+        }
+
+        return min_vol_and_release_channel;
     }
 
-    void StartNewNote(size_t channel, int note, float velocity, bool kill) noexcept {
-        current_note_[channel] = note;
-        current_velocity_[channel] = velocity;
+    void StartNewChannel(uint32_t channel, int note, float velocity, bool retrigger, float glide_begin_pitch, float target_pitch) noexcept {
+        juce::ignoreUnused(note, velocity);
 
-        float fpitch = static_cast<float>(note);
-        // num_active_channels_ inc after StartNewNote
-        if (num_active_channels_ == 0) {
-            gliding_pitch_[channel] = fpitch;
-            target_pitch_[channel] = fpitch;
-        }
-        else {
-            if (kill) {
-                size_t last_channel = active_channels_[num_active_channels_ - 1];
-                gliding_pitch_[channel] = gliding_pitch_[last_channel];
-                target_pitch_[channel] = fpitch;
-            }
-            else {
-                // legato
-                target_pitch_[channel] = fpitch;
-            }
-        }
+        gliding_pitch_[channel] = glide_begin_pitch;
+        target_pitch_[channel] = target_pitch;
         
-        if (!kill) return;
+        if (!retrigger) return;
         last_trigger_channel_ = channel;
 
         // envelopes
@@ -947,30 +958,37 @@ private:
         }
     }
 
-    void StopNote(size_t channel) noexcept {
-        volume_env_.envelope_[channel].Noteoff(false);
-        mod_env_.envelope_[channel].Noteoff(true);
+    float GetCurrentGlidingPitch(uint32_t channel) noexcept {
+        return gliding_pitch_[channel];
     }
 
-    void ProcessRaw(float* left, float* right, size_t num_samples) noexcept {
+    bool VoiceShouldRemove(uint32_t channel) noexcept {
+        return volume_env_.envelope_[channel].GetState() == qwqdsp::AdsrEnvelope::State::Init;
+    }
+private:
+    inline static const float kPitch20 = qwqdsp::convert::Freq2Pitch(20.0f);
+    inline static const float kPitch20000 = qwqdsp::convert::Freq2Pitch(20000.0f);
+
+    void AddModulateParam(FloatParam& p) {
+        modulation_matrix.AddModulateParam(p);
+    }
+
+    void AddModulateModulator(IModulator& m) {
+        modulation_matrix.AddModulateModulator(m);
+    }
+
+    // -------------------- processing blocks --------------------
+    void ProcessAndAddBlock(size_t channel, float* left, float* right, size_t num_samples) noexcept;
+    void ProcessSection(float* left, float* right, size_t num_samples) noexcept {
         while (num_samples != 0) {
             size_t cando = std::min<size_t>(num_samples, kBlockSize);
             std::fill_n(left, cando, 0.0f);
             std::fill_n(right, cando, 0.0f);
 
             // -------------------- tick oscillator and filter --------------------
-            for (size_t i = 0; i < num_active_channels_; ++i) {
-                size_t channel = active_channels_[i];
+            for (auto channel : active_channels_) {
                 ProcessAndAddBlock(channel, left, right, cando);
             }
-
-            // size_t can_note_on = std::min(num_free_channels_, note_queue_.size());
-            // for (size_t i = 0; i < can_note_on; ++i) {
-            //     auto it2 = note_queue_.back(); note_queue_.pop_back();
-            //     size_t allocate_channel = free_channels_[--num_free_channels_];
-            //     active_channels_[num_active_channels_++] = allocate_channel;
-            //     StartNewNote(allocate_channel, it2.first, it2.second, true);
-            // }
 
             // -------------------- tick effects --------------------
             std::array<qwqdsp::psimd::Float32x4, kBlockSize> fx_temp;
@@ -992,125 +1010,14 @@ private:
             right += cando;
         }
 
-        // checking any note that should be remove
-        for (size_t i = 0; i < num_active_channels_;) {
-            size_t channel = active_channels_[i];
-            if (volume_env_.envelope_[channel].GetState() == qwqdsp::AdsrEnvelope::State::Init) {
-                current_note_[channel] = -1;
-                current_velocity_[channel] = 0;
-                free_channels_[num_free_channels_++] = channel;
-                for (size_t j = i; j < num_active_channels_ - 1; ++j) {
-                    active_channels_[j] = active_channels_[j + 1];
-                }
-                --num_active_channels_;
-            }
-            else {
-                ++i;
-            }
-        }
-    }
-
-    void ProcessAndAddBlock(size_t channel, float* left, float* right, size_t num_samples) noexcept;
-
-    void NoteOn(int note, float velocity) {
-        RealNoteOn(note, velocity);
-    }
-
-    void RealNoteOn(int note, float velocity) {
-        if (num_free_channels_ != 0) {
-            size_t allocate_channel = free_channels_[--num_free_channels_];
-            StartNewNote(allocate_channel, note, velocity, true);
-            active_channels_[num_active_channels_++] = allocate_channel;
-        }
-        else {
-            // find the min vol voice
-            size_t min_vol_channel = 0;
-            size_t min_vol_index = 0;
-            size_t min_vol_and_release_channel = kMaxPoly;
-            size_t min_vol_and_release_index = kMaxPoly;
-            float min_vol = std::numeric_limits<float>::infinity();
-            float min_vol_and_release = std::numeric_limits<float>::infinity();
-            for (size_t i = 0; i < num_active_channels_; ++i) {
-                size_t channel = active_channels_[i];
-                float vol_output = volume_env_.modulator_output[channel][0];
-                if (vol_output < min_vol) {
-                    min_vol = vol_output;
-                    min_vol_channel = channel;
-                    min_vol_index = i;
-                }
-
-                if (volume_env_.envelope_[channel].GetState() == qwqdsp::AdsrEnvelope::State::Release) {
-                    if (vol_output < min_vol_and_release) {
-                        min_vol_and_release = vol_output;
-                        min_vol_and_release_channel = channel;
-                        min_vol_and_release_index = i;
-                    }
-                }
-            }
-
-            if (min_vol_and_release_channel == kMaxPoly) {
-                min_vol_and_release_channel = min_vol_channel;
-                min_vol_and_release_index = min_vol_index;
-            }
-            // stealing voice
-            // note_queue_.push_back({current_note_[min_vol_and_release_channel], current_velocity_[min_vol_and_release_channel]});
-            StartNewNote(min_vol_and_release_channel, note, velocity, !is_legato_);
-            // bring it to front
-            if (!is_legato_) {
-                size_t triiger_channel = min_vol_and_release_channel;
-                for (size_t i = min_vol_and_release_index; i < num_active_channels_ - 1; ++i) {
-                    active_channels_[i] = active_channels_[i + 1];
-                }
-                active_channels_[num_active_channels_ - 1] = triiger_channel;
-            }
-        }
-    }
-
-    void NoteOff(int note) {
-        RealNoteOff(note);
-        
-        // auto it = std::remove_if(note_queue_.begin(), note_queue_.end(), [note](auto const& i) {
-        //     return i.first == note;
-        // });
-        // note_queue_.erase(it, note_queue_.end());
-    }
-
-    void RealNoteOff(int note) {
-        for (size_t i = 0; i < num_active_channels_; ++i) {
-            size_t channel = active_channels_[i];
-            if (current_note_[channel] == note) {
-                StopNote(channel);
-            }
-        }
-    }
-
-    void ClearAllNotes() noexcept {
-        num_active_channels_ = 0;
-        num_free_channels_ = kMaxPoly;
-        for (size_t i = 0; i < kMaxPoly; ++i) {
-            free_channels_[i] = i;
-        }
-        last_trigger_channel_ = 0;
-    }
-
-    void SetNumVoice(size_t max_voices) noexcept {
-        was_num_voices_ = std::min(max_voices, kMaxPoly);
-        ClearAllNotes();
-        num_free_channels_ = was_num_voices_;
+        RemoveDeadChannels();
     }
 
     // polynomial management
     size_t last_trigger_channel_{};
     size_t was_num_voices_{kMaxPoly};
-    std::array<size_t, kMaxPoly> active_channels_{};
-    size_t num_active_channels_{};
-    std::array<size_t, kMaxPoly> free_channels_{};
-    size_t num_free_channels_{kMaxPoly};
-    int current_note_[kMaxPoly]{};
-    float current_velocity_[kMaxPoly]{};
     float gliding_pitch_[kMaxPoly]{};
     float target_pitch_[kMaxPoly]{};
-    bool is_legato_{false};
     float gliding_factor_{};
 
     // oscillator section
@@ -1173,6 +1080,5 @@ private:
     MarcoModulator marco4_{"marco4", param_marco4};
     
     float fs_{};
-    // std::deque<std::pair<int, float>> note_queue_;
 };
 }

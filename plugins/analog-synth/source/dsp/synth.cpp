@@ -1,6 +1,9 @@
 #include "synth.hpp"
 
 namespace analogsynth {
+
+static_assert(CVoice<Synth>, "Error CRTP");
+
 Synth::Synth() {
     AddModulateModulator(lfo1_);
     AddModulateModulator(lfo2_);
@@ -58,7 +61,6 @@ Synth::Synth() {
     AddModulateParam(param_phaser_stereo);
 
     InitFxSection();
-    ClearAllNotes();
 
     modulation_matrix.Add(&lfo1_, &param_cutoff_pitch);
 }
@@ -177,6 +179,7 @@ void Synth::SyncBpm(juce::AudioProcessor& p) {
 }
 
 void Synth::ProcessAndAddBlock(size_t channel, float* left, float* right, size_t num_samples) noexcept {
+    juce::ignoreUnused(right);
     // -------------------- tick modulators --------------------
     // tick lfos
     Lfo::Parameter lfo_param;
