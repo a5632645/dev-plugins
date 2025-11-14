@@ -1,5 +1,6 @@
 #pragma once
 #include <juce_core/juce_core.h>
+#include "constant.hpp"
 
 namespace analogsynth {
 class IModulator {
@@ -8,7 +9,8 @@ public:
     virtual ~IModulator() = default;
 
     // [0~1]
-    float modulator_output[256]{};
+    using ModulatorOutputBuffer = std::array<float, kBlockSize>;
+    ModulatorOutputBuffer modulator_output[kMaxPoly]{};
     juce::String name_;
 };
 }

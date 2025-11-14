@@ -12,15 +12,15 @@ public:
         : IModulator(name) {
     }
 
-    void Process(bool exp, size_t num_samples) noexcept {
+    void Process(size_t channel, bool exp, size_t num_samples) noexcept {
         if (exp) {
-            envelope_.ProcessExp({modulator_output, num_samples});
+            envelope_[channel].ProcessExp({modulator_output[channel].data(), num_samples});
         }
         else {
-            envelope_.Process({modulator_output, num_samples});
+            envelope_[channel].Process({modulator_output[channel].data(), num_samples});
         }
     }
 
-    qwqdsp::AdsrEnvelope envelope_;
+    qwqdsp::AdsrEnvelope envelope_[kMaxPoly];
 };
 }

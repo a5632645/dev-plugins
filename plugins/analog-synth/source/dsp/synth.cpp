@@ -58,6 +58,7 @@ Synth::Synth() {
     AddModulateParam(param_phaser_stereo);
 
     InitFxSection();
+    ClearAllNotes();
 
     modulation_matrix.Add(&lfo1_, &param_cutoff_pitch);
 }
@@ -74,7 +75,9 @@ void Synth::Reset() noexcept {
     chorus_.Reset();
     saturator_.Reset();
     reverb_.Reset();
-    osc4_.Reset(0);
+    for (auto& x : osc4_) {
+        x.Reset(0);
+    }
     phaser_.Reset();
 }
 
@@ -83,30 +86,30 @@ void Synth::InitFxSection() {
     fx_chain_.push_back({"delay", [](Synth& s, std::span<SimdType> block) {
         if (s.param_delay_enable.Get()) {
             s.delay_.fs = s.fs_;
-            s.delay_.delay_ms = s.param_delay_ms.GetModCR();
-            s.delay_.feedback = s.param_delay_feedback.GetModCR();
-            s.delay_.mix = s.param_delay_mix.GetModCR();
+            s.delay_.delay_ms = s.param_delay_ms.GetModCR(s.last_trigger_channel_);
+            s.delay_.feedback = s.param_delay_feedback.GetModCR(s.last_trigger_channel_);
+            s.delay_.mix = s.param_delay_mix.GetModCR(s.last_trigger_channel_);
             s.delay_.pingpong = s.param_delay_pingpong.Get();
-            s.delay_.lowcut_f = s.param_delay_lp.GetModCR();
-            s.delay_.highcut_f = s.param_delay_hp.GetModCR();
+            s.delay_.lowcut_f = s.param_delay_lp.GetModCR(s.last_trigger_channel_);
+            s.delay_.highcut_f = s.param_delay_hp.GetModCR(s.last_trigger_channel_);
             s.delay_.Process(block);
         }
     }});
     fx_chain_.push_back({"chorus", [](Synth& s, std::span<SimdType> block) {
         if (s.param_chorus_enable.Get()) {
             s.chorus_.fs = s.fs_;
-            s.chorus_.delay = s.param_chorus_delay.GetModCR();
-            s.chorus_.depth = s.param_chorus_depth.GetModCR();
-            s.chorus_.feedback = s.param_chorus_feedback.GetModCR();
-            s.chorus_.mix = s.param_chorus_mix.GetModCR();
-            s.chorus_.rate = s.param_chorus_rate.GetModCR();
+            s.chorus_.delay = s.param_chorus_delay.GetModCR(s.last_trigger_channel_);
+            s.chorus_.depth = s.param_chorus_depth.GetModCR(s.last_trigger_channel_);
+            s.chorus_.feedback = s.param_chorus_feedback.GetModCR(s.last_trigger_channel_);
+            s.chorus_.mix = s.param_chorus_mix.GetModCR(s.last_trigger_channel_);
+            s.chorus_.rate = s.param_chorus_rate.GetModCR(s.last_trigger_channel_);
             s.chorus_.Process(block);
         }
     }});
     fx_chain_.push_back({"phaser", [](Synth& s, std::span<SimdType> block) {
         if (s.param_phaser_enable.Get()) {
-            float center_pitch = s.param_phaser_center.GetModCR();
-            float depth_pitch = s.param_phaser_depth.GetModCR();
+            float center_pitch = s.param_phaser_center.GetModCR(s.last_trigger_channel_);
+            float depth_pitch = s.param_phaser_depth.GetModCR(s.last_trigger_channel_);
             float begin = center_pitch - depth_pitch;
             float end = center_pitch + depth_pitch;
             begin = std::clamp(begin, kPitch20, kPitch20000);
@@ -116,17 +119,17 @@ void Synth::InitFxSection() {
             s.phaser_.begin_w = qwqdsp::convert::Freq2W(begin, s.fs_);
             s.phaser_.end_w = qwqdsp::convert::Freq2W(end, s.fs_);
             s.phaser_.fs = s.fs_;
-            s.phaser_.feedback = s.param_phase_feedback.GetModCR();
-            s.phaser_.mix = s.param_phaser_mix.GetModCR();
-            s.phaser_.Q = s.param_phaser_Q.GetModCR();
-            s.phaser_.rate = s.param_phaser_rate.GetModCR();
-            s.phaser_.stereo = s.param_phaser_stereo.GetModCR();
+            s.phaser_.feedback = s.param_phase_feedback.GetModCR(s.last_trigger_channel_);
+            s.phaser_.mix = s.param_phaser_mix.GetModCR(s.last_trigger_channel_);
+            s.phaser_.Q = s.param_phaser_Q.GetModCR(s.last_trigger_channel_);
+            s.phaser_.rate = s.param_phaser_rate.GetModCR(s.last_trigger_channel_);
+            s.phaser_.stereo = s.param_phaser_stereo.GetModCR(s.last_trigger_channel_);
             s.phaser_.Process(block);
         }
     }});
     fx_chain_.push_back({"distortion", [](Synth& s, std::span<SimdType> block) {
         if (s.param_distortion_enable.Get()) {
-            float db = s.param_distortion_drive.GetModCR();
+            float db = s.param_distortion_drive.GetModCR(s.last_trigger_channel_);
             float gain = qwqdsp::convert::Db2Gain(db);
             for (auto& x : block) {
                 x *= qwqdsp::psimd::Float32x4::FromSingle(gain);
@@ -157,13 +160,13 @@ void Synth::SyncBpm(juce::AudioProcessor& p) {
         param_phaser_rate.state_.SyncBpm(head->getPosition());
     }
     if (param_lfo1_freq.state_.ShouldSync()) {
-        lfo1_.Reset(param_lfo1_freq.state_.GetSyncPhase());
+        lfo1_.ResetAll(param_lfo1_freq.state_.GetSyncPhase());
     }
     if (param_lfo2_freq.state_.ShouldSync()) {
-        lfo1_.Reset(param_lfo2_freq.state_.GetSyncPhase());
+        lfo1_.ResetAll(param_lfo2_freq.state_.GetSyncPhase());
     }
     if (param_lfo3_freq.state_.ShouldSync()) {
-        lfo1_.Reset(param_lfo3_freq.state_.GetSyncPhase());
+        lfo1_.ResetAll(param_lfo3_freq.state_.GetSyncPhase());
     }
     if (param_chorus_rate.state_.ShouldSync()) {
         chorus_.SyncBpm(param_chorus_rate.state_.GetSyncPhase());
@@ -173,82 +176,87 @@ void Synth::SyncBpm(juce::AudioProcessor& p) {
     }
 }
 
-void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept {
+void Synth::ProcessAndAddBlock(size_t channel, float* left, float* right, size_t num_samples) noexcept {
     // -------------------- tick modulators --------------------
     // tick lfos
     Lfo::Parameter lfo_param;
-    lfo_param.phase_inc = param_lfo1_freq.GetModCR() / fs_;
+    lfo_param.phase_inc = param_lfo1_freq.GetModCR(channel) / fs_;
     lfo_param.shape = static_cast<Lfo::Shape>(param_lfo1_shape.Get());
-    lfo1_.Process(lfo_param, num_samples);
-    lfo_param.phase_inc = param_lfo2_freq.GetModCR() / fs_;
+    lfo1_.Process(lfo_param, num_samples, channel);
+    lfo_param.phase_inc = param_lfo2_freq.GetModCR(channel) / fs_;
     lfo_param.shape = static_cast<Lfo::Shape>(param_lfo2_shape.Get());
-    lfo2_.Process(lfo_param, num_samples);
-    lfo_param.phase_inc = param_lfo3_freq.GetModCR() / fs_;
+    lfo2_.Process(lfo_param, num_samples, channel);
+    lfo_param.phase_inc = param_lfo3_freq.GetModCR(channel) / fs_;
     lfo_param.shape = static_cast<Lfo::Shape>(param_lfo3_shape.Get());
-    lfo3_.Process(lfo_param, num_samples);
+    lfo3_.Process(lfo_param, num_samples, channel);
     // tick envelopes
     qwqdsp::AdsrEnvelope::Parameter env_param;
-    env_param.attack_ms = param_env_volume_attack.GetModCR();
-    env_param.decay_ms = param_env_volume_decay.GetModCR();
+    env_param.attack_ms = param_env_volume_attack.GetModCR(channel);
+    env_param.decay_ms = param_env_volume_decay.GetModCR(channel);
     env_param.fs = fs_;
-    env_param.release_ms = param_env_volume_release.GetModCR();
-    env_param.sustain_level = param_env_volume_sustain.GetModCR();
-    volume_env_.envelope_.Update(env_param);
-    volume_env_.Process(param_env_volume_exp.Get(), num_samples);
-    env_param.attack_ms = param_env_mod_attack.GetModCR();
-    env_param.decay_ms = param_env_mod_decay.GetModCR();
+    env_param.release_ms = param_env_volume_release.GetModCR(channel);
+    env_param.sustain_level = param_env_volume_sustain.GetModCR(channel);
+    volume_env_.envelope_[channel].Update(env_param);
+    volume_env_.Process(channel, param_env_volume_exp.Get(), num_samples);
+    env_param.attack_ms = param_env_mod_attack.GetModCR(channel);
+    env_param.decay_ms = param_env_mod_decay.GetModCR(channel);
     env_param.fs = fs_;
-    env_param.release_ms = param_env_mod_release.GetModCR();
-    env_param.sustain_level = param_env_mod_sustain.GetModCR();
-    mod_env_.envelope_.Update(env_param);
-    mod_env_.Process(param_env_mod_exp.Get(), num_samples);
+    env_param.release_ms = param_env_mod_release.GetModCR(channel);
+    env_param.sustain_level = param_env_mod_sustain.GetModCR(channel);
+    mod_env_.envelope_[channel].Update(env_param);
+    mod_env_.Process(channel, param_env_mod_exp.Get(), num_samples);
     // tick marcos
-    marco1_.Update();
-    marco2_.Update();
-    marco3_.Update();
-    marco4_.Update();
+    marco1_.Update(channel);
+    marco2_.Update(channel);
+    marco3_.Update(channel);
+    marco4_.Update(channel);
 
     // -------------------- tick parameters --------------------
-    modulation_matrix.Process(num_samples);
+    modulation_matrix.Process(num_samples, channel);
     
     // -------------------- tick oscillators --------------------
+    float pitch_buffer[kBlockSize];
+    for (size_t i = 0; i < num_samples; ++i) {
+        gliding_pitch_[channel] = target_pitch_[channel] + gliding_factor_ * (gliding_pitch_[channel] - target_pitch_[channel]);
+        pitch_buffer[i] = gliding_pitch_[channel];
+    }
     // oscillator 1
-    float freq1 = qwqdsp::convert::Pitch2Freq(current_note_ + param_osc1_detune.GetModCR());
-    osc1_phase_inc_ = freq1 / fs_;
-    osc1_pwm_ = param_osc1_pwm.GetModCR();
-    float freq2 = qwqdsp::convert::Pitch2Freq(current_note_ + param_osc2_detune.GetModCR());
-    osc2_.SetFreq(freq2, fs_);
+    float freq1 = qwqdsp::convert::Pitch2Freq(pitch_buffer[0] + param_osc1_detune.GetModCR(channel));
+    float osc1_phase_inc = freq1 / fs_;
+    float osc1_pwm = param_osc1_pwm.GetModCR(channel);
+    float freq2 = qwqdsp::convert::Pitch2Freq(pitch_buffer[0] + param_osc2_detune.GetModCR(channel));
+    osc2_[channel].SetFreq(freq2, fs_);
 
     std::array<float, kBlockSize> osc_buffer;
     std::array<bool, kBlockSize> sync_buffer;
     std::array<float, kBlockSize> frac_sync_buffer;
-    float osc_gain = param_osc1_vol.GetModCR();
+    float osc_gain = param_osc1_vol.GetModCR(channel);
     switch (param_osc1_shape.Get()) {
         case 0:
             for (size_t i = 0; i < num_samples; ++i) {
-                osc1_phase_ += osc1_phase_inc_;
-                osc_buffer[i] = osc_gain * osc1_.Sawtooth(osc1_phase_, osc1_phase_inc_);
-                sync_buffer[i] = osc1_phase_ > 1.0;
-                osc1_phase_ -= std::floor(osc1_phase_);
-                frac_sync_buffer[i] = osc1_phase_ / osc1_phase_inc_;
+                osc1_phase_[channel] += osc1_phase_inc;
+                osc_buffer[i] = osc_gain * osc1_.Sawtooth(osc1_phase_[channel], osc1_phase_inc);
+                sync_buffer[i] = osc1_phase_[channel] > 1.0;
+                osc1_phase_[channel] -= std::floor(osc1_phase_[channel]);
+                frac_sync_buffer[i] = osc1_phase_[channel] / osc1_phase_inc;
             }
             break;
         case 1:
             for (size_t i = 0; i < num_samples; ++i) {
-                osc1_phase_ += osc1_phase_inc_;
-                osc_buffer[i] = osc_gain * osc1_.Triangle(osc1_phase_, osc1_phase_inc_);
-                sync_buffer[i] = osc1_phase_ > 1.0;
-                osc1_phase_ -= std::floor(osc1_phase_);
-                frac_sync_buffer[i] = osc1_phase_ / osc1_phase_inc_;
+                osc1_phase_[channel] += osc1_phase_inc;
+                osc_buffer[i] = osc_gain * osc1_.Triangle(osc1_phase_[channel], osc1_phase_inc);
+                sync_buffer[i] = osc1_phase_[channel] > 1.0;
+                osc1_phase_[channel] -= std::floor(osc1_phase_[channel]);
+                frac_sync_buffer[i] = osc1_phase_[channel] / osc1_phase_inc;
             }
             break;
         case 2:
             for (size_t i = 0; i < num_samples; ++i) {
-                osc1_phase_ += osc1_phase_inc_;
-                osc_buffer[i] = osc_gain * osc1_.PWM_Classic(osc1_phase_, osc1_phase_inc_, osc1_pwm_);
-                sync_buffer[i] = osc1_phase_ > 1.0;
-                osc1_phase_ -= std::floor(osc1_phase_);
-                frac_sync_buffer[i] = osc1_phase_ / osc1_phase_inc_;
+                osc1_phase_[channel] += osc1_phase_inc;
+                osc_buffer[i] = osc_gain * osc1_.PWM_Classic(osc1_phase_[channel], osc1_phase_inc, osc1_pwm);
+                sync_buffer[i] = osc1_phase_[channel] > 1.0;
+                osc1_phase_[channel] -= std::floor(osc1_phase_[channel]);
+                frac_sync_buffer[i] = osc1_phase_[channel] / osc1_phase_inc;
             }
             break;
         default:
@@ -256,29 +264,29 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
     }
 
     // oscillator 2
-    osc_gain = param_osc2_vol.GetModCR();
-    float osc_pwm = param_osc2_pwm.GetModCR();
-    osc2_.SetPWM(osc_pwm);
+    osc_gain = param_osc2_vol.GetModCR(channel);
+    float osc_pwm = param_osc2_pwm.GetModCR(channel);
+    osc2_[channel].SetPWM(osc_pwm);
     if (param_osc2_sync.Get()) {
         switch (param_osc2_shape.Get()) {
             case 0:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    osc_buffer[i] += osc_gain * osc2_.Sawtooth(sync_buffer[i], frac_sync_buffer[i]);
+                    osc_buffer[i] += osc_gain * osc2_[channel].Sawtooth(sync_buffer[i], frac_sync_buffer[i]);
                 }
                 break;
             case 1:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    osc_buffer[i] += osc_gain * osc2_.Triangle(sync_buffer[i], frac_sync_buffer[i]);
+                    osc_buffer[i] += osc_gain * osc2_[channel].Triangle(sync_buffer[i], frac_sync_buffer[i]);
                 }
                 break;
             case 2:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    osc_buffer[i] += osc_gain * osc2_.PWM(sync_buffer[i], frac_sync_buffer[i]);
+                    osc_buffer[i] += osc_gain * osc2_[channel].PWM(sync_buffer[i], frac_sync_buffer[i]);
                 }
                 break;
             case 3:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    osc_buffer[i] += osc_gain * osc2_.Sine(sync_buffer[i], frac_sync_buffer[i]);
+                    osc_buffer[i] += osc_gain * osc2_[channel].Sine(sync_buffer[i], frac_sync_buffer[i]);
                 }
                 break;
             default:
@@ -289,22 +297,22 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
         switch (param_osc2_shape.Get()) {
             case 0:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    osc_buffer[i] += osc_gain * osc2_.Sawtooth();
+                    osc_buffer[i] += osc_gain * osc2_[channel].Sawtooth();
                 }
                 break;
             case 1:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    osc_buffer[i] += osc_gain * osc2_.Triangle();
+                    osc_buffer[i] += osc_gain * osc2_[channel].Triangle();
                 }
                 break;
             case 2:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    osc_buffer[i] += osc_gain * osc2_.PWM();
+                    osc_buffer[i] += osc_gain * osc2_[channel].PWM();
                 }
                 break;
             case 3:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    osc_buffer[i] += osc_gain * osc2_.Sine();
+                    osc_buffer[i] += osc_gain * osc2_[channel].Sine();
                 }
                 break;
             default:
@@ -313,23 +321,23 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
     }
 
     // oscillator 3
-    float osc3_detune = param_osc3_detune.GetModCR();
-    float osc3_unison_detune = param_osc3_unison_detune.GetModCR();
+    float osc3_detune = param_osc3_detune.GetModCR(channel);
+    float osc3_unison_detune = param_osc3_unison_detune.GetModCR(channel);
     int osc3_unison_num = static_cast<int>(param_osc3_unison.GetNoMod());
     std::array<float, kMaxUnison> phase_incs_;
     switch (param_osc3_uniso_type.Get()) {
         case 0: {
             auto& unison_look_table = kPanTable[static_cast<size_t>(osc3_unison_num) - 1];
             for (int i = 0; i < osc3_unison_num; ++i) {
-                float pitch = current_note_ + osc3_detune + osc3_unison_detune * unison_look_table[size_t(i)];
+                float pitch = pitch_buffer[0] + osc3_detune + osc3_unison_detune * unison_look_table[size_t(i)];
                 phase_incs_[size_t(i)] = qwqdsp::convert::Pitch2Freq(pitch) / fs_;
             }
             break;
         }
         case 1: {
-            auto& unison_look_table = osc3_freq_ratios_;
+            auto& unison_look_table = osc3_data_[channel].osc3_freq_ratios_;
             for (int i = 0; i < osc3_unison_num; ++i) {
-                float pitch = current_note_ + osc3_detune + osc3_unison_detune * unison_look_table[size_t(i)];
+                float pitch = pitch_buffer[0] + osc3_detune + osc3_unison_detune * unison_look_table[size_t(i)];
                 phase_incs_[size_t(i)] = qwqdsp::convert::Pitch2Freq(pitch) / fs_;
             }
             break;
@@ -337,8 +345,9 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
         default:
             jassertfalse;
     }
-    osc_gain = param_osc3_vol.GetModCR();
-    osc_pwm = param_osc3_pwm.GetModCR();
+    osc_gain = param_osc3_vol.GetModCR(channel);
+    osc_pwm = param_osc3_pwm.GetModCR(channel);
+    auto& osc3_phases_ = osc3_data_[channel].osc3_phases_;
     switch (param_osc3_shape.Get()) {
         case 0:
             for (size_t i = 0; i < num_samples; ++i) {
@@ -379,28 +388,28 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
 
     // oscillator 4
     {
-        float w0_detune = param_osc4_w0_detune.GetModCR();
-        float pitch = w0_detune + current_note_;
+        float w0_detune = param_osc4_w0_detune.GetModCR(channel);
+        float pitch = w0_detune + pitch_buffer[0];
         float w0_freq = qwqdsp::convert::Pitch2Freq(pitch);
         float w0 = qwqdsp::convert::Freq2W(w0_freq, fs_);
-        osc4_.w0 = w0;
-        float w_ratio = param_osc4_w_ratio.GetModCR();
-        osc4_.w = w0 * w_ratio;
-        osc4_.a = param_osc4_slope.GetModCR();
-        osc4_.width = param_osc4_width.GetModCR() * std::numbers::pi_v<float> * 2;
-        osc4_.n = static_cast<uint32_t>(param_osc4_n.GetModCR());
-        osc4_.use_max_n = param_osc4_use_max_n.Get();
-        float osc_vol = param_osc4_vol.GetModCR();
-        osc4_.Update();
+        osc4_[channel].w0 = w0;
+        float w_ratio = param_osc4_w_ratio.GetModCR(channel);
+        osc4_[channel].w = w0 * w_ratio;
+        osc4_[channel].a = param_osc4_slope.GetModCR(channel);
+        osc4_[channel].width = param_osc4_width.GetModCR(channel) * std::numbers::pi_v<float> * 2;
+        osc4_[channel].n = static_cast<uint32_t>(param_osc4_n.GetModCR(channel));
+        osc4_[channel].use_max_n = param_osc4_use_max_n.Get();
+        float osc_vol = param_osc4_vol.GetModCR(channel);
+        osc4_[channel].Update();
         switch (param_osc4_shape.Get()) {
             case 0:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    osc_buffer[i] += osc_vol * osc4_.Tick<false>();
+                    osc_buffer[i] += osc_vol * osc4_[channel].Tick<false>();
                 }
                 break;
             case 1:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    osc_buffer[i] += osc_vol * osc4_.Tick<true>();
+                    osc_buffer[i] += osc_vol * osc4_[channel].Tick<true>();
                 }
                 break;
             default:
@@ -411,21 +420,21 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
 
     // noise
     {
-        float vol = param_noise_vol.GetModCR();
+        float vol = param_noise_vol.GetModCR(channel);
         switch (param_noise_type.Get()) {
             case NoiseType_White:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    osc_buffer[i] += vol * white_noise_.Next();
+                    osc_buffer[i] += vol * white_noise_[channel].Next();
                 }
                 break;
             case NoiseType_Pink:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    osc_buffer[i] += vol * pink_noise_.Next();
+                    osc_buffer[i] += vol * pink_noise_[channel].Next();
                 }
                 break;
             case NoiseType_Brown:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    osc_buffer[i] += vol * brown_noise_.Next();
+                    osc_buffer[i] += vol * brown_noise_[channel].Next();
                 }
                 break;
             default:
@@ -435,17 +444,17 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
 
     // -------------------- tick filter --------------------
     if (param_filter_enable.Get()) {
-        float const filter_Q = param_Q.GetModCR();
-        float const filter_cutoff = param_cutoff_pitch.GetModCR();
-        float const direct_mix = param_filter_direct.GetModCR();
-        float const lp_mix = param_filter_lp.GetModCR();
-        float const hp_mix = param_filter_hp.GetModCR();
-        float const bp_mix = param_filter_bp.GetModCR();
+        float const filter_Q = param_Q.GetModCR(channel);
+        float const filter_cutoff = param_cutoff_pitch.GetModCR(channel);
+        float const direct_mix = param_filter_direct.GetModCR(channel);
+        float const lp_mix = param_filter_lp.GetModCR(channel);
+        float const hp_mix = param_filter_hp.GetModCR(channel);
+        float const bp_mix = param_filter_bp.GetModCR(channel);
         float freq = qwqdsp::convert::Pitch2Freq(filter_cutoff);
         float w = qwqdsp::convert::Freq2W(freq, fs_);
-        tpt_svf_.SetCoeffQ(w, filter_Q);
+        tpt_svf_[channel].SetCoeffQ(w, filter_Q);
         for (size_t i = 0; i < num_samples; ++i) {
-            auto[hp,bp,lp] = tpt_svf_.TickMultiMode(osc_buffer[i]);
+            auto[hp,bp,lp] = tpt_svf_[channel].TickMultiMode(osc_buffer[i]);
             osc_buffer[i] *= direct_mix;
             osc_buffer[i] += hp * hp_mix + bp * bp_mix + lp * lp_mix;
         }
@@ -454,35 +463,8 @@ void Synth::ProcessBlock(float* left, float* right, size_t num_samples) noexcept
     // -------------------- tick volume envelope --------------------
     auto const& volume_env_buffer = volume_env_.modulator_output;
     for (size_t i = 0; i < num_samples; ++i) {
-        osc_buffer[i] *= volume_env_buffer[i];
+        left[i] += osc_buffer[i] * volume_env_buffer[channel][i];
     }
-
-    // -------------------- tick effects --------------------
-    std::array<qwqdsp::psimd::Float32x4, kBlockSize> fx_temp;
-    for (size_t i = 0; i < num_samples; ++i) {
-        fx_temp[i].x[0] = osc_buffer[i];
-        fx_temp[i].x[1] = osc_buffer[i];
-    }
-    std::span fx_block{fx_temp.data(), num_samples};
-    for (auto& fx : fx_chain_) {
-        fx.doing(*this, fx_block);
-    }
-
-    // -------------------- output --------------------
-    for (size_t i = 0; i < num_samples; ++i) {
-        left[i] = fx_block[i].x[0];
-        right[i] = fx_block[i].x[1];
-    }
-    // // tick reverb
-    // if (param_reverb_enable.Get()) {
-    //     reverb_.damping = param_reverb_damp.GetNoMod();
-    //     reverb_.decay = param_reverb_decay.GetNoMod();
-    //     reverb_.lowpass = param_reverb_lowpass.GetNoMod();
-    //     reverb_.mix = param_reverb_mix.GetNoMod();
-    //     reverb_.predelay = param_reverb_predelay.GetNoMod();
-    //     reverb_.size = param_reverb_size.GetNoMod();
-    //     reverb_.Process(left, right, num_samples);
-    // }
 }
 
 juce::ValueTree Synth::SaveFxChainState() {

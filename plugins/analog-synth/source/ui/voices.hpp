@@ -13,9 +13,7 @@ public:
 private:
     juce::Label title_{"", "Voices"};
     ui::Switch legato_{"legato"};
-    ui::Switch porta_{"porta"};
     ui::Dial time_{"time"};
-    ui::Switch mono_{"mono"};
     ui::FlatSlider voice_{"voice"};
 };
 }

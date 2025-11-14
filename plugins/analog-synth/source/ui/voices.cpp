@@ -7,11 +7,12 @@ VoicesGui::VoicesGui(Synth& synth) {
     ui::SetLableBlack(title_);
     addAndMakeVisible(title_);
 
+    legato_.BindParam(synth.param_legato.ptr_);
     addAndMakeVisible(legato_);
-    addAndMakeVisible(porta_);
+    time_.BindParam(synth.param_glide_time.ptr_);
     addAndMakeVisible(time_);
-    addAndMakeVisible(mono_);
     voice_.SetTitleLayout(ui::FlatSlider::TitleLayout::Top);
+    voice_.BindParam(synth.param_num_voices.ptr_);
     addAndMakeVisible(voice_);
 }
 
@@ -24,17 +25,11 @@ void VoicesGui::paint(juce::Graphics& g) {
 
 void VoicesGui::resized() {
     auto content_bound = getLocalBounds().reduced(1);
-    
     title_.setBounds(content_bound.removeFromTop(20));
 
-    time_.setBounds(content_bound.removeFromRight(50));
-    auto line1 = content_bound.removeFromTop(25);
-    auto w = line1.getWidth() / 2;
-    legato_.setBounds(line1.removeFromLeft(w).reduced(2));
-    porta_.setBounds(line1.removeFromLeft(w).reduced(2));
-
-    auto line2 = content_bound;
-    mono_.setBounds(line2.removeFromLeft(w).removeFromBottom(28).reduced(3));
-    voice_.setBounds(line2.removeFromLeft(w).reduced(2));
+    time_.setBounds(content_bound.removeFromLeft(65));
+    auto line = content_bound.removeFromLeft(80);
+    legato_.setBounds(line.removeFromTop(28).reduced(2));
+    voice_.setBounds(line);
 }
 }

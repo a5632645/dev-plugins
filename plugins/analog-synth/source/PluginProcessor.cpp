@@ -116,6 +116,9 @@ AnalogSynthAudioProcessor::AnalogSynthAudioProcessor()
     layout.add(synth_.param_phase_feedback.Build());
     layout.add(synth_.param_phaser_Q.Build());
     layout.add(synth_.param_phaser_stereo.Build());
+    layout.add(synth_.param_legato.Build());
+    layout.add(synth_.param_glide_time.Build());
+    layout.add(synth_.param_num_voices.Build());
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
     

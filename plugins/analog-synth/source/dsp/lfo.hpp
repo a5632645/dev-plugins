@@ -28,58 +28,58 @@ public:
         noise_.GetNoise().SetSeed(static_cast<uint32_t>(rand()));
     }
 
-    void Process(Parameter const& param, size_t num_samples) noexcept {
+    void Process(Parameter const& param, size_t num_samples, size_t channel) noexcept {
         switch (param.shape) {
             case Shape::Sine:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    phase_ += param.phase_inc;
-                    phase_ -= std::floor(phase_);
+                    phase_[channel] += param.phase_inc;
+                    phase_[channel] -= std::floor(phase_[channel]);
                     constexpr float twopi = std::numbers::pi_v<float> * 2;
                     constexpr float pi = std::numbers::pi_v<float>;
-                    modulator_output[i] = qwqdsp::polymath::SinParabola(twopi * phase_ - pi);
+                    modulator_output[channel][i] = qwqdsp::polymath::SinParabola(twopi * phase_[channel] - pi);
                 }
                 break;
             case Shape::Tri:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    phase_ += param.phase_inc;
-                    phase_ -= std::floor(phase_);
-                    modulator_output[i] = qwqdsp::polymath::Triangle(phase_);
+                    phase_[channel] += param.phase_inc;
+                    phase_[channel] -= std::floor(phase_[channel]);
+                    modulator_output[channel][i] = qwqdsp::polymath::Triangle(phase_[channel]);
                 }
                 break;
             case Shape::SawUp:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    phase_ += param.phase_inc;
-                    phase_ -= std::floor(phase_);
-                    modulator_output[i] = phase_ * 2 - 1;
+                    phase_[channel] += param.phase_inc;
+                    phase_[channel] -= std::floor(phase_[channel]);
+                    modulator_output[channel][i] = phase_[channel] * 2 - 1;
                 }
                 break;
             case Shape::SawDown:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    phase_ += param.phase_inc;
-                    phase_ -= std::floor(phase_);
-                    modulator_output[i] = 1 - phase_ * 2;
+                    phase_[channel] += param.phase_inc;
+                    phase_[channel] -= std::floor(phase_[channel]);
+                    modulator_output[channel][i] = 1 - phase_[channel] * 2;
                 }
                 break;
             case Shape::Noise:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    modulator_output[i] = noise_.GetNoise().Next();
+                    modulator_output[channel][i] = noise_.GetNoise().Next();
                 }
                 break;
             case Shape::SmoothNoise:
                 noise_.SetRate(param.phase_inc);
                 for (size_t i = 0; i < num_samples; ++i) {
-                    modulator_output[i] = noise_.Tick();
+                    modulator_output[channel][i] = noise_.Tick();
                 }
                 break;
             case Shape::HoldNoise:
                 for (size_t i = 0; i < num_samples; ++i) {
-                    phase_ += param.phase_inc;
-                    if (phase_ > 1) {
+                    phase_[channel] += param.phase_inc;
+                    if (phase_[channel] > 1) {
                         noise_.GetNoise().NextUInt();
-                        phase_ -= 1;
+                        phase_[channel] -= 1;
                     }
                     float val01 = static_cast<float>(noise_.GetNoise().GetReg()) * noise_.GetNoise().kScale;
-                    modulator_output[i] = val01 * 2 - 1;
+                    modulator_output[channel][i] = val01 * 2 - 1;
                 }
                 break;
             case Shape::NumShapes:
@@ -87,15 +87,19 @@ public:
         }
 
         for (size_t i = 0; i < num_samples; ++i) {
-            modulator_output[i] = 0.5f * modulator_output[i] + 0.5f;
+            modulator_output[channel][i] = 0.5f * modulator_output[channel][i] + 0.5f;
         }
     }
 
-    void Reset(float phase = 0.0f) noexcept {
-        phase_ = phase;
+    void Reset(size_t channel, float phase) noexcept {
+        phase_[channel] = phase;
+    }
+
+    void ResetAll(float phase) noexcept {
+        std::fill_n(phase_, kMaxPoly, phase);
     }
 private:
-    float phase_{};
+    float phase_[kMaxPoly]{};
     qwqdsp::oscillor::SmoothNoise noise_;
 };
 }

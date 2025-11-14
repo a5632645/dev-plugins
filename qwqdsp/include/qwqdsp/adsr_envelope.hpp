@@ -220,6 +220,17 @@ public:
         release_samples_ = static_cast<int>(p.release_ms * p.fs / 1000.0f);
         sustain_level_ = p.sustain_level;
     }
+
+    enum class State {
+        Init,
+        Attack,
+        Decay,
+        Sustain,
+        Release
+    };
+    State GetState() const noexcept {
+        return state_;
+    }
 private:
     static float ComputeSmoothFactor(float samples, float close_ratio = 3) noexcept {
         if (samples < 1.0f) {
@@ -230,13 +241,6 @@ private:
         }
     }
 
-    enum class State {
-        Init,
-        Attack,
-        Decay,
-        Sustain,
-        Release
-    };
     State state_{State::Init};
     int phase_{};
     int attack_samples_{};

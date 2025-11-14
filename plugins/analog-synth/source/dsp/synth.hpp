@@ -10,6 +10,7 @@
 #include <qwqdsp/convert.hpp>
 #include <qwqdsp/filter/svf_tpt.hpp>
 #include <qwqdsp/simd_element/algebraic_waveshaper.hpp>
+#include <qwqdsp/misc/smoother.hpp>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <pluginshared/bpm_sync_lfo.hpp>
 
@@ -21,9 +22,10 @@
 #include "reverb.hpp"
 #include "osc4.hpp"
 #include "phaser.hpp"
+#include "constant.hpp"
+#include "synth2.hpp"
 
 namespace analogsynth {
-static constexpr int kMaxUnison = 16;
 using PanTable = std::array<float, kMaxUnison>;
 static constexpr PanTable MakePanTable(int nvocice) {
     PanTable out{};
@@ -84,19 +86,19 @@ public:
         return ptr_->get();
     }
 
-    float GetModCR() noexcept {
+    float GetModCR(size_t channel) noexcept {
         float normal_value = static_cast<juce::RangedAudioParameter*>(ptr_)->getValue();
-        normal_value += buffer[0];
+        normal_value += buffer[channel];
         normal_value = std::clamp(normal_value, 0.0f, 1.0f);
         return range_.convertFrom0to1(normal_value);
     }
 
-    float GetModSR() noexcept {
-        return GetModCR();
+    void ClearModBuffer() noexcept {
+        std::fill_n(buffer, kMaxPoly, 0.0f);
     }
 
     juce::AudioParameterFloat* ptr_{};
-    float buffer[256]{};
+    float buffer[kMaxPoly]{};
 
     juce::String name_;
     juce::NormalisableRange<float> range_;
@@ -142,9 +144,9 @@ public:
         return state_.GetLfoFreq();
     }
 
-    float GetModCR() noexcept {
+    float GetModCR(size_t channel) noexcept {
         if (static_cast<LFOSyncType>(state_.param_lfo_tempo_type_->get()) == LFOSyncType::Free) {
-            return freq_.GetModCR();
+            return freq_.GetModCR(channel);
         }
         else {
             return state_.GetLfoFreq();
@@ -250,47 +252,33 @@ public:
         }
     }
 
-    void Process(size_t num_samples) noexcept {
+    void Process(size_t num_samples, size_t channel) noexcept {
         for (auto p : parameters_) {
-            p->buffer[0] = 0;
+            p->ClearModBuffer();
         }
 
         for (auto* m : doing_modulations_) {
             if (!m->enable) continue;
 
-            float mod = m->source->modulator_output[0];
+            float mod = m->source->modulator_output[channel][0];
             if (m->bipolar) {
                 mod = mod * 2.0f - 1.0f;
             }
-            m->target->buffer[0] += mod * m->amount;
+            m->target->buffer[channel] += mod * m->amount;
         }
 
         std::ignore = num_samples;
     }
 
     std::pair<ModulationInfo*, bool> Add(IModulator* source, FloatParam* target) {
-        // auto& param_modulations = parameter_counter_[target];
-        // auto exist_it = std::find_if(param_modulations.begin(), param_modulations.end(), [source](auto m) {
-            // return m->source == source;
-        // });
-        // if (exist_it != param_modulations.end()) {
-            // return {*exist_it, false};
-        // }
-
-        // if (param_modulations.empty()) {
-        //     parameters_.push_back(target);
-        // }
-
-        // 无可用空间
         if (free_modulations_.empty()) {
             return {nullptr, false};
         }
-        // 已经存在
         if (std::find_if(doing_modulations_.begin(), doing_modulations_.end(), [source,target](auto* it) {
             return it->source == source && it->target == target;
         }) != doing_modulations_.end()) {
             return {nullptr,false};
-        } 
+        }
 
         auto* alloc_modulation = free_modulations_.back();
         free_modulations_.pop_back();
@@ -299,9 +287,6 @@ public:
         alloc_modulation->target = target;
         AddModInfoToModulator(alloc_modulation, source);
         AddModInfoToParameter(alloc_modulation, target);
-        // param_modulations.push_back(alloc_modulation);
-        // auto& modulator_modulations = modulator_counter_[source];
-        // modulator_modulations.push_back(alloc_modulation);
         changed = true;
         return {alloc_modulation, true};
     }
@@ -365,7 +350,7 @@ public:
     void RemoveAll() noexcept {
         doing_modulations_.clear();
         for (auto* p : parameters_) {
-            p->buffer[0] = 0;
+            p->ClearModBuffer();
         }
         parameters_.clear();
         parameter_counter_.clear();
@@ -467,43 +452,11 @@ private:
         it->second.erase(remove_it, it->second.end());
         if (it->second.empty()) {
             auto remove_param_it = std::remove(parameters_.begin(), parameters_.end(), target);
-            target->buffer[0] = 0;
+            target->ClearModBuffer();
             parameters_.erase(remove_param_it, parameters_.end());
         }
     }
 
-};
-
-// -------------------- simple note queue --------------------
-class NoteQueue {
-public:
-    struct Stroge {
-        int note;
-        float velocity;
-    };
-
-    NoteQueue() {
-        notes_.reserve(128);
-    }
-
-    Stroge NoteOn(int note, float velocity) noexcept {
-        notes_.push_back({note, velocity});
-        return {note, velocity};
-    }
-
-    Stroge NoteOff(int note) noexcept {
-        auto it = std::remove_if(notes_.begin(), notes_.end(), [note](auto const& t) {
-            return t.note == note;
-        });
-        notes_.erase(it, notes_.end());
-        
-        if (notes_.empty()) {
-            return {-1, 0.0f};
-        }
-        return notes_.back();
-    }
-private:
-    std::vector<Stroge> notes_;
 };
 
 class Synth {
@@ -516,24 +469,16 @@ public:
 
     void Reset() noexcept;
 
-    void NoteOn(int note, float velocity) {
-        auto n = note_queue_.NoteOn(note, velocity);
-        StartNewNote(n.note, n.velocity);
-    }
-
-    void NoteOff(int note) {
-        auto n = note_queue_.NoteOff(note);
-        if (n.note != -1) {
-            StartNewNote(n.note, n.velocity);
-        }
-        else {
-            StopNote();
-        }
-    }
-
     void SyncBpm(juce::AudioProcessor& p);
 
     void Process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi_buffer) {
+        is_legato_ = param_legato.Get();
+        gliding_factor_ = qwqdsp::misc::ExpSmoother::ComputeSmoothFactor(param_glide_time.GetNoMod(), fs_, 2.0f);
+        size_t new_num_voices = static_cast<size_t>(param_num_voices.GetNoMod());
+        if (new_num_voices != was_num_voices_) {
+            SetNumVoice(new_num_voices);
+        }
+
         size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
         float* left_ptr = buffer.getWritePointer(0);
         float* right_ptr = buffer.getWritePointer(1);
@@ -646,7 +591,7 @@ public:
         0.9f
     };
     FloatParam param_osc4_width{"osc4.width",
-        juce::NormalisableRange<float>{0.0f, 1.0f, 0.01f},
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.001f},
         0.25f
     };
     FloatParam param_osc4_n{"osc4.n",
@@ -926,6 +871,16 @@ public:
         juce::NormalisableRange<float>{0.0f, 1.0f, 0.0001f},
         0.0f
     };
+    // voices
+    BoolParam param_legato{"legato", false};
+    FloatParam param_glide_time{"glide_time",
+        juce::NormalisableRange<float>{0.0f, 4000.0f, 0.1f, 0.4f},
+        0.0f
+    };
+    FloatParam param_num_voices{"num_voices",
+        juce::NormalisableRange<float>{1.0f, kMaxPoly, 1.0f},
+        kMaxPoly
+    };
 private:
     inline static const float kPitch20 = qwqdsp::convert::Freq2Pitch(20.0f);
     inline static const float kPitch20000 = qwqdsp::convert::Freq2Pitch(20000.0f);
@@ -938,77 +893,247 @@ private:
         modulation_matrix.AddModulateModulator(m);
     }
 
-    static constexpr size_t kBlockSize = 256;
-    void StartNewNote(int note, float velocity) noexcept {
-        current_note_ = static_cast<float>(note);
-        current_velocity_ = velocity;
+    void StartNewNote(size_t channel, int note, float velocity, bool kill) noexcept {
+        current_note_[channel] = note;
+        current_velocity_[channel] = velocity;
+
+        float fpitch = static_cast<float>(note);
+        // num_active_channels_ inc after StartNewNote
+        if (num_active_channels_ == 0) {
+            gliding_pitch_[channel] = fpitch;
+            target_pitch_[channel] = fpitch;
+        }
+        else {
+            if (kill) {
+                size_t last_channel = active_channels_[num_active_channels_ - 1];
+                gliding_pitch_[channel] = gliding_pitch_[last_channel];
+                target_pitch_[channel] = fpitch;
+            }
+            else {
+                // legato
+                target_pitch_[channel] = fpitch;
+            }
+        }
+        
+        if (!kill) return;
+        last_trigger_channel_ = channel;
 
         // envelopes
-        volume_env_.envelope_.NoteOn(false);
-        mod_env_.envelope_.NoteOn(true);
+        volume_env_.envelope_[channel].NoteOn(false);
+        mod_env_.envelope_[channel].NoteOn(true);
 
         // lfos
         if (param_lfo1_retrigger.Get()) {
-            lfo1_.Reset(param_lfo1_phase.GetNoMod());
+            lfo1_.Reset(channel, param_lfo1_phase.GetNoMod());
         }
         if (param_lfo2_retrigger.Get()) {
-            lfo2_.Reset(param_lfo2_phase.GetNoMod());
+            lfo2_.Reset(channel, param_lfo2_phase.GetNoMod());
         }
         if (param_lfo3_retrigger.Get()) {
-            lfo3_.Reset(param_lfo3_phase.GetNoMod());
+            lfo3_.Reset(channel, param_lfo3_phase.GetNoMod());
         }
 
         // unison frequency and phase
-        for (float& r : osc3_freq_ratios_) {
+        for (float& r : osc3_data_[channel].osc3_freq_ratios_) {
             r = unison_distribution_(random_generator_);
         }
         if (param_osc3_retrigger.Get()) {
             float begin_phase = param_osc3_phase.GetNoMod();
             float random_amount = param_osc3_phase_random.GetNoMod();
-            for (float& r : osc3_phases_) {
+            for (float& r : osc3_data_[channel].osc3_phases_) {
                 float p = begin_phase + random_amount * unison_distribution_(random_generator_);
                 r = p - std::floor(p);
             }
         }
     }
 
-    void StopNote() noexcept {
-        volume_env_.envelope_.Noteoff(false);
-        mod_env_.envelope_.Noteoff(true);
+    void StopNote(size_t channel) noexcept {
+        volume_env_.envelope_[channel].Noteoff(false);
+        mod_env_.envelope_[channel].Noteoff(true);
     }
 
     void ProcessRaw(float* left, float* right, size_t num_samples) noexcept {
         while (num_samples != 0) {
             size_t cando = std::min<size_t>(num_samples, kBlockSize);
-            ProcessBlock(left, right, cando);
+            std::fill_n(left, cando, 0.0f);
+            std::fill_n(right, cando, 0.0f);
+
+            // -------------------- tick oscillator and filter --------------------
+            for (size_t i = 0; i < num_active_channels_; ++i) {
+                size_t channel = active_channels_[i];
+                ProcessAndAddBlock(channel, left, right, cando);
+            }
+
+            // size_t can_note_on = std::min(num_free_channels_, note_queue_.size());
+            // for (size_t i = 0; i < can_note_on; ++i) {
+            //     auto it2 = note_queue_.back(); note_queue_.pop_back();
+            //     size_t allocate_channel = free_channels_[--num_free_channels_];
+            //     active_channels_[num_active_channels_++] = allocate_channel;
+            //     StartNewNote(allocate_channel, it2.first, it2.second, true);
+            // }
+
+            // -------------------- tick effects --------------------
+            std::array<qwqdsp::psimd::Float32x4, kBlockSize> fx_temp;
+            for (size_t i = 0; i < cando; ++i) {
+                fx_temp[i].x[0] = left[i];
+                fx_temp[i].x[1] = left[i];
+            }
+            std::span fx_block{fx_temp.data(), cando};
+            for (auto& fx : fx_chain_) {
+                fx.doing(*this, fx_block);
+            }
+            for (size_t i = 0; i < cando; ++i) {
+                left[i] = fx_block[i].x[0];
+                right[i] = fx_block[i].x[1];
+            }
+
             num_samples -= cando;
             left += cando;
             right += cando;
         }
+
+        // checking any note that should be remove
+        for (size_t i = 0; i < num_active_channels_;) {
+            size_t channel = active_channels_[i];
+            if (volume_env_.envelope_[channel].GetState() == qwqdsp::AdsrEnvelope::State::Init) {
+                current_note_[channel] = -1;
+                current_velocity_[channel] = 0;
+                free_channels_[num_free_channels_++] = channel;
+                for (size_t j = i; j < num_active_channels_ - 1; ++j) {
+                    active_channels_[j] = active_channels_[j + 1];
+                }
+                --num_active_channels_;
+            }
+            else {
+                ++i;
+            }
+        }
     }
 
-    void ProcessBlock(float* left, float* right, size_t num_samples) noexcept;
+    void ProcessAndAddBlock(size_t channel, float* left, float* right, size_t num_samples) noexcept;
+
+    void NoteOn(int note, float velocity) {
+        RealNoteOn(note, velocity);
+    }
+
+    void RealNoteOn(int note, float velocity) {
+        if (num_free_channels_ != 0) {
+            size_t allocate_channel = free_channels_[--num_free_channels_];
+            StartNewNote(allocate_channel, note, velocity, true);
+            active_channels_[num_active_channels_++] = allocate_channel;
+        }
+        else {
+            // find the min vol voice
+            size_t min_vol_channel = 0;
+            size_t min_vol_index = 0;
+            size_t min_vol_and_release_channel = kMaxPoly;
+            size_t min_vol_and_release_index = kMaxPoly;
+            float min_vol = std::numeric_limits<float>::infinity();
+            float min_vol_and_release = std::numeric_limits<float>::infinity();
+            for (size_t i = 0; i < num_active_channels_; ++i) {
+                size_t channel = active_channels_[i];
+                float vol_output = volume_env_.modulator_output[channel][0];
+                if (vol_output < min_vol) {
+                    min_vol = vol_output;
+                    min_vol_channel = channel;
+                    min_vol_index = i;
+                }
+
+                if (volume_env_.envelope_[channel].GetState() == qwqdsp::AdsrEnvelope::State::Release) {
+                    if (vol_output < min_vol_and_release) {
+                        min_vol_and_release = vol_output;
+                        min_vol_and_release_channel = channel;
+                        min_vol_and_release_index = i;
+                    }
+                }
+            }
+
+            if (min_vol_and_release_channel == kMaxPoly) {
+                min_vol_and_release_channel = min_vol_channel;
+                min_vol_and_release_index = min_vol_index;
+            }
+            // stealing voice
+            // note_queue_.push_back({current_note_[min_vol_and_release_channel], current_velocity_[min_vol_and_release_channel]});
+            StartNewNote(min_vol_and_release_channel, note, velocity, !is_legato_);
+            // bring it to front
+            if (!is_legato_) {
+                size_t triiger_channel = min_vol_and_release_channel;
+                for (size_t i = min_vol_and_release_index; i < num_active_channels_ - 1; ++i) {
+                    active_channels_[i] = active_channels_[i + 1];
+                }
+                active_channels_[num_active_channels_ - 1] = triiger_channel;
+            }
+        }
+    }
+
+    void NoteOff(int note) {
+        RealNoteOff(note);
+        
+        // auto it = std::remove_if(note_queue_.begin(), note_queue_.end(), [note](auto const& i) {
+        //     return i.first == note;
+        // });
+        // note_queue_.erase(it, note_queue_.end());
+    }
+
+    void RealNoteOff(int note) {
+        for (size_t i = 0; i < num_active_channels_; ++i) {
+            size_t channel = active_channels_[i];
+            if (current_note_[channel] == note) {
+                StopNote(channel);
+            }
+        }
+    }
+
+    void ClearAllNotes() noexcept {
+        num_active_channels_ = 0;
+        num_free_channels_ = kMaxPoly;
+        for (size_t i = 0; i < kMaxPoly; ++i) {
+            free_channels_[i] = i;
+        }
+        last_trigger_channel_ = 0;
+    }
+
+    void SetNumVoice(size_t max_voices) noexcept {
+        was_num_voices_ = std::min(max_voices, kMaxPoly);
+        ClearAllNotes();
+        num_free_channels_ = was_num_voices_;
+    }
+
+    // polynomial management
+    size_t last_trigger_channel_{};
+    size_t was_num_voices_{kMaxPoly};
+    std::array<size_t, kMaxPoly> active_channels_{};
+    size_t num_active_channels_{};
+    std::array<size_t, kMaxPoly> free_channels_{};
+    size_t num_free_channels_{kMaxPoly};
+    int current_note_[kMaxPoly]{};
+    float current_velocity_[kMaxPoly]{};
+    float gliding_pitch_[kMaxPoly]{};
+    float target_pitch_[kMaxPoly]{};
+    bool is_legato_{false};
+    float gliding_factor_{};
 
     // oscillator section
     using BlepCoeff = qwqdsp::oscillor::blep_coeff::BlackmanNutallApprox;
-    float osc1_phase_inc_{1e-7f};
-    float osc1_phase_{};
-    float osc1_pwm_{};
+    float osc1_phase_[kMaxPoly]{};
     qwqdsp::oscillor::PolyBlep<BlepCoeff> osc1_;
-    qwqdsp::oscillor::PolyBlepSync<BlepCoeff> osc2_;
-    Osc4 osc4_;
-    qwqdsp::oscillor::WhiteNoise white_noise_;
-    qwqdsp::oscillor::PinkNoise pink_noise_;
-    qwqdsp::oscillor::BrownNoise brown_noise_;
+    qwqdsp::oscillor::PolyBlepSync<BlepCoeff> osc2_[kMaxPoly];
+    Osc4 osc4_[kMaxPoly];
+    qwqdsp::oscillor::WhiteNoise white_noise_[kMaxPoly];
+    qwqdsp::oscillor::PinkNoise pink_noise_[kMaxPoly];
+    qwqdsp::oscillor::BrownNoise brown_noise_[kMaxPoly];
     
-    std::array<float, kMaxUnison> osc3_phases_{};
-    std::array<float, kMaxUnison> osc3_freq_ratios_{};
+    struct Osc3Data {
+        std::array<float, kMaxUnison> osc3_phases_{};
+        std::array<float, kMaxUnison> osc3_freq_ratios_{};
+    };
+    Osc3Data osc3_data_[kMaxPoly];
     qwqdsp::oscillor::PolyBlep<BlepCoeff> osc3_;
     std::uniform_real_distribution<float> unison_distribution_{-1.0f, 1.0f};
     std::default_random_engine random_generator_;
 
     // filter section
-    qwqdsp::filter::SvfTPT tpt_svf_;
+    qwqdsp::filter::SvfTPT tpt_svf_[kMaxPoly];
 
     // effect section
     struct FxSection {
@@ -1036,8 +1161,8 @@ private:
             : IModulator(name)
             , param_(param) {}
         
-        void Update() noexcept {
-            this->modulator_output[0] = param_.GetNoMod();
+        void Update(size_t channel) noexcept {
+            this->modulator_output[channel][0] = param_.GetNoMod();
         }
     private:
         FloatParam& param_;
@@ -1048,8 +1173,6 @@ private:
     MarcoModulator marco4_{"marco4", param_marco4};
     
     float fs_{};
-    float current_note_{};
-    float current_velocity_{};
-    NoteQueue note_queue_;
+    // std::deque<std::pair<int, float>> note_queue_;
 };
 }
