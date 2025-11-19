@@ -5,7 +5,7 @@ namespace qwqdsp::filter {
 class OnePoleTPT {
 public:
     void Reset() noexcept {
-        lag_ = 0;
+        s_ = 0;
     }
     
     void MakeLowpass(float w) noexcept {
@@ -30,28 +30,28 @@ public:
      *       ap = lp - hp or ap = 2*lp - x
      */
     float TickLowpass(float x) noexcept {
-        float const delta = g_ * (x - lag_);
-        lag_ += delta;
-        float const y = lag_;
-        lag_ += delta;
+        float const delta = g_ * (x - s_);
+        s_ += delta;
+        float const y = s_;
+        s_ += delta;
         return y;
     }
 
     float TickHighpass(float x) noexcept {
-        float const xs = x - lag_;
+        float const xs = x - s_;
         float const y = xs * G_;
-        lag_ += y * 2 * g_;
+        s_ += y * 2 * g_;
         return y;
     }
 
     float TickAllpass(float x) noexcept {
-        float const xs = x - lag_;
-        lag_ += xs * 2 * G_;
-        return lag_ - xs;
+        float const xs = x - s_;
+        s_ += xs * 2 * G_;
+        return s_ - xs;
     }
 private:
     float g_{};
     float G_{};
-    float lag_{};
+    float s_{};
 };
 }
