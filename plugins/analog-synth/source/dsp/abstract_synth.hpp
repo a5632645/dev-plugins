@@ -60,10 +60,12 @@ protected:
     }
 
     void NoteOff(int note) {
+        size_t note_off_count = 0;
         for (auto channel : active_channels_) {
             if (playing_notes_[channel] == note) {
                 static_cast<Voice*>(this)->StopChannel(channel);
                 playing_notes_[channel] = -1;
+                ++note_off_count;
             }
         }
 
@@ -72,7 +74,8 @@ protected:
         });
         pending_notes_.erase(it, pending_notes_.end());
 
-        if (!pending_notes_.empty()) {
+        size_t renoteon_count = std::min(note_off_count, pending_notes_.size());
+        for (size_t i = 0; i < renoteon_count; ++i) {
             auto data = pending_notes_.back();
             pending_notes_.pop_back();
             NoteOn(data.first, data.second, false);

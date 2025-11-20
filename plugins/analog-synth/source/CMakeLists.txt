@@ -29,6 +29,7 @@ target_sources(${QWQ_PLUGIN_NAME}
         PluginEditor.cpp
         PluginProcessor.cpp
         dsp/synth.cpp
+        dsp/filter.cpp
         ui/adsr.cpp
         ui/osc1.cpp
         ui/osc2.cpp

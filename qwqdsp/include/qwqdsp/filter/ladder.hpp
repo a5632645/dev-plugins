@@ -63,13 +63,12 @@ public:
 
         float g = 1 / (1 + g_);
         float s = g * g * g * g * s1_ + g * g * g * s2_ + g * g * s3_ + g * s4_;
-        s *= k_;
-        s /= (1 + g * g * g * g * k_);
-        float u = x + s;
+        float u = x + k_ * s;
+        u /= (1 + g * g * g * g * k_);
         output.hp1 = TickHpTPT(u, s1_, glp_);
-        output.hp2 = TickHpTPT(output.hp1, s1_, glp_);
-        output.hp3 = TickHpTPT(output.hp2, s1_, glp_);
-        output.hp4 = TickHpTPT(output.hp3, s1_, glp_);
+        output.hp2 = TickHpTPT(output.hp1, s2_, glp_);
+        output.hp3 = TickHpTPT(output.hp2, s3_, glp_);
+        output.hp4 = TickHpTPT(output.hp3, s4_, glp_);
         return output;
     }
 

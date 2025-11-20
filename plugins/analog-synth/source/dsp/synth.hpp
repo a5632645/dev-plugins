@@ -8,11 +8,9 @@
 #include <qwqdsp/osciilor/polyblep.hpp>
 #include <qwqdsp/osciilor/noise.hpp>
 #include <qwqdsp/convert.hpp>
-#include <qwqdsp/filter/svf_tpt.hpp>
 #include <qwqdsp/simd_element/algebraic_waveshaper.hpp>
 #include <qwqdsp/misc/smoother.hpp>
 #include <juce_audio_processors/juce_audio_processors.h>
-#include <pluginshared/bpm_sync_lfo.hpp>
 
 #include "imodulator.hpp"
 #include "lfo.hpp"
@@ -24,6 +22,8 @@
 #include "phaser.hpp"
 #include "constant.hpp"
 #include "abstract_synth.hpp"
+#include "wrap_parameters.hpp"
+#include "filter.hpp"
 
 namespace analogsynth {
 using PanTable = std::array<float, kMaxUnison>;
@@ -59,161 +59,6 @@ static constexpr std::array<PanTable, kMaxUnison> kPanTable{
     MakePanTable(14),
     MakePanTable(15),
     MakePanTable(16),
-};
-
-// -------------------- warpper of juce parameters --------------------
-class FloatParam {
-public:
-    FloatParam(juce::StringRef name, juce::NormalisableRange<float> range, float default_value)
-        : name_(name)
-        , range_(range)
-        , default_value_(default_value) {
-    }
-
-    std::unique_ptr<juce::AudioParameterFloat> Build() {
-        jassert(ptr_ == nullptr);
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{name_, 1},
-            name_,
-            range_,
-            default_value_
-        );
-        ptr_ = p.get();
-        return p;
-    }
-
-    float GetNoMod() noexcept {
-        return ptr_->get();
-    }
-
-    float GetModCR(size_t channel) noexcept {
-        float normal_value = static_cast<juce::RangedAudioParameter*>(ptr_)->getValue();
-        normal_value += buffer[channel];
-        normal_value = std::clamp(normal_value, 0.0f, 1.0f);
-        return range_.convertFrom0to1(normal_value);
-    }
-
-    void ClearModBuffer() noexcept {
-        std::fill_n(buffer, kMaxPoly, 0.0f);
-    }
-
-    juce::AudioParameterFloat* ptr_{};
-    float buffer[kMaxPoly]{};
-
-    juce::String name_;
-    juce::NormalisableRange<float> range_;
-    float default_value_;
-};
-
-template<bool kNegPos>
-class BpmSyncFreqParam {
-public:
-    using LFOSyncType = typename pluginshared::BpmSyncLFO<kNegPos>::LFOTempoType;
-
-    BpmSyncFreqParam(
-        juce::StringRef name,
-        juce::NormalisableRange<float> range,
-        float default_hz_value,
-        LFOSyncType default_lfo_tempo_type,
-        juce::StringRef default_lfo_tempo_speed)
-        : freq_(name, range, default_hz_value)
-        , default_lfo_tempo_type_(default_lfo_tempo_type)
-        , default_lfo_tempo_(default_lfo_tempo_speed) {
-    }
-
-    std::unique_ptr<juce::AudioParameterFloat> Build1() {
-        jassert(freq_.ptr_ == nullptr);
-        auto p = freq_.Build();
-        state_.param_lfo_hz_ = p.get();
-        return p;
-    }
-    std::unique_ptr<juce::AudioParameterInt> Build2() {
-        jassert(state_.param_lfo_tempo_type_ == nullptr);
-        auto p = state_.MakeLfoTempoTypeParam(freq_.name_ + "_tt", default_lfo_tempo_type_);
-        state_.param_lfo_tempo_type_ = p.get();
-        return p;
-    }
-    std::unique_ptr<juce::AudioParameterChoice> Build3() {
-        jassert(state_.param_tempo_speed_ == nullptr);
-        auto p = state_.MakeLfoTempoSpeedParam(freq_.name_ + "ts", default_lfo_tempo_);
-        state_.param_tempo_speed_ = p.get();
-        return p;
-    }
-
-    float GetNoMod() noexcept {
-        return state_.GetLfoFreq();
-    }
-
-    float GetModCR(size_t channel) noexcept {
-        if (static_cast<LFOSyncType>(state_.param_lfo_tempo_type_->get()) == LFOSyncType::Free) {
-            return freq_.GetModCR(channel);
-        }
-        else {
-            return state_.GetLfoFreq();
-        }
-    }
-
-    FloatParam freq_;
-    pluginshared::BpmSyncLFO<kNegPos> state_;
-    LFOSyncType default_lfo_tempo_type_;
-    juce::StringRef default_lfo_tempo_;
-};
-
-class ChoiceParam {
-public:
-    ChoiceParam(juce::StringRef name, juce::StringArray choice, juce::StringRef default_name)
-        : name_(name)
-        , choices_(choice)
-        , default_value_(choice.indexOf(default_name)) {
-        jassert(default_value_ != -1);
-    }
-
-    std::unique_ptr<juce::AudioParameterChoice> Build() {
-        auto p = std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{name_, 1},
-            name_,
-            choices_,
-            default_value_
-        );
-        ptr_ = p.get();
-        return p;
-    }
-
-    int Get() noexcept {
-        return ptr_->getIndex();
-    }
-
-    juce::AudioParameterChoice* ptr_{};
-private:
-    juce::StringRef name_;
-    juce::StringArray choices_;
-    int default_value_;
-};
-
-class BoolParam {
-public:
-    BoolParam(juce::StringRef name, bool default_value)
-        : name_(name)
-        , default_value_(default_value) {}
-
-    std::unique_ptr<juce::AudioParameterBool> Build() {
-        auto p = std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID{name_, 1},
-            name_,
-            default_value_
-        );
-        ptr_ = p.get();
-        return p;
-    }
-
-    bool Get() noexcept {
-        return ptr_->get();
-    }
-
-    juce::AudioParameterBool* ptr_{};
-private:
-    juce::StringRef name_;
-    bool default_value_;
 };
 
 // -------------------- modulator --------------------
@@ -669,32 +514,6 @@ public:
          100.0f
     };
     BoolParam param_env_mod_exp{"mod_env.exp", false};
-    // filter
-    BoolParam param_filter_enable{"filter.enable", false};
-    FloatParam param_cutoff_pitch{"filter_cutoff_pitch",
-        juce::NormalisableRange<float>{qwqdsp::convert::Freq2Pitch(20.0f), qwqdsp::convert::Freq2Pitch(20000.0f), 0.1f},
-        qwqdsp::convert::Freq2Pitch(1000.0f)
-    };
-    FloatParam param_Q{"filter_Q",
-        juce::NormalisableRange<float>{0.1f, 10.0f, 0.01f},
-        1.0f / std::numbers::sqrt2_v<float>
-    };
-    FloatParam param_filter_direct{"filter_direct",
-        juce::NormalisableRange<float>{-1.0f,1.0f,0.01f},
-        0.0f
-    };
-    FloatParam param_filter_lp{"filter_lp",
-        juce::NormalisableRange<float>{-1.0f,1.0f,0.01f},
-        1.0f
-    };
-    FloatParam param_filter_bp{"filter_bp",
-        juce::NormalisableRange<float>{-1.0f,1.0f,0.01f},
-        0.0f
-    };
-    FloatParam param_filter_hp{"filter_hp",
-        juce::NormalisableRange<float>{-1.0f,1.0f,0.01f},
-        0.0f
-    };
     // lfo
     BpmSyncFreqParam<false> param_lfo1_freq{"lfo1_freq",
         juce::NormalisableRange<float>{0.0f, 10.0f},
@@ -885,11 +704,13 @@ public:
         juce::NormalisableRange<float>{1.0f, kMaxPoly, 1.0f},
         kMaxPoly
     };
+    // filter section
+    Filter filter_;
 
     // -------------------- implement for CVoice --------------------
     void StopChannel(uint32_t channel) noexcept {
         volume_env_.envelope_[channel].Noteoff(false);
-        mod_env_.envelope_[channel].Noteoff(true);
+        mod_env_.envelope_[channel].Noteoff(false);
     }
 
     uint32_t FindVoiceToSteal() noexcept {
@@ -899,13 +720,14 @@ public:
         float min_vol = std::numeric_limits<float>::infinity();
         float min_vol_and_release = std::numeric_limits<float>::infinity();
         for (auto channel : active_channels_) {
-            float vol_output = volume_env_.modulator_output[channel][0];
+            float vol_output = volume_env_.envelope_[channel].GetLastOutput();
             if (vol_output < min_vol) {
                 min_vol = vol_output;
                 min_vol_channel = channel;
             }
 
-            if (volume_env_.envelope_[channel].GetState() == qwqdsp::AdsrEnvelope::State::Release) {
+            if (volume_env_.envelope_[channel].GetState() == qwqdsp::AdsrEnvelope::State::Release
+                || volume_env_.envelope_[channel].GetState() == qwqdsp::AdsrEnvelope::State::Init) {
                 if (vol_output < min_vol_and_release) {
                     min_vol_and_release = vol_output;
                     min_vol_and_release_channel = channel;
@@ -931,7 +753,7 @@ public:
 
         // envelopes
         volume_env_.envelope_[channel].NoteOn(false);
-        mod_env_.envelope_[channel].NoteOn(true);
+        mod_env_.envelope_[channel].NoteOn(false);
 
         // lfos
         if (param_lfo1_retrigger.Get()) {
@@ -1038,9 +860,6 @@ private:
     qwqdsp::oscillor::PolyBlep<BlepCoeff> osc3_;
     std::uniform_real_distribution<float> unison_distribution_{-1.0f, 1.0f};
     std::default_random_engine random_generator_;
-
-    // filter section
-    qwqdsp::filter::SvfTPT tpt_svf_[kMaxPoly];
 
     // effect section
     struct FxSection {

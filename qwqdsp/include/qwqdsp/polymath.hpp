@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <cmath>
 #include <numbers>
 #include <complex>
@@ -150,6 +151,18 @@ static inline constexpr float SinReaktor(float x) noexcept {
 }
 
 /**
+ * @param x [0..1]
+ * @return [-1..1]
+ */
+static inline float Triangle(float x) noexcept {
+    return 4.0f * std::abs(x - 0.5f) - 1.0f;
+}
+
+// ----------------------------------------
+// waveshapers
+// ----------------------------------------
+// -------------------- tanh --------------------
+/**
  * 12.071x cycle
  * @ref https://math.stackexchange.com/questions/107292/rapid-approximation-of-tanhx
  * @param x [-5,+5] have a error less than -80dB
@@ -185,6 +198,7 @@ static inline constexpr float TanhFast(float x) noexcept {
     return up / down;
 }
 
+// -------------------- arctan --------------------
 /**
  * 8.122x cycle -Ofast, slower than Pade -O2
  * @ref https://math.stackexchange.com/questions/490652/about-a-function-approximating-the-arctanx
@@ -210,11 +224,24 @@ static inline constexpr float ArctanPade(float x) noexcept {
     return (55*x3+105*x)/(9*x4+90*x2+105);
 }
 
-/**
- * @param x [0..1]
- * @return [-1..1]
- */
-static inline float Triangle(float x) noexcept {
-    return 4.0f * std::abs(x - 0.5f) - 1.0f;
+static inline float ParabolaWaveshape(float x) noexcept {
+    x = std::clamp(x, -2.0f, 2.0f);
+    return x * (1.0f - std::abs(x) * 0.25f);
+}
+
+static inline float UnboundSaturate(float x) noexcept {
+    return 2.0f * x / (1.0f + std::sqrt(1.0f + 4.0f * std::abs(x)));
+}
+
+static inline float HardClip(float x) noexcept {
+    return std::clamp(x, -1.0f, 1.0f);
+}
+
+static inline float UnknowWaveshape(float x) noexcept {
+    return x / (1.0f + std::abs(x));
+}
+
+static inline float AlgebraicWaveshaper(float x) noexcept {
+    return x / std::sqrt(1 + x*x);
 }
 }

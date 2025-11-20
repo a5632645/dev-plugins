@@ -1,5 +1,7 @@
 #include "synth.hpp"
 
+#include <qwqdsp/polymath.hpp>
+
 namespace analogsynth {
 
 static_assert(CVoice<Synth>, "Error CRTP");
@@ -31,12 +33,13 @@ Synth::Synth() {
     AddModulateParam(param_osc4_w_ratio);
     AddModulateParam(param_osc4_vol);
     AddModulateParam(param_noise_vol);
-    AddModulateParam(param_cutoff_pitch);
-    AddModulateParam(param_Q);
-    AddModulateParam(param_filter_direct);
-    AddModulateParam(param_filter_lp);
-    AddModulateParam(param_filter_hp);
-    AddModulateParam(param_filter_bp);
+    AddModulateParam(filter_.param_cutoff);
+    AddModulateParam(filter_.param_resonance);
+    AddModulateParam(filter_.param_mix);
+    AddModulateParam(filter_.param_morph);
+    AddModulateParam(filter_.param_var1);
+    AddModulateParam(filter_.param_var2);
+    AddModulateParam(filter_.param_var3);
     AddModulateParam(param_lfo1_freq.freq_);
     AddModulateParam(param_lfo2_freq.freq_);
     AddModulateParam(param_lfo3_freq.freq_);
@@ -61,8 +64,6 @@ Synth::Synth() {
     AddModulateParam(param_phaser_stereo);
 
     InitFxSection();
-
-    modulation_matrix.Add(&lfo1_, &param_cutoff_pitch);
 }
 
 void Synth::Init(float fs) noexcept {
@@ -70,6 +71,7 @@ void Synth::Init(float fs) noexcept {
     delay_.Init(fs);
     chorus_.Init(fs);
     reverb_.Init(fs);
+    filter_.Init(fs);
 }
 
 void Synth::Reset() noexcept {
@@ -81,6 +83,7 @@ void Synth::Reset() noexcept {
         x.Reset(0);
     }
     phaser_.Reset();
+    filter_.Reset();
 }
 
 void Synth::InitFxSection() {
@@ -446,22 +449,7 @@ void Synth::ProcessAndAddBlock(size_t channel, float* left, float* right, size_t
     }
 
     // -------------------- tick filter --------------------
-    if (param_filter_enable.Get()) {
-        float const filter_Q = param_Q.GetModCR(channel);
-        float const filter_cutoff = param_cutoff_pitch.GetModCR(channel);
-        float const direct_mix = param_filter_direct.GetModCR(channel);
-        float const lp_mix = param_filter_lp.GetModCR(channel);
-        float const hp_mix = param_filter_hp.GetModCR(channel);
-        float const bp_mix = param_filter_bp.GetModCR(channel);
-        float freq = qwqdsp::convert::Pitch2Freq(filter_cutoff);
-        float w = qwqdsp::convert::Freq2W(freq, fs_);
-        tpt_svf_[channel].SetCoeffQ(w, filter_Q);
-        for (size_t i = 0; i < num_samples; ++i) {
-            auto[hp,bp,lp] = tpt_svf_[channel].TickMultiMode(osc_buffer[i]);
-            osc_buffer[i] *= direct_mix;
-            osc_buffer[i] += hp * hp_mix + bp * bp_mix + lp * lp_mix;
-        }
-    }
+    filter_.Process(*this, channel, {osc_buffer.data(), num_samples});
 
     // -------------------- tick volume envelope --------------------
     auto const& volume_env_buffer = volume_env_.modulator_output;

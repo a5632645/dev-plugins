@@ -53,13 +53,6 @@ AnalogSynthAudioProcessor::AnalogSynthAudioProcessor()
     layout.add(synth_.param_env_mod_sustain.Build());
     layout.add(synth_.param_env_mod_release.Build());
     layout.add(synth_.param_env_mod_exp.Build());
-    layout.add(synth_.param_filter_enable.Build());
-    layout.add(synth_.param_cutoff_pitch.Build());
-    layout.add(synth_.param_Q.Build());
-    layout.add(synth_.param_filter_direct.Build());
-    layout.add(synth_.param_filter_lp.Build());
-    layout.add(synth_.param_filter_bp.Build());
-    layout.add(synth_.param_filter_hp.Build());
     layout.add(synth_.param_lfo1_freq.Build1());
     layout.add(synth_.param_lfo1_freq.Build2());
     layout.add(synth_.param_lfo1_freq.Build3());
@@ -119,12 +112,14 @@ AnalogSynthAudioProcessor::AnalogSynthAudioProcessor()
     layout.add(synth_.param_legato.Build());
     layout.add(synth_.param_glide_time.Build());
     layout.add(synth_.param_num_voices.Build());
+    synth_.filter_.BuildParameters(layout);
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
     
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
     preset_manager_->external_load_default_operations = [this] {
         synth_.modulation_matrix.RemoveAll();
+        synth_.Reset();
     };
 }
 
