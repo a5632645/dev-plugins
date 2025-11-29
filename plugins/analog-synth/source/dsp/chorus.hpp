@@ -30,6 +30,9 @@ public:
         mod_osc_.SetFreq(rate, fs);
         mod_osc_.KeepAmp();
         float base_samples = delay * kBaseDelayMs * fs / 1000.0f;
+        SimdType base_delay{
+            base_samples * 0.25f, base_samples * 0.5f, base_samples, base_samples * 0.75f
+        };
         float mod_samples = depth * kModulateDelayMs * fs / 1000.0f;
         float dry_mix = 1 - mix;
         float wet_mix = mix * 0.5f;
@@ -39,7 +42,8 @@ public:
             SimdType mod_val{
                 first.real(), -first.real(), first.imag(), -first.imag()
             };
-            SimdType delay_samples = mod_val * SimdType::FromSingle(mod_samples) + SimdType::FromSingle(base_samples);
+            mod_val = 0.5f * mod_val + 0.5f;
+            SimdType delay_samples = mod_val * SimdType::FromSingle(mod_samples) + base_delay;
             delay_samples = SimdType::Max(delay_samples, SimdType::FromSingle(1));
 
             auto v = delay_.GetBeforePush(delay_samples);

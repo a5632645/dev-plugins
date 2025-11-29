@@ -22,6 +22,7 @@ AnalogSynthAudioProcessorEditor::AnalogSynthAudioProcessorEditor (AnalogSynthAud
     , fx_chain_(p.synth_, p)
     , marcos_(p.synth_)
     , voices_(p.synth_)
+    , midi_component_(p.midi_state_, juce::MidiKeyboardComponent::Orientation::horizontalKeyboard)
 {
     addAndMakeVisible(preset_);
 
@@ -40,6 +41,8 @@ AnalogSynthAudioProcessorEditor::AnalogSynthAudioProcessorEditor (AnalogSynthAud
     addAndMakeVisible(noise_);
     addAndMakeVisible(marcos_);
     addAndMakeVisible(voices_);
+
+    addAndMakeVisible(midi_component_);
 
     setSize(1150, 800 - 25);
 }
@@ -68,6 +71,10 @@ void AnalogSynthAudioProcessorEditor::resized() {
     // most right
     auto fx_bound = b.removeFromRight(200);
     fx_chain_.setBounds(fx_bound);
+
+    // bottom
+    auto midi_bound = b.removeFromBottom(100);
+    midi_component_.setBounds(midi_bound);
 
     // right
     auto env_bound = b.removeFromRight(220);

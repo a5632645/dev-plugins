@@ -16,8 +16,9 @@ public:
     inline static const juce::String extension{"preset"};
     inline static const juce::String presetNameProperty{"presetName"};
     inline static const juce::String kVersionProperty{"version"};
+    inline static const juce::String kDefaultPresetName = "default";
 
-    PresetManager(juce::AudioProcessorValueTreeState& apvts, juce::AudioProcessor& p) 
+    PresetManager(juce::AudioProcessorValueTreeState& apvts, juce::AudioProcessor& p)
         : valueTreeState(apvts)
         , processor_(p)
     {
@@ -32,7 +33,7 @@ public:
             }
         }
 
-        apvts.state.setProperty(presetNameProperty, "", nullptr);
+        apvts.state.setProperty(presetNameProperty, kDefaultPresetName, nullptr);
         apvts.state.setProperty("version", JucePlugin_VersionString, nullptr);
 
         valueTreeState.state.addListener(this);
@@ -50,7 +51,7 @@ public:
 
     void savePreset(const juce::String& presetName)
     {
-        if (presetName.isEmpty())
+        if (presetName.isEmpty() || presetName == kDefaultPresetName)
             return;
 
         currentPreset.setValue(presetName);
@@ -61,7 +62,7 @@ public:
         if (presetFile.existsAsFile()) {
             presetFile.deleteFile();
         }
-        
+
         juce::FileOutputStream stream{presetFile};
         if (!stream.write(block.getData(), block.getSize()))
         {
@@ -72,7 +73,7 @@ public:
 
     void deletePreset(const juce::String& presetName)
     {
-        if (presetName.isEmpty())
+        if (presetName.isEmpty() || presetName == kDefaultPresetName)
             return;
 
         const auto presetFile = defaultDirectory.getChildFile(presetName + "." + extension);
@@ -88,7 +89,7 @@ public:
             jassertfalse;
             return;
         }
-        currentPreset.setValue("");
+        currentPreset.setValue("*deleted*");
     }
 
     void loadPreset(const juce::String& presetName)
@@ -117,30 +118,30 @@ public:
         currentPreset.setValue(presetName);
     }
 
-    int loadNextPreset()
+    std::pair<int, juce::String> loadNextPreset()
     {
         const auto allPresets = getAllPresets();
         if (allPresets.isEmpty()) {
             loadDefaultPatch();
-            return -1;
+            return {-1, kDefaultPresetName};
         }
         const auto currentIndex = allPresets.indexOf(currentPreset.toString());
         const auto nextIndex = currentIndex + 1 > (allPresets.size() - 1) ? 0 : currentIndex + 1;
         loadPreset(allPresets.getReference(nextIndex));
-        return nextIndex;
+        return {nextIndex, allPresets[nextIndex]};
     }
 
-    int loadPreviousPreset()
+    std::pair<int, juce::String> loadPreviousPreset()
     {
         const auto allPresets = getAllPresets();
         if (allPresets.isEmpty()) {
             loadDefaultPatch();
-            return -1;
+            return {-1, kDefaultPresetName};
         }
         const auto currentIndex = allPresets.indexOf(currentPreset.toString());
         const auto previousIndex = currentIndex - 1 < 0 ? allPresets.size() - 1 : currentIndex - 1;
         loadPreset(allPresets.getReference(previousIndex));
-        return previousIndex;
+        return {previousIndex, allPresets[previousIndex]};
     }
 
     juce::StringArray getAllPresets() const
@@ -172,7 +173,7 @@ public:
     juce::ValueTree GetDefaultValueTree() {
         return default_state_;
     }
-    
+
     /**
      * @brief make audio processor goes into default state, value tree is automatic done
      * @note when call this, the processor will automatic suspend

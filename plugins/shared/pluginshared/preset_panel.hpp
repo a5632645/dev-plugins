@@ -1,26 +1,28 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
+#include "juce_events/juce_events.h"
 #include "preset_manager.hpp"
 #include "pluginshared/component.hpp"
 
 namespace pluginshared {
-class PresetPanel : public juce::Component, juce::Button::Listener, juce::ComboBox::Listener {
+class PresetPanel : public juce::Component, juce::Button::Listener {
 public:
     static constexpr int kNetworkTimeout = 500; // ms
     static constexpr auto kReleasePageURL = "https://github.com/a5632645/dev-plugins/releases";
     static constexpr auto kReleaseJsonFile = "https://raw.githubusercontent.com/a5632645/dev-plugins/refs/heads/main/release.json";
+    inline static ui::CustomLookAndFeel look_and_feel;
 
-    PresetPanel(PresetManager& pm) 
+    PresetPanel(PresetManager& pm)
         : presetManager(pm) {
         configureButton(saveButton, "Save");
         configureButton(deleteButton, "Delete");
         configureButton(previousPresetButton, "<");
         configureButton(nextPresetButton, ">");
-
-        presetList.setTextWhenNothingSelected("default");
-        addAndMakeVisible(presetList);
-        presetList.addListener(this);
-
+        ui::SetLableBlack(preset_name_);
+        preset_name_.addMouseListener(this, false);
+        preset_name_.setText(presetManager.getCurrentPreset(), juce::dontSendNotification);
+        addAndMakeVisible(preset_name_);
+        preset_menu_.setLookAndFeel(&look_and_feel);
         loadPresetList();
 
         options_button_.setButtonText("options");
@@ -33,7 +35,28 @@ public:
         deleteButton.removeListener(this);
         previousPresetButton.removeListener(this);
         nextPresetButton.removeListener(this);
-        presetList.removeListener(this);
+        preset_name_.removeMouseListener(this);
+        preset_menu_.setLookAndFeel(nullptr);
+    }
+
+    void mouseDown(const juce::MouseEvent& event) override {
+        if (event.originalComponent != &preset_name_) return;
+        preset_menu_.showMenuAsync(juce::PopupMenu::Options{}.withMousePosition(),
+        [this](int id) {
+            if (id == 1) {
+                presetManager.loadDefaultPatch();
+                preset_name_.setText(PresetManager::kDefaultPresetName, juce::dontSendNotification);
+            }
+            else if (id > 1) {
+                const auto& all_items = presetManager.getAllPresets();
+                int idx = id - 2;
+                if (idx >= all_items.size()) return;
+
+                const auto& name = all_items[idx];
+                presetManager.loadPreset(name);
+                preset_name_.setText(name, juce::dontSendNotification);
+            }
+        });
     }
 
     void resized() override {
@@ -46,7 +69,7 @@ public:
         saveButton.setBounds(container.removeFromRight(b.proportionOfWidth(0.15f)).reduced(2));
         previousPresetButton.setBounds(container.removeFromLeft(container.getHeight()).reduced(2));
         nextPresetButton.setBounds(container.removeFromRight(container.getHeight()).reduced(2));
-        presetList.setBounds(container.reduced(2));
+        preset_name_.setBounds(container.reduced(2));
     }
 
     std::function<void(juce::PopupMenu&)> on_menu_showup;
@@ -59,22 +82,28 @@ private:
                 "*." + PresetManager::extension
             );
             fileChooser->launchAsync(juce::FileBrowserComponent::saveMode, [&](const juce::FileChooser& chooser) {
-                    const auto resultFile = chooser.getResult();
-                    presetManager.savePreset(resultFile.getFileNameWithoutExtension());
-                    loadPresetList();
-                });
+                const auto resultFile = chooser.getResult();
+                const auto preset_name = resultFile.getFileNameWithoutExtension();
+                if (preset_name == PresetManager::kDefaultPresetName) {
+                    juce::NativeMessageBox::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "Invalid name", "default preset name is invalid");
+                    return;
+                }
+                presetManager.savePreset(preset_name);
+                loadPresetList();
+            });
         }
         else if (button == &previousPresetButton) {
-            const auto index = presetManager.loadPreviousPreset();
-            presetList.setSelectedItemIndex(index, juce::dontSendNotification);
+            auto[index, name] = presetManager.loadPreviousPreset();
+            preset_name_.setText(name, juce::dontSendNotification);
         }
         else if (button == &nextPresetButton) {
-            const auto index = presetManager.loadNextPreset();
-            presetList.setSelectedItemIndex(index, juce::dontSendNotification);
+            auto[index, name] = presetManager.loadNextPreset();
+            preset_name_.setText(name, juce::dontSendNotification);
         }
         else if (button == &deleteButton) {
             presetManager.deletePreset(presetManager.getCurrentPreset());
             loadPresetList();
+            preset_name_.setText(presetManager.getCurrentPreset(), juce::dontSendNotification);
         }
         else if (button == &options_button_) {
             juce::PopupMenu menu;
@@ -96,7 +125,7 @@ private:
 
             menu.addSeparator();
             menu.addItem("init patch", [this]{
-                presetList.setSelectedItemIndex(-1, juce::dontSendNotification);
+                preset_name_.setText(PresetManager::kDefaultPresetName, juce::dontSendNotification);
                 presetManager.loadDefaultPatch();
             });
 
@@ -108,11 +137,6 @@ private:
             menu.showMenuAsync(op.withMousePosition());
         }
     }
-    void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override {
-        if (comboBoxThatHasChanged == &presetList) {
-            presetManager.loadPreset(presetList.getItemText(presetList.getSelectedItemIndex()));
-        }
-    }
 
     void configureButton(juce::Button& button, const juce::String& buttonText)  {
         button.setButtonText(buttonText);
@@ -121,13 +145,15 @@ private:
     }
 
     void loadPresetList() {
-        presetList.clear(juce::dontSendNotification);
-        presetList.addSeparator();
-        const auto allPresets = presetManager.getAllPresets();
         const auto currentPreset = presetManager.getCurrentPreset();
-        presetList.addItemList(allPresets, 1);
-        int idx = allPresets.indexOf(currentPreset);
-        presetList.setSelectedItemIndex(idx, juce::dontSendNotification);
+        preset_name_.setText(currentPreset, juce::dontSendNotification);
+        const auto& allPresets = presetManager.getAllPresets();
+        preset_menu_.clear();
+        preset_menu_.addItem(1, "init patch");
+        preset_menu_.addSeparator();
+        for (int id = 2; const auto& name : allPresets) {
+            preset_menu_.addItem(id++, name);
+        }
     }
 
     void CheckUpdate() {
@@ -157,6 +183,7 @@ private:
         };
 
         diaglog->setContentNonOwned(&update_message_, true);
+        diaglog->setTopLeftPosition(juce::Desktop::getInstance().getMousePosition());
         diaglog->enterModalState(true, nullptr, true);
     }
 
@@ -179,8 +206,9 @@ private:
     public:
         UpdateMessageComponent() {
             addAndMakeVisible(label);
+            label.setJustificationType(juce::Justification::topLeft);
             addAndMakeVisible(button);
-            setSize(350, 200);
+            setSize(300, 150);
         }
 
         void resized() override {
@@ -274,7 +302,7 @@ private:
             if (!panel_) {
                 return;
             }
-            
+
             juce::MessageManagerLock lock;
             juce::MessageManager::callAsync([p = panel_, label, button]{
                 p->update_message_.label.setText(label, juce::dontSendNotification);
@@ -288,7 +316,9 @@ private:
 
     PresetManager& presetManager;
     ui::FlatButton saveButton, deleteButton, previousPresetButton, nextPresetButton;
-    ui::FlatCombobox presetList;
+    // ui::FlatCombobox presetList;
+    juce::Label preset_name_{"", PresetManager::kDefaultPresetName};
+    juce::PopupMenu preset_menu_;
     std::unique_ptr<juce::FileChooser> fileChooser;
     ui::FlatButton options_button_;
     UpdateMessageComponent update_message_;

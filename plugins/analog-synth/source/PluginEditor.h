@@ -1,5 +1,6 @@
 #pragma once
-#include "pluginshared/preset_panel.hpp"
+#include <juce_audio_utils/juce_audio_utils.h>
+#include <pluginshared/preset_panel.hpp>
 #include "ui/osc1.hpp"
 #include "ui/osc2.hpp"
 #include "ui/osc3.hpp"
@@ -46,6 +47,8 @@ private:
     analogsynth::FxChainGui fx_chain_;
     analogsynth::MarcosGui marcos_;
     analogsynth::VoicesGui voices_;
+    
+    juce::MidiKeyboardComponent midi_component_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AnalogSynthAudioProcessorEditor)
 };

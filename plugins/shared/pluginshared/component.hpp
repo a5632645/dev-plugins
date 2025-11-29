@@ -591,7 +591,7 @@ public:
     }
 
     void paint(juce::Graphics& g) override {
-        g.fillAll(isDown() || isMouseOver() ? line_fore : inactive_bg);
+        g.fillAll(isDown() || isMouseOver() ? active_bg : inactive_bg);
         auto b = getLocalBounds();
         auto const fb = b.toFloat();
         g.setColour(black_bg);

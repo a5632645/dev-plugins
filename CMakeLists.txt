@@ -73,3 +73,5 @@ add_subdirectory(JUCE)
 add_subdirectory(raylib)
 add_subdirectory(qwqdsp)
 add_subdirectory(plugins)
+
+include(get_cmake_target_info.cmake)

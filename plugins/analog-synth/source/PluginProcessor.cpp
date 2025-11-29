@@ -197,6 +197,7 @@ void AnalogSynthAudioProcessor::changeProgramName (int index, const juce::String
 void AnalogSynthAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     std::ignore = samplesPerBlock;
+    midi_state_.reset();
     synth_.Init(static_cast<float>(sampleRate));
     synth_.Reset();
     param_listener_.CallAll();
@@ -236,6 +237,7 @@ void AnalogSynthAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
+    midi_state_.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
     synth_.SyncBpm(*this);
     synth_.Process(buffer, midiMessages);
 }

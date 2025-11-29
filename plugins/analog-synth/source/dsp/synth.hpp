@@ -476,7 +476,7 @@ public:
     enum {
         NoiseType_White = 0,
         NoiseType_Pink,
-        NoiseType_Brown
+        NoiseType_Brown,
     };
     // volume envelope
     FloatParam param_env_volume_attack{"vol_env_attack",

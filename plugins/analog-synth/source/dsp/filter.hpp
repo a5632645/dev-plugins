@@ -38,7 +38,6 @@ public:
         float v2 = g_ * bp;
         float lp = v2 + s2_;
         s1_ = qwqdsp::polymath::ArctanPade((bp + v1) / 2) * 2;
-        // s2_ = qwqdsp::polymath::TanhFastest((lp + v2) / 2) * 2;
         s2_ = lp + v2;
         return {hp, bp, lp};
     }

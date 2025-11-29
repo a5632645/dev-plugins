@@ -171,4 +171,4 @@ private:
     WhiteNoise white_;
     float latch_{};
 };
-} // namespace dsp
+} // namespace qwqdsp

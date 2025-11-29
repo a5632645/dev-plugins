@@ -25,7 +25,7 @@ void TimeView::paint(juce::Graphics& g) {
     auto bf = b.toFloat();
     g.setColour(ui::black_bg);
     g.fillRect(b);
-    
+
     g.reduceClipRegion(b);
     // 绘制实际使用的，如果是mouseUp后就是实际的
     g.setColour(ui::line_fore);
@@ -78,7 +78,7 @@ void TimeView::mouseDrag(const juce::MouseEvent& e) {
     if (e.mods.isRightButtonDown()) {
         val = 0;
     }
-    
+
     coeff_buffer_[idx] = val;
     p_.custom_coeffs_[idx] = val;
 
@@ -132,7 +132,7 @@ void SpectralView::paint(juce::Graphics& g) {
     auto bf = b.toFloat();
     g.setColour(ui::black_bg);
     g.fillRect(b);
-    
+
     // 绘制频谱音量数字
     float const fcoeff_len = static_cast<float>(time_.p_.coeff_len_);
     constexpr size_t kNumLines = 5;
@@ -222,7 +222,7 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
     if (e.mods.isRightButtonDown()) {
         val = 0;
     }
-    
+
     time_.p_.custom_spectral_gains[idx] = val;
 
     // 加法合成
@@ -238,7 +238,7 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
             true_gains[i] = qwqdsp::convert::Db2Gain(db);
         }
     }
-    
+
     for (size_t tidx = 0; tidx < coeff_len; ++tidx) {
         float sum{};
         for (size_t fidx = 0; fidx < coeff_len; ++fidx) {
@@ -295,12 +295,12 @@ DeepPhaserAudioProcessorEditor::DeepPhaserAudioProcessorEditor (DeepPhaserAudioP
     addAndMakeVisible(highpass_);
     custom_.onStateChange = [this] {
         if (custom_.getToggleState()) {
-            setSize(600, 264 + 200 + 50);
+            setSize(600, 264 + 200 + 30);
             timeview_.setVisible(true);
             spectralview_.setVisible(true);
         }
         else {
-            setSize(600, 264 + 50);
+            setSize(600, 264 + 30);
             timeview_.setVisible(false);
             spectralview_.setVisible(false);
         }
@@ -349,7 +349,7 @@ DeepPhaserAudioProcessorEditor::DeepPhaserAudioProcessorEditor (DeepPhaserAudioP
     addAndMakeVisible(timeview_);
     addAndMakeVisible(spectralview_);
 
-    setSize(600, 264 + 50);
+    setSize(600, 264 + 30);
 
     custom_.setToggleState(p.is_using_custom_, juce::sendNotificationSync);
 
@@ -365,7 +365,7 @@ void DeepPhaserAudioProcessorEditor::paint (juce::Graphics& g) {
 
     g.setColour(ui::green_bg);
     auto b = getLocalBounds();
-    g.fillRect(b.removeFromTop(50 - 2));
+    g.fillRect(b.removeFromTop(30));
     b.removeFromTop(2);
     g.fillRect(basic_bound_);
     g.fillRect(fir_bound_);
@@ -375,7 +375,8 @@ void DeepPhaserAudioProcessorEditor::paint (juce::Graphics& g) {
 
 void DeepPhaserAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
-    preset_panel_.setBounds(b.removeFromTop(50));
+    preset_panel_.setBounds(b.removeFromTop(30));
+    b.removeFromTop(2);
     {
         auto topblock = b.removeFromTop(125);
         {

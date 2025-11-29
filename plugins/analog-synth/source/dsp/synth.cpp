@@ -228,10 +228,9 @@ void Synth::ProcessAndAddBlock(size_t channel, float* left, float* right, size_t
     }
     // oscillator 1
     float freq1 = qwqdsp::convert::Pitch2Freq(pitch_buffer[0] + param_osc1_detune.GetModCR(channel));
+    freq1 = std::clamp(freq1, 0.1f, fs_ / BlepCoeff::kHalfLen);
     float osc1_phase_inc = freq1 / fs_;
     float osc1_pwm = param_osc1_pwm.GetModCR(channel);
-    float freq2 = qwqdsp::convert::Pitch2Freq(pitch_buffer[0] + param_osc2_detune.GetModCR(channel));
-    osc2_[channel].SetFreq(freq2, fs_);
 
     std::array<float, kBlockSize> osc_buffer;
     std::array<bool, kBlockSize> sync_buffer;
@@ -270,6 +269,9 @@ void Synth::ProcessAndAddBlock(size_t channel, float* left, float* right, size_t
     }
 
     // oscillator 2
+    float freq2 = qwqdsp::convert::Pitch2Freq(pitch_buffer[0] + param_osc2_detune.GetModCR(channel));
+    freq2 = std::clamp(freq2, 0.1f, fs_ / BlepCoeff::kHalfLen);
+    osc2_[channel].SetFreq(freq2, fs_);
     osc_gain = param_osc2_vol.GetModCR(channel);
     float osc_pwm = param_osc2_pwm.GetModCR(channel);
     osc2_[channel].SetPWM(osc_pwm);
@@ -336,7 +338,9 @@ void Synth::ProcessAndAddBlock(size_t channel, float* left, float* right, size_t
             auto& unison_look_table = kPanTable[static_cast<size_t>(osc3_unison_num) - 1];
             for (int i = 0; i < osc3_unison_num; ++i) {
                 float pitch = pitch_buffer[0] + osc3_detune + osc3_unison_detune * unison_look_table[size_t(i)];
-                phase_incs_[size_t(i)] = qwqdsp::convert::Pitch2Freq(pitch) / fs_;
+                float freq = qwqdsp::convert::Pitch2Freq(pitch);
+                freq = std::clamp(freq, 0.1f, fs_ / BlepCoeff::kHalfLen);
+                phase_incs_[size_t(i)] = freq / fs_;
             }
             break;
         }
@@ -344,7 +348,9 @@ void Synth::ProcessAndAddBlock(size_t channel, float* left, float* right, size_t
             auto& unison_look_table = osc3_data_[channel].osc3_freq_ratios_;
             for (int i = 0; i < osc3_unison_num; ++i) {
                 float pitch = pitch_buffer[0] + osc3_detune + osc3_unison_detune * unison_look_table[size_t(i)];
-                phase_incs_[size_t(i)] = qwqdsp::convert::Pitch2Freq(pitch) / fs_;
+                float freq = qwqdsp::convert::Pitch2Freq(pitch);
+                freq = std::clamp(freq, 0.1f, fs_ / BlepCoeff::kHalfLen);
+                phase_incs_[size_t(i)] = freq / fs_;
             }
             break;
         }
@@ -398,6 +404,7 @@ void Synth::ProcessAndAddBlock(size_t channel, float* left, float* right, size_t
         float pitch = w0_detune + pitch_buffer[0];
         float w0_freq = qwqdsp::convert::Pitch2Freq(pitch);
         float w0 = qwqdsp::convert::Freq2W(w0_freq, fs_);
+        w0 = std::min(w0, std::numbers::pi_v<float> - 1e-4f);
         osc4_[channel].w0 = w0;
         float w_ratio = param_osc4_w_ratio.GetModCR(channel);
         osc4_[channel].w = w0 * w_ratio;
