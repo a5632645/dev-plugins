@@ -8,7 +8,7 @@ int main() {
     float ir_lattice[kIrLen] {1.0f};
 
     qwqdsp::filter::RBJ design;
-    design.Lowpass(2.0f, 10.0f);
+    design.Lowpass(0.1f, 10.0f);
     auto coeff = design.ToBiquadCoeff();
 
     qwqdsp::filter::Biquad biquad;
