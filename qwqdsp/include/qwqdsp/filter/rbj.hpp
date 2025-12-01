@@ -1,6 +1,7 @@
 #pragma once
 #include <cmath>
 #include <numbers>
+#include "qwqdsp/filter/biquad_coeff.hpp"
 
 namespace qwqdsp::filter {
 /**
@@ -12,6 +13,11 @@ struct RBJ {
     float b2;
     float a1;
     float a2;
+
+    [[nodiscard]]
+    BiquadCoeff ToBiquadCoeff() const noexcept {
+        return BiquadCoeff{b0, b1, b2, a1, a2};
+    }
 
     /**
      * 使用数字倍频程表示带宽具有一阶prewarp Q

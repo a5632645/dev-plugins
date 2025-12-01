@@ -78,8 +78,8 @@ private:
             UpdateA();
         }
         else {
-            size_t max_n = static_cast<size_t>((std::numbers::pi_v<float> - w0_) / w_);
-            size_t newn = std::min(max_n, set_n_);
+            uint32_t max_n = static_cast<uint32_t>((std::numbers::pi_v<float> - w0_) / w_);
+            uint32_t newn = std::min(max_n, set_n_);
             if (n_ != newn) {
                 n_ = newn;
                 UpdateA();
@@ -118,7 +118,7 @@ public:
         w_phase_ = 0;
         w0_phase_ = 0;
     }
-    
+
     std::complex<float> Tick() noexcept {
         w_phase_ += w_inc_;
         w0_phase_ += w0_inc_;
