@@ -62,7 +62,7 @@
 #include <cassert>
 #include "qwqdsp/polymath.hpp"
 
-namespace qwqdsp::fx {
+namespace qwqdsp_fx {
 //------------------------------------------------------------------------------
 // PlateReverb is an implementation of the classic plate reverb algorithm
 // described by Jon Dattorro.

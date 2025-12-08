@@ -16,11 +16,6 @@ set(IPP_SHARED OFF)
 find_package(IPP)
 set(qwqdsp_have_ipp ${IPP_FOUND})
 
-# check for eigen
-if(NOT TARGET eigen)
-    message(FATAL_ERROR "need a eigen target")
-endif()
-
 # set warnings
 include(cmake/warnings.cmake)
 
@@ -36,10 +31,13 @@ target_include_directories(qwqdsp PUBLIC "./include")
 set_target_properties(qwqdsp PROPERTIES CXX_STANDARD 20)
 
 # external library
-target_link_libraries(qwqdsp PUBLIC Eigen3::Eigen)
+if (TARGET eigen)
+    target_link_libraries(qwqdsp PUBLIC Eigen3::Eigen)
+    target_compile_definitions(qwqdsp PUBLIC QWQDSP_HAVE_EIGEN=1)
+endif()
 if (qwqdsp_have_ipp)
     target_link_libraries(qwqdsp PUBLIC IPP::ipps)
-    target_compile_definitions(qwqdsp PUBLIC QWQDSP_HAVE_IPP)
+    target_compile_definitions(qwqdsp PUBLIC QWQDSP_HAVE_IPP=1)
 endif()
 
 # enable tests

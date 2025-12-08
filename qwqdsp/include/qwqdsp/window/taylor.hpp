@@ -4,7 +4,7 @@
 #include <span>
 #include <vector>
 
-namespace qwqdsp::window {
+namespace qwqdsp_window {
 struct Taylor {
     static constexpr float sq(float x) noexcept {
         return x * x;

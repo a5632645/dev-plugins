@@ -1,6 +1,6 @@
 #pragma once
 
-namespace qwqdsp::simd_element {
+namespace qwqdsp_simd_element {
 template<class SIMD_TYPE>
 class AlgebraicWaveshaperSimd {
 public:

@@ -12,7 +12,7 @@
  * @ref 单极点shelf https://vicanek.de/articles/ShelvingFits.pdf
  * @ref 经典 https://vicanek.de/articles/BiquadFits.pdf
  */
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 class MatchBiquad {
 public:
     // -------------------- onepole --------------------

@@ -5,7 +5,7 @@
 #include "qwqdsp/interpolation.hpp"
 #include "qwqdsp/window/kaiser.hpp"
 
-namespace qwqdsp::fx {
+namespace qwqdsp_fx {
 class Resample {
 public:
     /**
@@ -22,8 +22,8 @@ public:
 
         size_t const lut_size = kernel_len + (kernel_len - 1) * oversample;
         kernel_.resize(lut_size + 1, 0.0f);
-        float const beta = qwqdsp::window::Kaiser::Beta(atten);
-        float const width = qwqdsp::window::Kaiser::MainLobeWidth(beta) * std::numbers::pi_v<float> * 2.0f / static_cast<float>(kernel_len);
+        float const beta = qwqdsp_window::Kaiser::Beta(atten);
+        float const width = qwqdsp_window::Kaiser::MainLobeWidth(beta) * std::numbers::pi_v<float> * 2.0f / static_cast<float>(kernel_len);
         
         std::span kernel_block{kernel_.data(), lut_size};
         {
@@ -49,7 +49,7 @@ public:
             }
         }
 
-        qwqdsp::window::Kaiser::ApplyWindow(kernel_block, beta, false);
+        qwqdsp_window::Kaiser::ApplyWindow(kernel_block, beta, false);
     }
 
     std::vector<float> Process(std::span<float> x) {
@@ -83,7 +83,7 @@ public:
                     float const krpos = static_cast<float>(static_cast<size_t>(i) * oversample_plus1_) + frac * static_cast<float>(oversample_plus1_);
                     size_t const ikrpos = static_cast<size_t>(krpos);
                     float const frac_krpos = krpos - std::floor(krpos);
-                    float const kernel_v = qwqdsp::Interpolation::Linear(kernel_[ikrpos], kernel_[ikrpos + 1], frac_krpos);
+                    float const kernel_v = qwqdsp_interpolation::Linear(kernel_[ikrpos], kernel_[ikrpos + 1], frac_krpos);
                     sum += kernel_v * x[static_cast<size_t>(xibegin + i)];
                 }
             }

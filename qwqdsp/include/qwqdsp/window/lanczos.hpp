@@ -4,7 +4,7 @@
 #include <numbers>
 #include <cmath>
 
-namespace qwqdsp::window {
+namespace qwqdsp_window {
 struct Lanczos {
     // 和分析有关的
     // f = width / N

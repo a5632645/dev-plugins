@@ -4,7 +4,7 @@
 #include "qwqdsp/filter/int_delay.hpp"
 #include "qwqdsp/convert.hpp"
 
-namespace qwqdsp::fx {
+namespace qwqdsp_fx {
 /**
  * @brief a simple limiter
  * @ref https://signalsmith-audio.co.uk/writing/2022/limiter/
@@ -114,11 +114,11 @@ private:
         }
 
         void SetAttackTime(float ms, float fs) noexcept {
-            attack_factor_ = qwqdsp::misc::ExpSmoother::ComputeSmoothFactor(ms, fs, 3);
+            attack_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(ms, fs, 3);
         }
 
         void SetReleaseTime(float ms, float fs) noexcept {
-            release_factor_ = qwqdsp::misc::ExpSmoother::ComputeSmoothFactor(ms, fs);
+            release_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(ms, fs);
         }
 
         float Tick(float x) noexcept {
@@ -134,7 +134,7 @@ private:
 
     SimplePeakHold peakhold_;
     SimpleARFollower smoother_;
-    qwqdsp::filter::IntDelay lookahead_delay_;
+    qwqdsp_filter::IntDelay lookahead_delay_;
     size_t lookahead_delay_samples_{};
     float limit_gain_{};
     float reduce_gain_{1.0f};

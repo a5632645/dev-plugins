@@ -7,7 +7,7 @@
 #include <cassert>
 #include "biquad.hpp"
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 struct IIRDesign {
     static constexpr auto pi = std::numbers::pi;
 

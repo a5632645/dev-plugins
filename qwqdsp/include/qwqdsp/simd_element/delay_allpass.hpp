@@ -1,7 +1,7 @@
 #pragma once
 #include "qwqdsp/simd_element/delay_line.hpp"
 
-namespace qwqdsp::simd_element {
+namespace qwqdsp_simd_element {
 template<class SimdType, DelayLineInterp kInterp>
 class DelayAllpass {
 public:

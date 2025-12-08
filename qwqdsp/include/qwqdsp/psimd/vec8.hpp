@@ -1,7 +1,7 @@
 #pragma once
 #include <cmath>
 
-namespace qwqdsp::psimd {
+namespace qwqdsp_psimd {
 // ---------------------------------------- 8int ----------------------------------------
 struct alignas(32) Vec8i32 {
     static constexpr size_t kSize = 8;

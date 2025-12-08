@@ -2,7 +2,7 @@
 #include "qwqdsp/filter/allpass.hpp"
 #include "qwqdsp/filter/rbj.hpp"
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 /**
  * @brief 双路全通滤波器组成的低通/高通滤波器，只能为奇数阶，先用巴特沃斯摸一下
  * @ref 纯极点 https://radiosystemdesign.com/assets/pdf/downloads/Reducing_IIR_Comp_Workload_Lyons.pdf
@@ -29,7 +29,7 @@ public:
             float const e = (1 - t) / (1 + t);
             allpass1_.SetA(-e);
         }
-        qwqdsp::filter::RBJ design;
+        qwqdsp_filter::RBJ design;
         size_t down_idx = num_up2_;
         size_t up_idx = 0;
         for (size_t i = 1; i < (order_ + 1) / 2; ++i) {
@@ -153,7 +153,7 @@ private:
     size_t order_{};
     size_t num_up2_{};
     size_t num_down2_{};
-    std::vector<qwqdsp::filter::AllpassOrder2> allpass_;
-    qwqdsp::filter::AllpassOrder1 allpass1_;
+    std::vector<qwqdsp_filter::AllpassOrder2> allpass_;
+    qwqdsp_filter::AllpassOrder1 allpass1_;
 };
 }

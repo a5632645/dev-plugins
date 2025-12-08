@@ -5,7 +5,7 @@
 #include <cmath>
 #include "slice.hpp"
 
-namespace qwqdsp::segement {
+namespace qwqdsp_segement {
 /**
  * @brief 适用于离线处理的分析合成
  */

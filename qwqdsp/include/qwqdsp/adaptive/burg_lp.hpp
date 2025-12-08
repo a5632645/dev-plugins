@@ -2,7 +2,7 @@
 #include <span>
 #include <vector>
 
-namespace qwqdsp::adaptive {
+namespace qwqdsp_adaptive {
 class BurgLP {
 public:
     void Init(size_t block_len) {

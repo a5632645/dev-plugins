@@ -4,7 +4,7 @@
 #include <utility>
 #include "int_delay.hpp"
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 class LatticeZero {
 public:
     void Reset() noexcept {

@@ -5,7 +5,7 @@
 #include <complex>
 #include <cassert>
 
-namespace qwqdsp::spectral {
+namespace qwqdsp_spectral {
 #ifdef QWQDSP_HAVE_IPP
 class IppRealFFT;
 #endif

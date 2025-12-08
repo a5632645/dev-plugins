@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 
-namespace qwqdsp::fx {
+namespace qwqdsp_fx {
 enum class DelayLineInterpSIMD {
     None,
     Lagrange3rd,

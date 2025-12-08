@@ -3,7 +3,7 @@
 #include <cmath>
 #include <array>
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 // qwqfixme: 系数kSetSamples有误
 namespace fastset_coeff {
 struct Order2_1e2 {

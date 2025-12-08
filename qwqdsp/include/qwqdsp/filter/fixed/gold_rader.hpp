@@ -4,7 +4,7 @@
 #include <cmath>
 #include "acc_traits.hpp"
 
-namespace qwqdsp::filter::fixed {
+namespace qwqdsp_filter::fixed {
 /**
  * @brief 它和biquad不能互换
  *                rsin * z^-1 * (b0 + b1*z^-1 + b2*z^-2)

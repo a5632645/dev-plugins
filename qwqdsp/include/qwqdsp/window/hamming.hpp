@@ -3,7 +3,7 @@
 #include <cmath>
 #include <numbers>
 
-namespace qwqdsp::window {
+namespace qwqdsp_window {
 struct Hamming {
     // 和分析有关的
     // f = width / N

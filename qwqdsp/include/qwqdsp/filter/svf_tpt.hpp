@@ -2,7 +2,7 @@
 #include <cmath>
 #include <array>
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 class SvfTPT {
 public:
     void Reset() noexcept {

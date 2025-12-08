@@ -5,7 +5,7 @@
 #include <vector>
 #include "qwqdsp/segement/slice.hpp"
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 /**
  * @tparam kBatchSize 最大一次性处理多少采样，每隔这个数量才会执行一次移动采样，越大平均移动越少，同时内存增加
  */

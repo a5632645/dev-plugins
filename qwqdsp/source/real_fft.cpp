@@ -4,12 +4,12 @@
 
 #ifndef QWQDSP_HAVE_IPP
 
-namespace qwqdsp::spectral {
+namespace qwqdsp_spectral {
 namespace internal {
 void rdft(int, int, float *, int *, float *) noexcept;
 void makewt(int nw, int *ip, float *w) noexcept;
 void makect(int nc, int *ip, float *c) noexcept;
-} // qwqdsp::spectral::internal
+} // qwqdsp_spectral::internal
 
 void RealFFT::Init(size_t fft_size) {
     assert(std::has_single_bit(fft_size));
@@ -172,13 +172,13 @@ void RealFFT::Hilbert(std::span<const float> input, std::span<float> shift90, bo
     }
 }
 
-} // qwqdsp::spectral
+} // qwqdsp_spectral
 
 #else
 
 #include "qwqdsp/spectral/ipp_real_fft.hpp"
 
-namespace qwqdsp::spectral {
+namespace qwqdsp_spectral {
 
 RealFFT::RealFFT() {
     fft_ = std::make_unique<IppRealFFT>();
@@ -330,6 +330,6 @@ void RealFFT::Hilbert(std::span<const float>input, std::span<float> shift90, boo
 }
 
 
-} // qwqdsp::spectral
+} // qwqdsp_spectral
 
 #endif

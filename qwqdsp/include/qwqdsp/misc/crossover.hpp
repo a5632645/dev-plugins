@@ -2,9 +2,9 @@
 #include <cstddef>
 #include <numbers>
 #include <utility>
-#include "qwqdsp/osciilor/vic_sine_osc.hpp"
+#include "qwqdsp/oscillator/vic_sine_osc.hpp"
 
-namespace qwqdsp::misc {
+namespace qwqdsp_misc {
 class CrossoverGain {
 public:
     void Reset() noexcept {
@@ -79,6 +79,6 @@ public:
         osc_.Reset();
     }
 private:
-    oscillor::VicSineOsc osc_;
+    qwqdsp_oscillator::VicSineOsc osc_;
 };
 }

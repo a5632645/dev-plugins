@@ -122,8 +122,7 @@ public:
     {
         const auto allPresets = getAllPresets();
         if (allPresets.isEmpty()) {
-            loadDefaultPatch();
-            return {-1, kDefaultPresetName};
+            return {-1, getCurrentPreset()};
         }
         const auto currentIndex = allPresets.indexOf(currentPreset.toString());
         const auto nextIndex = currentIndex + 1 > (allPresets.size() - 1) ? 0 : currentIndex + 1;
@@ -135,8 +134,7 @@ public:
     {
         const auto allPresets = getAllPresets();
         if (allPresets.isEmpty()) {
-            loadDefaultPatch();
-            return {-1, kDefaultPresetName};
+            return {-1, getCurrentPreset()};
         }
         const auto currentIndex = allPresets.indexOf(currentPreset.toString());
         const auto previousIndex = currentIndex - 1 < 0 ? allPresets.size() - 1 : currentIndex - 1;

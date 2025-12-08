@@ -9,12 +9,12 @@
 // @ref https://www.researchgate.net/publication/3317646_Design_of_Optimal_Minimum-phase_Digital_FIR_Filters_Using_Discrete_Hilbert_Transforms
 int main() {
     float fir[65];
-    qwqdsp::filter::WindowFIR::Lowpass(fir, std::numbers::pi_v<float> / 2);
+    qwqdsp_filter::WindowFIR::Lowpass(fir, std::numbers::pi_v<float> / 2);
 
     float fir_pad[4096];
-    qwqdsp::window::Helper::ZeroPad(fir_pad, fir);
+    qwqdsp_window::Helper::ZeroPad(fir_pad, fir);
 
-    qwqdsp::spectral::ComplexFFT fft;
+    qwqdsp_spectral::ComplexFFT fft;
     fft.Init(4096);
     constexpr size_t num_bins = fft.NumBins(4096);
     float gains[num_bins];
@@ -44,9 +44,9 @@ int main() {
 
     float min_phase_pad[1024];
     float fir_pad2[1024];
-    qwqdsp::window::Helper::ZeroPad(fir_pad2, fir);
-    qwqdsp::window::Helper::ZeroPad(min_phase_pad, slice);
-    qwqdsp::spectral::RealFFT fft2;
+    qwqdsp_window::Helper::ZeroPad(fir_pad2, fir);
+    qwqdsp_window::Helper::ZeroPad(min_phase_pad, slice);
+    qwqdsp_spectral::RealFFT fft2;
     constexpr size_t num_bins2 = fft2.NumBins(1024);
     float fir_gains[num_bins2];
     float min_phase_gains[num_bins2];

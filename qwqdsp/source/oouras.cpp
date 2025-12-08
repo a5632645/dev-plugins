@@ -5,7 +5,7 @@
 // You may use, copy, modify and distribute this code for any purpose (include commercial use) and without fee.
 // Please refer to this package when you modify this code.
 // --------------------------------------------------------------------------------
-namespace qwqdsp::spectral::internal {
+namespace qwqdsp_spectral::internal {
 void cdft(int, int, float *, int *, float *) noexcept;
 void rdft(int, int, float *, int *, float *) noexcept;
 void ddct(int, int, float *, int *, float *) noexcept;

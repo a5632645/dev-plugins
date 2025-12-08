@@ -8,13 +8,13 @@
 
 int main() {
     float test[65];
-    qwqdsp::filter::WindowFIR::Bandstop(test, std::numbers::pi_v<float> / 4, std::numbers::pi_v<float> / 2);
-    qwqdsp::window::Hamming::ApplyWindow(test, false);
+    qwqdsp_filter::WindowFIR::Bandstop(test, std::numbers::pi_v<float> / 4, std::numbers::pi_v<float> / 2);
+    qwqdsp_window::Hamming::ApplyWindow(test, false);
 
     float pading[1024];
     std::complex<float> spectral[513];
-    qwqdsp::window::Helper::ZeroPad(pading, test);
-    qwqdsp::spectral::RealFFT fft;
+    qwqdsp_window::Helper::ZeroPad(pading, test);
+    qwqdsp_spectral::RealFFT fft;
     fft.Init(1024);
     fft.FFT(pading, spectral);
 

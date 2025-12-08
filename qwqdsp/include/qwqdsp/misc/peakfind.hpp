@@ -2,7 +2,7 @@
 #include <vector>
 #include <span>
 
-namespace qwqdsp::misc {
+namespace qwqdsp_misc {
 class PeakFinding {
 public:
     void Init(size_t data_len) {

@@ -3,7 +3,7 @@
 #include <span>
 #include <cmath>
 
-namespace qwqdsp::window {
+namespace qwqdsp_window {
 struct Hann {
     // 和分析有关的
     // f = width / N

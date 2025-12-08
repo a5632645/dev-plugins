@@ -5,7 +5,7 @@
 #include <numbers>
 #include <cmath>
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 /**
  * @ref https://ccrma.stanford.edu/~jos/WinFlt/WinFlt_2up.pdf
  */

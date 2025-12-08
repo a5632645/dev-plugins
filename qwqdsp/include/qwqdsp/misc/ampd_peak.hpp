@@ -2,7 +2,7 @@
 #include <span>
 #include <vector>
 
-namespace qwqdsp::misc {
+namespace qwqdsp_misc {
 /**
  * @ref https://zhuanlan.zhihu.com/p/549588865
  */

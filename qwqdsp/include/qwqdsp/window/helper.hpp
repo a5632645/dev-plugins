@@ -3,7 +3,7 @@
 #include <numeric>
 #include <span>
 
-namespace qwqdsp::window {
+namespace qwqdsp_window {
 struct Helper {
     static void Normalize(std::span<float> x) noexcept {
         float gain = NormalizeGain(x);

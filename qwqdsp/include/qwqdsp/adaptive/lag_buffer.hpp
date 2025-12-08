@@ -2,7 +2,7 @@
 #include <vector>
 #include <array>
 
-namespace qwqdsp::adaptive {
+namespace qwqdsp_adaptive {
 class LagBuffer {
 public:
     void Init(size_t max_samples) {

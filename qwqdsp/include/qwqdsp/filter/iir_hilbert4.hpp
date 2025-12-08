@@ -5,7 +5,7 @@
 #include <cmath>
 #include <numbers>
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 /**
  * @brief full iir hilbert
  * @ref https://dsp.stackexchange.com/questions/8692/hilbert-transform-filter-for-audio-applications-using-iir-half-band-parallel-al/24732#24732

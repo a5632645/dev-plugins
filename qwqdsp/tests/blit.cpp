@@ -7,8 +7,8 @@
 #include "raylib.h"
 #include "../playing/slider.hpp"
 
-#include "qwqdsp/osciilor/blit.hpp"
-#include "qwqdsp/osciilor/blit_pwm.hpp"
+#include "qwqdsp/oscillator/blit.hpp"
+#include "qwqdsp/oscillator/blit_pwm.hpp"
 
 static constexpr int kWidth = 500;
 static constexpr int kHeight = 400;
@@ -37,8 +37,8 @@ static constexpr const char* kWaveformNames[]{
 };
 
 static Waveform waveform = Waveform::Sawtooth;
-static qwqdsp::oscillor::Blit dsp;
-static qwqdsp::oscillor::BlitPWM dsp2;
+static qwqdsp_oscillator::Blit dsp;
+static qwqdsp_oscillator::BlitPWM dsp2;
 
 static void AudioInputCallback(void* _buffer, unsigned int frames) {
     struct T {

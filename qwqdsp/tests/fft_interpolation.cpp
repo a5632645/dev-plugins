@@ -8,9 +8,9 @@ int main() {
         sin[i] = std::sin(std::numbers::pi_v<float> * 2 * i / 512.0f);
     }
 
-    std::complex<float> spectral[qwqdsp::spectral::RealFFT::NumBins(1024)]{};
+    std::complex<float> spectral[qwqdsp_spectral::RealFFT::NumBins(1024)]{};
     float pad_sin[1024];
-    qwqdsp::spectral::RealFFT fft;
+    qwqdsp_spectral::RealFFT fft;
     fft.Init(512);
     fft.FFT(sin, {spectral, fft.NumBins()});
     for (size_t i = 0; i < fft.NumBins(); ++i) {

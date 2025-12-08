@@ -4,7 +4,7 @@
 #include <cmath>
 #include "slice.hpp"
 
-namespace qwqdsp::segement {
+namespace qwqdsp_segement {
 /**
  * @brief 仅支持分析的自动分块
  * @tparam kOffline true: 会将不足的部分也处理. false:适合实时音频流

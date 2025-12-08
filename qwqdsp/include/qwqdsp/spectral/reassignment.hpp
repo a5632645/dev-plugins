@@ -8,7 +8,7 @@
 #include "qwqdsp/window/helper.hpp"
 #include "qwqdsp/spectral/real_fft.hpp"
 
-namespace qwqdsp::spectral {
+namespace qwqdsp_spectral {
 /**
  * @ref https://github.com/bzamecnik/tfr/blob/master/tfr/reassignment.py
  */
@@ -22,7 +22,7 @@ public:
         time_.resize(fft_.NumBins());
         frequency_.resize(fft_.NumBins());
         ChangeWindow([](auto win) {
-            window::Hamming::Window(win, true);
+            qwqdsp_window::Hamming::Window(win, true);
         });
     }
 
@@ -33,7 +33,7 @@ public:
     void ChangeWindow(Func&& func) noexcept(noexcept(func(std::declval<std::span<float>>()))) {
         func(std::span<float>{window_});
         gain_scaleback_ = std::accumulate(window_.begin(), window_.end(), 0.0f) / 2.0f;
-        window::Helper::Normalize(window_);
+        qwqdsp_window::Helper::Normalize(window_);
     }
 
     void Process(std::span<const float> time) noexcept {
@@ -133,8 +133,8 @@ public:
         dwindow_.resize(fft_size);
         twindow_.resize(fft_size);
         ChangeWindow([](auto win, auto dwin) {
-            window::Hamming::Window(win, true);
-            window::Hamming::DWindow(dwin);
+            qwqdsp_window::Hamming::Window(win, true);
+            qwqdsp_window::Hamming::DWindow(dwin);
         });
     }
 
@@ -144,8 +144,8 @@ public:
     template<class Func>
     void ChangeWindow(Func&& func) noexcept(noexcept(func(std::declval<std::span<float>>(), std::declval<std::span<float>>()))) {
         func(std::span<float>{window_}, std::span<float>{dwindow_});
-        window::Helper::TWindow(twindow_, window_);
-        window_scale_ = window::Helper::NormalizeGain(window_);
+        qwqdsp_window::Helper::TWindow(twindow_, window_);
+        window_scale_ = qwqdsp_window::Helper::NormalizeGain(window_);
         dwindow_scale_ = window_scale_ / (2.0f * std::numbers::pi_v<float>);
     }
 

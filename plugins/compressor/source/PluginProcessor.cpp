@@ -18,7 +18,7 @@ EmptyAudioProcessor::EmptyAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             "lookahead",
             "lookahead",
-            0.0f, qwqdsp::fx::SimpleLimiter::kMaxLookaheadTime, 2.0f
+            0.0f, qwqdsp_fx::SimpleLimiter::kMaxLookaheadTime, 2.0f
         );
         param_listener_.Add(p, [this](float v) {
             limiter_param_.lookahead_ms = v;

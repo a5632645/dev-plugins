@@ -6,7 +6,7 @@
 #include "qwqdsp/segement/slice.hpp"
 #include "qwqdsp/window/helper.hpp"
 
-namespace qwqdsp::fx {
+namespace qwqdsp_fx {
 class UniformConvolution {
 public:
     void Init(size_t block_size) {
@@ -39,7 +39,7 @@ public:
     }
 
     void SetIR(std::span<float> ir) noexcept {
-        segement::AnalyzeAuto<true> analyze;
+        qwqdsp_segement::AnalyzeAuto<true> analyze;
         analyze.SetSize(block_size_);
         analyze.SetHop(block_size_);
         size_t num_frame = analyze.GetMinFrameSize(ir.size());
@@ -52,21 +52,21 @@ public:
         output_frame_.resize(fft_.NumBins());
         size_t i = 0;
         analyze.Process(ir, [this, &i](std::span<const float> block) {
-            window::Helper::ZeroPad(process_buffer_, block);
+            qwqdsp_window::Helper::ZeroPad(process_buffer_, block);
             fft_.FFT(process_buffer_, ir_frames_[i]);
             ++i;
         });
     }
 
     void Process(std::span<float> block) noexcept {
-        segement::Slice1D input{block};
+        qwqdsp_segement::Slice1D input{block};
         while (!input.IsEnd()) {
             size_t need = block_size_ - input_wpos_;
             auto in = input.GetSome(need);
             std::copy(in.begin(), in.end(), input_buffer_.begin() + input_wpos_);
             input_wpos_ += in.size();
             if (input_wpos_ >= block_size_) {
-                window::Helper::ZeroPad(process_buffer_, input_buffer_);
+                qwqdsp_window::Helper::ZeroPad(process_buffer_, input_buffer_);
                 fft_.FFT(process_buffer_, input_frames_[input_frame_wpos_]);
                 input_wpos_ -= block_size_;
 
@@ -133,7 +133,7 @@ private:
     std::vector<float> process_buffer_;
     std::vector<float> output_buffer_;
 
-    spectral::RealFFT fft_;
+    qwqdsp_spectral::RealFFT fft_;
     std::vector<Frame> ir_frames_;
     std::vector<Frame> input_frames_;
     size_t input_frame_wpos_{};

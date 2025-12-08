@@ -4,7 +4,7 @@
 #include "qwqdsp/filter/rbj.hpp"
 #include "qwqdsp/convert.hpp"
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 class LinkwitzRiley2 {
 public:
     void Reset() noexcept {

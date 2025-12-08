@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <span>
 
-namespace qwqdsp::segement {
+namespace qwqdsp_segement {
 /**
  * @brief 仅支持分析的分块处理
  */

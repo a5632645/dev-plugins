@@ -4,7 +4,7 @@
 #include <limits>
 #include "acc_traits.hpp"
 
-namespace qwqdsp::filter::fixed {
+namespace qwqdsp_filter::fixed {
 template<class QTYPE, size_t FRAC_LEN>
 class DF1_Biquad2 {
 public:

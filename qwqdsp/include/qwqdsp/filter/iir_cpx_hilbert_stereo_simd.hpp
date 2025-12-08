@@ -1,6 +1,6 @@
 #pragma once
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 template<class SimdType>
 class StereoIIRHilbertCpx {
 public:

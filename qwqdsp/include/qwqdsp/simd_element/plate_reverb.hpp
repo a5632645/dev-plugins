@@ -7,8 +7,8 @@
 #include "qwqdsp/psimd/float32x4.hpp"
 #include "qwqdsp/convert.hpp"
 
-namespace qwqdsp::simd_element {
-using SimdType = qwqdsp::psimd::Float32x4;
+namespace qwqdsp_simd_element {
+using SimdType = qwqdsp_psimd::Float32x4;
 
 // template<class SimdType>
 class LFO {

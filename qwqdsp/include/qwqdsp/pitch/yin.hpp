@@ -5,7 +5,7 @@
 #include "qwqdsp/spectral/oouras_real_fft.hpp"
 #include "qwqdsp/pitch/pitch.hpp"
 
-namespace qwqdsp::pitch {
+namespace qwqdsp_pitch {
 /**
  * @ref https://zhuanlan.zhihu.com/p/1932764646655390362
  */
@@ -132,7 +132,7 @@ public:
         threshold_ = threshold;
     }
 private:
-    spectral::OourasRealFFT fft_;
+    qwqdsp_spectral::OourasRealFFT fft_;
     std::vector<float> fft_in_buffer_;
     std::vector<float> fft_out_buffer_;
     std::vector<float> delta_corr_;

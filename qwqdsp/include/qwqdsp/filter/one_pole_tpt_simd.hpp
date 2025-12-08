@@ -2,7 +2,7 @@
 #include <numbers>
 #include <cmath>
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 template<class SimdType>
 class OnePoleTPTSimd {
 public:

@@ -1,6 +1,6 @@
 #include "qwqdsp/filter/iir_hilbert.hpp"
 #include "qwqdsp/filter/iir_cpx_hilbert.hpp"
-#include "qwqdsp/osciilor/vic_sine_osc.hpp"
+#include "qwqdsp/oscillator/vic_sine_osc.hpp"
 #include "../playing/AudioFile.h"
 
 static constexpr auto kInputFile 
@@ -12,8 +12,8 @@ static constexpr auto kOutputFile2
 static constexpr auto kShift = -150; //hz
 
 static void FreqShifter() {
-    qwqdsp::filter::IIRHilbertDeeper<> hilbert;
-    qwqdsp::oscillor::VicSineOsc osc_;
+    qwqdsp_filter::IIRHilbertDeeper<> hilbert;
+    qwqdsp_oscillator::VicSineOsc osc_;
     
     AudioFile<float> file;
     if (file.load(kInputFile)) {
@@ -35,9 +35,9 @@ static void FreqShifter() {
 }
 
 static void FreqShifterAntialaising() {
-    qwqdsp::filter::IIRHilbertDeeper<> hilbert;
-    qwqdsp::filter::IIRHilbertDeeperCpx<> antialaising_filter;
-    qwqdsp::oscillor::VicSineOsc osc_;
+    qwqdsp_filter::IIRHilbertDeeper<> hilbert;
+    qwqdsp_filter::IIRHilbertDeeperCpx<> antialaising_filter;
+    qwqdsp_oscillator::VicSineOsc osc_;
     
     AudioFile<float> file;
     if (file.load(kInputFile)) {    

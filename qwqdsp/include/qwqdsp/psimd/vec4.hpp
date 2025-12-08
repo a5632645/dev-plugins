@@ -19,7 +19,7 @@
 #include <cmath>
 #endif
 
-namespace qwqdsp::psimd {
+namespace qwqdsp_psimd {
 // ---------------------------------------- 4int ----------------------------------------
 struct alignas(16) Vec4i32 {
     static constexpr size_t kSize = 4;

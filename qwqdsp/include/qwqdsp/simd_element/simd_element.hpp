@@ -1,0 +1,10 @@
+#pragma once
+#include "algebraic_waveshaper.hpp"
+#include "align_allocator.hpp"
+#include "biquads.hpp"
+#include "delay_allpass.hpp"
+#include "delay_line.hpp"
+#include "one_pole_tpt.hpp"
+#include "plate_reverb.hpp"
+#include "simd_pack.hpp"
+#include "stereo_iir_hilbert_cpx.hpp"

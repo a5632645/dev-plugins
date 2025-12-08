@@ -7,12 +7,12 @@ int main() {
     float ir_biquad[kIrLen] {1.0f};
     float ir_lattice[kIrLen] {1.0f};
 
-    qwqdsp::filter::RBJ design;
+    qwqdsp_filter::RBJ design;
     design.Lowpass(0.1f, 10.0f);
     auto coeff = design.ToBiquadCoeff();
 
-    qwqdsp::filter::Biquad biquad;
-    qwqdsp::filter::LatticeBiquad lattice;
+    qwqdsp_filter::Biquad biquad;
+    qwqdsp_filter::LatticeBiquad lattice;
     biquad.Set(coeff);
     lattice.Set(coeff);
 

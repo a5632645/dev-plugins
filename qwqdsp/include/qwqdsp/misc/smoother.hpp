@@ -1,7 +1,7 @@
 #pragma once
 #include <cmath>
 
-namespace qwqdsp::misc {
+namespace qwqdsp_misc {
 class ExpSmoother {
 public:
     void Reset() noexcept {

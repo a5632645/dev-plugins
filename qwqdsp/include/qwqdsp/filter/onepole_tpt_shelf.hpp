@@ -1,7 +1,7 @@
 #pragma once
 #include <cmath>
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 /**
  * @brief let G(s) = 1/(1+s)
  *        M = 10^(db/40)

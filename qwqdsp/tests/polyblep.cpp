@@ -3,8 +3,8 @@
 #include "raylib.h"
 #include "../playing/slider.hpp"
 
-#include "qwqdsp/osciilor/polyblep.hpp"
-#include "qwqdsp/osciilor/polyblep_sync.hpp"
+#include "qwqdsp/oscillator/polyblep.hpp"
+#include "qwqdsp/oscillator/polyblep_sync.hpp"
 #include "qwqdsp/convert.hpp"
 
 static constexpr int kWidth = 1000;
@@ -35,8 +35,8 @@ static constexpr const char* kWaveformNames[]{
     "sync tri"
 };
 
-static qwqdsp::oscillor::PolyBlep<qwqdsp::oscillor::blep_coeff::BlackmanNutallApprox> dsp;
-static qwqdsp::oscillor::PolyBlepSync<qwqdsp::oscillor::blep_coeff::BlackmanNutallApprox> dsp2;
+static qwqdsp_oscillator::PolyBlep<qwqdsp_oscillator::blep_coeff::BlackmanNutallApprox> dsp;
+static qwqdsp_oscillator::PolyBlepSync<qwqdsp_oscillator::blep_coeff::BlackmanNutallApprox> dsp2;
 static Waveform waveform = Waveform::Sawtooth;
 static float master_phase_{};
 static float master_phase_inc_{0.00001f};
@@ -177,7 +177,7 @@ int main(void) {
 
     Knob sync;
     sync.on_value_change = [](float width) {
-        dsp.SetHardSync(width);
+        // dsp.SetHardSync(width);
     };
     dsf_bound.y += dsf_bound.height;
     sync.set_bound(dsf_bound);

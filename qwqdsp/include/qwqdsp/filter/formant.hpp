@@ -2,7 +2,7 @@
 #include <array>
 #include <string_view>
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 /**
  * @ref https://www.classes.cs.uchicago.edu/archive/1999/spring/CS295/Computing_Resources/Csound/CsManual3.48b1.HTML/Appendices/table3.html
  */

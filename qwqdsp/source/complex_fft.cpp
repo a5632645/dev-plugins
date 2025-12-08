@@ -4,7 +4,7 @@
 
 #ifndef QWQDSP_HAVE_IPP
 
-namespace qwqdsp::spectral {
+namespace qwqdsp_spectral {
 namespace internal {
 
 // --------------------------------------------------------------------------------
@@ -317,7 +317,7 @@ void ComplexFFT::Hilbert(std::span<const float> input, std::span<float> output90
 #include "qwqdsp/spectral/ipp_complex_fft.hpp"
 
 // Intel IPP 默认正频率起步
-namespace qwqdsp::spectral {
+namespace qwqdsp_spectral {
 
 ComplexFFT::ComplexFFT() {
     fft_ = std::make_unique<IppComplexFFT>();

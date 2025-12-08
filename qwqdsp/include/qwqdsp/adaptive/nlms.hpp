@@ -1,7 +1,7 @@
 #pragma once
 #include "lag_buffer.hpp"
 
-namespace qwqdsp::adaptive {
+namespace qwqdsp_adaptive {
 template<size_t kSize, float kStep = 0.1f>
 class NLMS {
 public:

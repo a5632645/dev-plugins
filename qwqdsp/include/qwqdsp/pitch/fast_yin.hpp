@@ -7,7 +7,7 @@
 #include "qwqdsp/spectral/real_fft.hpp"
 #include "qwqdsp/pitch/pitch.hpp"
 
-namespace qwqdsp::pitch {
+namespace qwqdsp_pitch {
 /**
  * @ref https://github.com/JorenSix/TarsosDSP/blob/master/core/src/main/java/be/tarsos/dsp/pitch/FastYin.java#L197
  */
@@ -146,7 +146,7 @@ private:
     std::vector<float> powers_;
     std::vector<float> temp_;
 
-    spectral::RealFFT fft_;
+    qwqdsp_spectral::RealFFT fft_;
     std::vector<std::complex<float>> fft1_;
     std::vector<std::complex<float>> fft2_;
 

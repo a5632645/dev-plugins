@@ -1,7 +1,7 @@
 #pragma once
 #include "qwqdsp/filter/iir_design.hpp"
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 class IIRDesignExtra {
 public:
     using ZPK = IIRDesign::ZPK;

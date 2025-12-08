@@ -4,7 +4,7 @@
 #include <span>
 #include "slice.hpp"
 
-namespace qwqdsp::segement {
+namespace qwqdsp_segement {
 /**
  * @brief 适用于实时处理的分析合成
  */

@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <span>
 
-namespace qwqdsp::interpolation {
+namespace qwqdsp_interpolation {
 class SPPCHIP {
 public:
     void Reset(std::span<const float> xs, std::span<const float> ys) noexcept {

@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cassert>
 
-namespace qwqdsp::interpolation {
+namespace qwqdsp_interpolation {
 class CatmullRomSpline {
 public:
     void Reset(std::span<const float> xs, std::span<const float> ys) noexcept {

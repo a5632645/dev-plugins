@@ -9,8 +9,8 @@
 
 static constexpr size_t kNumResonators = 8;
 
-using SimdType = qwqdsp::psimd::Vec4f32;
-using SimdIntType = qwqdsp::psimd::Vec4i32;
+using SimdType = qwqdsp_psimd::Vec4f32;
+using SimdIntType = qwqdsp_psimd::Vec4i32;
 
 static SimdType Sin(SimdType const& w) {
     return SimdType{
@@ -353,7 +353,7 @@ public:
                 omega.x[i] = freq * std::numbers::pi_v<float> * 2 / fs_;
                 damp_highshelf_gain[j].x[i] = qwqdsp::convert::Db2Gain(damp_gain_db[param_idx]);
             }
-            damp_highshelf_coeff[j] = qwqdsp::filter::OnePoleTPTSimd<SimdType>::ComputeCoeffs(omega);
+            damp_highshelf_coeff[j] = qwqdsp_filter::OnePoleTPTSimd<SimdType>::ComputeCoeffs(omega);
         }
     }
 
@@ -503,8 +503,8 @@ private:
     size_t delay_mask_{};
     std::array<TunningFilter, kContainerSize> thrian_interp_;
     std::array<ThrianDispersion, kContainerSize> dispersion_;
-    std::array<qwqdsp::filter::OnePoleTPTSimd<SimdType>, kContainerSize> damp_;
-    std::array<qwqdsp::filter::OnePoleTPTSimd<SimdType>, kContainerSize> dc_blocker;
+    std::array<qwqdsp_filter::OnePoleTPTSimd<SimdType>, kContainerSize> damp_;
+    std::array<qwqdsp_filter::OnePoleTPTSimd<SimdType>, kContainerSize> dc_blocker;
     std::array<SimdType, kMonoContainerSize + 1> input_volume_{};
     std::array<SimdType, kMonoContainerSize> output_volume_{};
     std::array<SimdType, kMonoContainerSize> reflections_{};

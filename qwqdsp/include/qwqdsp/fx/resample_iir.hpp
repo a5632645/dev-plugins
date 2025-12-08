@@ -3,7 +3,7 @@
 #include <span>
 #include "qwqdsp/fx/elliptic_blep.hpp"
 
-namespace qwqdsp::fx {
+namespace qwqdsp_fx {
 /**
  * @brief holters-parker IIR重采样器，使用Elliptic-blep库实现，移除了高通滤波器系数
  */

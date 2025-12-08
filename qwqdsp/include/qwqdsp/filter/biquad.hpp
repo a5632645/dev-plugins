@@ -1,7 +1,7 @@
 #pragma once
 #include "qwqdsp/filter/biquad_coeff.hpp"
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 /**
  * @brief TDF2
  *       b0 + b1*z^-1 + b2*z^-2

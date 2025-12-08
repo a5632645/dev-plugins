@@ -31,7 +31,7 @@
 #include <cassert>
 #include <array>
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 template<class T> requires std::is_trivial_v<T>
 class MedianDynamic {
 public:

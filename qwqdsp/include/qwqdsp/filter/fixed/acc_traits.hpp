@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-namespace qwqdsp::filter::fixed {
+namespace qwqdsp_filter::fixed {
 template<class T>
 struct AccTypeTrait {
     using Type = void;

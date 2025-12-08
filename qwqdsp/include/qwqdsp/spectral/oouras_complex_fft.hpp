@@ -4,7 +4,7 @@
 #include <cassert>
 #include <cmath>
 
-namespace qwqdsp::spectral {
+namespace qwqdsp_spectral {
 /**
  * @brief 直接的oouras fft封装,频率输出[0,2pi)
  */

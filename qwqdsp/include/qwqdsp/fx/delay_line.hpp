@@ -7,7 +7,7 @@
 #include "qwqdsp/interpolation.hpp"
 #include "qwqdsp/window/kaiser.hpp"
 
-namespace qwqdsp::fx {
+namespace qwqdsp_fx {
 enum class DelayLineInterp {
     None,
     Lagrange3rd,
@@ -77,8 +77,8 @@ public:
 
         static inline const std::array<T, (NSubSpan + 2) * N> kTable = [] {
             std::array<T, N + (N - 1) * NSubSpan> coeffs{};
-            double const beta = qwqdsp::window::Kaiser::Beta(kSideLobe);
-            double const width = qwqdsp::window::Kaiser::MainLobeWidth(beta);
+            double const beta = qwqdsp_window::Kaiser::Beta(kSideLobe);
+            double const width = qwqdsp_window::Kaiser::MainLobeWidth(beta);
             double const cutoff = std::numbers::pi - width / kWidthDiv;
 
             float const center = (static_cast<float>(coeffs.size()) - 1.0f) / 2.0f;
@@ -94,7 +94,7 @@ public:
                 }
             }
 
-            qwqdsp::window::Kaiser::ApplyWindow(coeffs, beta, false);
+            qwqdsp_window::Kaiser::ApplyWindow(coeffs, beta, false);
 
             std::array<T, (NSubSpan + 2) * N> table{};
             for (size_t i = 0; i < NSubSpan + 1; ++i) {
@@ -125,13 +125,13 @@ private:
             [[maybe_unused]] int iprev1 = (irpos - 1) & mask_;
             [[maybe_unused]] float t = rpos - static_cast<int>(rpos);
             if constexpr (INTERPOLATION_TYPE == DelayLineInterp::Lagrange3rd) {
-                return Interpolation::Lagrange3rd(buffer_[irpos], buffer_[inext1], buffer_[inext2], buffer_[inext3], t);
+                return qwqdsp::Interpolation::Lagrange3rd(buffer_[irpos], buffer_[inext1], buffer_[inext2], buffer_[inext3], t);
             }
             else if constexpr (INTERPOLATION_TYPE == DelayLineInterp::Linear) {
-                return Interpolation::Linear(buffer_[irpos], buffer_[inext1], t);
+                return qwqdsp::Interpolation::Linear(buffer_[irpos], buffer_[inext1], t);
             }
             else if constexpr (INTERPOLATION_TYPE == DelayLineInterp::PCHIP) {
-                return Interpolation::PCHIP(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
+                return qwqdsp::Interpolation::PCHIP(buffer_[iprev1], buffer_[irpos], buffer_[inext1], buffer_[inext2], t);
             }
             else if constexpr (INTERPOLATION_TYPE == DelayLineInterp::Kaiser5) {
                 static KaiserInterpolator<float, 5, 127, 70.0, 1.8> table;
@@ -149,7 +149,7 @@ private:
                     size_t const xpos = (xbeing - i) & mask_;
                     float const coeff0 = table.kTable[lower * table.kN + i];
                     float const coeff1 = table.kTable[higher * table.kN + i];
-                    float const coeff = Interpolation::Linear(coeff0, coeff1, span_frac);
+                    float const coeff = qwqdsp::Interpolation::Linear(coeff0, coeff1, span_frac);
                     sum += coeff * buffer_[xpos];
                 }
                 return sum;
@@ -170,7 +170,7 @@ private:
                     size_t const xpos = (xbeing - i) & mask_;
                     float const coeff0 = table.kTable[lower * table.kN + i];
                     float const coeff1 = table.kTable[higher * table.kN + i];
-                    float const coeff = Interpolation::Linear(coeff0, coeff1, span_frac);
+                    float const coeff = qwqdsp::Interpolation::Linear(coeff0, coeff1, span_frac);
                     sum += coeff * buffer_[xpos];
                 }
                 return sum;
@@ -191,7 +191,7 @@ private:
                     size_t const xpos = (xbeing - i) & mask_;
                     float const coeff0 = table.kTable[lower * table.kN + i];
                     float const coeff1 = table.kTable[higher * table.kN + i];
-                    float const coeff = Interpolation::Linear(coeff0, coeff1, span_frac);
+                    float const coeff = qwqdsp::Interpolation::Linear(coeff0, coeff1, span_frac);
                     sum += coeff * buffer_[xpos];
                 }
                 return sum;

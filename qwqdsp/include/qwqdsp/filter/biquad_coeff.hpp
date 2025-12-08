@@ -1,7 +1,7 @@
 #pragma once
 #include <complex>
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 struct BiquadCoeff {
     float b0{};
     float b1{};

@@ -2,7 +2,7 @@
 #include <array>
 #include <complex>
 
-namespace qwqdsp::fx::coeff{
+namespace qwqdsp_fx::coeff{
 template<typename Sample>
 struct FastCoeffs {
 	using TSample = Sample;

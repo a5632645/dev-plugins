@@ -45,8 +45,8 @@ public:
 
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
     JuceParamListener param_listener_;
-    qwqdsp::fx::SimpleLimiter limiter_;
-    qwqdsp::fx::SimpleLimiter::Parameter limiter_param_;
+    qwqdsp_fx::SimpleLimiter limiter_;
+    qwqdsp_fx::SimpleLimiter::Parameter limiter_param_;
 
 private:
     //==============================================================================

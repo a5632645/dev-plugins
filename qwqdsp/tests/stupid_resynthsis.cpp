@@ -15,10 +15,10 @@
 #include "qwqdsp/segement/analyze_auto.hpp"
 #include "qwqdsp/window/blackman.hpp"
 #include "qwqdsp/interpolation/makima.hpp"
-#include "qwqdsp/osciilor/table_sine_osc.hpp"
+#include "qwqdsp/oscillator/table_sine_osc.hpp"
 
 static constexpr size_t kFFTSize = 512;
-static constexpr size_t kNumData = qwqdsp::spectral::RealFFT::NumBins(kFFTSize);
+static constexpr size_t kNumData = qwqdsp_spectral::RealFFT::NumBins(kFFTSize);
 struct Frame {
     std::array<float, kNumData> gains;
     std::array<float, kNumData> gain_dbs;
@@ -28,16 +28,16 @@ struct Frame {
 
 static std::vector<Frame> AnalyzeAudio(std::span<const float> x) {
     std::vector<Frame> frames;
-    qwqdsp::segement::AnalyzeAuto<true> segement;
+    qwqdsp_segement::AnalyzeAuto<true> segement;
     segement.SetSize(kFFTSize);
     segement.SetHop(kFFTSize / 4);
     frames.resize(segement.GetMinFrameSize(x.size()));
 
-    qwqdsp::spectral::Reassignment reass;
+    qwqdsp_spectral::Reassignment reass;
     reass.Init(kFFTSize);
     reass.ChangeWindow(
         [](std::span<float> win) {
-            qwqdsp::window::Blackman::Window(win, true);
+            qwqdsp_window::Blackman::Window(win, true);
         }
     );
     
@@ -54,7 +54,7 @@ static std::vector<Frame> AnalyzeAudio(std::span<const float> x) {
         }
         float const max_db = *std::max_element(logs.begin(), logs.end());
         
-        if (max_db < qwqdsp::window::Blackman::kSidelobe) {
+        if (max_db < qwqdsp_window::Blackman::kSidelobe) {
             std::fill(frames[frame_idx].formants.begin(), frames[frame_idx].formants.end(), -360.0f);
         }
         else {
@@ -66,7 +66,7 @@ static std::vector<Frame> AnalyzeAudio(std::span<const float> x) {
                 float const now = logs[i] / max_db;
                 float const next = logs[i + 1] / max_db;
                 if (now > prev && now > next) {
-                    if (now > qwqdsp::window::Blackman::kSidelobe) {
+                    if (now > qwqdsp_window::Blackman::kSidelobe) {
                         peaks_db[num_peaks] = logs[i];
                         peaks_pos[num_peaks] = i;
                         ++num_peaks;
@@ -91,7 +91,7 @@ static std::vector<Frame> AnalyzeAudio(std::span<const float> x) {
                 }
             }
     
-            qwqdsp::interpolation::Makima makima;
+            qwqdsp_interpolation::Makima makima;
             makima.Reset({peaks_pos2.data(), num_peaks2}, {peaks_db2.data(), num_peaks2});
             for (size_t i = 0; i < kNumData; ++i) {
                 frames[frame_idx].formants[i] = makima.Next(i);
@@ -114,7 +114,7 @@ int main() {
     output.resize(1);
     auto& channel = output.front();
     size_t const num_samples_per_frame = kFFTSize / 4;
-    qwqdsp::oscillor::TableSineOsc<> oscs[kNumData];
+    qwqdsp_oscillator::TableSineOsc<> oscs[kNumData];
     for (size_t i = 0; i < frames.size(); ++i) {
         auto& fr = frames[i];
         for (size_t j = 0; j < kNumData; ++j) {

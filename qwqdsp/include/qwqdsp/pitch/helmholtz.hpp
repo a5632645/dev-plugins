@@ -62,7 +62,7 @@ include Ron Mayer's fft or similar functionality. */
 #include "qwqdsp/spectral/oouras_real_fft.hpp"
 #include "qwqdsp/pitch/pitch.hpp"
 
-namespace qwqdsp::pitch {
+namespace qwqdsp_pitch {
 class Helmholtz
 {
 public:
@@ -169,7 +169,7 @@ private:
         
         
         // REALFFT(fftsize, processbuf);
-        qwqdsp::spectral::OourasRealFFT fft;
+        qwqdsp_spectral::OourasRealFFT fft;
         fft.Init(fftsize);
         fft.FFT(processbuf.data(), processbuf.data());
         int num_bins = fftsize / 2 + 1;

@@ -4,7 +4,7 @@
 #include <span>
 #include <vector>
 
-namespace qwqdsp::segement {
+namespace qwqdsp_segement {
 /**
  * @brief 切分单通道数据
  */

@@ -68,7 +68,7 @@ int main() {
             ys[i] = copy[i].y;
         }
 
-        qwqdsp::interpolation::SPPCHIP pchip;
+        qwqdsp_interpolation::SPPCHIP pchip;
         pchip.Reset(xs, ys);
         Vector2 line_start = copy[0];
         for (size_t i = copy[0].x; i <= copy.back().x; ++i) {
@@ -78,7 +78,7 @@ int main() {
             line_start.y = y;
         }
 
-        qwqdsp::interpolation::CatmullRomSpline spline;
+        qwqdsp_interpolation::CatmullRomSpline spline;
         spline.Reset(xs, ys);
         line_start = copy[0];
         for (size_t i = copy[0].x; i <= copy.back().x; ++i) {
@@ -88,7 +88,7 @@ int main() {
             line_start.y = y;
         }
 
-        qwqdsp::interpolation::Makima makima;
+        qwqdsp_interpolation::Makima makima;
         makima.Reset(xs, ys);
         line_start = copy[0];
         for (size_t i = copy[0].x; i <= copy.back().x; ++i) {
@@ -98,7 +98,7 @@ int main() {
             line_start.y = y;
         }
 
-        qwqdsp::interpolation::Linear linear;
+        qwqdsp_interpolation::Linear linear;
         linear.Reset(xs, ys);
         line_start = copy[0];
         for (size_t i = copy[0].x; i <= copy.back().x; ++i) {

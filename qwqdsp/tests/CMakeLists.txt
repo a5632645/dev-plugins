@@ -1,12 +1,14 @@
 cmake_policy(SET CMP0076 NEW)
 
+enable_testing()
+
 function(add_qwqdsp_test ex_file)
     add_executable(qwqdsp-${ex_file}
         ${ex_file}.cpp
     )
     target_link_libraries(qwqdsp-${ex_file} PUBLIC qwqdsp raylib)
     set_target_properties(qwqdsp-${ex_file} PROPERTIES CXX_STANDARD 20)
-    set_target_properties(qwqdsp-${ex_file} PROPERTIES FOLDER qwqdsp-example)
+    set_target_properties(qwqdsp-${ex_file} PROPERTIES FOLDER qwqdsp-tests)
 endfunction()
 
 add_qwqdsp_test(convolution)

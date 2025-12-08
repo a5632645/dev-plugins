@@ -4,7 +4,7 @@
 #include <cstddef>
 #include "int_delay.hpp"
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 /**
  *           a + z^-1
  * H(z) = -------------

@@ -3,7 +3,7 @@
 #include <bit>
 #include <ipp/ipps.h>
 
-namespace qwqdsp::spectral {
+namespace qwqdsp_spectral {
 // output frequency: 0~2pi
 class IppComplexFFT {
 public:

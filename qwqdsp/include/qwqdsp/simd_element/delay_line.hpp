@@ -1,9 +1,9 @@
 #pragma once
 #include "qwqdsp/fx/delay_line_simd.hpp"
 
-namespace qwqdsp::simd_element {
-using DelayLineInterp = qwqdsp::fx::DelayLineInterpSIMD;
+namespace qwqdsp_simd_element {
+using DelayLineInterp = qwqdsp_fx::DelayLineInterpSIMD;
 
 template<class SIMD_TYPE, DelayLineInterp kInterpType>
-using DelayLine = qwqdsp::fx::DelayLineSIMD<SIMD_TYPE, kInterpType>;
+using DelayLine = qwqdsp_fx::DelayLineSIMD<SIMD_TYPE, kInterpType>;
 }

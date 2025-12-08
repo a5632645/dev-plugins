@@ -2,7 +2,7 @@
 #include <limits>
 #include <memory>
 
-namespace qwqdsp::psimd {
+namespace qwqdsp_psimd {
 /**
  * @brief 内存对齐分配器
  * @ref https://github.com/AutoPas/AutoPas/blob/0ea349ddb6c6048e1d00b753864e2c6fedd5b74a/src/autopas/utils/AlignedAllocator.h#L29

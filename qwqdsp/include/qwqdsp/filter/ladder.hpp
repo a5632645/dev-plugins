@@ -1,7 +1,7 @@
 #pragma once
 #include <cmath>
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 class Ladder {
 public:
     void Reset() noexcept {

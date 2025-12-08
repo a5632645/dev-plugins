@@ -1,8 +1,11 @@
 #pragma once
+
+#ifdef QWQDSP_HAVE_EIGEN
+
 #include <cmath>
 #include <Eigen/Dense>
 
-namespace qwqdsp::adaptive {
+namespace qwqdsp_adaptive {
 // qwqfixme: 不工作
 template <int ORDER>
 class RLSFIlter {
@@ -77,3 +80,5 @@ private:
     vec iir_latch_;
 };
 }
+
+#endif

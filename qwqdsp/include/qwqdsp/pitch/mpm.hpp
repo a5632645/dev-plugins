@@ -30,7 +30,7 @@
 #include "qwqdsp/spectral/oouras_real_fft.hpp"
 #include "qwqdsp/pitch/pitch.hpp"
 
-namespace qwqdsp::pitch {
+namespace qwqdsp_pitch {
 class MPM {
 public:
     void Init(float fs, size_t block_size) {
@@ -121,7 +121,7 @@ private:
     static constexpr float PMPM_CUTOFF_BEGIN = 0.8f;
     static constexpr float PMPM_CUTOFF_STEP = 0.01f;
 
-    spectral::OourasRealFFT fft_;
+    qwqdsp_spectral::OourasRealFFT fft_;
     std::vector<float> fft_in_buffer_;
     std::vector<float> fft_out_buffer_;
     std::vector<int> max_positions_;

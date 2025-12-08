@@ -5,7 +5,7 @@
 #include <cassert>
 #include <ipp/ipps.h>
 
-namespace qwqdsp::spectral {
+namespace qwqdsp_spectral {
 class IppRealFFT {
 public:
     ~IppRealFFT() {

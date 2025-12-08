@@ -9,12 +9,13 @@
 #include "qwqdsp/convert.hpp"
 #include "qwqdsp/filter/formant.hpp"
 #include "qwqdsp/filter/biquad.hpp"
+#include "qwqdsp/filter/lattice_biquad.hpp"
 #include "qwqdsp/filter/rbj.hpp"
-#include "qwqdsp/osciilor/dsf.hpp"
+#include "qwqdsp/oscillator/dsf.hpp"
 
-static qwqdsp::filter::Biquad filters[5];
+static qwqdsp_filter::LatticeBiquad filters[5];
 static std::array<float, 5> gains{};
-static qwqdsp::oscillor::DSFClassic<13> dsf;
+static qwqdsp_oscillator::DSFClassic<13> dsf;
 static float output_gain{1.0f};
 static float q_{10.0f};
 static float formant_x_{};
@@ -51,8 +52,8 @@ static void UpdateFilters() {
     yidx = std::clamp(yidx, 0.0f, 4.0f);
     float freq_scale = std::exp2(formant_shift_ / 12.0f);
 
-    auto& table = qwqdsp::filter::Formant::kFormants;
-    qwqdsp::filter::RBJ design;
+    auto& table = qwqdsp_filter::Formant::kFormants;
+    qwqdsp_filter::RBJ design;
     for (size_t i = 0; i < 5; ++i) {
         size_t nowx = xidx;
         size_t nextx = std::min(nowx + 1, 4ull);
@@ -221,12 +222,12 @@ int main(void) {
             for (size_t i = 0; i < 5; ++i) {
                 auto x = xypad_bound.x + i * (xypad_bound.width - 20.0f) / 5.0f + 20.0f;
                 auto y = xypad_bound.y + xypad_bound.height - 20;
-                DrawText(qwqdsp::filter::Formant::kTypeNames[i].data(), x, y, 12, RAYWHITE);
+                DrawText(qwqdsp_filter::Formant::kTypeNames[i].data(), x, y, 12, RAYWHITE);
             }
             for (size_t i = 0; i < 5; ++i) {
                 auto y = xypad_bound.y + i * (xypad_bound.height - 20.0f) / 4;
                 auto x = xypad_bound.x;
-                DrawText(qwqdsp::filter::Formant::kVowelNames[4 - i].data(), x, y, 20, RAYWHITE);
+                DrawText(qwqdsp_filter::Formant::kVowelNames[4 - i].data(), x, y, 20, RAYWHITE);
             }
         }
         EndDrawing();

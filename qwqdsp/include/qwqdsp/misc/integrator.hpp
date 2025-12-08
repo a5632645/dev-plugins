@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace qwqdsp::misc {
+namespace qwqdsp_misc {
 template <bool kUseClamp = true>
 class IntegratorNaive {
 public:

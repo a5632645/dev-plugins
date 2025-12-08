@@ -5,7 +5,7 @@
 #include <cmath>
 #include <cassert>
 
-namespace qwqdsp::window {
+namespace qwqdsp_window {
 struct Kaiser {
     // 和分析有关的
     // f = width / N

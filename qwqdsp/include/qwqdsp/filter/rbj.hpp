@@ -3,7 +3,7 @@
 #include <numbers>
 #include "qwqdsp/filter/biquad_coeff.hpp"
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 /**
  * @ref https://www.w3.org/TR/audio-eq-cookbook/
  */

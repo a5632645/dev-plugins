@@ -2,7 +2,7 @@
 #include <vector>
 #include <cstddef>
 
-namespace qwqdsp::filter {
+namespace qwqdsp_filter {
 class IntDelay {
 public:
     void Init(size_t max_samples) {

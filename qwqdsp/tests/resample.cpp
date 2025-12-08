@@ -7,7 +7,7 @@ int main() {
     infile.load(R"(C:\Users\Kawai\Music\sweep.wav)");
     auto& sweep = infile.samples.front();
 
-    qwqdsp::fx::ResampleIIR<qwqdsp::fx::coeff::BestCoeffs<float>, 128> resample;
+    qwqdsp_fx::ResampleIIR<qwqdsp_fx::coeff::BestCoeffs<float>, 128> resample;
     constexpr float kTargetFs = 96000.0f;
     resample.Init(infile.getSampleRate(), kTargetFs);
     auto sweep_resample = resample.Process<float>(sweep);
