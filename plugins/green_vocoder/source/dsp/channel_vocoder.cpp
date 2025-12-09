@@ -1,9 +1,9 @@
 #include "channel_vocoder.hpp"
 #include "param_ids.hpp"
-#include "utli.hpp"
 #include <cassert>
 #include <cstddef>
 #include <numbers>
+#include <qwqdsp/convert.hpp>
 
 namespace dsp {
 
@@ -36,11 +36,11 @@ void ChannelVocoder::SetFreqEnd(float end) {
 }
 
 void ChannelVocoder::SetAttack(float attack) {
-    attack_ = utli::GetDecayValue(sample_rate_, attack);
+    attack_ = qwqdsp::convert::Ms2DecayDb(attack, sample_rate_, -60.0f);
 }
 
 void ChannelVocoder::SetRelease(float release) {
-    release_ = utli::GetDecayValue(sample_rate_, release);
+    release_ = qwqdsp::convert::Ms2DecayDb(release, sample_rate_, -60.0f);
 }
 
 void ChannelVocoder::SetModulatorScale(float scale) {

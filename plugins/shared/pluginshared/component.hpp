@@ -363,7 +363,7 @@ public:
         Top
     };
 
-    FlatSlider(juce::StringRef title = {})
+    FlatSlider(juce::StringRef title = "unname", TitleLayout title_place = TitleLayout::Left)
         : slider_menu_(slider) {
         slider.setSliderStyle(juce::Slider::SliderStyle::LinearBar);
         slider.setLookAndFeel(&lookandfeel_);
@@ -374,6 +374,8 @@ public:
         label.setJustificationType(juce::Justification::centredLeft);
         label.setColour(juce::Label::ColourIds::textColourId, juce::Colours::black);
         addAndMakeVisible(label);
+
+        SetTitleLayout(title_place);
     }
 
     ~FlatSlider() override {
@@ -538,6 +540,11 @@ private:
 // ----------------------------------------
 class Switch : public juce::ToggleButton {
 public:
+    Switch() {
+        on_text_ = "on";
+        off_text_ = "off";
+    }
+
     Switch(juce::StringRef text) {
         on_text_ = text;
         off_text_ = text;

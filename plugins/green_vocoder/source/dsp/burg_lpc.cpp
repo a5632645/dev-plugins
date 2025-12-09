@@ -69,8 +69,9 @@ float BurgLPC::ProcessSingle(float x, float exci) {
         upsample_latch_ = out_iir;
     }
 
-    float out = upsample_filter_.ProcessSingle(upsample_latch_);
-    return out;
+    // float out = upsample_filter_.ProcessSingle(upsample_latch_);
+    // return out;
+    return upsample_latch_;
 }
 
 void BurgLPC::SetSmooth(float smooth) {

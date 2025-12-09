@@ -1,8 +1,6 @@
 #include "rls_lpc.hpp"
-#include "../PluginProcessor.h"
-#include "../param_ids.hpp"
-#include "juce_events/juce_events.h"
-#include "tooltips.hpp"
+#include "PluginProcessor.h"
+#include "/param_ids.hpp"
 #include <numbers>
 
 namespace widget {
@@ -11,33 +9,21 @@ RLSLPC::RLSLPC(AudioPluginAudioProcessor& processor)
 : processor_(processor) {
     auto& apvts = *processor.value_tree_;
 
-    addAndMakeVisible(lpc_label_);
-
-    lpc_foorget_.BindParameter(apvts, id::kForgetRate);
+    lpc_foorget_.BindParam(apvts, id::kForgetRate);
     addAndMakeVisible(lpc_foorget_);
-    lpc_dicimate_.BindParameter(apvts, id::kLPCDicimate);
+    lpc_dicimate_.BindParam(apvts, id::kLPCDicimate);
     addAndMakeVisible(lpc_dicimate_);
-    lpc_order_.BindParameter(apvts, id::kRLSLPCOrder);
+    lpc_order_.BindParam(apvts, id::kRLSLPCOrder);
     addAndMakeVisible(lpc_order_);
-    lpc_attack_.BindParameter(apvts, id::kLPCGainAttack);
+    lpc_attack_.BindParam(apvts, id::kLPCGainAttack);
     addAndMakeVisible(lpc_attack_);
-    lpc_release_.BindParameter(apvts, id::kLPCGainRelease);
+    lpc_release_.BindParam(apvts, id::kLPCGainRelease);
     addAndMakeVisible(lpc_release_);
-}
-
-void RLSLPC::OnLanguageChanged(tooltip::Tooltips& tooltips) {
-    lpc_label_.setText(tooltips.Label(id::kRLSTitle), juce::dontSendNotification);
-    lpc_foorget_.OnLanguageChanged(tooltips);
-    lpc_dicimate_.OnLanguageChanged(tooltips);
-    lpc_order_.OnLanguageChanged(tooltips);
-    lpc_attack_.OnLanguageChanged(tooltips);
-    lpc_release_.OnLanguageChanged(tooltips);
 }
 
 void RLSLPC::resized() {
     auto b = getLocalBounds();
-    lpc_label_.setBounds(b.removeFromTop(20));
-    auto top = b.removeFromTop(100);
+    auto top = b.removeFromTop(65);
     lpc_foorget_.setBounds(top.removeFromLeft(50));
     lpc_dicimate_.setBounds(top.removeFromLeft(50));
     lpc_order_.setBounds(top.removeFromLeft(50));
@@ -48,7 +34,7 @@ void RLSLPC::resized() {
 void RLSLPC::paint(juce::Graphics& g) {
     auto bb = getLocalBounds();
     bb.removeFromTop(lpc_release_.getBottom());
-    g.setColour(juce::Colours::black);
+    g.setColour(ui::black_bg);
     g.fillRect(bb);
     int w = bb.getWidth();
     auto current_font = g.getCurrentFont();
@@ -125,7 +111,7 @@ void RLSLPC::paint(juce::Graphics& g) {
 
     // draw
     juce::Point<float> line_last{ b.getX(), b.getCentreY() };
-    g.setColour(juce::Colours::green);
+    g.setColour(ui::line_fore);
     float mul_val = std::pow(10.0f, freq_pow / w);
     float mul_begin = 1.0f;
     float omega_base = freq_begin * std::numbers::pi_v<float> / static_cast<float>(processor_.getSampleRate());
@@ -151,8 +137,8 @@ void RLSLPC::paint(juce::Graphics& g) {
         line_last = line_end;
     }
 
-    g.setColour(juce::Colours::white);
-    g.drawRect(bb);
+    // g.setColour(juce::Colours::white);
+    // g.drawRect(bb);
 }
 
 void RLSLPC::timerCallback() {

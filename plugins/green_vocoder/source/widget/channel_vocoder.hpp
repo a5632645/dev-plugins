@@ -1,9 +1,6 @@
 #pragma once
+#include <pluginshared/component.hpp>
 #include "dsp/channel_vocoder.hpp"
-#include "juce_gui_basics/juce_gui_basics.h"
-#include "tooltips.hpp"
-#include "ui/comb_box.hpp"
-#include "ui/vertical_slider.hpp"
 
 class AudioPluginAudioProcessor;
 
@@ -14,18 +11,16 @@ public:
     ChannelVocoder(AudioPluginAudioProcessor& processor);
     void resized() override;
     void paint(juce::Graphics& g) override;
-    void OnLanguageChanged(tooltip::Tooltips& tooltips);
 private:
     dsp::ChannelVocoder& vocoder_;
-    juce::Label label_;
-    ui::VerticalSlider attack_;
-    ui::VerticalSlider release_;
-    ui::VerticalSlider nbands_;
-    ui::VerticalSlider freq_begin_;
-    ui::VerticalSlider freq_end_;
-    ui::VerticalSlider scale_;
-    ui::VerticalSlider carry_scale_;
-    ui::CombBox map_;
+    ui::Dial attack_{"attack"};
+    ui::Dial release_{"release"};
+    ui::FlatSlider nbands_{"nbands", ui::FlatSlider::TitleLayout::Top};
+    ui::FlatSlider freq_begin_{"freq_begin", ui::FlatSlider::TitleLayout::Top};
+    ui::FlatSlider freq_end_{"freq_end", ui::FlatSlider::TitleLayout::Top};
+    ui::Dial scale_{"scale"};
+    ui::Dial carry_scale_{"carry_scale"};
+    ui::FlatCombobox map_;
 };
 
 }

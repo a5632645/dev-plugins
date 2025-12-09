@@ -27,10 +27,10 @@ public:
             if (input_wpos_ >= size_) {
                 func(std::span<const float>{input_buffer_.data(), size_}, std::span<float>{process_buffer_.data(), size_});
                 input_wpos_ -= hop_;
-                for (int i = 0; i < input_wpos_; i++) {
+                for (size_t i = 0; i < input_wpos_; i++) {
                     input_buffer_[i] = input_buffer_[i + hop_];
                 }
-                for (int i = 0; i < size_; i++) {
+                for (size_t i = 0; i < size_; i++) {
                     output_buffer_[i + write_add_end_] += process_buffer_[i];
                 }
                 write_end_ = write_add_end_ + size_;
@@ -52,7 +52,7 @@ public:
                 write_add_end_ -= extractSize;
                 int newWriteEnd = write_end_ - extractSize;
                 // zero shifed buffer
-                for (int i = newWriteEnd; i < write_end_; ++i) {
+                for (size_t i = newWriteEnd; i < write_end_; ++i) {
                     output_buffer_[i] = 0.0f;
                 }
                 write_end_ = newWriteEnd;
@@ -72,7 +72,9 @@ public:
         if (output_buffer_.size() < (size + hop_) * 2) {
             output_buffer_.resize((size + hop_) * 2);
         }
-        process_buffer_.resize(size_);
+        if (process_buffer_.size() < size) {
+            process_buffer_.resize(size);
+        }
     }
 
     void SetHop(size_t hop) noexcept {

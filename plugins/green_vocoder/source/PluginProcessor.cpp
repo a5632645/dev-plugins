@@ -48,19 +48,23 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterInt>(
+        auto p = std::make_unique<juce::AudioParameterChoice>(
             juce::ParameterID{id::kMainChannelConfig, 1},
             id::kMainChannelConfig,
-            0, 5, 0
+            juce::StringArray{
+                "Main Left", "Main Right", "Main Merge", "Side Left", "Side Right", "Side Merge"
+            }, 0
         );
         main_channel_config_ = p.get();
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterInt>(
+        auto p = std::make_unique<juce::AudioParameterChoice>(
             juce::ParameterID{id::kSideChannelConfig, 1},
             id::kSideChannelConfig,
-            0, 6, 1
+            juce::StringArray{
+                "Main Left", "Main Right", "Main Merge", "Side Left", "Side Right", "Side Merge", "Pitch Track"
+            }, 0
         );
         side_channel_config_ = p.get();
         layout.add(std::move(p));
@@ -312,44 +316,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
 
-    // gain
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kMainGain, 1},
-            id::kMainGain,
-            dsp::Gain<1>::kMinDb, 40.0f, 0.0f
-        );
-        paramListeners_.Add(p, [this](float bw) {
-            juce::ScopedLock lock{getCallbackLock()};
-            main_gain_.SetGain(bw);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kSideGain, 1},
-            id::kSideGain,
-            dsp::Gain<1>::kMinDb, 40.0f, 0.0f
-        );
-        paramListeners_.Add(p, [this](float bw) {
-            juce::ScopedLock lock{getCallbackLock()};
-            side_gain_.SetGain(bw);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kOutputgain, 1},
-            id::kOutputgain,
-            dsp::Gain<1>::kMinDb, 40.0f, 0.0f
-        );
-        paramListeners_.Add(p, [this](float bw) {
-            juce::ScopedLock lock{getCallbackLock()};
-            output_gain_.SetGain(bw);
-        });
-        layout.add(std::move(p));
-    }
-
     // stft
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
@@ -381,7 +347,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kStftAttack, 1},
             id::kStftAttack,
             juce::NormalisableRange<float>{1.0f, 1000.0f, 1.0f, 0.4f},
-            20.0f
+            1.0f
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -589,6 +555,25 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
 
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{"output_drive", 1},
+            "output_drive",
+            -20.0f, 20.0f, 0.0f
+        );
+        output_drive_ = p.get();
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{"output_saturation", 1},
+            "output_saturation",
+            false
+        );
+        output_saturation_ = p.get();
+        layout.add(std::move(p));
+    }
+
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
 }
@@ -673,9 +658,6 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     channel_vocoder_.Init(fs);
 
     ensemble_.Init(fs);
-    main_gain_.Init(fs, samplesPerBlock);
-    side_gain_.Init(fs, samplesPerBlock);
-    output_gain_.Init(fs, samplesPerBlock);
 
     yin_segement_.SetHop(1024);
     yin_segement_.SetSize(2048);
@@ -735,8 +717,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    int main_ch = main_channel_config_->get();
-    int side_ch = side_channel_config_->get();
+    int main_ch = main_channel_config_->getIndex();
+    int side_ch = side_channel_config_->getIndex();
     if (buffer.getNumChannels() < 4) {
         // 无侧链，侧链声道映射为主声道
         if (main_ch > 2) {
@@ -821,9 +803,6 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         f = pre_tilt_filter_.Tick(f);
     }
 
-    main_gain_.Process(main_buffer_);
-    side_gain_.Process(side_buffer_);
-
     switch (vocoder_type_param_->getIndex()) {
     case eVocoderType_BurgLPC:
         burg_lpc_.Process(main_buffer_, side_buffer_);
@@ -842,13 +821,21 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         break;
     }
 
-    ensemble_.Process(main_buffer_, side_buffer_);
-    output_gain_.Process(channels);
-
     size_t const num_samples = main_buffer_.size();
-    for (size_t i = 0; i < num_samples; ++i) {
-        main_buffer_[i] = output_drive_left_.ADAA(main_buffer_[i]);
-        side_buffer_[i] = output_drive_right_.ADAA(side_buffer_[i]);
+    float const output_gain = qwqdsp::convert::Db2Gain(output_drive_->get());
+    if (!output_saturation_->get()) {
+        ensemble_.Process(main_buffer_, side_buffer_);
+        for (size_t i = 0; i < num_samples; ++i) {
+            main_buffer_[i] = main_buffer_[i] * output_gain;
+            side_buffer_[i] = side_buffer_[i] * output_gain;
+        }
+    }
+    else {
+        ensemble_.Process(main_buffer_, side_buffer_);
+        for (size_t i = 0; i < num_samples; ++i) {
+            main_buffer_[i] = output_drive_left_.ADAA(main_buffer_[i] * output_gain);
+            side_buffer_[i] = output_drive_right_.ADAA(side_buffer_[i] * output_gain);
+        }
     }
 
     if (latency_.load() != old_latency_) {

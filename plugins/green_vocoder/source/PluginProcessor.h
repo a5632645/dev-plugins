@@ -10,7 +10,6 @@
 #include "dsp/channel_vocoder.hpp"
 #include "dsp/tilt_filter.hpp"
 #include "dsp/ensemble.hpp"
-#include "dsp/gain.hpp"
 
 #include "qwqdsp/oscillator/polyblep.hpp"
 #include "qwqdsp/oscillator/noise.hpp"
@@ -74,8 +73,8 @@ public:
     juce::AudioParameterFloat* lpc_pitch_;
     juce::AudioParameterFloat* lpc_detune_;
     juce::AudioParameterBool* shifter_enabled_;
-    juce::AudioParameterInt* main_channel_config_;
-    juce::AudioParameterInt* side_channel_config_;
+    juce::AudioParameterChoice* main_channel_config_;
+    juce::AudioParameterChoice* side_channel_config_;
 
     dsp::PitchShifter shifter_;
     dsp::BurgLPC burg_lpc_;
@@ -103,9 +102,8 @@ public:
     qwqdsp_filter::FastSetIirParalle<qwqdsp_filter::fastset_coeff::Order2_1e7> pitch_glide_;
     bool first_init_{};
 
-    dsp::Gain<1> main_gain_;
-    dsp::Gain<1> side_gain_;
-    dsp::Gain<2> output_gain_;
+    juce::AudioParameterBool* output_saturation_;
+    juce::AudioParameterFloat* output_drive_;
     qwqdsp::AlgebraicWaveshaper output_drive_left_;
     qwqdsp::AlgebraicWaveshaper output_drive_right_;
 

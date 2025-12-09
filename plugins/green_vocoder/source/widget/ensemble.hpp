@@ -1,8 +1,5 @@
 #pragma once
-#include <juce_gui_basics/juce_gui_basics.h>
-#include <ui/vertical_slider.hpp>
-#include "tooltips.hpp"
-#include "ui/comb_box.hpp"
+#include <pluginshared/component.hpp>
 
 class AudioPluginAudioProcessor;
 
@@ -12,15 +9,14 @@ class Ensemble : public juce::Component {
 public:
     Ensemble(AudioPluginAudioProcessor& p);
     void resized() override;
-    void OnLanguageChanged(tooltip::Tooltips& tooltips);
 private:
-    juce::Label label_;
-    ui::VerticalSlider num_voice_;
-    ui::VerticalSlider detune_;
-    ui::VerticalSlider spread_;
-    ui::VerticalSlider mix_;
-    ui::VerticalSlider rate_;
-    ui::CombBox mode_;
+    juce::Label title_{"", "Ensemble"};
+    ui::FlatSlider num_voice_{"voices", ui::FlatSlider::TitleLayout::Top};
+    ui::Dial detune_{"detune"};
+    ui::Dial spread_{"spread"};
+    ui::Dial mix_{"mix"};
+    ui::Dial rate_{"rate"};
+    ui::FlatCombobox mode_;
 };
 
 }

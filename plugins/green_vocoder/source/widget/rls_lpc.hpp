@@ -1,6 +1,5 @@
 #pragma once
-#include "juce_gui_basics/juce_gui_basics.h"
-#include "ui/vertical_slider.hpp"
+#include <pluginshared/component.hpp>
 
 class AudioPluginAudioProcessor;
 
@@ -11,17 +10,15 @@ public:
     RLSLPC(AudioPluginAudioProcessor& processor);
     void resized() override;
     void paint(juce::Graphics& g) override;
-    void OnLanguageChanged(tooltip::Tooltips& tooltips);
 private:
     void timerCallback() override;
 
     AudioPluginAudioProcessor& processor_;
-    juce::Label lpc_label_;
-    ui::VerticalSlider lpc_foorget_;
-    ui::VerticalSlider lpc_dicimate_;
-    ui::VerticalSlider lpc_order_;
-    ui::VerticalSlider lpc_attack_;
-    ui::VerticalSlider lpc_release_;
+    ui::Dial lpc_foorget_{"forget"};
+    ui::FlatSlider lpc_dicimate_{"dicimate", ui::FlatSlider::TitleLayout::Top};
+    ui::FlatSlider lpc_order_{"order", ui::FlatSlider::TitleLayout::Top};
+    ui::Dial lpc_attack_{"attack"};
+    ui::Dial lpc_release_{"release"};
 };
 
 }

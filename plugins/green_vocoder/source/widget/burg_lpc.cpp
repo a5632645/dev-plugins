@@ -1,9 +1,5 @@
 #include "burg_lpc.hpp"
 #include "../PluginProcessor.h"
-#include "../param_ids.hpp"
-#include "juce_core/juce_core.h"
-#include "juce_graphics/juce_graphics.h"
-#include "tooltips.hpp"
 #include <numbers>
 #include <string>
 
@@ -13,48 +9,35 @@ BurgLPC::BurgLPC(AudioPluginAudioProcessor& processor)
 : processor_(processor) {
     auto& apvts = *processor.value_tree_;
 
-    addAndMakeVisible(lpc_label_);
-
-    lpc_foorget_.BindParameter(apvts, id::kForgetRate);
-    addAndMakeVisible(lpc_foorget_);
-    lpc_smooth_.BindParameter(apvts, id::kLPCSmooth);
-    addAndMakeVisible(lpc_smooth_);
-    lpc_dicimate_.BindParameter(apvts, id::kLPCDicimate);
-    addAndMakeVisible(lpc_dicimate_);
-    lpc_order_.BindParameter(apvts, id::kLPCOrder);
-    addAndMakeVisible(lpc_order_);
-    lpc_attack_.BindParameter(apvts, id::kLPCGainAttack);
-    addAndMakeVisible(lpc_attack_);
-    lpc_release_.BindParameter(apvts, id::kLPCGainRelease);
-    addAndMakeVisible(lpc_release_);
-}
-
-void BurgLPC::OnLanguageChanged(tooltip::Tooltips& strs) {
-    lpc_label_.setText(strs.Label(id::combbox::kVocoderNameIds[0]), juce::NotificationType::dontSendNotification);
-    lpc_foorget_.OnLanguageChanged(strs);
-    lpc_smooth_.OnLanguageChanged(strs);
-    lpc_dicimate_.OnLanguageChanged(strs);
-    lpc_order_.OnLanguageChanged(strs);
-    lpc_attack_.OnLanguageChanged(strs);
-    lpc_release_.OnLanguageChanged(strs);
+    forget_.BindParam(apvts, id::kForgetRate);
+    addAndMakeVisible(forget_);
+    smear_.BindParam(apvts, id::kLPCSmooth);
+    addAndMakeVisible(smear_);
+    dicimate_.BindParam(apvts, id::kLPCDicimate);
+    addAndMakeVisible(dicimate_);
+    order_.BindParam(apvts, id::kLPCOrder);
+    addAndMakeVisible(order_);
+    attack_.BindParam(apvts, id::kLPCGainAttack);
+    addAndMakeVisible(attack_);
+    release_.BindParam(apvts, id::kLPCGainRelease);
+    addAndMakeVisible(release_);
 }
 
 void BurgLPC::resized() {
     auto b = getLocalBounds();
-    lpc_label_.setBounds(b.removeFromTop(20));
-    auto top = b.removeFromTop(100);
-    lpc_foorget_.setBounds(top.removeFromLeft(50));
-    lpc_smooth_.setBounds(top.removeFromLeft(50));
-    lpc_dicimate_.setBounds(top.removeFromLeft(50));
-    lpc_order_.setBounds(top.removeFromLeft(50));
-    lpc_attack_.setBounds(top.removeFromLeft(50));
-    lpc_release_.setBounds(top.removeFromLeft(50));
+    auto top = b.removeFromTop(65);
+    forget_.setBounds(top.removeFromLeft(50));
+    smear_.setBounds(top.removeFromLeft(50));
+    dicimate_.setBounds(top.removeFromLeft(50));
+    order_.setBounds(top.removeFromLeft(50));
+    attack_.setBounds(top.removeFromLeft(50));
+    release_.setBounds(top.removeFromLeft(50));
 }
 
 void BurgLPC::paint(juce::Graphics& g) {
     auto bb = getLocalBounds();
-    bb.removeFromTop(lpc_release_.getBottom());
-    g.setColour(juce::Colours::black);
+    bb.removeFromTop(release_.getBottom());
+    g.setColour(ui::black_bg);
     g.fillRect(bb);
     auto current_font = g.getCurrentFont();
 
@@ -149,7 +132,7 @@ void BurgLPC::paint(juce::Graphics& g) {
     int w = bb.getWidth();
     auto b = bb.toFloat();
     juce::Point<float> line_last{ b.getX(), b.getCentreY() };
-    g.setColour(juce::Colours::green);
+    g.setColour(ui::line_fore);
     float mul_val = std::pow(10.0f, freq_pow / w);
     float mul_begin = 1.0f;
     float omega_base = freq_begin * std::numbers::pi_v<float> / static_cast<float>(processor_.getSampleRate());
@@ -175,8 +158,8 @@ void BurgLPC::paint(juce::Graphics& g) {
         line_last = line_end;
     }
 
-    g.setColour(juce::Colours::white);
-    g.drawRect(bb);
+    // g.setColour(juce::Colours::white);
+    // g.drawRect(bb);
 }
 
 }

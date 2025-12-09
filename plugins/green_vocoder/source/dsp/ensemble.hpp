@@ -9,7 +9,7 @@ namespace dsp {
 class Ensemble {
 public:
     static constexpr int kMaxVoices = 16;
-    static constexpr float kMaxSemitone = 0.15f;
+    static constexpr float kMaxSemitone = 0.2f;
     static constexpr float kMinFrequency = 0.01f;
     static constexpr float kMaxTime = 50.0f;
     static constexpr float kMinTime = 15.0f;

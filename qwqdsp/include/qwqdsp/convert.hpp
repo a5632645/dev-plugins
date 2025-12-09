@@ -50,6 +50,14 @@ static inline float Samples2DecayDb(float samlpes, float db) noexcept {
     return std::pow(10.0f, db / (20.0f * samlpes));
 }
 
+static inline float Ms2Decay(float ms, float fs, float gain) noexcept {
+    return Samples2Decay(ms * fs / 1000.0f, gain);
+}
+
+static inline float Ms2DecayDb(float ms, float fs, float db) noexcept {
+    return Samples2DecayDb(ms * fs / 1000.0f, db);
+}
+
 namespace analog {
 /**
  * 倍频程表示 f2 = 2^N * f1

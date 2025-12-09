@@ -1,5 +1,4 @@
 #include "stft_vocoder.hpp"
-#include "utli.hpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -7,6 +6,7 @@
 #include <cstddef>
 #include <numbers>
 #include <numeric>
+#include <qwqdsp/convert.hpp>
 
 namespace dsp {
 
@@ -38,7 +38,7 @@ void STFTVocoder::SetFFTSize(int size) {
 
 void STFTVocoder::SetRelease(float ms) {
     release_ms_ = ms;
-    decay_ = utli::GetDecayValue(sample_rate_ / hop_size_, ms);
+    decay_ = qwqdsp::convert::Ms2DecayDb(ms, sample_rate_ / hop_size_, -60.0f);
 }
 
 void STFTVocoder::SetBlend(float blend) {
@@ -135,7 +135,7 @@ void STFTVocoder::SetBandwidth(float bw) {
 }
 
 void STFTVocoder::SetAttack(float ms) {
-    attck_ = utli::GetDecayValue(sample_rate_ / hop_size_, ms);
+    attck_ = qwqdsp::convert::Ms2DecayDb(ms, sample_rate_, -60.0f);
 }
 
 float STFTVocoder::Blend(float x) {
