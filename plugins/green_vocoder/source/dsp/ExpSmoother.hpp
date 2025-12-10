@@ -1,32 +1,30 @@
 #pragma once
-#include <cmath>
+#include <qwqdsp/simd_element/simd_pack.hpp>
+#include <qwqdsp/misc/smoother.hpp>
 
-namespace dsp{
+namespace green_vocoder::dsp{
 
-template<class Type>
+template<size_t N>
 class ExpSmoother {
 public:
-    Type Process(Type in) {
-        if (in > latch_) {
-            latch_ = latch_ * biggerCoeff_ + (1 - biggerCoeff_) * in;
-        }
-        else {
-            latch_ = latch_ * smallerCoeff_ + (1 - smallerCoeff_) * in;
-        }
-        return latch_;
+    qwqdsp_simd_element::PackFloat<N> Process(qwqdsp_simd_element::PackFloatCRef<N> in) {
+        auto mask = in > lag_;
+        auto coeff = qwqdsp_simd_element::PackOps::Select(mask, biggerCoeff_, smallerCoeff_);
+        lag_ = lag_ * coeff + (1 - coeff) * in;
+        return lag_;
     }
 
-    void SetAttackTime(Type ms, Type fs) {
-        biggerCoeff_ = std::exp((Type)-1.0 / (fs * ms / (Type)1000.0));
+    void SetAttackTime(float ms, float fs) {
+        biggerCoeff_.Broadcast(qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(ms, fs, 3));
     }
 
-    void SetReleaseTime(Type ms, Type fs) {
-        smallerCoeff_ = std::exp((Type)-1.0 / (fs * ms / (Type)1000.0));
+    void SetReleaseTime(float ms, float fs) {
+        smallerCoeff_.Broadcast(qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(ms, fs));
     }
 private:
-    Type latch_ = 0;
-    Type biggerCoeff_ = 0;
-    Type smallerCoeff_ = 0;
+    qwqdsp_simd_element::PackFloat<N> lag_;
+    qwqdsp_simd_element::PackFloat<N> biggerCoeff_;
+    qwqdsp_simd_element::PackFloat<N> smallerCoeff_;
 };
 
 }

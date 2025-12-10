@@ -3,26 +3,24 @@
 #include "pluginshared/preset_manager.hpp"
 #include "pluginshared/juce_param_listener.hpp"
 
-#include "dsp/burg_lpc.hpp"
+#include "dsp/leaky_burg_lpc.hpp"
 #include "dsp/pitch_shifter.hpp"
-#include "dsp/rls_lpc.hpp"
 #include "dsp/stft_vocoder.hpp"
 #include "dsp/channel_vocoder.hpp"
 #include "dsp/tilt_filter.hpp"
 #include "dsp/ensemble.hpp"
+#include "dsp/mfcc_vocoder.hpp"
+#include "dsp/block_burg_lpc.hpp"
 
 #include "qwqdsp/oscillator/polyblep.hpp"
 #include "qwqdsp/oscillator/noise.hpp"
 
 #include "qwqdsp/pitch/fast_yin.hpp"
-#include "qwqdsp/pitch/yin.hpp"
-#include "qwqdsp/pitch/mpm.hpp"
-#include "qwqdsp/pitch/helmholtz.hpp"
 
 #include "qwqdsp/segement/analyze.hpp"
-#include "qwqdsp/misc/smoother.hpp"
 #include "qwqdsp/filter/fast_set_iir_paralle.hpp"
-#include "qwqdsp/algebraic_waveshaper.hpp"
+#include <qwqdsp/simd_element/algebraic_waveshaper.hpp>
+#include <qwqdsp/oscillator/noise.hpp>
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -76,36 +74,41 @@ public:
     juce::AudioParameterChoice* main_channel_config_;
     juce::AudioParameterChoice* side_channel_config_;
 
-    dsp::PitchShifter shifter_;
-    dsp::BurgLPC burg_lpc_;
-    dsp::RLSLPC rls_lpc_;
-    dsp::STFTVocoder stft_vocoder_;
-    dsp::ChannelVocoder channel_vocoder_;
-    dsp::Ensemble ensemble_;
-    dsp::TiltFilter pre_tilt_filter_;
+    // crossing buffer
+    std::vector<qwqdsp_simd_element::PackFloat<2>> crossing_main_buffer_;
+    std::vector<qwqdsp_simd_element::PackFloat<2>> crossing_side_buffer_;
+    // dsps
+    green_vocoder::dsp::PitchShifter shifter_;
+    green_vocoder::dsp::TiltFilter pre_tilt_filter_;
+    green_vocoder::dsp::LeakyBurgLPC burg_lpc_;
+    green_vocoder::dsp::BlockBurgLPC block_burg_lpc_;
+    green_vocoder::dsp::STFTVocoder stft_vocoder_;
+    green_vocoder::dsp::MFCCVocoder mfcc_vocoder_;
+    green_vocoder::dsp::ChannelVocoder channel_vocoder_;
+    green_vocoder::dsp::Ensemble ensemble_;
+    qwqdsp_oscillator::WhiteNoise noise_;
 
     // pitch tracking
-    qwqdsp_segement::Analyze<8192> yin_segement_;
-    qwqdsp_pitch::FastYin yin_;
-    std::array<float, 8192> osc_buffer_{};
-    size_t osc_wpos_{};
-    float osc_want_write_frac_{};
-    float last_osc_mix_{};
-    float last_noise_mix_{};
+    // qwqdsp_segement::Analyze<8192> yin_segement_;
+    // qwqdsp_pitch::FastYin yin_;
+    // std::array<float, 8192> osc_buffer_{};
+    // size_t osc_wpos_{};
+    // float osc_want_write_frac_{};
+    // float last_osc_mix_{};
+    // float last_noise_mix_{};
     
     // tracking oscillator
-    qwqdsp_oscillator::PolyBlep<qwqdsp_oscillator::blep_coeff::BSpline> tracking_osc_;
-    qwqdsp_oscillator::WhiteNoise noise_;
-    juce::AudioParameterChoice* tracking_waveform_{};
-    juce::AudioParameterFloat* tracking_noise_{};
-    float frequency_mul_{};
-    qwqdsp_filter::FastSetIirParalle<qwqdsp_filter::fastset_coeff::Order2_1e7> pitch_glide_;
-    bool first_init_{};
+    // qwqdsp_oscillator::PolyBlep<qwqdsp_oscillator::blep_coeff::BSpline> tracking_osc_;
+    // qwqdsp_oscillator::WhiteNoise noise_;
+    // juce::AudioParameterChoice* tracking_waveform_{};
+    // juce::AudioParameterFloat* tracking_noise_{};
+    // float frequency_mul_{};
+    // qwqdsp_filter::FastSetIirParalle<qwqdsp_filter::fastset_coeff::Order2_1e7> pitch_glide_;
+    // bool first_init_{};
 
     juce::AudioParameterBool* output_saturation_;
     juce::AudioParameterFloat* output_drive_;
-    qwqdsp::AlgebraicWaveshaper output_drive_left_;
-    qwqdsp::AlgebraicWaveshaper output_drive_right_;
+    qwqdsp_simd_element::AlgebraicWaveshaper<2> output_driver_;
 
     int old_latency_{};
     std::atomic<int> latency_{};

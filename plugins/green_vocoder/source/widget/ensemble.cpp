@@ -2,7 +2,7 @@
 #include "PluginProcessor.h"
 #include "param_ids.hpp"
 
-namespace widget {
+namespace green_vocoder::widget {
 
 Ensemble::Ensemble(AudioPluginAudioProcessor& p) {
     auto& apvts = *p.value_tree_;

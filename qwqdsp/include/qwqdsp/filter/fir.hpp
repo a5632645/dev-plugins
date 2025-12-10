@@ -38,7 +38,7 @@ public:
     }
 
     void Process(std::span<float> x) noexcept {
-        segement::Slice1D slice{x};
+        qwqdsp_segement::Slice1D slice{x};
         size_t wpos = 0;
         while (!slice.IsEnd()) {
             // 首先向左移动缓冲区m个采样，复制m个采样到末尾，然后移动系数相加
@@ -59,7 +59,7 @@ public:
     }
 
     void Process(std::span<float> in, std::span<float> out) noexcept {
-        segement::Slice1D slice{in};
+        qwqdsp_segement::Slice1D slice{in};
         size_t wpos = 0;
         while (!slice.IsEnd()) {
             // 首先向左移动缓冲区m个采样，复制m个采样到末尾，然后移动系数相加

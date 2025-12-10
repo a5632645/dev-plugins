@@ -6,20 +6,6 @@
 
 #include "param_ids.hpp"
 #include "channel_mix.hpp"
-#include "qwqdsp/polymath.hpp"
-
-static const juce::StringArray kVocoderNames{
-    "Burg-LPC",
-    "RLS-LPC",
-    "STFT-Vocoder",
-    "Channel-Vocoder",
-};
-
-static const juce::StringArray kChannelVocoderMapNames{
-    "linear",
-    "mel",
-    "log"
-};
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
@@ -168,7 +154,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kChannelVocoderNBands, 1},
             id::kChannelVocoderNBands,
-            juce::NormalisableRange<float>(dsp::ChannelVocoder::kMinOrder, dsp::ChannelVocoder::kMaxOrder, 4),
+            juce::NormalisableRange<float>(green_vocoder::dsp::ChannelVocoder::kMinOrder, green_vocoder::dsp::ChannelVocoder::kMaxOrder, 4),
             16
         );
         paramListeners_.Add(p, [this](float v) {
@@ -226,7 +212,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
             burg_lpc_.SetForget(l);
-            rls_lpc_.SetForgetRate(l);
         });
         layout.add(std::move(p));
     }
@@ -253,7 +238,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
             burg_lpc_.SetGainAttack(l);
-            rls_lpc_.SetGainAttack(l);
         });
         layout.add(std::move(p));
     }
@@ -267,20 +251,20 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
             burg_lpc_.SetGainRelease(l);
-            rls_lpc_.SetGainRelease(l);
         });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterInt>(
+        auto p = std::make_unique<juce::AudioParameterChoice>(
             juce::ParameterID{id::kLPCDicimate, 1},
             id::kLPCDicimate,
-            1, 8, 1
+            juce::StringArray{
+                "Modern", "Legacy", "Telephone"
+            }, 2
         );
         paramListeners_.Add(p, [this](int l) {
             juce::ScopedLock lock{getCallbackLock()};
-            burg_lpc_.SetDicimate(l);
-            rls_lpc_.SetDicimate(l);
+            burg_lpc_.SetQuality(static_cast<green_vocoder::dsp::LeakyBurgLPC::Quality>(l));
         });
         layout.add(std::move(p));
     }
@@ -288,30 +272,11 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterInt>(
             juce::ParameterID{id::kLPCOrder, 1},
             id::kLPCOrder,
-            2, dsp::BurgLPC::kNumPoles, 35
+            4, green_vocoder::dsp::LeakyBurgLPC::kNumPoles, 36
         );
         paramListeners_.Add(p, [this](int order) {
             juce::ScopedLock lock{getCallbackLock()};
             burg_lpc_.SetLPCOrder(order);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterInt>(
-            juce::ParameterID{id::kRLSLPCOrder, 1},
-            id::kRLSLPCOrder,
-            0, dsp::RLSLPC::kNumLPC - 1, 2,
-            juce::AudioParameterIntAttributes{}.withStringFromValueFunction(
-                [](int select_idx, int b) {
-                    (void)b;
-                    int order = dsp::RLSLPC::kLPCOrders[select_idx];
-                    return juce::String{order};
-                }
-            )
-        );
-        paramListeners_.Add(p, [this](int order) {
-            juce::ScopedLock lock{getCallbackLock()};
-            rls_lpc_.SetOrder(dsp::RLSLPC::kLPCOrders[order]);
         });
         layout.add(std::move(p));
     }
@@ -339,6 +304,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
             stft_vocoder_.SetRelease(bw);
+            mfcc_vocoder_.SetRelease(bw);
         });
         layout.add(std::move(p));
     }
@@ -352,6 +318,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
             stft_vocoder_.SetAttack(bw);
+            mfcc_vocoder_.SetAttack(bw);
         });
         layout.add(std::move(p));
     }
@@ -386,6 +353,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                 256, 512, 1024, 2048, 4096
             };
             stft_vocoder_.SetFFTSize(kArray[idx]);
+            mfcc_vocoder_.SetFFTSize(kArray[idx]);
+            block_burg_lpc_.SetBlockSize(kArray[idx]);
             SetLatency();
         });
         layout.add(std::move(p));
@@ -396,7 +365,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kEnsembleDetune, 1},
             id::kEnsembleDetune,
-            0.01f, dsp::Ensemble::kMaxSemitone, 0.1f
+            0.01f, green_vocoder::dsp::Ensemble::kMaxSemitone, 0.1f
         );
         paramListeners_.Add(p, [this](float detune) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -417,14 +386,15 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterInt>(
+        auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kEnsembleNumVoices, 1},
             id::kEnsembleNumVoices,
-            2, dsp::Ensemble::kMaxVoices, 8
+            juce::NormalisableRange<float>{4, green_vocoder::dsp::Ensemble::kMaxVoices, 4.0f},
+            8
         );
-        paramListeners_.Add(p, [this](int nvocice) {
+        paramListeners_.Add(p, [this](float nvocice) {
             juce::ScopedLock lock{getCallbackLock()};
-            ensemble_.SetNumVoices(nvocice);
+            ensemble_.SetNumVoices(static_cast<int>(nvocice));
         });
         layout.add(std::move(p));
     }
@@ -444,7 +414,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kEnsembleRate, 1},
             id::kEnsembleRate,
-            juce::NormalisableRange<float>(dsp::Ensemble::kMinFrequency, 1.0f, 0.01f),
+            juce::NormalisableRange<float>(green_vocoder::dsp::Ensemble::kMinFrequency, 1.0f, 0.01f),
             0.1f
         );
         paramListeners_.Add(p, [this](float rate) {
@@ -465,7 +435,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](int mode) {
             juce::ScopedLock _{ getCallbackLock() };
-            ensemble_.SetMode(static_cast<dsp::Ensemble::Mode>(mode));
+            ensemble_.SetMode(static_cast<green_vocoder::dsp::Ensemble::Mode>(mode));
         });
         layout.add(std::move(p));
     }
@@ -479,7 +449,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float low) {
             juce::ScopedLock lock{getCallbackLock()};
-            yin_.SetMinPitch(low);
+            // yin_.SetMinPitch(low);
         });
         layout.add(std::move(p));
     }
@@ -491,7 +461,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float max) {
             juce::ScopedLock lock{getCallbackLock()};
-            yin_.SetMaxPitch(max);
+            // yin_.SetMaxPitch(max);
         });
         layout.add(std::move(p));
     }
@@ -503,7 +473,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float pitch) {
             juce::ScopedLock lock{getCallbackLock()};
-            frequency_mul_ = std::exp2(pitch / 12.0f);
+            // frequency_mul_ = std::exp2(pitch / 12.0f);
         });
         layout.add(std::move(p));
     }
@@ -515,7 +485,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float pwm) {
             juce::ScopedLock lock{getCallbackLock()};
-            tracking_osc_.SetPWM(pwm);
+            // tracking_osc_.SetPWM(pwm);
         });
         layout.add(std::move(p));
     }
@@ -525,7 +495,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             id::kTrackingNoise,
             0.0f, 1.0f, 0.5f
         );
-        tracking_noise_ = p.get();
+        // tracking_noise_ = p.get();
         layout.add(std::move(p));
     }
     {
@@ -538,7 +508,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             },
             0
         );
-        tracking_waveform_ = p.get();
+        // tracking_waveform_ = p.get();
         layout.add(std::move(p));
     }
     {
@@ -550,7 +520,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
-            pitch_glide_.MakeFilter(bw * getSampleRate() / 1000.0f);
+            // pitch_glide_.MakeFilter(bw * getSampleRate() / 1000.0f);
         });
         layout.add(std::move(p));
     }
@@ -652,25 +622,27 @@ void AudioPluginAudioProcessor::changeProgramName (int index, const juce::String
 void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     float fs = static_cast<float>(sampleRate);
-    burg_lpc_.Init(fs);
-    rls_lpc_.Init(fs);
+    size_t block_size = static_cast<size_t>(samplesPerBlock);
+
+    crossing_main_buffer_.resize(block_size);
+    crossing_side_buffer_.resize(block_size);
+    burg_lpc_.Init(fs, block_size);
     stft_vocoder_.Init(fs);
-    channel_vocoder_.Init(fs);
-
+    mfcc_vocoder_.Init(fs);
+    channel_vocoder_.Init(fs, block_size);
     ensemble_.Init(fs);
+    block_burg_lpc_.Init(fs);
 
-    yin_segement_.SetHop(1024);
-    yin_segement_.SetSize(2048);
-    yin_segement_.Reset();
-    yin_.Init(static_cast<float>(sampleRate), 2048);
-    osc_wpos_ = 0;
-    osc_want_write_frac_ = 0;
-    pitch_glide_.Reset();
-    first_init_ = true;
+    // yin_segement_.SetHop(1024);
+    // yin_segement_.SetSize(2048);
+    // yin_segement_.Reset();
+    // yin_.Init(static_cast<float>(sampleRate), 2048);
+    // osc_wpos_ = 0;
+    // osc_want_write_frac_ = 0;
+    // pitch_glide_.Reset();
+    // first_init_ = true;
     pre_tilt_filter_.Reset();
-
-    output_drive_left_.Reset();
-    output_drive_right_.Reset();
+    output_driver_.Reset();
 
     paramListeners_.CallAll();
 }
@@ -709,132 +681,158 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
     std::ignore = midiMessages;
-
     juce::ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels  = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, buffer.getNumSamples());
+    // int main_ch = main_channel_config_->getIndex();
+    // int side_ch = side_channel_config_->getIndex();
+    // if (buffer.getNumChannels() < 4) {
+    //     // 无侧链，侧链声道映射为主声道
+    //     if (main_ch > 2) {
+    //         main_ch -= 3;
+    //     }
+    //     if (side_ch > 2 && side_ch != 6) {
+    //         side_ch -= 3;
+    //     }
+    // }
 
-    int main_ch = main_channel_config_->getIndex();
-    int side_ch = side_channel_config_->getIndex();
-    if (buffer.getNumChannels() < 4) {
-        // 无侧链，侧链声道映射为主声道
-        if (main_ch > 2) {
-            main_ch -= 3;
-        }
-        if (side_ch > 2 && side_ch != 6) {
-            side_ch -= 3;
-        }
-    }
+    // auto channels = Mix(main_ch, side_ch, buffer);
+    // auto& main_buffer_ = channels[0];
+    // auto& side_buffer_ = channels[1];
 
-    auto channels = Mix(main_ch, side_ch, buffer);
-    auto& main_buffer_ = channels[0];
-    auto& side_buffer_ = channels[1];
+    // if (side_ch == 6) {
+    //     yin_segement_.Push(main_buffer_);
 
-    if (side_ch == 6) {
-        yin_segement_.Push(main_buffer_);
+    //     float const noise_gain = tracking_noise_->get();
+    //     while (yin_segement_.CanProcess()) {
+    //         yin_.Process(yin_segement_.GetBlock());
+    //         yin_segement_.Advance();
 
-        float const noise_gain = tracking_noise_->get();
-        while (yin_segement_.CanProcess()) {
-            yin_.Process(yin_segement_.GetBlock());
-            yin_segement_.Advance();
+    //         // get pitch
+    //         auto pitch = yin_.GetPitch();
+    //         float const want_write = yin_segement_.GetHop() + osc_want_write_frac_;
+    //         size_t const iwant = static_cast<size_t>(want_write);
+    //         {
+    //             float t;
+    //             osc_want_write_frac_ = std::modf(want_write, &t);
+    //         }
+    //         size_t const can_write = std::min(osc_buffer_.size() - osc_wpos_, iwant);
 
-            // get pitch
-            auto pitch = yin_.GetPitch();
-            float const want_write = yin_segement_.GetHop() + osc_want_write_frac_;
-            size_t const iwant = static_cast<size_t>(want_write);
-            {
-                float t;
-                osc_want_write_frac_ = std::modf(want_write, &t);
-            }
-            size_t const can_write = std::min(osc_buffer_.size() - osc_wpos_, iwant);
+    //         float target_pitch = pitch.pitch_hz * frequency_mul_;
+    //         target_pitch = std::max(target_pitch, 0.1f);
 
-            float target_pitch = pitch.pitch_hz * frequency_mul_;
-            target_pitch = std::max(target_pitch, 0.1f);
+    //         // fill trival wave
+    //         float curr_trival_wave_gain = last_osc_mix_;
+    //         float const delta_trival_wave_gain = (1.0f - pitch.non_period_ratio - curr_trival_wave_gain) / static_cast<float>(can_write);
+    //         size_t osc_wpos = osc_wpos_;
+    //         if (tracking_waveform_->getIndex() == 0) {
+    //             for (size_t i = 0; i < can_write; ++i) {
+    //                 curr_trival_wave_gain += delta_trival_wave_gain;
+    //                 tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), getSampleRate());
+    //                 osc_buffer_[osc_wpos++] = tracking_osc_.Sawtooth() * curr_trival_wave_gain;
+    //             }
+    //         }
+    //         else {
+    //             for (size_t i = 0; i < can_write; ++i) {
+    //                 curr_trival_wave_gain += delta_trival_wave_gain;
+    //                 tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), getSampleRate());
+    //                 osc_buffer_[osc_wpos++] = tracking_osc_.PWM_NoDC() * curr_trival_wave_gain;
+    //             }
+    //         }
+    //         last_osc_mix_ = 1.0f - pitch.non_period_ratio;
 
-            // fill trival wave
-            float curr_trival_wave_gain = last_osc_mix_;
-            float const delta_trival_wave_gain = (1.0f - pitch.non_period_ratio - curr_trival_wave_gain) / static_cast<float>(can_write);
-            size_t osc_wpos = osc_wpos_;
-            if (tracking_waveform_->getIndex() == 0) {
-                for (size_t i = 0; i < can_write; ++i) {
-                    curr_trival_wave_gain += delta_trival_wave_gain;
-                    tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), getSampleRate());
-                    osc_buffer_[osc_wpos++] = tracking_osc_.Sawtooth() * curr_trival_wave_gain;
-                }
-            }
-            else {
-                for (size_t i = 0; i < can_write; ++i) {
-                    curr_trival_wave_gain += delta_trival_wave_gain;
-                    tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), getSampleRate());
-                    osc_buffer_[osc_wpos++] = tracking_osc_.PWM_NoDC() * curr_trival_wave_gain;
-                }
-            }
-            last_osc_mix_ = 1.0f - pitch.non_period_ratio;
-
-            // add noise
-            float curr_noise_gain = last_noise_mix_;
-            float target_noise_gain = pitch.non_period_ratio * noise_gain;
-            float delta_noise_gain = (target_noise_gain - curr_noise_gain) / static_cast<float>(can_write);
-            for (size_t i = 0; i < can_write; ++i) {
-                curr_noise_gain += delta_noise_gain;
-                osc_buffer_[osc_wpos_++] += noise_.Next() * curr_noise_gain;
-            }
-            last_noise_mix_ = target_noise_gain;
-        }
+    //         // add noise
+    //         float curr_noise_gain = last_noise_mix_;
+    //         float target_noise_gain = pitch.non_period_ratio * noise_gain;
+    //         float delta_noise_gain = (target_noise_gain - curr_noise_gain) / static_cast<float>(can_write);
+    //         for (size_t i = 0; i < can_write; ++i) {
+    //             curr_noise_gain += delta_noise_gain;
+    //             osc_buffer_[osc_wpos_++] += noise_.Next() * curr_noise_gain;
+    //         }
+    //         last_noise_mix_ = target_noise_gain;
+    //     }
         
-        size_t const cancopy = std::min(osc_wpos_, side_buffer_.size());
-        std::copy_n(osc_buffer_.begin(), cancopy, side_buffer_.begin());
-        std::fill(side_buffer_.begin() + cancopy, side_buffer_.end(), float{});
-        size_t const drag = osc_wpos_ - cancopy;
-        for (size_t i = 0; i < drag; ++i) {
-            osc_buffer_[i] = osc_buffer_[i + cancopy];
-        }
-        osc_wpos_ -= cancopy;
+    //     size_t const cancopy = std::min(osc_wpos_, side_buffer_.size());
+    //     std::copy_n(osc_buffer_.begin(), cancopy, side_buffer_.begin());
+    //     std::fill(side_buffer_.begin() + cancopy, side_buffer_.end(), float{});
+    //     size_t const drag = osc_wpos_ - cancopy;
+    //     for (size_t i = 0; i < drag; ++i) {
+    //         osc_buffer_[i] = osc_buffer_[i + cancopy];
+    //     }
+    //     osc_wpos_ -= cancopy;
+    // }
+
+    // crossing left and right buffer
+    size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
+    float* const main_left = buffer.getWritePointer(0);
+    float* const main_right = buffer.getWritePointer(1);
+    // {
+    //     for (size_t i = 0; i < num_samples; ++i) {
+    //         crossing_main_buffer_[i] = {main_left[i], main_right[i]};
+    //     }
+    //     if (buffer.getNumChannels() > 2) {
+    //         float const* side_left = buffer.getReadPointer(2);
+    //         float const* side_right = buffer.getReadPointer(3);
+    //         for (size_t i = 0; i < num_samples; ++i) {
+    //             crossing_side_buffer_[i] = {side_left[i], side_right[i]};
+    //         }
+    //     }
+    //     else {
+    //         // copy
+    //         std::copy_n(crossing_main_buffer_.begin(), num_samples, crossing_side_buffer_.begin());
+    //     }
+    // }
+    for (size_t i = 0; i < num_samples; ++i) {
+        crossing_main_buffer_[i].Broadcast(main_left[i]);
+        crossing_side_buffer_[i].Broadcast(main_right[i]);
     }
     
     // tilt->shifter sounds harsh, shifter->tilt is ok
     if (shifter_enabled_->get()) {
-        shifter_.Process(main_buffer_);
+        shifter_.Process(crossing_main_buffer_);
     }
-    for (auto& f : main_buffer_) {
+    for (auto& f : crossing_main_buffer_) {
         f = pre_tilt_filter_.Tick(f);
     }
 
     switch (vocoder_type_param_->getIndex()) {
-    case eVocoderType_BurgLPC:
-        burg_lpc_.Process(main_buffer_, side_buffer_);
-        break;
-    case eVocoderType_RLSLPC:
-        rls_lpc_.Process(main_buffer_, side_buffer_);
+    case eVocoderType_LeakyBurgLPC:
+        burg_lpc_.Process(crossing_main_buffer_, crossing_side_buffer_);
         break;
     case eVocoderType_STFTVocoder:
-        stft_vocoder_.Process(main_buffer_, side_buffer_);
+        stft_vocoder_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_samples);
+        break;
+    case eVocoderType_MFCCVocoder:
+        mfcc_vocoder_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_samples);
         break;
     case eVocoderType_ChannelVocoder:
-        channel_vocoder_.ProcessBlock(main_buffer_, side_buffer_);
+        channel_vocoder_.ProcessBlock(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_samples);
+        break;
+    case eVocoderType_BlockBurgLPC:
+        block_burg_lpc_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_samples);
         break;
     default:
         jassertfalse;
         break;
     }
 
-    size_t const num_samples = main_buffer_.size();
     float const output_gain = qwqdsp::convert::Db2Gain(output_drive_->get());
     if (!output_saturation_->get()) {
-        ensemble_.Process(main_buffer_, side_buffer_);
+        ensemble_.Process(crossing_main_buffer_.data(), num_samples);
         for (size_t i = 0; i < num_samples; ++i) {
-            main_buffer_[i] = main_buffer_[i] * output_gain;
-            side_buffer_[i] = side_buffer_[i] * output_gain;
+            auto x = crossing_main_buffer_[i] * output_gain;
+            main_left[i] = x[0];
+            main_right[i] = x[1];
         }
     }
     else {
-        ensemble_.Process(main_buffer_, side_buffer_);
         for (size_t i = 0; i < num_samples; ++i) {
-            main_buffer_[i] = output_drive_left_.ADAA(main_buffer_[i] * output_gain);
-            side_buffer_[i] = output_drive_right_.ADAA(side_buffer_[i] * output_gain);
+            crossing_main_buffer_[i] = output_driver_.ADAA(crossing_main_buffer_[i] * output_gain);
+        }
+        ensemble_.Process(crossing_main_buffer_.data(), num_samples);
+        for (size_t i = 0; i < num_samples; ++i) {
+            auto const& x = crossing_main_buffer_[i];
+            main_left[i] = x[0];
+            main_right[i] = x[1];
         }
     }
 
@@ -843,7 +841,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         setLatencySamples(old_latency_);
     }
 
-    first_init_ = false;
+    // first_init_ = false;
 }
 
 //==============================================================================
@@ -881,6 +879,8 @@ void AudioPluginAudioProcessor::SetLatency() {
     int latency = 0;
     switch (vocoder_type_param_->getIndex()) {
     case eVocoderType_STFTVocoder:
+    case eVocoderType_MFCCVocoder:
+    case eVocoderType_BlockBurgLPC:
         if (stft_vocoder_.GetFFTSize() > getBlockSize()) {
             latency += stft_vocoder_.GetFFTSize();
         }

@@ -22,10 +22,10 @@ private:
     pluginshared::PresetPanel preset_panel_;
     juce::TooltipWindow tooltip_window_;
 
-    widget::PreFx pre_fx_;
-    widget::Vocoder vocoder_;
-    widget::Ensemble ensemble_;
-    widget::Tracking tracking_;
+    green_vocoder::widget::PreFx pre_fx_;
+    green_vocoder::widget::Vocoder vocoder_;
+    green_vocoder::widget::Ensemble ensemble_;
+    green_vocoder::widget::Tracking tracking_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessorEditor)
 };

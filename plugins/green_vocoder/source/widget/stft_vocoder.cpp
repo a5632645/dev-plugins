@@ -3,7 +3,7 @@
 #include "param_ids.hpp"
 #include <vector>
 
-namespace widget {
+namespace green_vocoder::widget {
 
 STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
 : processor_(processor) {

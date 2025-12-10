@@ -1,8 +1,8 @@
 #pragma once
-#include "qwqdsp/simd_element/delay_line.hpp"
+#include "delay_line.hpp"
 
 namespace qwqdsp_simd_element {
-template<class SimdType, DelayLineInterp kInterp>
+template<size_t N, DelayLineInterp kInterp>
 class DelayAllpass {
 public:
     void Init(float fs, float max_ms) {
@@ -17,22 +17,22 @@ public:
         delay_.Reset();
     }
 
-    SimdType Tick(SimdType const& x, float delay, float gain) noexcept {
-        SimdType wd = delay_.GetBeforePush(delay);
-        SimdType w = x + gain * wd;
-        SimdType y = -gain * w + wd;
+    PackFloat<N> Tick(PackFloat<N> const& x, float delay, float gain) noexcept {
+        PackFloat<N> wd = delay_.GetBeforePush(delay);
+        PackFloat<N> w = x + gain * wd;
+        PackFloat<N> y = -gain * w + wd;
         delay_.Push(w);
         return y;
     }
 
-    SimdType Tick(SimdType const& x, SimdType const& delay, float gain) noexcept {
-        SimdType wd = delay_.GetBeforePush(delay);
-        SimdType w = x + gain * wd;
-        SimdType y = -gain * w + wd;
+    PackFloat<N> Tick(PackFloat<N> const& x, PackFloat<N> const& delay, float gain) noexcept {
+        PackFloat<N> wd = delay_.GetBeforePush(delay);
+        PackFloat<N> w = x + gain * wd;
+        PackFloat<N> y = -gain * w + wd;
         delay_.Push(w);
         return y;
     }
 
-    DelayLine<SimdType, kInterp> delay_;
+    DelayLine<N, kInterp> delay_;
 };
 }

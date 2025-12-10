@@ -4,7 +4,7 @@
 
 class AudioPluginAudioProcessor;
 
-namespace widget {
+namespace green_vocoder::widget {
 
 class ChannelVocoder : public juce::Component {
 public:

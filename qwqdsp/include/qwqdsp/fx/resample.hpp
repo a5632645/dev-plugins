@@ -83,7 +83,7 @@ public:
                     float const krpos = static_cast<float>(static_cast<size_t>(i) * oversample_plus1_) + frac * static_cast<float>(oversample_plus1_);
                     size_t const ikrpos = static_cast<size_t>(krpos);
                     float const frac_krpos = krpos - std::floor(krpos);
-                    float const kernel_v = qwqdsp_interpolation::Linear(kernel_[ikrpos], kernel_[ikrpos + 1], frac_krpos);
+                    float const kernel_v = qwqdsp::Interpolation::Linear(kernel_[ikrpos], kernel_[ikrpos + 1], frac_krpos);
                     sum += kernel_v * x[static_cast<size_t>(xibegin + i)];
                 }
             }

@@ -3,10 +3,17 @@
 #include <bit>
 #include <cstdint>
 #include <cmath>
+#include "qwqdsp/force_inline.hpp"
 
 namespace qwqdsp_simd_element {
 template<size_t N>  requires (std::has_single_bit(N))
 struct PackInt32;
+
+template<size_t N>  requires (std::has_single_bit(N))
+struct PackBool {
+    static constexpr size_t kSize = N;
+    bool data[N];
+};
 
 // ----------------------------------------
 // float pack
@@ -14,45 +21,51 @@ struct PackInt32;
 template<size_t N> requires (std::has_single_bit(N))
 struct PackFloat {
     static constexpr size_t kSize = N;
-    using IntType = PackInt32<N>;
-
     alignas(4 * N) float data[N];
 
-    // old support
-    static constexpr PackFloat<N> FromSingle(float v) noexcept {
-        PackFloat<N> r;
-        r.Broadcast(v);
-        return r;
-    }
     // broadcast
+    QWQDSP_FORCE_INLINE
     void Broadcast(float v) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] = v; 
     }
+    QWQDSP_FORCE_INLINE
+    [[nodiscard]]
+    static constexpr PackFloat<N> vBroadcast(float v) noexcept {
+        PackFloat<N> r;
+        r.Broadcast(v);
+        return r;
+    }
     // []
+    QWQDSP_FORCE_INLINE
     float& operator[](size_t i) noexcept { return data[i]; }
     // [] const
+    QWQDSP_FORCE_INLINE
     float operator[](size_t i) const noexcept { return data[i]; }
     // pack ops
     // +=
+    QWQDSP_FORCE_INLINE
     PackFloat& operator+=(PackFloat const& b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] += b.data[i];
         return *this;
     }
     // -=
+    QWQDSP_FORCE_INLINE
     PackFloat& operator-=(PackFloat const& b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] -= b.data[i];
         return *this;
     }
     // *=
+    QWQDSP_FORCE_INLINE
     PackFloat& operator*=(PackFloat const& b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] *= b.data[i];
         return *this;
     }
     // /=
+    QWQDSP_FORCE_INLINE
     PackFloat& operator/=(PackFloat const& b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] /= b.data[i];
@@ -60,35 +73,90 @@ struct PackFloat {
     }
     // pack and scalar ops
     // +=
+    QWQDSP_FORCE_INLINE
     PackFloat& operator+=(float b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] += b;
         return *this;
     }
     // -=
+    QWQDSP_FORCE_INLINE
     PackFloat& operator-=(float b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] -= b;
         return *this;
     }
     // *=
+    QWQDSP_FORCE_INLINE
     PackFloat& operator*=(float b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] *= b;
         return *this;
     }
     // /=
+    QWQDSP_FORCE_INLINE
     PackFloat& operator/=(float b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] /= b;
         return *this;
     }
+    // >
+    QWQDSP_FORCE_INLINE
+    PackBool<N> operator>(PackFloat const& b) const noexcept {
+        PackBool<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = data[i] > b.data[i];
+        return r;
+    }
+    // <
+    QWQDSP_FORCE_INLINE
+    PackBool<N> operator<(PackFloat const& b) const noexcept {
+        PackBool<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = data[i] < b.data[i];
+        return r;
+    }
+    // =
+    QWQDSP_FORCE_INLINE
+    PackBool<N> operator==(PackFloat const& b) const noexcept {
+        PackBool<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = data[i] == b.data[i];
+        return r;
+    }
+    // >=
+    QWQDSP_FORCE_INLINE
+    PackBool<N> operator>=(PackFloat const& b) const noexcept {
+        PackBool<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = data[i] >= b.data[i];
+        return r;
+    }
+    // <=
+    QWQDSP_FORCE_INLINE
+    PackBool<N> operator<=(PackFloat const& b) const noexcept {
+        PackBool<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = data[i] <= b.data[i];
+        return r;
+    }
+    // !=
+    QWQDSP_FORCE_INLINE
+    PackBool<N> operator!=(PackFloat const& b) const noexcept {
+        PackBool<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = data[i] != b.data[i];
+        return r;
+    }
+    // ToInt
+    QWQDSP_FORCE_INLINE
+    inline PackInt32<N> ToInt() const noexcept;
 };
 
-namespace {
 // pack ops
 // add
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackFloat<N> operator+(PackFloat<N> const& a, PackFloat<N> const& b) noexcept {
     PackFloat<N> r;
     #pragma clang loop unroll(full)
@@ -97,6 +165,7 @@ static inline constexpr PackFloat<N> operator+(PackFloat<N> const& a, PackFloat<
 }
 // sub
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackFloat<N> operator-(PackFloat<N> const& a, PackFloat<N> const& b) noexcept {
     PackFloat<N> r;
     #pragma clang loop unroll(full)
@@ -105,23 +174,26 @@ static inline constexpr PackFloat<N> operator-(PackFloat<N> const& a, PackFloat<
 }
 // mul
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackFloat<N> operator*(PackFloat<N> const& a, PackFloat<N> const& b) noexcept {
     PackFloat<N> r;
     #pragma clang loop unroll(full)
-    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] * b;
+    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] * b.data[i];
     return r;
 }
 // div
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackFloat<N> operator/(PackFloat<N> const& a, PackFloat<N> const& b) noexcept {
     PackFloat<N> r;
     #pragma clang loop unroll(full)
-    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] / b;
+    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] / b.data[i];
     return r;
 }
 // pack with scalar
 // add
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackFloat<N> operator+(PackFloat<N> const& a, float b) noexcept {
     PackFloat<N> r;
     #pragma clang loop unroll(full)
@@ -130,6 +202,7 @@ static inline constexpr PackFloat<N> operator+(PackFloat<N> const& a, float b) n
 }
 // sub
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackFloat<N> operator-(PackFloat<N> const& a, float b) noexcept {
     PackFloat<N> r;
     #pragma clang loop unroll(full)
@@ -138,6 +211,7 @@ static inline constexpr PackFloat<N> operator-(PackFloat<N> const& a, float b) n
 }
 // mul
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackFloat<N> operator*(PackFloat<N> const& a, float b) noexcept {
     PackFloat<N> r;
     #pragma clang loop unroll(full)
@@ -146,6 +220,7 @@ static inline constexpr PackFloat<N> operator*(PackFloat<N> const& a, float b) n
 }
 // div
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackFloat<N> operator/(PackFloat<N> const& a, float b) noexcept {
     PackFloat<N> r;
     #pragma clang loop unroll(full)
@@ -155,6 +230,7 @@ static inline constexpr PackFloat<N> operator/(PackFloat<N> const& a, float b) n
 // scalar with pack
 // add
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackFloat<N> operator+(float a, PackFloat<N> const& b) noexcept {
     PackFloat<N> r;
     #pragma clang loop unroll(full)
@@ -163,6 +239,7 @@ static inline constexpr PackFloat<N> operator+(float a, PackFloat<N> const& b) n
 }
 // sub
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackFloat<N> operator-(float a, PackFloat<N> const& b) noexcept {
     PackFloat<N> r;
     #pragma clang loop unroll(full)
@@ -171,6 +248,7 @@ static inline constexpr PackFloat<N> operator-(float a, PackFloat<N> const& b) n
 }
 // mul
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackFloat<N> operator*(float a, PackFloat<N> const& b) noexcept {
     PackFloat<N> r;
     #pragma clang loop unroll(full)
@@ -179,12 +257,12 @@ static inline constexpr PackFloat<N> operator*(float a, PackFloat<N> const& b) n
 }
 // div
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackFloat<N> operator/(float a, PackFloat<N> const& b) noexcept {
     PackFloat<N> r;
     #pragma clang loop unroll(full)
     for (size_t i = 0; i < N; ++i) r.data[i] = a / b.data[i];
     return r;
-}
 }
 
 // ----------------------------------------
@@ -195,65 +273,77 @@ struct PackInt32 {
     static constexpr size_t kSize = N;
     alignas(4 * N) int32_t data[N];
 
-    // old support
-    static constexpr PackFloat<N> FromSingle(int32_t v) noexcept {
-        PackFloat<N> r;
-        r.Broadcast(v);
-        return r;
-    }
     // broadcast
+    QWQDSP_FORCE_INLINE
     void Broadcast(int32_t v) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] = v;
     }
+    [[nodiscard]]
+    QWQDSP_FORCE_INLINE
+    static constexpr PackInt32<N> vBroadcast(int32_t v) noexcept {
+        PackInt32<N> r;
+        r.Broadcast(v);
+        return r;
+    }
     // []
+    QWQDSP_FORCE_INLINE
     int32_t& operator[](size_t i) noexcept { return data[i]; }
     // [] const
+    QWQDSP_FORCE_INLINE
     int32_t operator[](size_t i) const noexcept { return data[i]; }
     // pack ops
     // +=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator+=(PackInt32 const& b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] += b.data[i];
         return *this;
     }
     // -=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator-=(PackInt32 const& b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] -= b.data[i];
         return *this;
     }
     // *=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator*=(PackInt32 const& b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] *= b.data[i];
         return *this;
     }
     // /=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator/=(PackInt32 const& b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] /= b.data[i];
         return *this;
     }
     // %=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator%=(PackInt32 const& b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] %= b.data[i];
         return *this;
     }
     // ^=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator^=(PackInt32 const& b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] ^= b.data[i];
         return *this;
     }
     // |=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator|=(PackInt32 const& b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] |= b.data[i];
         return *this;
     }
     // &=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator&=(PackInt32 const& b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] &= b.data[i];
@@ -261,59 +351,85 @@ struct PackInt32 {
     }
     // pack and scalar ops
     // +=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator+=(int32_t b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] += b;
         return *this;
     }
     // -=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator-=(int32_t b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] -= b;
         return *this;
     }
     // *=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator*=(int32_t b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] *= b;
         return *this;
     }
     // /=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator/=(int32_t b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] /= b;
         return *this;
     }
     // %=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator%=(int32_t b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] %= b;
         return *this;
     }
     // ^=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator^=(int32_t b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] ^= b;
         return *this;
     }
     // |=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator|=(int32_t b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] |= b;
         return *this;
     }
     // &=
+    QWQDSP_FORCE_INLINE
     PackInt32& operator&=(int32_t b) noexcept {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) data[i] &= b;
         return *this;
     }
+    // ToFloat
+    QWQDSP_FORCE_INLINE
+    PackFloat<N> ToFloat() const noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = static_cast<float>(data[i]);
+        return r;
+    }
 };
 
-namespace {
+// float.ToInt
+template<size_t N> requires (std::has_single_bit(N))
+QWQDSP_FORCE_INLINE
+inline PackInt32<N> PackFloat<N>::ToInt() const noexcept {
+    PackInt32<N> r;
+    #pragma clang loop unroll(full)
+    for (size_t i = 0; i < N; ++i) r.data[i] = static_cast<int32_t>(data[i]);
+    return r;
+}
+
 // pack ops
 // add
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator+(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -322,6 +438,7 @@ static inline constexpr PackInt32<N> operator+(PackInt32<N> const& a, PackInt32<
 }
 // sub
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator-(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -330,6 +447,7 @@ static inline constexpr PackInt32<N> operator-(PackInt32<N> const& a, PackInt32<
 }
 // mul
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator*(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -338,6 +456,7 @@ static inline constexpr PackInt32<N> operator*(PackInt32<N> const& a, PackInt32<
 }
 // div
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator/(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -346,6 +465,7 @@ static inline constexpr PackInt32<N> operator/(PackInt32<N> const& a, PackInt32<
 }
 // mod
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator%(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -354,6 +474,7 @@ static inline constexpr PackInt32<N> operator%(PackInt32<N> const& a, PackInt32<
 }
 // and
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator&(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -362,6 +483,7 @@ static inline constexpr PackInt32<N> operator&(PackInt32<N> const& a, PackInt32<
 }
 // or
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator|(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -370,6 +492,7 @@ static inline constexpr PackInt32<N> operator|(PackInt32<N> const& a, PackInt32<
 }
 // xor
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator^(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -379,6 +502,7 @@ static inline constexpr PackInt32<N> operator^(PackInt32<N> const& a, PackInt32<
 // pack and scalar ops
 // add
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator+(PackInt32<N> const& a, int32_t b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -387,6 +511,7 @@ static inline constexpr PackInt32<N> operator+(PackInt32<N> const& a, int32_t b)
 }
 // sub
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator-(PackInt32<N> const& a, int32_t b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -395,6 +520,7 @@ static inline constexpr PackInt32<N> operator-(PackInt32<N> const& a, int32_t b)
 }
 // mul
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator*(PackInt32<N> const& a, int32_t b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -403,6 +529,7 @@ static inline constexpr PackInt32<N> operator*(PackInt32<N> const& a, int32_t b)
 }
 // div
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator/(PackInt32<N> const& a, int32_t b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -411,6 +538,7 @@ static inline constexpr PackInt32<N> operator/(PackInt32<N> const& a, int32_t b)
 }
 // mod
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator%(PackInt32<N> const& a, int32_t b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -419,6 +547,7 @@ static inline constexpr PackInt32<N> operator%(PackInt32<N> const& a, int32_t b)
 }
 // and
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator&(PackInt32<N> const& a, int32_t b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -427,6 +556,7 @@ static inline constexpr PackInt32<N> operator&(PackInt32<N> const& a, int32_t b)
 }
 // or
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator|(PackInt32<N> const& a, int32_t b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -435,6 +565,7 @@ static inline constexpr PackInt32<N> operator|(PackInt32<N> const& a, int32_t b)
 }
 // xor
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator^(PackInt32<N> const& a, int32_t b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -444,6 +575,7 @@ static inline constexpr PackInt32<N> operator^(PackInt32<N> const& a, int32_t b)
 // scalar and pack ops
 // add
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator+(int32_t a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -452,6 +584,7 @@ static inline constexpr PackInt32<N> operator+(int32_t a, PackInt32<N> const& b)
 }
 // sub
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator-(int32_t a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -460,6 +593,7 @@ static inline constexpr PackInt32<N> operator-(int32_t a, PackInt32<N> const& b)
 }
 // mul
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator*(int32_t a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -468,6 +602,7 @@ static inline constexpr PackInt32<N> operator*(int32_t a, PackInt32<N> const& b)
 }
 // div
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator/(int32_t a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -476,6 +611,7 @@ static inline constexpr PackInt32<N> operator/(int32_t a, PackInt32<N> const& b)
 }
 // mod
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator%(int32_t a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -484,6 +620,7 @@ static inline constexpr PackInt32<N> operator%(int32_t a, PackInt32<N> const& b)
 }
 // and
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator&(int32_t a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -492,6 +629,7 @@ static inline constexpr PackInt32<N> operator&(int32_t a, PackInt32<N> const& b)
 }
 // or
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator|(int32_t a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
@@ -500,12 +638,12 @@ static inline constexpr PackInt32<N> operator|(int32_t a, PackInt32<N> const& b)
 }
 // xor
 template<size_t N>
+QWQDSP_FORCE_INLINE
 static inline constexpr PackInt32<N> operator^(int32_t a, PackInt32<N> const& b) noexcept {
     PackInt32<N> r;
     #pragma clang loop unroll(full)
     for (size_t i = 0; i < N; ++i) r.data[i] = a ^ b.data[i];
     return r;
-}
 }
 
 // ----------------------------------------
@@ -534,6 +672,7 @@ struct PackOps {
 
     // float.floor
     template<size_t N>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<N> Floor(PackFloat<N> const& a) noexcept {
         PackFloat<N> r;
         #pragma clang loop unroll(full)
@@ -542,6 +681,7 @@ struct PackOps {
     }
     // float.fma
     template<size_t N>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<N> Fma(PackFloat<N> const& a, PackFloat<N> const& b, PackFloat<N> const& c) noexcept {
         PackFloat<N> r;
         #pragma clang loop unroll(full)
@@ -550,6 +690,7 @@ struct PackOps {
     }
     // float.broadcast
     template<size_t N>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<N> Broadcast(float v) noexcept {
         PackFloat<N> r;
         #pragma clang loop unroll(full)
@@ -558,6 +699,7 @@ struct PackOps {
     }
     // float.min
     template<size_t N>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<N> Min(PackFloat<N> const& a, PackFloat<N> const& b) noexcept {
         PackFloat<N> r;
         #pragma clang loop unroll(full)
@@ -566,6 +708,7 @@ struct PackOps {
     }
     // float.max
     template<size_t N>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<N> Max(PackFloat<N> const& a, PackFloat<N> const& b) noexcept {
         PackFloat<N> r;
         #pragma clang loop unroll(full)
@@ -574,6 +717,7 @@ struct PackOps {
     }
     // float.clamp
     template<size_t N>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<N> Clamp(PackFloat<N> const& a, PackFloat<N> const& min, PackFloat<N> const& max) noexcept {
         PackFloat<N> r;
         #pragma clang loop unroll(full)
@@ -583,6 +727,7 @@ struct PackOps {
     // float.shuffle
     // for 4
     template<size_t a, size_t b, size_t c, size_t d>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<4> Shuffle(PackFloat<4> const& reg) noexcept {
         return PackFloat<4> {
             reg.data[a],
@@ -593,6 +738,7 @@ struct PackOps {
     }
     // for 8
     template<size_t a, size_t b, size_t c, size_t d, size_t e, size_t f, size_t g, size_t h>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<8> Shuffle(PackFloat<8> const& reg) noexcept {
         return PackFloat<8> {
             reg.data[a],
@@ -607,6 +753,7 @@ struct PackOps {
     }
     // for 16
     template<size_t a, size_t b, size_t c, size_t d, size_t e, size_t f, size_t g, size_t h, size_t i, size_t j, size_t k, size_t l, size_t m, size_t n, size_t o, size_t p>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<16> Shuffle(PackFloat<16> const& reg) noexcept {
         return PackFloat<16> {
             reg.data[a],
@@ -630,6 +777,7 @@ struct PackOps {
     // float.blend
     // for 4
     template<size_t ab0, size_t ab1, size_t ab2, size_t ab3>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<4> Blend(PackFloat<4> const& zero_reg, PackFloat<4> const& one_reg) noexcept {
         return PackFloat<4> {
             ab0 == 0 ? zero_reg.data[0] : one_reg.data[0],
@@ -640,6 +788,7 @@ struct PackOps {
     }
     // for 8
     template<size_t ab0, size_t ab1, size_t ab2, size_t ab3, size_t ab4, size_t ab5, size_t ab6, size_t ab7>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<8> Blend(PackFloat<8> const& zero_reg, PackFloat<8> const& one_reg) noexcept {
         return PackFloat<8> {
             ab0 == 0 ? zero_reg.data[0] : one_reg.data[0],
@@ -655,6 +804,7 @@ struct PackOps {
     // for 16
     template<size_t ab0, size_t ab1, size_t ab2, size_t ab3, size_t ab4, size_t ab5, size_t ab6, size_t ab7,
              size_t ab8, size_t ab9, size_t ab10, size_t ab11, size_t ab12, size_t ab13, size_t ab14, size_t ab15>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<16> Blend(PackFloat<16> const& zero_reg, PackFloat<16> const& one_reg) noexcept {
         return PackFloat<16> {
             ab0 == 0 ? zero_reg.data[0] : one_reg.data[0],
@@ -677,6 +827,7 @@ struct PackOps {
     }
     // float.toInt
     template<size_t N>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackInt32<N> ToInt(PackFloat<N> const& x) noexcept {
         PackInt32<N> r;
         #pragma clang loop unroll(full)
@@ -685,6 +836,7 @@ struct PackOps {
     }
     // float.positiveFrac
     template<size_t N>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<N> PositiveFrac(PackFloat<N> const& x) noexcept {
         if constexpr (N == 4 && !kHasSSE4) {
             return {
@@ -703,9 +855,10 @@ struct PackOps {
     }
     // float.frac
     template<size_t N>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<N> Frac(PackFloat<N> const& x) noexcept {
         if constexpr (N == 4 && !kHasSSE4) {
-            auto r = PositiveFrac();
+            auto r = PositiveFrac(x);
             PackFloat<N> fix{
                 x[0] < 0 ? 1.0f : 0.0f,
                 x[1] < 0 ? 1.0f : 0.0f,
@@ -724,6 +877,7 @@ struct PackOps {
     }
     // float.reduceAdd
     template<size_t N>
+    QWQDSP_FORCE_INLINE
     static inline constexpr float ReduceAdd(PackFloat<N> const& x) noexcept {
         float sum = 0.0f;
         #pragma clang loop unroll(full)
@@ -732,6 +886,7 @@ struct PackOps {
     }
     // float.sqrt
     template<size_t N>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<N> Sqrt(PackFloat<N> const& x) noexcept {
         PackFloat<N> r;
         #pragma clang loop unroll(full)
@@ -740,16 +895,135 @@ struct PackOps {
     }
     // float.abs
     template<size_t N>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<N> Abs(PackFloat<N> const& x) noexcept {
         PackFloat<N> r;
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) r.data[i] = std::abs(x.data[i]);
         return r;
     }
+    // float.tan
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Tan(PackFloat<N> const& x) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::tan(x.data[i]);
+        return r;
+    }
+    // float.asinh
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Asinh(PackFloat<N> const& x) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::asinh(x.data[i]);
+        return r;
+    }
+    // float.cosh
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Cosh(PackFloat<N> const& x) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::cosh(x.data[i]);
+        return r;
+    }
+    // float.log
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Log(PackFloat<N> const& x) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::log(x.data[i]);
+        return r;
+    }
+    // float.log10
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Log10(PackFloat<N> const& x) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::log10(x.data[i]);
+        return r;
+    }
+    // float.exp2
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Exp2(PackFloat<N> const& x) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::exp2(x.data[i]);
+        return r;
+    }
+    // float.exp
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Exp(PackFloat<N> const& x) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::exp(x.data[i]);
+        return r;
+    }
+    // float.pow
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Pow(PackFloat<N> const& x, PackFloat<N> const& y) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::pow(x.data[i], y.data[i]);
+        return r;
+    }
+    // select
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Select(PackBool<N> const& mask, PackFloat<N> const& true_val, PackFloat<N> const& false_val) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = mask.data[i] ? true_val.data[i] : false_val.data[i];
+        return r;
+    }
+    // lerp
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Lerp(PackFloat<N> const& x, PackFloat<N> const& y, PackFloat<N> const& t) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = x.data[i] + (y.data[i] - x.data[i]) * t.data[i];
+        return r;
+    }
+    // lerp scalar
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Lerp(PackFloat<N> const& x, PackFloat<N> const& y, float t) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = x.data[i] + (y.data[i] - x.data[i]) * t;
+        return r;
+    }
+    // float.Cos
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Cos(PackFloat<N> const& x) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::cos(x.data[i]);
+        return r;
+    }
+    // float.Sin
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Sin(PackFloat<N> const& x) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::sin(x.data[i]);
+        return r;
+    }
 
     // -------------------- pack int32 --------------------
     // int.toFloat
     template<size_t N>
+    QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<N> ToFloat(PackInt32<N> const& x) noexcept {
         PackFloat<N> r;
         #pragma clang loop unroll(full)
@@ -757,4 +1031,10 @@ struct PackOps {
         return r;
     }
 };
+
+template<size_t N>
+using PackFloatCRef = PackFloat<N> const&;
+
+template<size_t N>
+using PackInt32CRef = PackInt32<N>&;
 }

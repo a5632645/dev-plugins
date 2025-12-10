@@ -1,19 +1,20 @@
 #pragma once
+#include "simd_pack.hpp"
 
 namespace qwqdsp_simd_element {
-template<class SIMD_TYPE>
-class AlgebraicWaveshaperSimd {
+template<size_t N>
+class AlgebraicWaveshaper {
 public:
-    static inline SIMD_TYPE Naive(SIMD_TYPE x) noexcept {
-        return x / SIMD_TYPE::Sqrt(SIMD_TYPE::FromSingle(1) + x*x);
+    static inline PackFloat<N> Naive(PackFloatCRef<N> x) noexcept {
+        return x / PackOps::Sqrt(1 + x*x);
     }
 
     /**
      * @note latency = 0.5 samples
      */
-    SIMD_TYPE ADAA(SIMD_TYPE x) noexcept {
+    PackFloat<N> ADAA(PackFloatCRef<N> x) noexcept {
         auto up = x + xn1_;
-        auto F_x = SIMD_TYPE::Sqrt(SIMD_TYPE::FromSingle(1) + x*x);
+        auto F_x = PackOps::Sqrt(1 + x*x);
         auto down = F_x + F_xn1_;
         xn1_ = x;
         F_xn1_ = F_x;
@@ -23,11 +24,11 @@ public:
     /**
      * @note latency = 1 samples
      */
-    SIMD_TYPE ADAA_MV(SIMD_TYPE x) noexcept {
-        auto F12 = SIMD_TYPE::Sqrt(SIMD_TYPE::FromSingle(1) + X2(SIMD_TYPE::FromSingle(0.5f) * (x + xn1_)));
-        auto F1 = SIMD_TYPE::Sqrt(SIMD_TYPE::FromSingle(1) + X2(xn1_));
+    PackFloat<N> ADAA_MV(PackFloatCRef<N> x) noexcept {
+        auto F12 = PackOps::Sqrt(1 + X2(0.5f * (x + xn1_)));
+        auto F1 = PackOps::Sqrt(1 + X2(xn1_));
         auto F32 = F_xn2_;
-        auto y = SIMD_TYPE::FromSingle(0.25f) * ((x + SIMD_TYPE::FromSingle(3) * xn1_) / (F12 + F1) + (SIMD_TYPE::FromSingle(3) * xn1_ + xn2_) / (F1 + F32));
+        auto y = 0.25f * ((x + 3 * xn1_) / (F12 + F1) + (3 * xn1_ + xn2_) / (F1 + F32));
         xn2_ = xn1_;
         xn1_ = x;
         F_xn2_ = F12;
@@ -37,29 +38,29 @@ public:
     /**
      * @note latency >= 1 samples
      */
-    SIMD_TYPE ADAA_MV_Compensation(SIMD_TYPE x) noexcept {
+    PackFloat<N> ADAA_MV_Compensation(PackFloatCRef<N> x) noexcept {
         constexpr auto kA = 0.171572875f;
         x = ADAA_MV(x);
-        y_ = x + SIMD_TYPE::FromSingle(kA) * (x - y_);
+        y_ = x + kA * (x - y_);
         return y_;
     }
 
     void Reset() noexcept {
-        xn1_ = SIMD_TYPE{};
-        xn2_ = SIMD_TYPE{};
-        F_xn1_ = SIMD_TYPE::FromSingle(1);
-        F_xn2_ = SIMD_TYPE::FromSingle(1);
-        y_ = SIMD_TYPE{};
+        xn1_.Broadcast(0);
+        xn2_.Broadcast(0);
+        F_xn1_.Broadcast(1);
+        F_xn2_.Broadcast(1);
+        y_.Broadcast(0);
     }
 private:
-    static inline constexpr SIMD_TYPE X2(SIMD_TYPE x) noexcept {
+    static inline constexpr PackFloat<N> X2(PackFloatCRef<N> x) noexcept {
         return x * x;
     }
 
-    SIMD_TYPE xn1_{};
-    SIMD_TYPE F_xn1_{1};
-    SIMD_TYPE xn2_{};
-    SIMD_TYPE F_xn2_{1};
-    SIMD_TYPE y_{};
+    PackFloat<N> xn1_{};
+    PackFloat<N> F_xn1_{1};
+    PackFloat<N> xn2_{};
+    PackFloat<N> F_xn2_{1};
+    PackFloat<N> y_{};
 };
 }

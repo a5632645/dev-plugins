@@ -3,7 +3,7 @@
 
 class AudioPluginAudioProcessor;
 
-namespace widget {
+namespace green_vocoder::widget {
 
 class Ensemble : public juce::Component {
 public:

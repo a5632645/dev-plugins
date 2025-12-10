@@ -4,33 +4,29 @@
 #include <cassert>
 #include <numbers>
 
-namespace dsp {
+namespace green_vocoder::dsp {
 PitchShifter::PitchShifter() {
     constexpr float pi = std::numbers::pi_v<float>;
-    for (int i = 0; i < kNumDelay; ++i) {
-        window_[i] = 0.5f * (1.0f - std::cos(2.0f * pi * i / (kNumDelay - 1.0f)));
+    for (size_t i = 0; i < kNumDelay; ++i) {
+        window_[i] = 0.5f * (1.0f - std::cos(2.0f * pi * static_cast<float>(i) / (kNumDelay - 0.0f)));
     }
 }
 
-void PitchShifter::Process(std::span<float> block) {
-    for (float& s : block) {
-        s = ProcessSingle(s);
+void PitchShifter::Process(std::span<qwqdsp_simd_element::PackFloat<2>> block) {
+    for (auto& s : block) {
+        delay_[wpos_] = s;
+        auto out = GetDelay(delay_pos_);
+        out += GetDelay(delay_pos_ + kNumDelay / 2.0f);
+        s = out;
+        delay_pos_ += phase_inc_;
+        if (delay_pos_ >= kNumDelay) {
+            delay_pos_ -= kNumDelay;
+        }
+        if (delay_pos_ < 0) {
+            delay_pos_ += kNumDelay;
+        }
+        wpos_ = (wpos_ + 1) & kDelayMask;
     }
-}
-
-float PitchShifter::ProcessSingle(float x) {
-    delay_[wpos_] = x;
-    float out = GetDelay1(delay_pos_);
-    out += GetDelay1(delay_pos_ + kNumDelay / 2.0f);
-    delay_pos_ += phase_inc_;
-    if (delay_pos_ >= kNumDelay) {
-        delay_pos_ -= kNumDelay;
-    }
-    if (delay_pos_ < 0) {
-        delay_pos_ += kNumDelay;
-    }
-    wpos_ = (wpos_ + 1) & kDelayMask;
-    return out;
 }
 
 void PitchShifter::SetPitchShift(float pitch) {
@@ -38,15 +34,15 @@ void PitchShifter::SetPitchShift(float pitch) {
     phase_inc_ = 1.0f - a;
 }
 
-float PitchShifter::GetDelay1(float delay) {
-    float rpos = wpos_ - delay;
-    int irpos = static_cast<int>(rpos) & kDelayMask;
-    int inext = (irpos + 1) & kDelayMask;
-    float frac = rpos - static_cast<int>(rpos);
-    float v = std::lerp(delay_[irpos], delay_[inext], frac);
+qwqdsp_simd_element::PackFloat<2> PitchShifter::GetDelay(float delay) {
+    float rpos = static_cast<float>(wpos_) - delay;
+    size_t irpos = static_cast<size_t>(rpos) & kDelayMask;
+    size_t inext = (irpos + 1) & kDelayMask;
+    float frac = rpos - std::floor(rpos);
+    auto v = qwqdsp_simd_element::PackOps::Lerp(delay_[irpos], delay_[inext], frac);
 
-    int iwrpos = static_cast<int>(delay) & kDelayMask;
-    int iwnext = (iwrpos + 1) & kDelayMask;
+    size_t iwrpos = static_cast<size_t>(delay) & kDelayMask;
+    size_t iwnext = (iwrpos + 1) & kDelayMask;
     float w = std::lerp(window_[iwrpos], window_[iwnext], frac);
     return v * w;
 }

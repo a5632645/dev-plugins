@@ -50,6 +50,17 @@ struct RBJ {
         a2 *= inva0;
     }
 
+    [[nodiscard]]
+    BiquadCoeff Dicimate(int dicimate) noexcept {
+        if (dicimate == 1) {
+            return kBiquadPassthrough;
+        }
+        else {
+            Lowpass(std::numbers::pi_v<float> / dicimate, std::numbers::sqrt2_v<float> / 2);
+            return ToBiquadCoeff();
+        }
+    }
+
     void Highpass(float w, float Q) noexcept {
         auto a = std::sin(w) / (2 * Q);
         auto cosw = std::cos(w);

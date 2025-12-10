@@ -3,7 +3,7 @@
 #include <numbers>
 #include <string>
 
-namespace widget {
+namespace green_vocoder::widget {
 
 BurgLPC::BurgLPC(AudioPluginAudioProcessor& processor)
 : processor_(processor) {
@@ -21,22 +21,50 @@ BurgLPC::BurgLPC(AudioPluginAudioProcessor& processor)
     addAndMakeVisible(attack_);
     release_.BindParam(apvts, id::kLPCGainRelease);
     addAndMakeVisible(release_);
+
+    block_size_.BindParam(apvts, id::kStftSize);
+    addChildComponent(block_size_);
+
+    MakeGui();
 }
 
 void BurgLPC::resized() {
     auto b = getLocalBounds();
-    auto top = b.removeFromTop(65);
-    forget_.setBounds(top.removeFromLeft(50));
-    smear_.setBounds(top.removeFromLeft(50));
-    dicimate_.setBounds(top.removeFromLeft(50));
-    order_.setBounds(top.removeFromLeft(50));
-    attack_.setBounds(top.removeFromLeft(50));
-    release_.setBounds(top.removeFromLeft(50));
+    if (!block_mode_) {
+        auto top = b.removeFromTop(65);
+        forget_.setBounds(top.removeFromLeft(50));
+        smear_.setBounds(top.removeFromLeft(50));
+        dicimate_.setBounds(top.removeFromLeft(50));
+        order_.setBounds(top.removeFromLeft(50));
+        attack_.setBounds(top.removeFromLeft(50));
+        release_.setBounds(top.removeFromLeft(50));
+    }
+    else {
+        auto top = b.removeFromLeft(100);
+        block_size_.setBounds(top.removeFromTop(30));
+    }
+}
+
+void BurgLPC::SetBlockMode(bool block_mode) {
+    block_mode_ = block_mode;
+    MakeGui();
+}
+
+void BurgLPC::MakeGui() {
+    forget_.setVisible(!block_mode_);
+    smear_.setVisible(!block_mode_);
+    dicimate_.setVisible(!block_mode_);
+    order_.setVisible(!block_mode_);
+    attack_.setVisible(!block_mode_);
+    release_.setVisible(!block_mode_);
+
+    block_size_.setVisible(block_mode_);
+    resized();
 }
 
 void BurgLPC::paint(juce::Graphics& g) {
     auto bb = getLocalBounds();
-    bb.removeFromTop(release_.getBottom());
+    bb.removeFromTop(65);
     g.setColour(ui::black_bg);
     g.fillRect(bb);
     auto current_font = g.getCurrentFont();
@@ -107,12 +135,19 @@ void BurgLPC::paint(juce::Graphics& g) {
     }
 
     // lattice to tf
-    std::array<float, dsp::BurgLPC::kNumPoles> lattice_buff;
-    std::array<float, dsp::BurgLPC::kNumPoles + 1> upgoing{1};
-    std::array<float, dsp::BurgLPC::kNumPoles + 1> downgoing{1};
+    std::array<float, dsp::LeakyBurgLPC::kNumPoles> lattice_buff;
+    std::array<float, dsp::LeakyBurgLPC::kNumPoles + 1> upgoing{1};
+    std::array<float, dsp::LeakyBurgLPC::kNumPoles + 1> downgoing{1};
 
-    processor_.burg_lpc_.CopyLatticeCoeffient(lattice_buff);
-    size_t order = processor_.burg_lpc_.GetOrder();
+    size_t order;
+    if (block_mode_) {
+        processor_.block_burg_lpc_.CopyLatticeCoeffient(lattice_buff);
+        order = processor_.block_burg_lpc_.GetOrder();
+    }
+    else {
+        processor_.burg_lpc_.CopyLatticeCoeffient(lattice_buff);
+        order = processor_.burg_lpc_.GetOrder();
+    }
 
     for (size_t kidx = 0; kidx < order; ++kidx) {
         for (size_t i = kidx + 1; i != 0; --i) {

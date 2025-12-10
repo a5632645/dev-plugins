@@ -1,11 +1,11 @@
 #include "vocoder.hpp"
 #include "burg_lpc.hpp"
-#include "rls_lpc.hpp"
 #include "channel_vocoder.hpp"
 #include "stft_vocoder.hpp"
+#include "mfcc_vocoder.hpp"
 #include "PluginProcessor.h"
 
-namespace widget {
+namespace green_vocoder::widget {
 Vocoder::Vocoder(AudioPluginAudioProcessor& p) {
     auto& apvts = *p.value_tree_;
 
@@ -19,13 +19,13 @@ Vocoder::Vocoder(AudioPluginAudioProcessor& p) {
     addAndMakeVisible(vocoder_type_);
 
     burg_ = std::make_unique<widget::BurgLPC>(p);
-    rls_ = std::make_unique<widget::RLSLPC>(p);
     channel_ = std::make_unique<widget::ChannelVocoder>(p);
     stft_ = std::make_unique<widget::STFTVocoder>(p);
+    mfcc_ = std::make_unique<widget::MFCCVocoder>(p);
     addChildComponent(burg_.get());
-    addChildComponent(rls_.get());
     addChildComponent(channel_.get());
     addChildComponent(stft_.get());
+    addChildComponent(mfcc_.get());
 
     comboBoxChanged(&vocoder_type_);
     startTimerHz(30);
@@ -34,9 +34,9 @@ Vocoder::Vocoder(AudioPluginAudioProcessor& p) {
 Vocoder::~Vocoder() {
     current_vocoder_widget_ = nullptr;
     burg_ = nullptr;
-    rls_ = nullptr;
     channel_ = nullptr;
     stft_ = nullptr;
+    mfcc_ = nullptr;
 }
 
 void Vocoder::resized() {
@@ -49,9 +49,9 @@ void Vocoder::resized() {
     vocoder_type_.setBounds(top);
 
     burg_->setBounds(b);
-    rls_->setBounds(b);
     channel_->setBounds(b);
     stft_->setBounds(b);
+    mfcc_->setBounds(b);
 }
 
 void Vocoder::comboBoxChanged(juce::ComboBox* box) {
@@ -60,20 +60,23 @@ void Vocoder::comboBoxChanged(juce::ComboBox* box) {
             current_vocoder_widget_->setVisible(false);
         }
 
-        switch (static_cast<eVocoderType>(vocoder_type_.getSelectedItemIndex())) {
-            case eVocoderType_BurgLPC:
+        auto type = static_cast<eVocoderType>(vocoder_type_.getSelectedItemIndex());
+        switch (type) {
+            case eVocoderType_LeakyBurgLPC:
+            case eVocoderType_BlockBurgLPC:
                 current_vocoder_widget_ = burg_.get();
+                static_cast<widget::BurgLPC*>(current_vocoder_widget_)->SetBlockMode(type == eVocoderType_BlockBurgLPC);
                 break;
             case eVocoderType_STFTVocoder:
                 current_vocoder_widget_ = stft_.get();
                 break;
+            case eVocoderType_MFCCVocoder:
+                current_vocoder_widget_ = mfcc_.get();
+                break;
             case eVocoderType_ChannelVocoder:
                 current_vocoder_widget_ = channel_.get();
                 break;
-            case eVocoderType_RLSLPC:
-                current_vocoder_widget_ = rls_.get();
-                break;
-            case eVocoderType_NumVocoderTypes:
+            default:
                 jassertfalse;
                 break;
         }

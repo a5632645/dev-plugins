@@ -3,7 +3,7 @@
 
 class AudioPluginAudioProcessor;
 
-namespace widget {
+namespace green_vocoder::widget {
 class Tracking : public juce::Component {
 public:
     Tracking(AudioPluginAudioProcessor& p);

@@ -3,7 +3,7 @@
 
 class AudioPluginAudioProcessor;
 
-namespace widget {
+namespace green_vocoder::widget {
 class PreFx : public juce::Component {
 public:
     PreFx(AudioPluginAudioProcessor& p);

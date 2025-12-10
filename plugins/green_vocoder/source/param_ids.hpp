@@ -1,10 +1,11 @@
 #pragma once
-#include <array>
+#include <juce_core/juce_core.h>
 
 enum eVocoderType {
-    eVocoderType_BurgLPC = 0,
-    eVocoderType_RLSLPC,
+    eVocoderType_LeakyBurgLPC = 0,
+    eVocoderType_BlockBurgLPC,
     eVocoderType_STFTVocoder,
+    eVocoderType_MFCCVocoder,
     eVocoderType_ChannelVocoder,
     eVocoderType_NumVocoderTypes
 };
@@ -16,13 +17,25 @@ enum eChannelVocoderMap {
     eChannelVocoderMap_NumEnums
 };
 
+static const juce::StringArray kVocoderNames{
+    "Leaky Burg LPC",
+    "Block Burg LPC",
+    "STFT Vocoder",
+    "MFCC Vocoder",
+    "Channel Vocoder",
+};
+
+static const juce::StringArray kChannelVocoderMapNames{
+    "linear",
+    "mel",
+    "log"
+};
+
 namespace id {
 
 // --------------------------------------------------------------------------------
 // params
 // --------------------------------------------------------------------------------
-static constexpr auto kMainGain = "main_gain";
-static constexpr auto kSideGain = "side_gain";
 static constexpr auto kOutputgain = "output_gain";
 static constexpr auto kMainChannelConfig = "main_ch_config";
 static constexpr auto kSideChannelConfig = "side_ch_config";
@@ -37,7 +50,6 @@ static constexpr auto kEnableShifter = "shift_enable";
 static constexpr auto kForgetRate = "lpc_forget";
 static constexpr auto kLPCSmooth = "lpc_smooth";
 static constexpr auto kLPCOrder = "lpc_order";
-static constexpr auto kRLSLPCOrder = "lpc_order2";
 static constexpr auto kLPCGainAttack = "lpc_attack";
 static constexpr auto kLPCGainRelease = "lpc_release";
 static constexpr auto kLPCDicimate = "lpc_dicimate";
@@ -71,38 +83,5 @@ static constexpr auto kTrackingWaveform = "track_waveform";
 static constexpr auto kTrackingPwm = "track_pwm";
 static constexpr auto kTrackingNoise = "track_noise";
 static constexpr auto kTrackingGlide = "track_glide";
-
-// --------------------------------------------------------------------------------
-// gui others
-// --------------------------------------------------------------------------------
-static constexpr auto kFilterTitle = "filter_title";
-static constexpr auto kEnsembleTitle = "ensemble_title";
-static constexpr auto kRLSTitle = "rls_title";
-static constexpr auto kSliderMenuEnterValue = "sm_enter_value";
-
-namespace combbox {
-
-static constexpr auto kVocoderNames = kVocoderType;
-static constexpr std::array kVocoderNameIds {
-    "vn_burg",
-    "vn_rls",
-    "vn_stft",
-    "vn_channel",
-};
-static_assert(kVocoderNameIds.size() == eVocoderType_NumVocoderTypes);
-
-static constexpr auto kEnsembleModeNames = kEnsembleMode;
-static constexpr std::array kEnsembleModeNameIds {
-    "emn_sine",
-    "emn_noise"
-};
-
-static constexpr std::array kChannelVocoderMaps {
-    "cvm_linear",
-    "cvm_mel",
-    "cvm_log"
-};
-
-} // id::combbox
 
 } // id

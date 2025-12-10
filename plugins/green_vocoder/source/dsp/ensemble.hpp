@@ -1,10 +1,10 @@
 #pragma once
-#include <span>
 #include "qwqdsp/oscillator/smooth_noise.hpp"
-#include "qwqdsp/fx/delay_line.hpp"
+#include <qwqdsp/simd_element/delay_line.hpp>
+#include <qwqdsp/simd_element/simd_pack.hpp>
 #include "qwqdsp/filter/fast_set_iir_paralle.hpp"
 
-namespace dsp {
+namespace green_vocoder::dsp {
 
 class Ensemble {
 public:
@@ -26,8 +26,7 @@ public:
     void SetSperead(float spread);
     void SetMix(float mix);
     void SetMode(Mode mode);
-
-    void Process(std::span<float> block, std::span<float> right);
+    void Process(qwqdsp_simd_element::PackFloat<2>* main, size_t num_samples);
 private:
     void CalcCurrDelayLen();
 
@@ -44,8 +43,8 @@ private:
     float current_delay_len_{};
     float gain_{};
     
-    qwqdsp_fx::DelayLine<qwqdsp_fx::DelayLineInterp::Lagrange3rd> delay_;
-    qwqdsp_oscillator::SmoothNoise noises_[kMaxVoices];
+    qwqdsp_simd_element::DelayLine<4, qwqdsp_simd_element::DelayLineInterp::Lagrange3rd> delay_;
+    qwqdsp_oscillator::SmoothNoise noises_[kMaxVoices / 2];
     qwqdsp_filter::FastSetIirParalle<qwqdsp_filter::fastset_coeff::Order2_1e7> delay_samples_smoother_;
 };
 

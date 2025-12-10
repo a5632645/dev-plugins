@@ -1,8 +1,8 @@
 #pragma once
-#include "qwqdsp/filter/onepole_tpt_shelf.hpp"
-#include "qwqdsp/convert.hpp"
+#include <qwqdsp/simd_element/one_pole_tpt_shelf.hpp>
+#include <qwqdsp/convert.hpp>
 
-namespace dsp {
+namespace green_vocoder::dsp {
 class TiltFilter {
 public:
     void Reset() noexcept {
@@ -20,7 +20,7 @@ public:
         state4_.Set(qwqdsp::convert::Freq2W(18000.0f, fs), g);
     }
 
-    float Tick(float x) noexcept {
+    qwqdsp_simd_element::PackFloat<2> Tick(qwqdsp_simd_element::PackFloat<2> x) noexcept {
         x = state1_.TickTiltshelf(x);
         x = state2_.TickTiltshelf(x);
         x = state3_.TickTiltshelf(x);
@@ -28,10 +28,9 @@ public:
         return x;
     }
 private:
-    using OnepoleTilt = qwqdsp_filter::OnepoleTPTShelf;
-    OnepoleTilt state1_;
-    OnepoleTilt state2_;
-    OnepoleTilt state3_;
-    OnepoleTilt state4_;
+    qwqdsp_simd_element::OnepoleTPTShelf<2> state1_;
+    qwqdsp_simd_element::OnepoleTPTShelf<2> state2_;
+    qwqdsp_simd_element::OnepoleTPTShelf<2> state3_;
+    qwqdsp_simd_element::OnepoleTPTShelf<2> state4_;
 };
 }

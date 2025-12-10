@@ -38,6 +38,14 @@ public:
         a1_[ch] = c.a1;
         a2_[ch] = c.a2;
     }
+
+    void SetAll(qwqdsp_filter::BiquadCoeff const& c) noexcept {
+        b0_.Broadcast(c.b0);
+        b1_.Broadcast(c.b1);
+        b2_.Broadcast(c.b2);
+        a1_.Broadcast(c.a1);
+        a2_.Broadcast(c.a2);
+    }
 private:
     PackFloat<N> b0_{};
     PackFloat<N> b1_{};

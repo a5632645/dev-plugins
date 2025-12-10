@@ -30,6 +30,8 @@ target_sources(GreenVocoder
         ${PLUGIN_SOURCES}
 )
 set_target_properties(GreenVocoder PROPERTIES CXX_STANDARD 20)
+set_source_files_properties(dsp/channel_vocoder.cpp PROPERTIES COMPILE_OPTIONS ${PLUGIN_VEC4_COMPLIER_OPTION})
+set_source_files_properties(dsp/channel_vocoder.cpp PROPERTIES COMPILE_OPTIONS -O2)
 
 target_include_directories(GreenVocoder PRIVATE .)
 

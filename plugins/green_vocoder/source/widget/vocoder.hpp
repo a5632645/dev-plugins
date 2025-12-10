@@ -3,7 +3,7 @@
 
 class AudioPluginAudioProcessor;
 
-namespace widget {
+namespace green_vocoder::widget {
 class Vocoder : public juce::Component, private juce::Timer, private juce::ComboBox::Listener {
 public:
     Vocoder(AudioPluginAudioProcessor& p);
@@ -20,8 +20,8 @@ private:
 
     juce::Component* current_vocoder_widget_{};
     std::unique_ptr<juce::Component> burg_;
-    std::unique_ptr<juce::Component> rls_;
     std::unique_ptr<juce::Component> channel_;
     std::unique_ptr<juce::Component> stft_;
+    std::unique_ptr<juce::Component> mfcc_;
 };
 }
