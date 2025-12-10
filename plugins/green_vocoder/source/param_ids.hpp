@@ -77,6 +77,7 @@ static constexpr auto kChannelVocoderScale = "cv_scale";
 static constexpr auto kChannelVocoderCarryScale = "cv_carry_scale";
 static constexpr auto kChannelVocoderMap = "cv_map";
 static constexpr auto kChannelVocoderFlat = "cv_flat";
+static constexpr auto kChannelVocoderOrder = "cv_order";
 
 static constexpr auto kTrackingLow = "track_low";
 static constexpr auto kTrackingHigh = "track_high";

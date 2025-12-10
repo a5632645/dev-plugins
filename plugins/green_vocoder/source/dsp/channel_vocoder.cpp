@@ -30,14 +30,6 @@ void ChannelVocoder::SetFreqBegin(
 ) {
     freq_begin_ = begin;
     UpdateFilters();
-    if (begin < 100.0f) {
-        for (auto& f : main_filters_) {
-            f.Reset();
-        }
-        for (auto& f : side_filters_) {
-            f.Reset();
-        }
-    }
 }
 
 void ChannelVocoder::SetFreqEnd(
@@ -78,16 +70,15 @@ void ChannelVocoder::SetMap(
 ) {
     map_ = map;
     UpdateFilters();
-    for (auto& f : main_filters_) {
-        f.Reset();
-    }
-    for (auto& f : side_filters_) {
-        f.Reset();
-    }
 }
 
 void ChannelVocoder::SetFlat(bool flat) {
     flat_ = flat;
+    UpdateFilters();
+}
+
+void ChannelVocoder::SetHighOrder(bool high_order) {
+    high_order_ = high_order;
     UpdateFilters();
 }
 
@@ -164,32 +155,42 @@ void ChannelVocoder::UpdateFilters() {
 
 template<class AssignMap>
 void ChannelVocoder::_UpdateFilters() {
+    if (flat_) {
+        this->template _UpdateFilters2<AssignMap, true>();
+    }
+    else {
+        this->template _UpdateFilters2<AssignMap, false>();
+    }
+}
+
+template<class AssignMap, bool kFlat>
+void ChannelVocoder::_UpdateFilters2() {
     float pitch_begin = AssignMap::FromFreq(freq_begin_);
     float pitch_end = AssignMap::FromFreq(freq_end_);
     float pitch_interval = (pitch_end - pitch_begin) / static_cast<float>(num_bans_);
     float begin = qwqdsp::convert::Freq2W(freq_begin_, sample_rate_);
 
-    if (flat_) {
-        size_t filter_idx = 0;
-        auto const min_w = qwqdsp_simd_element::PackFloat<4>::vBroadcast(qwqdsp::convert::Freq2W(20.0f, sample_rate_));
-        auto const max_w = qwqdsp_simd_element::PackFloat<4>::vBroadcast(qwqdsp::convert::Freq2W(sample_rate_ / 2 - 100.0f, sample_rate_));
-        for (int i = 0; i < num_bans_; i += 4) {
-            qwqdsp_simd_element::PackFloat<4> end_omega{
-                pitch_begin + pitch_interval * (i + 1),
-                pitch_begin + pitch_interval * (i + 2),
-                pitch_begin + pitch_interval * (i + 3),
-                pitch_begin + pitch_interval * (i + 4)
-            };
-            end_omega = AssignMap::ToFreq(end_omega);
-            end_omega = std::numbers::pi_v<float> * 2.0f * end_omega / sample_rate_;
-            qwqdsp_simd_element::PackFloat<4> prev_omega{
-                begin,
-                end_omega[0],
-                end_omega[1],
-                end_omega[2]
-            };
-            begin = end_omega[3];
+    size_t filter_idx = 0;
+    auto const min_w = qwqdsp_simd_element::PackFloat<4>::vBroadcast(qwqdsp::convert::Freq2W(10.0f, sample_rate_));
+    auto const max_w = qwqdsp_simd_element::PackFloat<4>::vBroadcast(qwqdsp::convert::Freq2W(sample_rate_ / 2 - 100.0f, sample_rate_));
+    for (int i = 0; i < num_bans_; i += 4) {
+        qwqdsp_simd_element::PackFloat<4> end_omega{
+            pitch_begin + pitch_interval * (i + 1),
+            pitch_begin + pitch_interval * (i + 2),
+            pitch_begin + pitch_interval * (i + 3),
+            pitch_begin + pitch_interval * (i + 4)
+        };
+        end_omega = AssignMap::ToFreq(end_omega);
+        end_omega = std::numbers::pi_v<float> * 2.0f * end_omega / sample_rate_;
+        qwqdsp_simd_element::PackFloat<4> prev_omega{
+            begin,
+            end_omega[0],
+            end_omega[1],
+            end_omega[2]
+        };
+        begin = end_omega[3];
 
+        if constexpr (kFlat) {
             auto center = (prev_omega + end_omega) * 0.5f;
             auto half_bw = end_omega - center;
             auto main_half_bw = half_bw * scale_;
@@ -202,45 +203,49 @@ void ChannelVocoder::_UpdateFilters() {
             main_w2 = qwqdsp_simd_element::PackOps::Clamp(main_w2, min_w, max_w);
             side_w1 = qwqdsp_simd_element::PackOps::Clamp(side_w1, min_w, max_w);
             side_w2 = qwqdsp_simd_element::PackOps::Clamp(side_w2, min_w, max_w);
-            main_filters_[filter_idx].MakeBandpassFlat(main_w1, main_w2);
-            side_filters_[filter_idx].MakeBandpassFlat(side_w1, side_w2);
-            ++filter_idx;
+            if (high_order_) {
+                main_filters_[filter_idx].MakeBandpassFlat<true>(main_w1, main_w2);
+                side_filters_[filter_idx].MakeBandpassFlat<true>(side_w1, side_w2);
+            }
+            else {
+                main_filters_[filter_idx].MakeBandpassFlat<false>(main_w1, main_w2);
+                side_filters_[filter_idx].MakeBandpassFlat<false>(side_w1, side_w2);
+            }
         }
-        float g1 = scale_ < 1.0f ? 1.0f / scale_ : 1.0f;
-        float g2 = carry_scale_ < 1.0f ? 1.0f / carry_scale_ : carry_scale_;
-        gain_ = g1 * g2 * (num_bans_ > 8 ? 10.0f : 2.0f);
-    }
-    else {
-        size_t filter_idx = 0;
-        for (int i = 0; i < num_bans_; i += 4) {
-            qwqdsp_simd_element::PackFloat<4> end_omega{
-                pitch_begin + pitch_interval * (i + 1),
-                pitch_begin + pitch_interval * (i + 2),
-                pitch_begin + pitch_interval * (i + 3),
-                pitch_begin + pitch_interval * (i + 4)
-            };
-            end_omega = AssignMap::ToFreq(end_omega);
-            end_omega = std::numbers::pi_v<float> * 2.0f * end_omega / sample_rate_;
-            qwqdsp_simd_element::PackFloat<4> prev_omega{
-                begin,
-                end_omega[0],
-                end_omega[1],
-                end_omega[2]
-            };
-            begin = end_omega[3];
+        else {
             auto bw = end_omega - prev_omega;
             auto cutoff = qwqdsp_simd_element::PackOps::Sqrt(end_omega * prev_omega);
-            main_filters_[filter_idx].MakeBandpass(cutoff, bw * scale_);
-            side_filters_[filter_idx].MakeBandpass(cutoff, bw * carry_scale_);
-            ++filter_idx;
+            if (high_order_) {
+                main_filters_[filter_idx].MakeBandpass<true>(cutoff, bw * scale_);
+                side_filters_[filter_idx].MakeBandpass<true>(cutoff, bw * carry_scale_);
+            }
+            else {
+                main_filters_[filter_idx].MakeBandpass<false>(cutoff, bw * scale_);
+                side_filters_[filter_idx].MakeBandpass<false>(cutoff, bw * carry_scale_);
+            }
         }
-        float g1 = scale_ < 1.0f ? 1.0f / scale_ : 1.0f;
-        float g2 = carry_scale_ < 1.0f ? 1.0f / carry_scale_ : carry_scale_;
-        gain_ = g1 * g2 * (num_bans_ > 8 ? 10.0f : 2.0f);
+        ++filter_idx;
     }
+    float g1 = scale_ < 1.0f ? 1.0f / scale_ : 1.0f;
+    float g2 = carry_scale_ < 1.0f ? 1.0f / carry_scale_ : carry_scale_;
+    gain_ = g1 * g2 * (num_bans_ > 8 ? 10.0f : 2.0f);
 }
 
 void ChannelVocoder::ProcessBlock(
+    qwqdsp_simd_element::PackFloat<2>* main,
+    qwqdsp_simd_element::PackFloat<2>* side,
+    size_t num_samples
+) {
+    if (high_order_) {
+        this->template _ProcessBlock<true>(main, side, num_samples);
+    }
+    else {
+        this->template _ProcessBlock<false>(main, side, num_samples);
+    }
+}
+
+template<bool kHigherOrder>
+void ChannelVocoder::_ProcessBlock(
     qwqdsp_simd_element::PackFloat<2>* main,
     qwqdsp_simd_element::PackFloat<2>* side,
     size_t num_samples
@@ -257,8 +262,8 @@ void ChannelVocoder::ProcessBlock(
             main_r.Broadcast(main[sample_idx][1]);
             side_l.Broadcast(side[sample_idx][0]);
             side_r.Broadcast(side[sample_idx][1]);
-            main_filters_[filter_idx].Tick(main_l, main_r);
-            side_filters_[filter_idx].Tick(side_l, side_r);
+            main_filters_[filter_idx].Tick<kHigherOrder>(main_l, main_r);
+            side_filters_[filter_idx].Tick<kHigherOrder>(side_l, side_r);
             // envelope follower
             auto curr = main_peaks_[filter_idx];
             main_l = qwqdsp_simd_element::PackOps::Abs(main_l);

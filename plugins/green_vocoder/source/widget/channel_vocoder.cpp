@@ -26,6 +26,8 @@ ChannelVocoder::ChannelVocoder(AudioPluginAudioProcessor& p)
     addAndMakeVisible(map_);
     flat_.BindParam(apvts, id::kChannelVocoderFlat);
     addAndMakeVisible(flat_);
+    high_order_.BindParam(apvts, id::kChannelVocoderOrder);
+    addAndMakeVisible(high_order_);
 }
 
 void ChannelVocoder::resized() {
@@ -33,7 +35,10 @@ void ChannelVocoder::resized() {
     auto top = b.removeFromTop(65);
     attack_.setBounds(top.removeFromLeft(50));
     release_.setBounds(top.removeFromLeft(50));
-    nbands_.setBounds(top.removeFromLeft(50));
+    
+    auto block = top.removeFromLeft(50);
+    map_.setBounds(block.removeFromBottom(25));
+    nbands_.setBounds(block);
 
     auto f_bound = top.removeFromLeft(50);
     freq_begin_.setBounds(f_bound.removeFromTop(f_bound.getHeight() / 2));
@@ -43,7 +48,7 @@ void ChannelVocoder::resized() {
     carry_scale_.setBounds(top.removeFromLeft(50));
     {
         auto comb = top.removeFromLeft(150);
-        map_.setBounds(comb.removeFromTop(30));
+        high_order_.setBounds(comb.removeFromTop(30));
         flat_.setBounds(comb);
     }
 }
@@ -55,8 +60,6 @@ void ChannelVocoder::paint(juce::Graphics& g) {
 
     g.setColour(ui::black_bg);
     g.fillRect(bb);
-    // g.setColour(juce::Colours::white);
-    // g.drawRect(bb);
 
     constexpr float up = 0.0f;
     constexpr float down = -60.0f;

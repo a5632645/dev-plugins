@@ -22,6 +22,7 @@ private:
     ui::Dial carry_scale_{"carry_scale"};
     ui::FlatCombobox map_;
     ui::Switch flat_{"flat"};
+    ui::Switch high_order_{"4order", "2order"};
 };
 
 }

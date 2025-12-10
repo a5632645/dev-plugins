@@ -115,6 +115,18 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
     {
+        auto p = std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{id::kChannelVocoderOrder, 1},
+            id::kChannelVocoderOrder,
+            true
+        );
+        paramListeners_.Add(p, [this](bool b) {
+            juce::ScopedLock _{ getCallbackLock() };
+            channel_vocoder_.SetHighOrder(b);
+        });
+        layout.add(std::move(p));
+    }
+    {
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kChannelVocoderAttack, 1},
             id::kChannelVocoderAttack,

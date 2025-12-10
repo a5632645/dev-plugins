@@ -60,18 +60,29 @@ public:
     }
 
     // From https://github.com/ZL-Audio/ZLEqualizer
+    template<bool kHigherOrder>
     void MakeBandpass(qwqdsp_simd_element::PackFloatCRef<4> omega, qwqdsp_simd_element::PackFloatCRef<4> bw) {
         const auto Q = omega / bw;
         const auto halfbw = qwqdsp_simd_element::PackOps::Asinh(0.5f / Q) / std::numbers::ln2_v<float>;
         const auto w = omega / qwqdsp_simd_element::PackOps::Exp2(halfbw);
-        const auto g = DbToGain(-6 / static_cast<float>(kNumCascade * 2));
-        const auto _q = std::sqrt(1 - g * g) * w * omega / g / (omega * omega - w * w);
-        gain_ = 1/ _q;
-        for (auto& f : svf_) {
-            f.MakeBandpass(omega, _q);
+        if constexpr (kHigherOrder) {
+            const auto g = DbToGain(-6 / static_cast<float>(kNumCascade * 2));
+            const auto _q = std::sqrt(1 - g * g) * w * omega / g / (omega * omega - w * w);
+            gain_ = 1/ _q;
+            svf_[0].MakeBandpass(omega, _q);
+            svf_[1].MakeBandpass(omega, _q);
+        }
+        else {
+            const auto g = DbToGain(-6 / static_cast<float>(kNumCascade));
+            const auto _q = std::sqrt(1 - g * g) * w * omega / g / (omega * omega - w * w);
+            gain_ = 1/ _q;
+            for (size_t i = 0; i < kNumCascade / 2; ++i) {
+                svf_[i].MakeBandpass(omega, _q);
+            }
         }
     }
 
+    template<bool kHigherOrder>
     void MakeBandpassFlat(
         qwqdsp_simd_element::PackFloatCRef<4> w1,
         qwqdsp_simd_element::PackFloatCRef<4> w2
@@ -79,39 +90,54 @@ public:
         auto f1 = qwqdsp_simd_element::PackOps::Tan(w1 / 2);
         auto f2 = qwqdsp_simd_element::PackOps::Tan(w2 / 2);
         auto f0 = qwqdsp_simd_element::PackOps::Sqrt(f1 * f2);
-        // this Q only works for a order4 bandpass to create -6dB gain
-        // auto Q = f0 / qwqdsp_simd_element::PackOps::Abs(f2 - f1);
         auto w = qwqdsp_simd_element::PackOps::Atan(f0) * 2;
-
-        // power of a order2 bandpass
-        [[maybe_unused]] constexpr auto power = 0.5f;
-        // sqrt it then we cascade 4 will make it at -6dB at gain response
-        // using fomula of a power function of a normalized bandpass
-        // Notice!: w and Q are all analog variable, w=w/wc
-        //
-        //                           w^2/Q^2                w^2
-        // power(w) = |H(s)|^2 = ------------------ = -------------------
-        //                       1-2w^2+w^2/Q^2+w^4    Q^2(w^2-1)^2+w^2
-        //
-        // to let f1(digital is w1)'s power match the power we want
-        // take w = f1/f0 and solve Q
-        constexpr auto half_power = std::numbers::sqrt2_v<float> / 2;
-        auto w_pow_2 = qwqdsp_simd_element::PackOps::X2(f1 / f0);
-        auto Q = qwqdsp_simd_element::PackOps::Sqrt(w_pow_2 / half_power - w_pow_2) / qwqdsp_simd_element::PackOps::Abs(w_pow_2 - 1.0f);
-
-        gain_ = 1.0f / Q;
-        for (auto& f : svf_) {
-            f.MakeBandpass(w, Q);
-            // this will keep the spectrum volume
-            // the time-domain volume will change a bit
+        if (!kHigherOrder) {
+            // this Q only works for a order4 bandpass to create -6dB gain
+            auto Q = f0 / qwqdsp_simd_element::PackOps::Abs(f2 - f1);
+            svf_[0].MakeBandpass(w, Q);
+            svf_[1].MakeBandpass(w, Q);
+            gain_ = 1.0f / Q;
         }
+        else {
+            // power of a order2 bandpass
+            [[maybe_unused]] constexpr auto power = 0.5f;
+            // sqrt it then we cascade 4 will make it at -6dB at gain response
+            // using fomula of a power function of a normalized bandpass
+            // Notice!: w and Q are all analog variable, w=w/wc
+            //
+            //                           w^2/Q^2                w^2
+            // power(w) = |H(s)|^2 = ------------------ = -------------------
+            //                       1-2w^2+w^2/Q^2+w^4    Q^2(w^2-1)^2+w^2
+            //
+            // to let f1(digital is w1)'s power match the power we want
+            // take w = f1/f0 and solve Q
+            constexpr auto half_power = std::numbers::sqrt2_v<float> / 2;
+            auto w_pow_2 = qwqdsp_simd_element::PackOps::X2(f1 / f0);
+            auto Q = qwqdsp_simd_element::PackOps::Sqrt(w_pow_2 / half_power - w_pow_2) / qwqdsp_simd_element::PackOps::Abs(w_pow_2 - 1.0f);
+            for (auto& f : svf_) {
+                f.MakeBandpass(w, Q);
+            }
+            gain_ = 1.0f / Q;
+        }
+
     }
 
+    template<bool kHigherOrder>
     void Tick(qwqdsp_simd_element::PackFloat<4>& l, qwqdsp_simd_element::PackFloat<4>& r) {
-        for (auto& f : svf_) {
+        if constexpr (kHigherOrder) {
+            for (auto& f : svf_) {
+                l *= gain_;
+                r *= gain_;
+                f.Tick(l, r);
+            }
+        }
+        else {
             l *= gain_;
             r *= gain_;
-            f.Tick(l, r);
+            svf_[0].Tick(l, r);
+            l *= gain_;
+            r *= gain_;
+            svf_[1].Tick(l, r);
         }
     }
 
@@ -147,6 +173,7 @@ public:
     void SetCarryScale(float scale);
     void SetMap(eChannelVocoderMap map);
     void SetFlat(bool flat);
+    void SetHighOrder(bool high_order);
 
     int GetNumBins() const { return num_bans_; }
     qwqdsp_simd_element::PackFloat<2> GetBinPeak(size_t idx) const {
@@ -155,9 +182,21 @@ public:
     }
 private:
     void UpdateFilters();
+
     template<class AssignMap>
     void _UpdateFilters();
 
+    template<class AssignMap, bool kFlat>
+    void _UpdateFilters2();
+
+    template<bool kHigherOrder>
+    void _ProcessBlock(
+        qwqdsp_simd_element::PackFloat<2>* main,
+        qwqdsp_simd_element::PackFloat<2>* side,
+        size_t num_samples
+    );
+
+    bool high_order_{};
     bool flat_{};
     float sample_rate_{};
     float freq_begin_{ 40.0f };
