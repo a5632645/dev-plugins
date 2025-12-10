@@ -21,6 +21,7 @@ private:
     ui::Dial scale_{"scale"};
     ui::Dial carry_scale_{"carry_scale"};
     ui::FlatCombobox map_;
+    ui::Switch flat_{"flat"};
 };
 
 }

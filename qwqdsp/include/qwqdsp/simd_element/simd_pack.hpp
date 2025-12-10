@@ -911,6 +911,15 @@ struct PackOps {
         for (size_t i = 0; i < N; ++i) r.data[i] = std::tan(x.data[i]);
         return r;
     }
+    // float.atan
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Atan(PackFloat<N> const& x) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::atan(x.data[i]);
+        return r;
+    }
     // float.asinh
     template<size_t N>
     QWQDSP_FORCE_INLINE
@@ -1018,6 +1027,12 @@ struct PackOps {
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) r.data[i] = std::sin(x.data[i]);
         return r;
+    }
+    // float.X2
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> X2(PackFloat<N> const& x) noexcept {
+        return x * x;
     }
 
     // -------------------- pack int32 --------------------

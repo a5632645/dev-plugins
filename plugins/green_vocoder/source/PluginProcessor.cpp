@@ -25,7 +25,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kPreTilt, 1},
             id::kPreTilt,
-            0.0f, 40.0f, 20.0f
+            0.0f, 20.0f, 15.0f
         );
         paramListeners_.Add(p, [this](float db) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -102,6 +102,18 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
     }
 
     // channel vocoder
+    {
+        auto p = std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{id::kChannelVocoderFlat, 1},
+            id::kChannelVocoderFlat,
+            true
+        );
+        paramListeners_.Add(p, [this](bool b) {
+            juce::ScopedLock _{ getCallbackLock() };
+            channel_vocoder_.SetFlat(b);
+        });
+        layout.add(std::move(p));
+    }
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kChannelVocoderAttack, 1},
@@ -225,6 +237,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
             burg_lpc_.SetSmooth(l);
+            block_burg_lpc_.SetSmear(l);
         });
         layout.add(std::move(p));
     }
@@ -238,6 +251,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
             burg_lpc_.SetGainAttack(l);
+            block_burg_lpc_.SetAttack(l);
         });
         layout.add(std::move(p));
     }
@@ -251,6 +265,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
             burg_lpc_.SetGainRelease(l);
+            block_burg_lpc_.SetRelease(l);
         });
         layout.add(std::move(p));
     }

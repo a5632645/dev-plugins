@@ -51,7 +51,7 @@ struct RBJ {
     }
 
     [[nodiscard]]
-    BiquadCoeff Dicimate(int dicimate) noexcept {
+    BiquadCoeff Dicimate(size_t dicimate) noexcept {
         if (dicimate == 1) {
             return kBiquadPassthrough;
         }
@@ -113,6 +113,15 @@ struct RBJ {
         b2 *= inva0;
         a1 *= inva0;
         a2 *= inva0;
+    }
+
+    void BandpassKeep0Precise(float w1, float w2) noexcept {
+        float f1 = std::tan(w1 / 2);
+        float f2 = std::tan(w2 / 2);
+        float f0 = std::sqrt(f1 * f2);
+        float Q = f0 / std::abs(f1 - f2);
+        float w = 2 * std::atan(f0);
+        BandpassKeep0(w, Q);
     }
 
     void Peak(float w, float Q, float g) noexcept {

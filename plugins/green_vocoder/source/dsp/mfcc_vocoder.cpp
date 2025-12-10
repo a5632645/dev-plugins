@@ -84,6 +84,7 @@ void MFCCVocoder::Process(
 
         // -------------------- left --------------------
         // do fft
+        float const addition_gain = static_cast<float>(num_mfcc_) / 8.0f;
         fft_.fft(temp_main_.data(), real_main_.data(), imag_main_.data());
         fft_.fft(temp_side_.data(), real_side_.data(), imag_side_.data());
         // spectral processing
@@ -95,7 +96,7 @@ void MFCCVocoder::Process(
                 sum += std::sqrt(real_main_[i] * real_main_[i] + imag_main_[i] * imag_main_[i]);
             }
 
-            float gain = sum * window_gain_;
+            float gain = sum * window_gain_ * addition_gain;
             if (gain > gains_[mcff_idx]) {
                 gains_[mcff_idx] = attck_ * gains_[mcff_idx] + (1 - attck_) * gain;
             }
@@ -121,7 +122,7 @@ void MFCCVocoder::Process(
                 sum += std::sqrt(real_main_[i] * real_main_[i] + imag_main_[i] * imag_main_[i]);
             }
 
-            float gain = sum * window_gain_;
+            float gain = sum * window_gain_ * addition_gain;
             if (gain > gains2_[mcff_idx]) {
                 gains2_[mcff_idx] = attck_ * gains2_[mcff_idx] + (1 - attck_) * gain;
             }

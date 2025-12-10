@@ -10,27 +10,22 @@ ChannelVocoder::ChannelVocoder(AudioPluginAudioProcessor& p)
 
     attack_.BindParam(apvts, id::kChannelVocoderAttack);
     addAndMakeVisible(attack_);
-
     release_.BindParam(apvts, id::kChannelVocoderRelease);
     addAndMakeVisible(release_);
-
     nbands_.BindParam(apvts, id::kChannelVocoderNBands);
     addAndMakeVisible(nbands_);
-
     freq_begin_.BindParam(apvts, id::kChannelVocoderFreqBegin);
     addAndMakeVisible(freq_begin_);
-
     freq_end_.BindParam(apvts, id::kChannelVocoderFreqEnd);
     addAndMakeVisible(freq_end_);
-
     scale_.BindParam(apvts, id::kChannelVocoderScale);
     addAndMakeVisible(scale_);
-
     carry_scale_.BindParam(apvts, id::kChannelVocoderCarryScale);
     addAndMakeVisible(carry_scale_);
-
     map_.BindParam(apvts, id::kChannelVocoderMap);
     addAndMakeVisible(map_);
+    flat_.BindParam(apvts, id::kChannelVocoderFlat);
+    addAndMakeVisible(flat_);
 }
 
 void ChannelVocoder::resized() {
@@ -49,6 +44,7 @@ void ChannelVocoder::resized() {
     {
         auto comb = top.removeFromLeft(150);
         map_.setBounds(comb.removeFromTop(30));
+        flat_.setBounds(comb);
     }
 }
 
