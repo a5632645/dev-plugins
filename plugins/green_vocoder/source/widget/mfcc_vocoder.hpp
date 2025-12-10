@@ -15,6 +15,7 @@ private:
     ui::Dial attack_{"attack"};
     ui::Dial release_{"release"};
     ui::FlatCombobox fft_size_;
+    ui::FlatSlider mfcc_size_{"band", ui::FlatSlider::TitleLayout::Left};
 };
 
 }

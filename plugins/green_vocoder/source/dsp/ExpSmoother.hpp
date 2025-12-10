@@ -22,9 +22,9 @@ public:
         smallerCoeff_.Broadcast(qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(ms, fs));
     }
 private:
-    qwqdsp_simd_element::PackFloat<N> lag_;
-    qwqdsp_simd_element::PackFloat<N> biggerCoeff_;
-    qwqdsp_simd_element::PackFloat<N> smallerCoeff_;
+    qwqdsp_simd_element::PackFloat<N> lag_{};
+    qwqdsp_simd_element::PackFloat<N> biggerCoeff_{};
+    qwqdsp_simd_element::PackFloat<N> smallerCoeff_{};
 };
 
 }

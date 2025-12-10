@@ -14,13 +14,16 @@ MFCCVocoder::MFCCVocoder(AudioPluginAudioProcessor& p)
     addAndMakeVisible(release_);
     fft_size_.BindParam(apvts, id::kStftSize);
     addAndMakeVisible(fft_size_);
+    mfcc_size_.BindParam(apvts, id::kMfccNumBands);
+    addAndMakeVisible(mfcc_size_);
 }
 
 void MFCCVocoder::resized() {
     auto b = getLocalBounds();
 
-    auto block = b.removeFromLeft(100);
+    auto block = b.removeFromLeft(100).withHeight(65);
     fft_size_.setBounds(block.removeFromTop(30));
+    mfcc_size_.setBounds(block);
 
     auto top = b.removeFromTop(65);
     attack_.setBounds(top.removeFromLeft(50));
@@ -38,7 +41,7 @@ void MFCCVocoder::paint(juce::Graphics& g) {
     constexpr float up = 0.0f;
     constexpr float down = -60.0f;
 
-    size_t nbands = p_.mfcc_vocoder_.kNumMfcc;
+    size_t nbands = static_cast<size_t>(mfcc_size_.slider.getValue());
     float width = bb.getWidth() / static_cast<float>(nbands);
     float x = bb.getX();
     auto peaks = p_.mfcc_vocoder_.gains_;

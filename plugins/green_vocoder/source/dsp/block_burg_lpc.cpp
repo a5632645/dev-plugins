@@ -26,6 +26,10 @@ void BlockBurgLPC::SetBlockSize(size_t size) {
     }
 }
 
+void BlockBurgLPC::SetPoles(size_t num_poles) {
+    num_poles_ = num_poles;
+}
+
 void BlockBurgLPC::Process(
     qwqdsp_simd_element::PackFloat<2>* main_ptr,
     qwqdsp_simd_element::PackFloat<2>* side_ptr,
@@ -43,7 +47,8 @@ void BlockBurgLPC::Process(
         // forward fir lattice
         std::copy(main.begin(), main.end(), x_.begin());
         std::copy(main.begin() + 1, main.end(), eb_.begin());
-        for (size_t kidx = 0; auto& k : latticek) {
+        for (size_t kidx = 0; kidx < num_poles_;) {
+            auto& k = latticek[kidx];
             ++kidx;
 
             qwqdsp_simd_element::PackFloat<2> up{};
@@ -76,14 +81,14 @@ void BlockBurgLPC::Process(
         std::array<qwqdsp_simd_element::PackFloat<2>, kMaxPoles + 1> l_iir{};
         for (size_t j = 0; j < x_.size(); ++j) {
             x_iir[0] = side[j] * atten;
-            for (size_t i = 0; i < kMaxPoles; ++i) {
-                x_iir[i + 1] = x_iir[i] - latticek[kMaxPoles - i - 1] * l_iir[i + 1];
+            for (size_t i = 0; i < num_poles_; ++i) {
+                x_iir[i + 1] = x_iir[i] - latticek[num_poles_ - i - 1] * l_iir[i + 1];
             }
-            for (size_t i = 0; i < kMaxPoles; ++i) {
-                l_iir[i] = l_iir[i + 1] + latticek[kMaxPoles - i - 1] * x_iir[i + 1];
+            for (size_t i = 0; i < num_poles_; ++i) {
+                l_iir[i] = l_iir[i + 1] + latticek[num_poles_ - i - 1] * x_iir[i + 1];
             }
-            l_iir[kMaxPoles] = x_iir[kMaxPoles];
-            x_[j] = x_iir[kMaxPoles];
+            l_iir[num_poles_] = x_iir[num_poles_];
+            x_[j] = x_iir[num_poles_];
         }
         // pull input buffer a hop size
         numInput_ -= hop_size_;
@@ -128,7 +133,7 @@ void BlockBurgLPC::Process(
 
 void BlockBurgLPC::CopyLatticeCoeffient(std::span<float> buffer) {
     auto backup = latticek;
-    for (size_t i = 0; i < kMaxPoles; ++i) {
+    for (size_t i = 0; i < num_poles_; ++i) {
         size_t idx = static_cast<size_t>(i);
         buffer[idx] = backup[idx][0];
     }

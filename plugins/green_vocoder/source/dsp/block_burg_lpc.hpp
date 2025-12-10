@@ -9,7 +9,7 @@ namespace green_vocoder::dsp {
 
 class BlockBurgLPC {
 public:
-    static constexpr size_t kMaxPoles = 30;
+    static constexpr size_t kMaxPoles = 80;
 
     void Init(float fs);
     void Process(
@@ -20,7 +20,7 @@ public:
     void SetBlockSize(size_t size);
     void SetPoles(size_t poles);
 
-    int GetOrder() const { return kMaxPoles; }
+    int GetOrder() const { return static_cast<int>(num_poles_); }
     void CopyLatticeCoeffient(std::span<float> buffer);
 private:
     float Blend(float x);

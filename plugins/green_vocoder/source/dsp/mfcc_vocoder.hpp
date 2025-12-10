@@ -8,7 +8,8 @@ namespace green_vocoder::dsp {
 
 class MFCCVocoder {
 public:
-    static constexpr size_t kNumMfcc = 20;
+    static constexpr size_t kMaxNumMfcc = 80;
+    static constexpr size_t kMinNumMfcc = 8;
 
     void Init(float fs);
     void Process(
@@ -20,11 +21,12 @@ public:
     void SetRelease(float ms);
     void SetAttack(float ms);
     void SetFFTSize(size_t size);
+    void SetNumMfcc(size_t num_mfcc);
 
     size_t GetFFTSize() const { return fft_size_; }
 
-    std::array<float, kNumMfcc> gains_{};
-    std::array<float, kNumMfcc> gains2_{};
+    std::array<float, kMaxNumMfcc> gains_{};
+    std::array<float, kMaxNumMfcc> gains2_{};
 private:
     audiofft::AudioFFT fft_;
     std::vector<float> hann_window_{};
@@ -37,7 +39,8 @@ private:
     std::array<qwqdsp_simd_element::PackFloat<2>, 32768> main_inputBuffer_{};
     std::array<qwqdsp_simd_element::PackFloat<2>, 32768> side_inputBuffer_{};
     std::array<qwqdsp_simd_element::PackFloat<2>, 32768> main_outputBuffer_{};
-    std::array<size_t, kNumMfcc + 1> mfcc_indexs_{};
+    std::array<size_t, kMaxNumMfcc + 1> mfcc_indexs_{};
+    size_t num_mfcc_{};
     size_t fft_size_{};
     size_t hop_size_{};
     size_t numInput_{};

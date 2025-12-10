@@ -12,6 +12,7 @@ namespace green_vocoder::dsp {
 void MFCCVocoder::Init(float fs) {
     sample_rate_ = fs;
     SetFFTSize(1024);
+    SetNumMfcc(20);
 }
 
 void MFCCVocoder::SetFFTSize(size_t size) {
@@ -31,11 +32,20 @@ void MFCCVocoder::SetFFTSize(size_t size) {
     imag_side_.resize(num_bins);
     SetRelease(release_ms_);
     window_gain_ = 2.0f / static_cast<float>(size);
+    SetNumMfcc(num_mfcc_);
+}
 
+void MFCCVocoder::SetRelease(float ms) {
+    release_ms_ = ms;
+    decay_ = qwqdsp::convert::Ms2DecayDb(ms, sample_rate_ / static_cast<float>(hop_size_), -60.0f);
+}
+
+void MFCCVocoder::SetNumMfcc(size_t num_mfcc) {
+    num_mfcc_ = std::clamp(num_mfcc, kMinNumMfcc, kMaxNumMfcc);
     float begin_mel = qwqdsp::convert::Freq2Mel(0);
     float end_mel = qwqdsp::convert::Freq2Mel(sample_rate_ / 2);
-    float interval_mel = (end_mel - begin_mel) / (kNumMfcc);
-    for (size_t i = 0; i < kNumMfcc; ++i) {
+    float interval_mel = (end_mel - begin_mel) / static_cast<float>(num_mfcc_);
+    for (size_t i = 0; i < num_mfcc_; ++i) {
         float mel = begin_mel + static_cast<float>(i) * interval_mel;
         float freq = qwqdsp::convert::Mel2Freq(mel);
         size_t bin = static_cast<size_t>(std::floor(freq / static_cast<float>(sample_rate_) * static_cast<float>(fft_size_)));
@@ -43,12 +53,7 @@ void MFCCVocoder::SetFFTSize(size_t size) {
         mfcc_indexs_[i] = bin;
     }
     mfcc_indexs_[0] = 0;
-    mfcc_indexs_[kNumMfcc] = fft_size_ / 2;
-}
-
-void MFCCVocoder::SetRelease(float ms) {
-    release_ms_ = ms;
-    decay_ = qwqdsp::convert::Ms2DecayDb(ms, sample_rate_ / static_cast<float>(hop_size_), -60.0f);
+    mfcc_indexs_[num_mfcc_] = fft_size_ / 2;
 }
 
 void MFCCVocoder::Process(
@@ -82,7 +87,7 @@ void MFCCVocoder::Process(
         fft_.fft(temp_main_.data(), real_main_.data(), imag_main_.data());
         fft_.fft(temp_side_.data(), real_side_.data(), imag_side_.data());
         // spectral processing
-        for (size_t mcff_idx = 0; mcff_idx < kNumMfcc; ++mcff_idx) {
+        for (size_t mcff_idx = 0; mcff_idx < num_mfcc_; ++mcff_idx) {
             size_t begin = mfcc_indexs_[mcff_idx];
             size_t end = mfcc_indexs_[mcff_idx + 1];
             float sum = 0.0f;
@@ -108,7 +113,7 @@ void MFCCVocoder::Process(
         fft_.fft(temp_main_.data() + fft_size_, real_main_.data(), imag_main_.data());
         fft_.fft(temp_side_.data() + fft_size_, real_side_.data(), imag_side_.data());
         // spectral processing
-        for (size_t mcff_idx = 0; mcff_idx < kNumMfcc; ++mcff_idx) {
+        for (size_t mcff_idx = 0; mcff_idx < num_mfcc_; ++mcff_idx) {
             size_t begin = mfcc_indexs_[mcff_idx];
             size_t end = mfcc_indexs_[mcff_idx + 1];
             float sum = 0.0f;

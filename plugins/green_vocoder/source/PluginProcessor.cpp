@@ -155,7 +155,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kChannelVocoderNBands, 1},
             id::kChannelVocoderNBands,
             juce::NormalisableRange<float>(green_vocoder::dsp::ChannelVocoder::kMinOrder, green_vocoder::dsp::ChannelVocoder::kMaxOrder, 4),
-            16
+            36
         );
         paramListeners_.Add(p, [this](float v) {
             juce::ScopedLock _{ getCallbackLock() };
@@ -192,7 +192,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kChannelVocoderMap, 1},
             id::kChannelVocoderMap,
             kChannelVocoderMapNames,
-            eChannelVocoderMap_Log
+            eChannelVocoderMap_Mel
         );
         paramListeners_.Add(p, [this](int i) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -207,7 +207,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kForgetRate, 1},
             id::kForgetRate,
             juce::NormalisableRange<float>{5.0f, 200.0f, 1.0f, 0.4f},
-            20.0f
+            10.0f
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -219,8 +219,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kLPCSmooth, 1},
             id::kLPCSmooth,
-            juce::NormalisableRange<float>{0.1f, 50.0f, 0.1f, 0.4f},
-            0.1f
+            juce::NormalisableRange<float>{1.0f, 50.0f, 0.1f, 0.4f},
+            1.0f
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -233,7 +233,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kLPCGainAttack, 1},
             id::kLPCGainAttack,
             juce::NormalisableRange<float>{1.0f, 100.0f, 1.0f, 0.4f},
-            5.0f
+            10.0f
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -260,7 +260,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             id::kLPCDicimate,
             juce::StringArray{
                 "Modern", "Legacy", "Telephone"
-            }, 2
+            }, 0
         );
         paramListeners_.Add(p, [this](int l) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -269,14 +269,17 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterInt>(
+        auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kLPCOrder, 1},
             id::kLPCOrder,
-            4, green_vocoder::dsp::LeakyBurgLPC::kNumPoles, 36
+            juce::NormalisableRange<float>{
+                4.0f, green_vocoder::dsp::LeakyBurgLPC::kNumPoles, 4.0f
+            }, 36.0f
         );
-        paramListeners_.Add(p, [this](int order) {
+        paramListeners_.Add(p, [this](float order) {
             juce::ScopedLock lock{getCallbackLock()};
-            burg_lpc_.SetLPCOrder(order);
+            burg_lpc_.SetLPCOrder(static_cast<int>(order));
+            block_burg_lpc_.SetPoles(static_cast<size_t>(order));
         });
         layout.add(std::move(p));
     }
@@ -291,6 +294,22 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
             stft_vocoder_.SetBandwidth(bw);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kMfccNumBands, 1},
+            id::kMfccNumBands,
+            juce::NormalisableRange<float>{
+                green_vocoder::dsp::MFCCVocoder::kMinNumMfcc,
+                green_vocoder::dsp::MFCCVocoder::kMaxNumMfcc,
+                4.0f
+            }, 20.0f
+        );
+        paramListeners_.Add(p, [this](float bw) {
+            juce::ScopedLock lock{getCallbackLock()};
+            mfcc_vocoder_.SetNumMfcc(static_cast<size_t>(bw));
         });
         layout.add(std::move(p));
     }
@@ -365,7 +384,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kEnsembleDetune, 1},
             id::kEnsembleDetune,
-            0.01f, green_vocoder::dsp::Ensemble::kMaxSemitone, 0.1f
+            0.01f, green_vocoder::dsp::Ensemble::kMaxSemitone, 0.05f
         );
         paramListeners_.Add(p, [this](float detune) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -431,7 +450,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                 "sine",
                 "noise"
             },
-            1
+            0
         );
         paramListeners_.Add(p, [this](int mode) {
             juce::ScopedLock _{ getCallbackLock() };
