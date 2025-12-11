@@ -5,7 +5,6 @@
 #include <memory>
 
 #include "param_ids.hpp"
-#include "channel_mix.hpp"
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
@@ -25,7 +24,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kPreTilt, 1},
             id::kPreTilt,
-            0.0f, 20.0f, 15.0f
+            0.0f, 20.0f, 10.0f
         );
         paramListeners_.Add(p, [this](float db) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -38,7 +37,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kMainChannelConfig, 1},
             id::kMainChannelConfig,
             juce::StringArray{
-                "Main Left", "Main Right", "Main Merge", "Side Left", "Side Right", "Side Merge"
+                "Main Left", "Main Right", "Side Left", "Side Right",
             }, 0
         );
         main_channel_config_ = p.get();
@@ -49,8 +48,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kSideChannelConfig, 1},
             id::kSideChannelConfig,
             juce::StringArray{
-                "Main Left", "Main Right", "Main Merge", "Side Left", "Side Right", "Side Merge", "Pitch Track"
-            }, 0
+                "Main", "Side", "Pitch"
+            }, 1
         );
         side_channel_config_ = p.get();
         layout.add(std::move(p));
@@ -502,7 +501,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float low) {
             juce::ScopedLock lock{getCallbackLock()};
-            // yin_.SetMinPitch(low);
+            yin_.SetMinPitch(low);
         });
         layout.add(std::move(p));
     }
@@ -514,7 +513,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float max) {
             juce::ScopedLock lock{getCallbackLock()};
-            // yin_.SetMaxPitch(max);
+            yin_.SetMaxPitch(max);
         });
         layout.add(std::move(p));
     }
@@ -526,7 +525,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float pitch) {
             juce::ScopedLock lock{getCallbackLock()};
-            // frequency_mul_ = std::exp2(pitch / 12.0f);
+            frequency_mul_ = std::exp2(pitch / 12.0f);
         });
         layout.add(std::move(p));
     }
@@ -538,7 +537,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float pwm) {
             juce::ScopedLock lock{getCallbackLock()};
-            // tracking_osc_.SetPWM(pwm);
+            tracking_osc_.SetPWM(pwm);
         });
         layout.add(std::move(p));
     }
@@ -548,7 +547,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             id::kTrackingNoise,
             0.0f, 1.0f, 0.5f
         );
-        // tracking_noise_ = p.get();
+        tracking_noise_ = p.get();
         layout.add(std::move(p));
     }
     {
@@ -561,7 +560,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             },
             0
         );
-        // tracking_waveform_ = p.get();
+        tracking_waveform_ = p.get();
         layout.add(std::move(p));
     }
     {
@@ -573,7 +572,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float bw) {
             juce::ScopedLock lock{getCallbackLock()};
-            // pitch_glide_.MakeFilter(bw * getSampleRate() / 1000.0f);
+            pitch_glide_.MakeFilter(bw * getSampleRate() / 1000.0f);
         });
         layout.add(std::move(p));
     }
@@ -686,14 +685,15 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     ensemble_.Init(fs);
     block_burg_lpc_.Init(fs);
 
-    // yin_segement_.SetHop(1024);
-    // yin_segement_.SetSize(2048);
-    // yin_segement_.Reset();
-    // yin_.Init(static_cast<float>(sampleRate), 2048);
-    // osc_wpos_ = 0;
-    // osc_want_write_frac_ = 0;
-    // pitch_glide_.Reset();
-    // first_init_ = true;
+    yin_segement_.SetHop(1024);
+    yin_segement_.SetSize(2048);
+    yin_segement_.Reset();
+    yin_.Init(static_cast<float>(sampleRate), 2048);
+    osc_wpos_ = 0;
+    osc_want_write_frac_ = 0;
+    pitch_glide_.Reset();
+    first_init_ = true;
+
     pre_tilt_filter_.Reset();
     output_driver_.Reset();
 
@@ -736,88 +736,95 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     std::ignore = midiMessages;
     juce::ScopedNoDenormals noDenormals;
 
-    // int main_ch = main_channel_config_->getIndex();
-    // int side_ch = side_channel_config_->getIndex();
-    // if (buffer.getNumChannels() < 4) {
-    //     // 无侧链，侧链声道映射为主声道
-    //     if (main_ch > 2) {
-    //         main_ch -= 3;
-    //     }
-    //     if (side_ch > 2 && side_ch != 6) {
-    //         side_ch -= 3;
-    //     }
-    // }
+    int main_ch = main_channel_config_->getIndex();
+    int side_ch = side_channel_config_->getIndex();
+    if (buffer.getNumChannels() < 4) {
+        // 无侧链，侧链声道映射为主声道
+        if (main_ch >= 2) {
+            main_ch -= 2;
+        }
+        if (side_ch == 1) {
+            side_ch = 0;
+        }
+    }
+    float* pitch_buffer = buffer.getWritePointer(main_ch);
+    size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
 
-    // auto channels = Mix(main_ch, side_ch, buffer);
-    // auto& main_buffer_ = channels[0];
-    // auto& side_buffer_ = channels[1];
+    if (side_ch == 2) {
+        yin_segement_.Push({pitch_buffer, num_samples});
 
-    // if (side_ch == 6) {
-    //     yin_segement_.Push(main_buffer_);
+        float const noise_gain = tracking_noise_->get();
+        while (yin_segement_.CanProcess()) {
+            yin_.Process(yin_segement_.GetBlock());
+            yin_segement_.Advance();
 
-    //     float const noise_gain = tracking_noise_->get();
-    //     while (yin_segement_.CanProcess()) {
-    //         yin_.Process(yin_segement_.GetBlock());
-    //         yin_segement_.Advance();
+            // get pitch
+            auto pitch = yin_.GetPitch();
+            float const want_write = yin_segement_.GetHop() + osc_want_write_frac_;
+            size_t const iwant = static_cast<size_t>(want_write);
+            {
+                float t;
+                osc_want_write_frac_ = std::modf(want_write, &t);
+            }
+            size_t const can_write = std::min(osc_buffer_.size() - osc_wpos_, iwant);
 
-    //         // get pitch
-    //         auto pitch = yin_.GetPitch();
-    //         float const want_write = yin_segement_.GetHop() + osc_want_write_frac_;
-    //         size_t const iwant = static_cast<size_t>(want_write);
-    //         {
-    //             float t;
-    //             osc_want_write_frac_ = std::modf(want_write, &t);
-    //         }
-    //         size_t const can_write = std::min(osc_buffer_.size() - osc_wpos_, iwant);
+            float target_pitch = pitch.pitch_hz * frequency_mul_;
+            target_pitch = std::max(target_pitch, 0.1f);
 
-    //         float target_pitch = pitch.pitch_hz * frequency_mul_;
-    //         target_pitch = std::max(target_pitch, 0.1f);
+            // fill trival wave
+            float curr_trival_wave_gain = last_osc_mix_;
+            float const delta_trival_wave_gain = (1.0f - pitch.non_period_ratio - curr_trival_wave_gain) / static_cast<float>(can_write);
+            size_t osc_wpos = osc_wpos_;
+            if (tracking_waveform_->getIndex() == 0) {
+                for (size_t i = 0; i < can_write; ++i) {
+                    curr_trival_wave_gain += delta_trival_wave_gain;
+                    tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), getSampleRate());
+                    osc_buffer_[osc_wpos++] = tracking_osc_.Sawtooth() * curr_trival_wave_gain;
+                }
+            }
+            else {
+                for (size_t i = 0; i < can_write; ++i) {
+                    curr_trival_wave_gain += delta_trival_wave_gain;
+                    tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), getSampleRate());
+                    osc_buffer_[osc_wpos++] = tracking_osc_.PWM_NoDC() * curr_trival_wave_gain;
+                }
+            }
+            last_osc_mix_ = 1.0f - pitch.non_period_ratio;
 
-    //         // fill trival wave
-    //         float curr_trival_wave_gain = last_osc_mix_;
-    //         float const delta_trival_wave_gain = (1.0f - pitch.non_period_ratio - curr_trival_wave_gain) / static_cast<float>(can_write);
-    //         size_t osc_wpos = osc_wpos_;
-    //         if (tracking_waveform_->getIndex() == 0) {
-    //             for (size_t i = 0; i < can_write; ++i) {
-    //                 curr_trival_wave_gain += delta_trival_wave_gain;
-    //                 tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), getSampleRate());
-    //                 osc_buffer_[osc_wpos++] = tracking_osc_.Sawtooth() * curr_trival_wave_gain;
-    //             }
-    //         }
-    //         else {
-    //             for (size_t i = 0; i < can_write; ++i) {
-    //                 curr_trival_wave_gain += delta_trival_wave_gain;
-    //                 tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), getSampleRate());
-    //                 osc_buffer_[osc_wpos++] = tracking_osc_.PWM_NoDC() * curr_trival_wave_gain;
-    //             }
-    //         }
-    //         last_osc_mix_ = 1.0f - pitch.non_period_ratio;
-
-    //         // add noise
-    //         float curr_noise_gain = last_noise_mix_;
-    //         float target_noise_gain = pitch.non_period_ratio * noise_gain;
-    //         float delta_noise_gain = (target_noise_gain - curr_noise_gain) / static_cast<float>(can_write);
-    //         for (size_t i = 0; i < can_write; ++i) {
-    //             curr_noise_gain += delta_noise_gain;
-    //             osc_buffer_[osc_wpos_++] += noise_.Next() * curr_noise_gain;
-    //         }
-    //         last_noise_mix_ = target_noise_gain;
-    //     }
+            // add noise
+            float curr_noise_gain = last_noise_mix_;
+            float target_noise_gain = pitch.non_period_ratio * noise_gain;
+            float delta_noise_gain = (target_noise_gain - curr_noise_gain) / static_cast<float>(can_write);
+            for (size_t i = 0; i < can_write; ++i) {
+                curr_noise_gain += delta_noise_gain;
+                osc_buffer_[osc_wpos_++] += noise_.Next() * curr_noise_gain;
+            }
+            last_noise_mix_ = target_noise_gain;
+        }
         
-    //     size_t const cancopy = std::min(osc_wpos_, side_buffer_.size());
-    //     std::copy_n(osc_buffer_.begin(), cancopy, side_buffer_.begin());
-    //     std::fill(side_buffer_.begin() + cancopy, side_buffer_.end(), float{});
-    //     size_t const drag = osc_wpos_ - cancopy;
-    //     for (size_t i = 0; i < drag; ++i) {
-    //         osc_buffer_[i] = osc_buffer_[i + cancopy];
-    //     }
-    //     osc_wpos_ -= cancopy;
-    // }
+        size_t const cancopy = std::min(osc_wpos_, num_samples);
+        for (size_t i = 0; i < cancopy; ++i) {
+            crossing_side_buffer_[i] = {osc_buffer_[i], osc_buffer_[i]};
+        }
+        for (size_t i = cancopy; i < num_samples; ++i) {
+            crossing_side_buffer_[i].Broadcast(0);
+        }
+
+        size_t const drag = osc_wpos_ - cancopy;
+        for (size_t i = 0; i < drag; ++i) {
+            osc_buffer_[i] = osc_buffer_[i + cancopy];
+        }
+        osc_wpos_ -= cancopy;
+    }
 
     // crossing left and right buffer
-    size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
-    float* const main_left = buffer.getWritePointer(0);
-    float* const main_right = buffer.getWritePointer(1);
+    // if main_ch == 0 or 1, modulator is 0 and 1
+    // if main_ch == 2 or 3, modulator is 2 and 3
+    // if side_ch == 0, carry is 0 and 1
+    // if side_ch == 1, carry is 2 and 3
+    // if side_ch == 2, cross_carry_buffer has been filled by pitch tracking oscillator
+    float* main_left = buffer.getWritePointer(0);
+    float* main_right = buffer.getWritePointer(1);
     // {
     //     for (size_t i = 0; i < num_samples; ++i) {
     //         crossing_main_buffer_[i] = {main_left[i], main_right[i]};
@@ -834,9 +841,17 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     //         std::copy_n(crossing_main_buffer_.begin(), num_samples, crossing_side_buffer_.begin());
     //     }
     // }
-    for (size_t i = 0; i < num_samples; ++i) {
-        crossing_main_buffer_[i].Broadcast(main_left[i]);
-        crossing_side_buffer_[i].Broadcast(main_right[i]);
+    // NOTE: Debug test code
+    if (side_ch != 2) {
+        for (size_t i = 0; i < num_samples; ++i) {
+            crossing_main_buffer_[i].Broadcast(main_left[i]);
+            crossing_side_buffer_[i].Broadcast(main_right[i]);
+        }
+    }
+    else {
+        for (size_t i = 0; i < num_samples; ++i) {
+            crossing_main_buffer_[i].Broadcast(main_left[i]);
+        }
     }
     
     // tilt->shifter sounds harsh, shifter->tilt is ok

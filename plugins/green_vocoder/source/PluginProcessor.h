@@ -89,22 +89,21 @@ public:
     qwqdsp_oscillator::WhiteNoise noise_;
 
     // pitch tracking
-    // qwqdsp_segement::Analyze<8192> yin_segement_;
-    // qwqdsp_pitch::FastYin yin_;
-    // std::array<float, 8192> osc_buffer_{};
-    // size_t osc_wpos_{};
-    // float osc_want_write_frac_{};
-    // float last_osc_mix_{};
-    // float last_noise_mix_{};
+    qwqdsp_segement::Analyze<8192> yin_segement_;
+    qwqdsp_pitch::FastYin yin_;
+    std::array<float, 8192> osc_buffer_{};
+    size_t osc_wpos_{};
+    float osc_want_write_frac_{};
+    float last_osc_mix_{};
+    float last_noise_mix_{};
     
     // tracking oscillator
-    // qwqdsp_oscillator::PolyBlep<qwqdsp_oscillator::blep_coeff::BSpline> tracking_osc_;
-    // qwqdsp_oscillator::WhiteNoise noise_;
-    // juce::AudioParameterChoice* tracking_waveform_{};
-    // juce::AudioParameterFloat* tracking_noise_{};
-    // float frequency_mul_{};
-    // qwqdsp_filter::FastSetIirParalle<qwqdsp_filter::fastset_coeff::Order2_1e7> pitch_glide_;
-    // bool first_init_{};
+    qwqdsp_oscillator::PolyBlep<qwqdsp_oscillator::blep_coeff::BSpline> tracking_osc_;
+    juce::AudioParameterChoice* tracking_waveform_{};
+    juce::AudioParameterFloat* tracking_noise_{};
+    float frequency_mul_{};
+    qwqdsp_filter::FastSetIirParalle<qwqdsp_filter::fastset_coeff::Order2_1e7> pitch_glide_;
+    bool first_init_{};
 
     juce::AudioParameterBool* output_saturation_;
     juce::AudioParameterFloat* output_drive_;

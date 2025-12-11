@@ -1,7 +1,7 @@
 # dev-plugins
 originally here lived green vocoder repository.  
 
-[green-vocoder](plugins/green_vocoder/readme.md) is a vocoder with lpc,stft and channel vocoder.  
+[green-vocoder](plugins/green_vocoder/readme.md) is a multiple algorithms vocoder.
 ![GUI](plugins/green_vocoder/gui.png)  
 ---
 [steep-flanger](plugins/steep_flanger/readme.md) is a barberpole fir flanger.  
