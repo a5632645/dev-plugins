@@ -1,26 +1,26 @@
 # dev-plugins
 originally here lived green vocoder repository.  
 
-[green-vocoder](plugins/green-vocoder/readme.md) is a vocoder with lpc,stft and channel vocoder.  
-![GUI](plugins/green-vocoder/gui.png)  
+[green-vocoder](plugins/green_vocoder/readme.md) is a vocoder with lpc,stft and channel vocoder.  
+![GUI](plugins/green_vocoder/gui.png)  
 ---
-[steep-flanger](plugins/steep-flanger/readme.md) is a barberpole fir flanger.  
-![GUI](plugins/steep-flanger/gui.png)
+[steep-flanger](plugins/steep_flanger/readme.md) is a barberpole fir flanger.  
+![GUI](plugins/steep_flanger/gui.png)
 ---
-[deep-phaser](plugins/deep-phaser/readme.md) is an approximately log-warp style of steep-flanger to create phaser-sounding notches.  
-![GUI](plugins/deep-phaser/gui.png)
+[deep-phaser](plugins/deep_phaser/readme.md) is an approximately log-warp style of steep-flanger to create phaser-sounding notches.  
+![GUI](plugins/deep_phaser/gui.png)
 ---
-[dispersive-delay](plugins/dispersive-delay/readme.md) is a spectal-delay-like delay using tons of cascade allpass filters.(require AVX or AVX2(faster))  
-![GUI](plugins/dispersive-delay/gui.png)
+[dispersive-delay](plugins/dispersive_delay/readme.md) is a spectal-delay-like delay using tons of cascade allpass filters.(require AVX or AVX2(faster))  
+![GUI](plugins/dispersive_delay/gui.png)
 ---
 [resonator](plugins/resonator/readme.md) is a resonator with allpass dispersion and simple couple matrix.  
 ![GUI](plugins/resonator/gui.png)
 ---
-[vital-chorus](plugins/vital-chorus/readme.md) chours made according to Vital's code.  
-![GUI](plugins/vital-chorus/gui.png)
+[vital-chorus](plugins/vital_chorus/readme.md) chours made according to Vital's code.  
+![GUI](plugins/vital_chorus/gui.png)
 ---
-[vital-reverb](plugins/vital-reverb/readme.md) reverb made according to Vital's code.  
-![GUI](plugins/vital-reverb/gui.png)
+[vital-reverb](plugins/vital_reverb/readme.md) reverb made according to Vital's code.  
+![GUI](plugins/vital_reverb/gui.png)
 ---
 
 ## useful links
