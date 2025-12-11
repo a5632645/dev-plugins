@@ -21,7 +21,7 @@ private:
     ui::Dial forget_{"forget"};
     ui::Dial smear_{"smear"};
     ui::FlatCombobox dicimate_;
-    ui::FlatSlider order_{"order", ui::FlatSlider::TitleLayout::Top};
+    ui::FlatSlider order_{"order", ui::FlatSlider::TitleLayout::Left};
     ui::Dial attack_{"attack"};
     ui::Dial release_{"release"};
     ui::FlatCombobox block_size_;

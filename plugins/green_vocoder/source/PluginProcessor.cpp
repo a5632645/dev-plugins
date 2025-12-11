@@ -103,26 +103,21 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 
     // channel vocoder
     {
-        auto p = std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID{id::kChannelVocoderFlat, 1},
-            id::kChannelVocoderFlat,
-            true
+        auto p = std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID{id::kChannelVocoderFilterBankMode, 1},
+            id::kChannelVocoderFilterBankMode,
+            juce::StringArray{
+                "stack butterworth 12",
+                "stack butterworth 24",
+                "flat butterworth 12",
+                "flat butterworth 24",
+                "chebyshev 12",
+                "chebyshev 24"
+            }, 1
         );
-        paramListeners_.Add(p, [this](bool b) {
+        paramListeners_.Add(p, [this](int mode) {
             juce::ScopedLock _{ getCallbackLock() };
-            channel_vocoder_.SetFlat(b);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID{id::kChannelVocoderOrder, 1},
-            id::kChannelVocoderOrder,
-            true
-        );
-        paramListeners_.Add(p, [this](bool b) {
-            juce::ScopedLock _{ getCallbackLock() };
-            channel_vocoder_.SetHighOrder(b);
+            channel_vocoder_.SetFilterBankMode(static_cast<green_vocoder::dsp::ChannelVocoder::FilterBankMode>(mode));
         });
         layout.add(std::move(p));
     }
@@ -135,6 +130,18 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float v) {
             juce::ScopedLock _{ getCallbackLock() };
             channel_vocoder_.SetAttack(v);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kChannelVocoderGate, 1},
+            id::kChannelVocoderGate,
+            -100.0f, 20.0f, -100.0f
+        );
+        paramListeners_.Add(p, [this](float v) {
+            juce::ScopedLock _{ getCallbackLock() };
+            channel_vocoder_.SetGate(v);
         });
         layout.add(std::move(p));
     }

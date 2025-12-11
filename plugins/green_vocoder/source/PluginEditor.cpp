@@ -19,7 +19,7 @@ AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAud
     addAndMakeVisible(ensemble_);
     addAndMakeVisible(tracking_);
 
-    setSize (600, 300);
+    setSize (750, 350);
 }
 
 AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
@@ -41,10 +41,10 @@ void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
 void AudioPluginAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
     preset_panel_.setBounds(b.removeFromTop(30));
-    auto left_panel = b.removeFromLeft(250);
+    auto left_panel = b.removeFromLeft(260);
     pre_fx_.setBounds(left_panel.removeFromTop(90).reduced(1));
     tracking_.setBounds(left_panel.removeFromTop(90).reduced(1));
-    ensemble_.setBounds(left_panel.reduced(1));
+    ensemble_.setBounds(left_panel.removeFromTop(90).reduced(1));
     auto right_panel = b;
     vocoder_.setBounds(right_panel.reduced(1));
 }

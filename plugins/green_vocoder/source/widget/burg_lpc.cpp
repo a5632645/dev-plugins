@@ -34,15 +34,16 @@ void BurgLPC::resized() {
         auto top = b.removeFromTop(65);
         forget_.setBounds(top.removeFromLeft(50));
         smear_.setBounds(top.removeFromLeft(50));
-        dicimate_.setBounds(top.removeFromLeft(50));
-        order_.setBounds(top.removeFromLeft(50));
+        auto block = top.removeFromLeft(100);
+        dicimate_.setBounds(block.removeFromTop(30));
+        order_.setBounds(block);
         attack_.setBounds(top.removeFromLeft(50));
         release_.setBounds(top.removeFromLeft(50));
     }
     else {
-        auto top = b.removeFromLeft(100);
+        auto top = b.removeFromLeft(100).withHeight(65);
         block_size_.setBounds(top.removeFromTop(30));
-        order_.setBounds(b.removeFromLeft(50).withHeight(65));
+        order_.setBounds(top);
         auto block = b.removeFromTop(65);
         smear_.setBounds(block.removeFromLeft(50));
         attack_.setBounds(block.removeFromLeft(50));

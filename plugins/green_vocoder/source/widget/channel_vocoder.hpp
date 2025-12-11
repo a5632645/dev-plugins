@@ -19,10 +19,10 @@ private:
     ui::FlatSlider freq_begin_{"freq_begin", ui::FlatSlider::TitleLayout::Top};
     ui::FlatSlider freq_end_{"freq_end", ui::FlatSlider::TitleLayout::Top};
     ui::Dial scale_{"scale"};
-    ui::Dial carry_scale_{"carry_scale"};
+    ui::Dial carry_scale_{"carry bw"};
     ui::FlatCombobox map_;
-    ui::Switch flat_{"flat"};
-    ui::Switch high_order_{"4order", "2order"};
+    ui::FlatCombobox filter_bank_;
+    ui::Dial gate_{"gate"};
 };
 
 }

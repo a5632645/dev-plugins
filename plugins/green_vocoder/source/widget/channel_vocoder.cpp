@@ -24,10 +24,10 @@ ChannelVocoder::ChannelVocoder(AudioPluginAudioProcessor& p)
     addAndMakeVisible(carry_scale_);
     map_.BindParam(apvts, id::kChannelVocoderMap);
     addAndMakeVisible(map_);
-    flat_.BindParam(apvts, id::kChannelVocoderFlat);
-    addAndMakeVisible(flat_);
-    high_order_.BindParam(apvts, id::kChannelVocoderOrder);
-    addAndMakeVisible(high_order_);
+    filter_bank_.BindParam(apvts, id::kChannelVocoderFilterBankMode);
+    addAndMakeVisible(filter_bank_);
+    gate_.BindParam(apvts, id::kChannelVocoderGate);
+    addAndMakeVisible(gate_);
 }
 
 void ChannelVocoder::resized() {
@@ -46,11 +46,10 @@ void ChannelVocoder::resized() {
 
     scale_.setBounds(top.removeFromLeft(50));
     carry_scale_.setBounds(top.removeFromLeft(50));
-    {
-        auto comb = top.removeFromLeft(150);
-        high_order_.setBounds(comb.removeFromTop(30));
-        flat_.setBounds(comb);
-    }
+    gate_.setBounds(top.removeFromLeft(50));
+
+    auto comb = top.removeFromLeft(150);
+    filter_bank_.setBounds(comb.removeFromTop(30));
 }
 
 void ChannelVocoder::paint(juce::Graphics& g) {
