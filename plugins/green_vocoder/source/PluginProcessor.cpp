@@ -581,7 +581,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{"output_drive", 1},
             "output_drive",
-            -20.0f, 20.0f, 0.0f
+            -40.0f, 40.0f, 0.0f
         );
         output_drive_ = p.get();
         layout.add(std::move(p));
@@ -690,7 +690,6 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     yin_segement_.Reset();
     yin_.Init(static_cast<float>(sampleRate), 2048);
     osc_wpos_ = 0;
-    osc_want_write_frac_ = 0;
     pitch_glide_.Reset();
     first_init_ = true;
 
@@ -760,12 +759,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
             // get pitch
             auto pitch = yin_.GetPitch();
-            float const want_write = yin_segement_.GetHop() + osc_want_write_frac_;
-            size_t const iwant = static_cast<size_t>(want_write);
-            {
-                float t;
-                osc_want_write_frac_ = std::modf(want_write, &t);
-            }
+            size_t const iwant = static_cast<size_t>(yin_segement_.GetHop());
             size_t const can_write = std::min(osc_buffer_.size() - osc_wpos_, iwant);
 
             float target_pitch = pitch.pitch_hz * frequency_mul_;
@@ -817,42 +811,50 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         osc_wpos_ -= cancopy;
     }
 
+#if 0
     // crossing left and right buffer
     // if main_ch == 0 or 1, modulator is 0 and 1
     // if main_ch == 2 or 3, modulator is 2 and 3
+    float const* modu_left = buffer.getReadPointer(0);
+    float const* modu_right = buffer.getReadPointer(1);
+    if (main_ch == 2 || main_ch == 3) {
+        modu_left = buffer.getReadPointer(2);
+        modu_right = buffer.getReadPointer(3);
+    }
+    for (size_t i = 0; i < num_samples; ++i) {
+        crossing_main_buffer_[i] = {modu_left[i], modu_right[i]};
+    }
+
     // if side_ch == 0, carry is 0 and 1
     // if side_ch == 1, carry is 2 and 3
     // if side_ch == 2, cross_carry_buffer has been filled by pitch tracking oscillator
-    float* main_left = buffer.getWritePointer(0);
-    float* main_right = buffer.getWritePointer(1);
-    // {
-    //     for (size_t i = 0; i < num_samples; ++i) {
-    //         crossing_main_buffer_[i] = {main_left[i], main_right[i]};
-    //     }
-    //     if (buffer.getNumChannels() > 2) {
-    //         float const* side_left = buffer.getReadPointer(2);
-    //         float const* side_right = buffer.getReadPointer(3);
-    //         for (size_t i = 0; i < num_samples; ++i) {
-    //             crossing_side_buffer_[i] = {side_left[i], side_right[i]};
-    //         }
-    //     }
-    //     else {
-    //         // copy
-    //         std::copy_n(crossing_main_buffer_.begin(), num_samples, crossing_side_buffer_.begin());
-    //     }
-    // }
+    if (side_ch == 1) {
+        float const* side_left = buffer.getReadPointer(2);
+        float const* side_right = buffer.getReadPointer(3);
+        for (size_t i = 0; i < num_samples; ++i) {
+            crossing_side_buffer_[i] = {side_left[i], side_right[i]};
+        }
+    }
+    else if (side_ch == 0) {
+        // copy
+        std::copy_n(crossing_main_buffer_.begin(), num_samples, crossing_side_buffer_.begin());
+    }
+#else
     // NOTE: Debug test code
+    float const* modu = buffer.getReadPointer(0);
+    float const* carry = buffer.getReadPointer(1);
     if (side_ch != 2) {
         for (size_t i = 0; i < num_samples; ++i) {
-            crossing_main_buffer_[i].Broadcast(main_left[i]);
-            crossing_side_buffer_[i].Broadcast(main_right[i]);
+            crossing_main_buffer_[i].Broadcast(modu[i]);
+            crossing_side_buffer_[i].Broadcast(carry[i]);
         }
     }
     else {
         for (size_t i = 0; i < num_samples; ++i) {
-            crossing_main_buffer_[i].Broadcast(main_left[i]);
+            crossing_main_buffer_[i].Broadcast(modu[i]);
         }
     }
+#endif
     
     // tilt->shifter sounds harsh, shifter->tilt is ok
     if (shifter_enabled_->get()) {
@@ -883,6 +885,8 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         break;
     }
 
+    float* main_left = buffer.getWritePointer(0);
+    float* main_right = buffer.getWritePointer(1);
     float const output_gain = qwqdsp::convert::Db2Gain(output_drive_->get());
     if (!output_saturation_->get()) {
         ensemble_.Process(crossing_main_buffer_.data(), num_samples);

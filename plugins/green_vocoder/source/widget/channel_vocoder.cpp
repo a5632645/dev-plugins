@@ -28,6 +28,8 @@ ChannelVocoder::ChannelVocoder(AudioPluginAudioProcessor& p)
     addAndMakeVisible(filter_bank_);
     gate_.BindParam(apvts, id::kChannelVocoderGate);
     addAndMakeVisible(gate_);
+    ui::SetLableBlack(label_filter_bank_);
+    addAndMakeVisible(label_filter_bank_);
 }
 
 void ChannelVocoder::resized() {
@@ -49,6 +51,7 @@ void ChannelVocoder::resized() {
     gate_.setBounds(top.removeFromLeft(50));
 
     auto comb = top.removeFromLeft(150);
+    label_filter_bank_.setBounds(comb.removeFromTop(20));
     filter_bank_.setBounds(comb.removeFromTop(30));
 }
 
@@ -60,7 +63,7 @@ void ChannelVocoder::paint(juce::Graphics& g) {
     g.setColour(ui::black_bg);
     g.fillRect(bb);
 
-    constexpr float up = 0.0f;
+    constexpr float up = 20.0f;
     constexpr float down = -60.0f;
 
     int nbands = vocoder_.GetNumBins();

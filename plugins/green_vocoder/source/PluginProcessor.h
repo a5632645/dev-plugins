@@ -93,7 +93,6 @@ public:
     qwqdsp_pitch::FastYin yin_;
     std::array<float, 8192> osc_buffer_{};
     size_t osc_wpos_{};
-    float osc_want_write_frac_{};
     float last_osc_mix_{};
     float last_noise_mix_{};
     

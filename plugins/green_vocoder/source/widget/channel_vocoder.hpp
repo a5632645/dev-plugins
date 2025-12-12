@@ -21,6 +21,7 @@ private:
     ui::Dial scale_{"scale"};
     ui::Dial carry_scale_{"carry bw"};
     ui::FlatCombobox map_;
+    juce::Label label_filter_bank_{"", "filter bank mode"};
     ui::FlatCombobox filter_bank_;
     ui::Dial gate_{"gate"};
 };

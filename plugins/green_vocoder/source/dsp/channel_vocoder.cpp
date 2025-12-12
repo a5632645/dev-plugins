@@ -293,7 +293,7 @@ struct Chebyshev12 {
         qwqdsp_simd_element::PackFloat<4> Q2;
         for (size_t i = 0; i < 4; ++i) {
             std::array<qwqdsp_filter::IIRDesign::ZPK, 2> zpk_buffer;
-            qwqdsp_filter::IIRDesign::Chebyshev1(zpk_buffer, 1, 6.02059991f, true);
+            qwqdsp_filter::IIRDesign::Chebyshev1(zpk_buffer, 1, 6.02059991f, false);
             qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, 1, w1_analog[i], w2_analog[i]);
             auto analog_w_bp1 = std::abs(zpk_buffer[0].p);
             auto analog_w_bp2 = std::abs(zpk_buffer[1].p);
@@ -327,7 +327,7 @@ struct Chebyshev24 {
         qwqdsp_simd_element::PackFloat<4> Q4;
         for (size_t i = 0; i < 4; ++i) {
             std::array<qwqdsp_filter::IIRDesign::ZPK, 4> zpk_buffer;
-            qwqdsp_filter::IIRDesign::Chebyshev1(zpk_buffer, 2, 6.02059991f, true);
+            qwqdsp_filter::IIRDesign::Chebyshev1(zpk_buffer, 2, 6.02059991f, false);
             qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, 2, w1_analog[i], w2_analog[i]);
             auto analog_w_bp1 = std::abs(zpk_buffer[0].p);
             auto analog_w_bp2 = std::abs(zpk_buffer[1].p);
@@ -355,32 +355,37 @@ struct Chebyshev24 {
 
 template<class AssignMap>
 void ChannelVocoder::_UpdateFilters() {
-    gain_ = 0.5;
     switch (filter_bank_mode_) {
         case FilterBankMode::StackButterworth12:
             _UpdateFilters2<AssignMap, StackButterworth12>();
-            gain_ *= qwqdsp::convert::Db2Gain(20.0f);
+            gain_ = qwqdsp::convert::Db2Gain(16.0f);
             break;
         case FilterBankMode::StackButterworth24:
             _UpdateFilters2<AssignMap, StackButterworth24>();
-            gain_ *= qwqdsp::convert::Db2Gain(19.0f);
+            gain_ = qwqdsp::convert::Db2Gain(16.0f);
             break;
         case FilterBankMode::FlatButterworth12:
             _UpdateFilters2<AssignMap, FlatButterworth12>();
-            gain_ *= qwqdsp::convert::Db2Gain(25.0f);
+            gain_ = qwqdsp::convert::Db2Gain(20.0f);
         break;
             case FilterBankMode::FlatButterworth24:
             _UpdateFilters2<AssignMap, FlatButterworth24>();
-            gain_ *= qwqdsp::convert::Db2Gain(33.0f);
+            gain_ = qwqdsp::convert::Db2Gain(30.0f);
             break;
         case FilterBankMode::Chebyshev12:
             _UpdateFilters2<AssignMap, Chebyshev12>();
-            gain_ *= qwqdsp::convert::Db2Gain(22.5f);
+            gain_ = qwqdsp::convert::Db2Gain(32.0f);
             break;
         case FilterBankMode::Chebyshev24:
             _UpdateFilters2<AssignMap, Chebyshev24>();
-            gain_ *= qwqdsp::convert::Db2Gain(71.5f);
+            gain_ = qwqdsp::convert::Db2Gain(78.0f);
             break;
+    }
+    if (num_bans_ < 48) {
+        float norm = static_cast<float>(num_bans_) / 48.0f;
+        float lower = filter_bank_mode_ == FilterBankMode::Chebyshev24 ? 0.05f : 0.3f;
+        float atten = std::lerp(lower, 1.0f, norm);
+        gain_ *= atten;
     }
 }
 
