@@ -116,6 +116,7 @@ public:
     void SetMap(eChannelVocoderMap map);
     void SetFilterBankMode(FilterBankMode mode);
     void SetGate(float db);
+    void SetFormantShift(float shift);
 
     int GetNumBins() const { return num_bans_; }
     qwqdsp_simd_element::PackFloat<2> GetBinPeak(size_t idx) const {
@@ -138,6 +139,7 @@ private:
         size_t num_samples
     );
 
+    float carry_w_mul_{1.0f};
     float gate_peak_{0.0f};
     float gain_{1.0f};
     FilterBankMode filter_bank_mode_;

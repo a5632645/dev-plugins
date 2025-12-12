@@ -83,6 +83,11 @@ void ChannelVocoder::SetGate(float db) {
     gate_peak_ = qwqdsp::convert::Db2Gain(db);
 }
 
+void ChannelVocoder::SetFormantShift(float shift) {
+    carry_w_mul_ = std::exp2(shift / 12.0f);
+    UpdateFilters();
+}
+
 // -------------------- frequency maps --------------------
 struct LogMap {
     static float FromFreq(float freq) {
@@ -160,10 +165,11 @@ struct StackButterworth12 {
     static void Design(
         CascadeBPSVF& svf,
         qwqdsp_simd_element::PackFloatCRef<4> w1,
-        qwqdsp_simd_element::PackFloatCRef<4> w2
+        qwqdsp_simd_element::PackFloatCRef<4> w2,
+        float analog_w_mul = 1
     ) noexcept {
-        auto f1 = qwqdsp_simd_element::PackOps::Tan(w1 / 2);
-        auto f2 = qwqdsp_simd_element::PackOps::Tan(w2 / 2);
+        auto f1 = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
+        auto f2 = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
         auto f0 = qwqdsp_simd_element::PackOps::Sqrt(f1 * f2);
         // this Q only works for a order4 bandpass to create -6dB gain
         auto Q = f0 / qwqdsp_simd_element::PackOps::Abs(f2 - f1);
@@ -176,10 +182,11 @@ struct StackButterworth24 {
     static void Design(
         CascadeBPSVF& svf,
         qwqdsp_simd_element::PackFloatCRef<4> w1,
-        qwqdsp_simd_element::PackFloatCRef<4> w2
+        qwqdsp_simd_element::PackFloatCRef<4> w2,
+        float analog_w_mul = 1
     ) noexcept {
-        auto f1 = qwqdsp_simd_element::PackOps::Tan(w1 / 2);
-        auto f2 = qwqdsp_simd_element::PackOps::Tan(w2 / 2);
+        auto f1 = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
+        auto f2 = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
         auto f0 = qwqdsp_simd_element::PackOps::Sqrt(f1 * f2);
         // power of a order2 bandpass
         [[maybe_unused]] constexpr auto power = 0.5f;
@@ -207,10 +214,11 @@ struct FlatButterworth12 {
     static void Design(
         CascadeBPSVF& svf,
         qwqdsp_simd_element::PackFloatCRef<4> w1,
-        qwqdsp_simd_element::PackFloatCRef<4> w2
+        qwqdsp_simd_element::PackFloatCRef<4> w2,
+        float analog_w_mul = 1
     ) noexcept {
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2);
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2);
+        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
+        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
         // prototype is a 2pole butterworth
         qwqdsp_simd_element::PackFloat<4> w_analog1;
         qwqdsp_simd_element::PackFloat<4> w_analog2;
@@ -238,10 +246,11 @@ struct FlatButterworth24 {
     static void Design(
         CascadeBPSVF& svf,
         qwqdsp_simd_element::PackFloatCRef<4> w1,
-        qwqdsp_simd_element::PackFloatCRef<4> w2
+        qwqdsp_simd_element::PackFloatCRef<4> w2,
+        float analog_w_mul = 1
     ) noexcept {
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2);
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2);
+        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
+        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
         // prototype is a 4pole butterworth
         qwqdsp_simd_element::PackFloat<4> w_analog1;
         qwqdsp_simd_element::PackFloat<4> w_analog2;
@@ -283,10 +292,11 @@ struct Chebyshev12 {
     static void Design(
         CascadeBPSVF& svf,
         qwqdsp_simd_element::PackFloatCRef<4> w1,
-        qwqdsp_simd_element::PackFloatCRef<4> w2
+        qwqdsp_simd_element::PackFloatCRef<4> w2,
+        float analog_w_mul = 1
     ) noexcept {
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2);
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2);
+        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
+        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
         qwqdsp_simd_element::PackFloat<4> w_analog1;
         qwqdsp_simd_element::PackFloat<4> w_analog2;
         qwqdsp_simd_element::PackFloat<4> Q1;
@@ -313,10 +323,11 @@ struct Chebyshev24 {
     static void Design(
         CascadeBPSVF& svf,
         qwqdsp_simd_element::PackFloatCRef<4> w1,
-        qwqdsp_simd_element::PackFloatCRef<4> w2
+        qwqdsp_simd_element::PackFloatCRef<4> w2,
+        float analog_w_mul = 1
     ) noexcept {
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2);
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2);
+        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
+        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
         qwqdsp_simd_element::PackFloat<4> w_analog1;
         qwqdsp_simd_element::PackFloat<4> w_analog2;
         qwqdsp_simd_element::PackFloat<4> w_analog3;
@@ -431,7 +442,7 @@ void ChannelVocoder::_UpdateFilters2() {
         auto& main_filter = main_filters_[filter_idx];
         auto& side_filter = side_filters_[filter_idx];
         Designer::Design(main_filter, main_w1, main_w2);
-        Designer::Design(side_filter, side_w1, side_w2);
+        Designer::Design(side_filter, side_w1, side_w2, carry_w_mul_);
         ++filter_idx;
     }
 }

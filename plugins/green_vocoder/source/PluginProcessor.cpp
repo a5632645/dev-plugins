@@ -82,6 +82,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
             shifter_.SetPitchShift(l);
+            channel_vocoder_.SetFormantShift(l);
         });
         layout.add(std::move(p));
     }
@@ -858,7 +859,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     
     // tilt->shifter sounds harsh, shifter->tilt is ok
     if (shifter_enabled_->get()) {
-        shifter_.Process(crossing_main_buffer_);
+        // shifter_.Process(crossing_main_buffer_);
     }
     for (auto& f : crossing_main_buffer_) {
         f = pre_tilt_filter_.Tick(f);
