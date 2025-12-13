@@ -23,7 +23,7 @@ public:
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) {
             vx[i] = x;
-            x = x * b0_ + s1_;
+            x = x * b0_[i] + s1_[i];
             vy[i] = x;
         }
         s1_ = vx * b1_ - vy * a1_ + s2_;

@@ -1,10 +1,10 @@
 #pragma once
 #include <span>
 #include <array>
-#include "ExpSmoother.hpp"
 #include <qwqdsp/simd_element/biquads.hpp>
 #include <qwqdsp/oscillator/noise.hpp>
 #include <qwqdsp/simd_element/simd_pack.hpp>
+#include <qwqdsp/simd_element/envelope_follower.hpp>
 
 namespace green_vocoder::dsp {
 class LeakyBurgLPC {
@@ -34,6 +34,7 @@ public:
     void SetLPCOrder(int order);
     void SetGainAttack(float ms);
     void SetGainRelease(float ms);
+    void SetGainHold(float ms);
     void SetQuality(Quality quality);
     void SetFormant(float formant);
 
@@ -45,23 +46,11 @@ private:
         std::span<qwqdsp_simd_element::PackFloat<2>> side
     );
 
-    template<size_t kDicimate>
-    void FirLatticeWithDicimate(
-        std::span<qwqdsp_simd_element::PackFloat<2>> main,
-        std::span<qwqdsp_simd_element::PackFloat<2>> side
-    );
-
-    template<size_t kDicimate>
-    void IirLatticeWithDicimate(
-        std::span<qwqdsp_simd_element::PackFloat<2>> main,
-        std::span<qwqdsp_simd_element::PackFloat<2>> side
-    );
-
     qwqdsp_simd_element::Biquads<4> dicimate_filter_;
     Quality quality_{Quality::Legacy};
     size_t dicimate_counter_{0};
 
-    ExpSmoother<2> gain_smooth_;
+    qwqdsp_simd_element::EnevelopeFollower<2> gain_smooth_;
     float gain_attack_{};
     float gain_release_{};
 

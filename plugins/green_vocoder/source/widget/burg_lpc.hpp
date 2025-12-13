@@ -23,6 +23,7 @@ private:
     ui::FlatCombobox dicimate_;
     ui::FlatSlider order_{"order", ui::FlatSlider::TitleLayout::Left};
     ui::Dial attack_{"attack"};
+    ui::Dial hold_{"hold"};
     ui::Dial release_{"release"};
     ui::FlatCombobox block_size_;
 };

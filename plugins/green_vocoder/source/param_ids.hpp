@@ -51,6 +51,7 @@ static constexpr auto kForgetRate = "lpc_forget";
 static constexpr auto kLPCSmooth = "lpc_smooth";
 static constexpr auto kLPCOrder = "lpc_order";
 static constexpr auto kLPCGainAttack = "lpc_attack";
+static constexpr auto kLPCGainHold = "lpc_hold";
 static constexpr auto kLPCGainRelease = "lpc_release";
 static constexpr auto kLPCDicimate = "lpc_dicimate";
 

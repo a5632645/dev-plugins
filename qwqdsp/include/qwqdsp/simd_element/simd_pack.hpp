@@ -992,6 +992,14 @@ struct PackOps {
         for (size_t i = 0; i < N; ++i) r.data[i] = mask.data[i] ? true_val.data[i] : false_val.data[i];
         return r;
     }
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackFloat<N> Select(PackBool<N> const& mask, float true_val, float false_val) noexcept {
+        PackFloat<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = mask.data[i] ? true_val : false_val;
+        return r;
+    }
     // lerp
     template<size_t N>
     QWQDSP_FORCE_INLINE
@@ -1043,6 +1051,15 @@ struct PackOps {
         PackFloat<N> r;
         #pragma clang loop unroll(full)
         for (size_t i = 0; i < N; ++i) r.data[i] = static_cast<float>(x.data[i]);
+        return r;
+    }
+    // int.Min
+    template<size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr PackInt32<N> Min(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
+        PackInt32<N> r;
+        #pragma clang loop unroll(full)
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::min(a.data[i], b.data[i]);
         return r;
     }
 };

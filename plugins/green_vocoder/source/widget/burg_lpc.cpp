@@ -19,6 +19,8 @@ BurgLPC::BurgLPC(AudioPluginAudioProcessor& processor)
     addAndMakeVisible(order_);
     attack_.BindParam(apvts, id::kLPCGainAttack);
     addAndMakeVisible(attack_);
+    hold_.BindParam(apvts, id::kLPCGainHold);
+    addAndMakeVisible(hold_);
     release_.BindParam(apvts, id::kLPCGainRelease);
     addAndMakeVisible(release_);
 
@@ -38,6 +40,7 @@ void BurgLPC::resized() {
         dicimate_.setBounds(block.removeFromTop(30));
         order_.setBounds(block);
         attack_.setBounds(top.removeFromLeft(50));
+        hold_.setBounds(top.removeFromLeft(50));
         release_.setBounds(top.removeFromLeft(50));
     }
     else {
