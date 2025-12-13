@@ -82,6 +82,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
             channel_vocoder_.SetFormantShift(l);
+            burg_lpc_.SetFormant(l);
         });
         layout.add(std::move(p));
     }

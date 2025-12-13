@@ -35,11 +35,24 @@ public:
     void SetGainAttack(float ms);
     void SetGainRelease(float ms);
     void SetQuality(Quality quality);
+    void SetFormant(float formant);
 
     void CopyLatticeCoeffient(std::span<float> buffer, size_t order);
 private:
     template<size_t kDicimate>
     void ProcessWithDicimate(
+        std::span<qwqdsp_simd_element::PackFloat<2>> main,
+        std::span<qwqdsp_simd_element::PackFloat<2>> side
+    );
+
+    template<size_t kDicimate>
+    void FirLatticeWithDicimate(
+        std::span<qwqdsp_simd_element::PackFloat<2>> main,
+        std::span<qwqdsp_simd_element::PackFloat<2>> side
+    );
+
+    template<size_t kDicimate>
+    void IirLatticeWithDicimate(
         std::span<qwqdsp_simd_element::PackFloat<2>> main,
         std::span<qwqdsp_simd_element::PackFloat<2>> side
     );
@@ -72,6 +85,7 @@ private:
     size_t iir_s_rpos_{};
     using StateArray = std::array<qwqdsp_simd_element::PackFloat<2>, kNumPoles + 1>;
     std::array<StateArray, kDicimateRingBufferSize> s_iir_{};
-    qwqdsp_simd_element::PackFloat<2> residual_gain_{};
+    qwqdsp_simd_element::PackFloat<2> residual_{};
+    float allpass_coeff_{};
 };
 }
