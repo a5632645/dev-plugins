@@ -141,14 +141,12 @@ void BurgLPC::paint(juce::Graphics& g) {
     std::array<float, dsp::LeakyBurgLPC::kNumPoles + 1> upgoing{1};
     std::array<float, dsp::LeakyBurgLPC::kNumPoles + 1> downgoing{1};
 
-    size_t order;
+    size_t order = static_cast<size_t>(order_.slider.getValue());;
     if (block_mode_) {
-        processor_.block_burg_lpc_.CopyLatticeCoeffient(lattice_buff);
-        order = processor_.block_burg_lpc_.GetOrder();
+        processor_.block_burg_lpc_.CopyLatticeCoeffient(lattice_buff, order);
     }
     else {
-        processor_.burg_lpc_.CopyLatticeCoeffient(lattice_buff);
-        order = processor_.burg_lpc_.GetOrder();
+        processor_.burg_lpc_.CopyLatticeCoeffient(lattice_buff, order);
     }
 
     for (size_t kidx = 0; kidx < order; ++kidx) {

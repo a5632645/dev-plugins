@@ -4,7 +4,6 @@
 #include "pluginshared/juce_param_listener.hpp"
 
 #include "dsp/leaky_burg_lpc.hpp"
-#include "dsp/pitch_shifter.hpp"
 #include "dsp/stft_vocoder.hpp"
 #include "dsp/channel_vocoder.hpp"
 #include "dsp/tilt_filter.hpp"
@@ -78,7 +77,6 @@ public:
     std::vector<qwqdsp_simd_element::PackFloat<2>> crossing_main_buffer_;
     std::vector<qwqdsp_simd_element::PackFloat<2>> crossing_side_buffer_;
     // dsps
-    green_vocoder::dsp::PitchShifter shifter_;
     green_vocoder::dsp::TiltFilter pre_tilt_filter_;
     green_vocoder::dsp::LeakyBurgLPC burg_lpc_;
     green_vocoder::dsp::BlockBurgLPC block_burg_lpc_;

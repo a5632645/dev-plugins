@@ -25,8 +25,7 @@ public:
     void SetAttack(float ms);
     void SetRelease(float ms);
 
-    int GetOrder() const { return static_cast<int>(num_poles_); }
-    void CopyLatticeCoeffient(std::span<float> buffer);
+    void CopyLatticeCoeffient(std::span<float> buffer, size_t order);
 private:
     float Blend(float x);
 

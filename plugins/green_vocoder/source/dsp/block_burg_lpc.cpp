@@ -95,9 +95,18 @@ void BlockBurgLPC::Process(
             }
         }
         // smear
-        for (size_t i = 0; i < num_poles_; ++i) {
-            latticek_[i] *= smear_factor_;
-            latticek_[i] += latticek[i] * (1.0f - smear_factor_);
+        // the FIR and IIR lattice coeffient are reversed
+        auto reverse_fir_k = latticek.begin() + static_cast<int>(num_poles_);
+        auto iir_k = latticek_.begin();
+        for (size_t order = 0; order < num_poles_; order += 2) {
+            auto const& fir_1 = *(--reverse_fir_k);
+            auto const& fir_2 = *(--reverse_fir_k);
+            auto& iir_1 = *(iir_k++);
+            auto& iir_2 = *(iir_k++);
+            iir_1 *= smear_factor_;
+            iir_2 *= smear_factor_;
+            iir_1 += fir_1 * (1.0f - smear_factor_);
+            iir_2 += fir_2 * (1.0f - smear_factor_);
         }
         // eval gain
         qwqdsp_simd_element::PackFloat<2> gain{};
@@ -114,18 +123,20 @@ void BlockBurgLPC::Process(
         gain_lag_ *= coeff;
         gain_lag_ += (1 - coeff) * atten;
         // iir lattice
-        std::array<qwqdsp_simd_element::PackFloat<2>, kMaxPoles + 1> x_iir{};
         std::array<qwqdsp_simd_element::PackFloat<2>, kMaxPoles + 1> l_iir{};
         for (size_t j = 0; j < x_.size(); ++j) {
-            x_iir[0] = side[j] * gain_lag_;
-            for (size_t i = 0; i < num_poles_; ++i) {
-                x_iir[i + 1] = x_iir[i] - latticek_[num_poles_ - i - 1] * l_iir[i + 1];
+            auto x0 = side[j] * gain_lag_;
+            for (size_t idx = 0; idx < num_poles_; idx += 2) {
+                auto x1 = x0 - latticek_[idx] * l_iir[idx + 1];
+                auto x2 = x1 - latticek_[idx + 1] * l_iir[idx + 2];
+                auto l0 = l_iir[idx + 1] + latticek_[idx] * x1;
+                auto l1 = l_iir[idx + 2] + latticek_[idx + 1] * x2;
+                x0 = x2;
+                l_iir[idx] = l0;
+                l_iir[idx + 1] = l1;
             }
-            for (size_t i = 0; i < num_poles_; ++i) {
-                l_iir[i] = l_iir[i + 1] + latticek_[num_poles_ - i - 1] * x_iir[i + 1];
-            }
-            l_iir[num_poles_] = x_iir[num_poles_];
-            x_[j] = x_iir[num_poles_];
+            l_iir[num_poles_] = x0;
+            x_[j] = x0;
         }
         // pull input buffer a hop size
         numInput_ -= hop_size_;
@@ -168,11 +179,11 @@ void BlockBurgLPC::Process(
     }
 }
 
-void BlockBurgLPC::CopyLatticeCoeffient(std::span<float> buffer) {
-    auto backup = latticek_;
-    for (size_t i = 0; i < num_poles_; ++i) {
-        size_t idx = static_cast<size_t>(i);
-        buffer[idx] = backup[idx][0];
+void BlockBurgLPC::CopyLatticeCoeffient(std::span<float> buffer, size_t order) {
+    auto const backup = latticek_;
+    auto reverse_iir_it = backup.begin() + static_cast<int>(order);
+    for (size_t i = 0; i < order; ++i) {
+        buffer[i] = (*(--reverse_iir_it))[0];
     }
 }
 

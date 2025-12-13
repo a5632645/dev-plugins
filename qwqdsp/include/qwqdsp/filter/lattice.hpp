@@ -67,18 +67,17 @@ private:
 class LatticePole {
 public:
     void Reset() noexcept {
-        latch_ = 0;
+        lag_ = 0;
     }
 
-    float Tickup(float x) noexcept {
-        up_going_ = x + k_ * latch_;
-        return up_going_;
-    }
-
-    float Tickdown(float x) noexcept {
-        auto y = latch_ - k_ * up_going_;
-        latch_ = x;
-        return y;
+    /**
+     * @return {up, down}
+     */
+    std::pair<float, float> Tick(float up, float down) noexcept {
+        auto upgo = up - k_ * lag_;
+        auto downgo = lag_ + up * k_;
+        lag_ = down;
+        return {upgo, downgo};
     }
 
     void SetReflection(float k) noexcept {
@@ -86,8 +85,7 @@ public:
     }
 private:
     float k_{};
-    float latch_{};
-    float up_going_{};
+    float lag_{};
 };
 
 class LatticePolePolyphase {
@@ -100,16 +98,12 @@ public:
         delay_.Reset();
     }
 
-    float Tickup(float x) noexcept {
-        latch_ = delay_.GetBeforePush(n_latch_);
-        up_going_ = x + k_ * latch_;
-        return up_going_;
-    }
-
-    float Tickdown(float x) noexcept {
-        auto y = latch_ - k_ * up_going_;
-        delay_.Push(x);
-        return y;
+    std::pair<float, float> Tick(float up, float down) noexcept {
+        auto latch = delay_.GetBeforePush(n_latch_);
+        auto upgo = up - k_ * latch;
+        auto downgo = latch + up * k_;
+        delay_.Push(down);
+        return {upgo, downgo};
     }
 
     void SetReflection(float k) noexcept {
@@ -122,8 +116,6 @@ public:
     }
 private:
     float k_{};
-    float up_going_{};
-    float latch_{};
     size_t n_latch_{1};
     IntDelay delay_;
 };

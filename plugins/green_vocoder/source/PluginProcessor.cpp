@@ -81,7 +81,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
-            shifter_.SetPitchShift(l);
             channel_vocoder_.SetFormantShift(l);
         });
         layout.add(std::move(p));
@@ -962,9 +961,6 @@ void AudioPluginAudioProcessor::SetLatency() {
         break;
     }
 
-    if (shifter_enabled_->get()) {
-        latency += shifter_.kNumDelay / 2;
-    }
     // setLatencySamples(latency);
     latency_.store(latency);
 }
