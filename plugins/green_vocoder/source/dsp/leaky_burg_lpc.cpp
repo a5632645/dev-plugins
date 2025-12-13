@@ -219,7 +219,7 @@ void LeakyBurgLPC::SetQuality(LeakyBurgLPC::Quality quality) {
             // iir_s_wpos_ = 0;
             break;
     }
-    // I don't know why this lattice delay unit is (dicimate + 1) not (dicimate)
+    // I don't know why iir lattice delay unit is (dicimate + 2) not (dicimate)
     // This is wried.
     iir_s_rpos_ = 0;
     iir_s_wpos_ = dicimate + 1;
