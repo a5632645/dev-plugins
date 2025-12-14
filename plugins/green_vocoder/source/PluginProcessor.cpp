@@ -82,7 +82,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
             channel_vocoder_.SetFormantShift(l);
-            burg_lpc_.SetFormant(l);
+            // burg_lpc_.SetFormant(l);
         });
         layout.add(std::move(p));
     }
@@ -251,7 +251,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kLPCSmooth, 1},
             id::kLPCSmooth,
             juce::NormalisableRange<float>{1.0f, 50.0f, 0.1f, 0.4f},
-            1.0f
+            5.0f
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -283,7 +283,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
-            burg_lpc_.SetGainHold(l);
+            // burg_lpc_.SetGainHold(l);
         });
         layout.add(std::move(p));
     }

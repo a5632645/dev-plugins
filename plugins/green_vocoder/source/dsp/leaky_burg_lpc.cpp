@@ -1,9 +1,9 @@
 #include "leaky_burg_lpc.hpp"
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstdlib>
 #include <qwqdsp/filter/rbj.hpp>
-#include <qwqdsp/convert.hpp>
 
 namespace green_vocoder::dsp {
 void LeakyBurgLPC::Init(float sample_rate, size_t block_size) {
@@ -33,17 +33,15 @@ void LeakyBurgLPC::ProcessWithDicimate(
     std::span<qwqdsp_simd_element::PackFloat<2>> main,
     std::span<qwqdsp_simd_element::PackFloat<2>> side
 ) {
-    // adding some noise to prevent ill filter coefficient
-    for (auto& s : main) {
-        s += noise_.Next() * kNoiseGain;
-    }
-
     if constexpr (kDicimate == 1) {
-        residual_.Broadcast(0);
         for (size_t i = 0; i < main.size(); ++i) {
+            // adding some noise to prevent ill filter coefficient
+            float small_noise = noise_.Next() * kNoiseGain;
+            qwqdsp_simd_element::PackFloat<2> main_x = main[i];
+            main_x += small_noise;
             // forward fir lattice
-            qwqdsp_simd_element::PackFloat<2> ef = main[i];
-            qwqdsp_simd_element::PackFloat<2> eb = main[i];
+            qwqdsp_simd_element::PackFloat<2> ef = main_x;
+            qwqdsp_simd_element::PackFloat<2> eb = main_x;
             for (int order = 0; order < lpc_order_; ++order) {
                 size_t order_idx = static_cast<size_t>(order);
                 efsum_[order_idx] *= forget_;
@@ -59,7 +57,6 @@ void LeakyBurgLPC::ProcessWithDicimate(
                 ef = upgo;
                 eb = downgo;
             }
-
             // wired lattice coeffient smooth
             // the FIR and IIR lattice coeffient are reversed
             auto reverse_fir_k = lattice_k_.begin() + lpc_order_;
@@ -75,21 +72,17 @@ void LeakyBurgLPC::ProcessWithDicimate(
                 iir_2 += fir_2 * (1.0f - smooth_);
             }
             // iir lattice
-            auto& s_iir = s_iir_[0];
-            auto gain = gain_smooth_.Tick(qwqdsp_simd_element::PackOps::Abs(ef));
+            auto const& residual = ef;
+            auto& s_iir = s_iir_.front();
+            auto gain = gain_smooth_.Tick(qwqdsp_simd_element::PackOps::Abs(residual));
             auto x0 = side[i] * gain;
             size_t const size_lpc_order = static_cast<size_t>(lpc_order_);
             for (size_t idx = 0; idx < size_lpc_order; idx += 2) {
-                // tick unit delay
-                auto lag0 = s_iir[idx + 1];
-                auto lag1 = s_iir[idx + 2];
-                // tick lattice
-                auto x1 = x0 - iir_k_[idx] * lag0;
-                auto x2 = x1 - iir_k_[idx + 1] * lag1;
-                auto l0 = lag0 + iir_k_[idx] * x1;
-                auto l1 = lag1 + iir_k_[idx + 1] * x2;
+                auto x1 = x0 - iir_k_[idx] * s_iir[idx + 1];
+                auto x2 = x1 - iir_k_[idx + 1] * s_iir[idx + 2];
+                auto l0 = s_iir[idx + 1] + iir_k_[idx] * x1;
+                auto l1 = s_iir[idx + 2] + iir_k_[idx + 1] * x2;
                 x0 = x2;
-                // tick prev unit delay
                 s_iir[idx] = l0;
                 s_iir[idx + 1] = l1;
             }
@@ -109,7 +102,9 @@ void LeakyBurgLPC::ProcessWithDicimate(
             ++dicimate_counter_;
             if (dicimate_counter_ > kDicimate) {
                 dicimate_counter_ = 0;
+                float small_noise = noise_.Next() * kNoiseGain;
                 qwqdsp_simd_element::PackFloat<2> main_x = main[i];
+                main_x += small_noise;
                 // forward fir lattice
                 qwqdsp_simd_element::PackFloat<2> ef = main_x;
                 qwqdsp_simd_element::PackFloat<2> eb = main_x;
@@ -128,95 +123,43 @@ void LeakyBurgLPC::ProcessWithDicimate(
                     ef = upgo;
                     eb = downgo;
                 }
-                residual_ = ef;
+                auto const& residual = ef;
+                residual_gain_ = qwqdsp_simd_element::PackOps::Abs(residual);
             }
-
-            if constexpr (kDicimate == 2) {
-                // IIR lattice working in normal sample rate
-                // wired lattice coeffient smooth
-                // the FIR and IIR lattice coeffient are reversed
-                auto reverse_fir_k = lattice_k_.begin() + lpc_order_;
-                auto iir_k = iir_k_.begin();
-                for (int order = 0; order < lpc_order_; order += 2) {
-                    auto const& fir_1 = *(--reverse_fir_k);
-                    auto const& fir_2 = *(--reverse_fir_k);
-                    auto& iir_1 = *(iir_k++);
-                    auto& iir_2 = *(iir_k++);
-                    iir_1 *= smooth_;
-                    iir_2 *= smooth_;
-                    iir_1 += fir_1 * (1.0f - smooth_);
-                    iir_2 += fir_2 * (1.0f - smooth_);
-                }
-                // iir lattice
-                auto gain = gain_smooth_.Tick(qwqdsp_simd_element::PackOps::Abs(residual_));
-                auto& s_iir_write = s_iir_[0];
-                auto& s_iir_allpass0 = s_iir_[1];
-                auto& s_iir_allpass1 = s_iir_[2];
-                auto x0 = side[i] * gain;
-                size_t const size_lpc_order = static_cast<size_t>(lpc_order_);
-                for (size_t idx = 0; idx < size_lpc_order; idx += 2) {
-                    // tick unit delay
-                    auto allpass_x1 = s_iir_write[idx + 1];
-                    auto allpass_x2 = s_iir_write[idx + 2];
-                    // tick allpass 0
-                    auto allpass_y0_1 = allpass_coeff_ * allpass_x1 + s_iir_allpass0[idx + 1];
-                    auto allpass_y0_2 = allpass_coeff_ * allpass_x2 + s_iir_allpass0[idx + 2];
-                    s_iir_allpass0[idx + 1] = allpass_x1 - allpass_coeff_ * allpass_y0_1;
-                    s_iir_allpass0[idx + 2] = allpass_x2 - allpass_coeff_ * allpass_y0_2;
-                    // tick allpass 1
-                    auto allpass_y1_1 = allpass_coeff_ * allpass_y0_1 + s_iir_allpass1[idx + 1];
-                    auto allpass_y1_2 = allpass_coeff_ * allpass_y0_2 + s_iir_allpass1[idx + 2];
-                    s_iir_allpass1[idx + 1] = allpass_y0_1 - allpass_coeff_ * allpass_y1_1;
-                    s_iir_allpass1[idx + 2] = allpass_y0_2 - allpass_coeff_ * allpass_y1_2;
-                    // tick lattice
-                    auto x1 = x0 - iir_k_[idx] * allpass_y1_1;
-                    auto x2 = x1 - iir_k_[idx + 1] * allpass_y1_2;
-                    auto l0 = allpass_y1_1 + iir_k_[idx] * x1;
-                    auto l1 = allpass_y1_2 + iir_k_[idx + 1] * x2;
-                    x0 = x2;
-                    // tick prev unit delay
-                    s_iir_write[idx] = l0;
-                    s_iir_write[idx + 1] = l1;
-                }
-                s_iir_write[size_lpc_order] = x0;
-                main[i] = x0;
+            // IIR lattice working in normal sample rate
+            // wired lattice coeffient smooth
+            // the FIR and IIR lattice coeffient are reversed
+            auto reverse_fir_k = lattice_k_.begin() + lpc_order_;
+            auto iir_k = iir_k_.begin();
+            for (int order = 0; order < lpc_order_; order += 2) {
+                auto const& fir_1 = *(--reverse_fir_k);
+                auto const& fir_2 = *(--reverse_fir_k);
+                auto& iir_1 = *(iir_k++);
+                auto& iir_2 = *(iir_k++);
+                iir_1 *= smooth_;
+                iir_2 *= smooth_;
+                iir_1 += fir_1 * (1.0f - smooth_);
+                iir_2 += fir_2 * (1.0f - smooth_);
             }
-            else {
-                // IIR lattice working in normal sample rate
-                // wired lattice coeffient smooth
-                // the FIR and IIR lattice coeffient are reversed
-                auto reverse_fir_k = lattice_k_.begin() + lpc_order_;
-                auto iir_k = iir_k_.begin();
-                for (int order = 0; order < lpc_order_; order += 2) {
-                    auto const& fir_1 = *(--reverse_fir_k);
-                    auto const& fir_2 = *(--reverse_fir_k);
-                    auto& iir_1 = *(iir_k++);
-                    auto& iir_2 = *(iir_k++);
-                    iir_1 *= smooth_;
-                    iir_2 *= smooth_;
-                    iir_1 += fir_1 * (1.0f - smooth_);
-                    iir_2 += fir_2 * (1.0f - smooth_);
-                }
-                // iir lattice
-                auto gain = gain_smooth_.Tick(qwqdsp_simd_element::PackOps::Abs(residual_));
-                auto& s_iir_write = s_iir_[iir_s_wpos_++];
-                auto& s_iir_read = s_iir_[iir_s_rpos_++];
-                iir_s_wpos_ &= (2 * kDicimate - 1);
-                iir_s_rpos_ &= (2 * kDicimate - 1);
-                auto x0 = side[i] * gain;
-                size_t const size_lpc_order = static_cast<size_t>(lpc_order_);
-                for (size_t idx = 0; idx < size_lpc_order; idx += 2) {
-                    auto x1 = x0 - iir_k_[idx] * s_iir_read[idx + 1];
-                    auto x2 = x1 - iir_k_[idx + 1] * s_iir_read[idx + 2];
-                    auto l0 = s_iir_read[idx + 1] + iir_k_[idx] * x1;
-                    auto l1 = s_iir_read[idx + 2] + iir_k_[idx + 1] * x2;
-                    x0 = x2;
-                    s_iir_write[idx] = l0;
-                    s_iir_write[idx + 1] = l1;
-                }
-                s_iir_write[size_lpc_order] = x0;
-                main[i] = x0;
+            // iir lattice
+            auto gain = gain_smooth_.Tick(qwqdsp_simd_element::PackOps::Abs(residual_gain_));
+            auto& s_iir_write = s_iir_[iir_s_wpos_++];
+            auto& s_iir_read = s_iir_[iir_s_rpos_++];
+            iir_s_wpos_ &= (2 * kDicimate - 1);
+            iir_s_rpos_ &= (2 * kDicimate - 1);
+            auto x0 = side[i] * gain;
+            size_t const size_lpc_order = static_cast<size_t>(lpc_order_);
+            for (size_t idx = 0; idx < size_lpc_order; idx += 2) {
+                auto x1 = x0 - iir_k_[idx] * s_iir_read[idx + 1];
+                auto x2 = x1 - iir_k_[idx + 1] * s_iir_read[idx + 2];
+                auto l0 = s_iir_read[idx + 1] + iir_k_[idx] * x1;
+                auto l1 = s_iir_read[idx + 2] + iir_k_[idx + 1] * x2;
+                x0 = x2;
+                s_iir_write[idx] = l0;
+                s_iir_write[idx + 1] = l1;
             }
+            s_iir_write[size_lpc_order] = x0;
+            main[i] = x0;
         }
     }
 }
@@ -249,10 +192,6 @@ void LeakyBurgLPC::SetGainAttack(float ms) {
 void LeakyBurgLPC::SetGainRelease(float ms) {
     gain_release_ = ms;
     gain_smooth_.SetReleaseTime(ms, sample_rate_);
-}
-
-void LeakyBurgLPC::SetGainHold(float ms) {
-    gain_smooth_.SetHoldTime(ms, sample_rate_);
 }
 
 void LeakyBurgLPC::CopyLatticeCoeffient(std::span<float> buffer, size_t order) {
@@ -288,15 +227,11 @@ void LeakyBurgLPC::SetQuality(LeakyBurgLPC::Quality quality) {
 
     true_sample_rate_ = sample_rate_ / static_cast<float>(dicimate);
     dicimate_counter_ = dicimate;
-    residual_.Broadcast(0);
+    residual_gain_.Broadcast(0);
     SetForget(forget_ms_);
 
     qwqdsp_filter::RBJ designer;
     dicimate_filter_.SetAll(designer.Dicimate(dicimate));
-}
-
-void LeakyBurgLPC::SetFormant(float formant) {
-    allpass_coeff_ = std::clamp(formant / 12.0f, -0.99f, 0.99f);
 }
 
 }

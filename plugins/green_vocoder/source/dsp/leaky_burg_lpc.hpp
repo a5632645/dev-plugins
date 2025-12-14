@@ -34,9 +34,7 @@ public:
     void SetLPCOrder(int order);
     void SetGainAttack(float ms);
     void SetGainRelease(float ms);
-    void SetGainHold(float ms);
     void SetQuality(Quality quality);
-    void SetFormant(float formant);
 
     void CopyLatticeCoeffient(std::span<float> buffer, size_t order);
 private:
@@ -74,7 +72,6 @@ private:
     size_t iir_s_rpos_{};
     using StateArray = std::array<qwqdsp_simd_element::PackFloat<2>, kNumPoles + 1>;
     std::array<StateArray, kDicimateRingBufferSize> s_iir_{};
-    qwqdsp_simd_element::PackFloat<2> residual_{};
-    float allpass_coeff_{};
+    qwqdsp_simd_element::PackFloat<2> residual_gain_{};
 };
 }
