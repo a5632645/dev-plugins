@@ -21,7 +21,7 @@ void BlockBurgLPC::SetBlockSize(size_t size) {
     fft_size_ = size;
     hann_window_.resize(size);
     eb_.resize(size);
-    x_.resize(size);
+    ef_.resize(size);
     hop_size_ = size / 4;
     for (size_t i = 0; i < size; ++i) {
         hann_window_[i] = 0.5f - 0.5f * std::cos(2.0f* std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(size));
@@ -51,6 +51,10 @@ void BlockBurgLPC::SetRelease(float ms) {
     release_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(ms, update_rate_);
 }
 
+void BlockBurgLPC::SetFormantShift(float shift) {
+    fir_allpass_coeff_ = std::clamp(-shift / 12.0f, -0.99f, 0.99f);
+}
+
 void BlockBurgLPC::Process(
     qwqdsp_simd_element::PackFloat<2>* main_ptr,
     qwqdsp_simd_element::PackFloat<2>* side_ptr,
@@ -60,7 +64,7 @@ void BlockBurgLPC::Process(
     for (size_t i = 0; i < num_samples; ++i) {
         main_ptr[i] += noise_.Next() * kNoiseGain;
     }
-    // -------------------- doing left --------------------
+    // -------------------- copy buffer --------------------
     std::copy_n(main_ptr, num_samples, main_inputBuffer_.begin() + static_cast<int>(numInput_));
     std::copy_n(side_ptr, num_samples, side_inputBuffer_.begin() + static_cast<int>(numInput_));
     numInput_ += num_samples;
@@ -70,26 +74,31 @@ void BlockBurgLPC::Process(
         std::span<qwqdsp_simd_element::PackFloat<2> const> side{side_inputBuffer_.data(), fft_size_};
         // -------------------- lpc --------------------
         // forward fir lattice
-        std::copy(main.begin(), main.end(), x_.begin());
-        std::copy(main.begin() + 1, main.end(), eb_.begin());
+        std::copy(main.begin(), main.end(), ef_.begin());
+        std::copy(main.begin(), main.end(), eb_.begin());
         std::array<qwqdsp_simd_element::PackFloat<2>, kMaxPoles> latticek{};
-        for (size_t kidx = 0; kidx < num_poles_;) {
+        for (size_t kidx = 0; kidx < num_poles_; ++kidx) {
             auto& k = latticek[kidx];
-            ++kidx;
 
             qwqdsp_simd_element::PackFloat<2> up{};
             qwqdsp_simd_element::PackFloat<2> down{};
-            for (size_t i = 0; i < x_.size() - kidx; ++i) {
-                up += x_[i] * eb_[i];
-                down += x_[i] * x_[i];
-                down += eb_[i] * eb_[i];
+            qwqdsp_simd_element::PackFloat<2> s_iir{};
+            for (size_t i = 0; i < ef_.size(); ++i) {
+                auto y = fir_allpass_coeff_ * eb_[i] + s_iir;
+                s_iir = eb_[i] - fir_allpass_coeff_ * y;
+                up += ef_[i] * y;
+                down += ef_[i] * ef_[i];
+                down += y * y;
             }
             k = -2.0f * up / down;
 
-            for (size_t i = 0; i < x_.size() - kidx - 1; ++i) {
-                auto upgo = x_[i] + eb_[i] * k;
-                auto downgo = eb_[i + 1] + x_[i + 1] * k;
-                x_[i] = upgo;
+            s_iir.Broadcast(0);
+            for (size_t i = 0; i < ef_.size(); ++i) {
+                auto y = fir_allpass_coeff_ * eb_[i] + s_iir;
+                s_iir = eb_[i] - fir_allpass_coeff_ * y;
+                auto upgo = ef_[i] + y * k;
+                auto downgo = y + ef_[i] * k;
+                ef_[i] = upgo;
                 eb_[i] = downgo;
             }
         }
@@ -109,8 +118,8 @@ void BlockBurgLPC::Process(
         }
         // eval gain
         qwqdsp_simd_element::PackFloat<2> gain{};
-        for (size_t i = 0; i < x_.size(); ++i) {
-            gain += x_[i] * x_[i];
+        for (size_t i = 0; i < ef_.size(); ++i) {
+            gain += ef_[i] * ef_[i];
         }
         gain = qwqdsp_simd_element::PackOps::Sqrt(gain);
         qwqdsp_simd_element::PackFloat<2> gain_side{};
@@ -123,7 +132,7 @@ void BlockBurgLPC::Process(
         gain_lag_ += (1 - coeff) * atten;
         // iir lattice
         std::array<qwqdsp_simd_element::PackFloat<2>, kMaxPoles + 1> l_iir{};
-        for (size_t j = 0; j < x_.size(); ++j) {
+        for (size_t j = 0; j < ef_.size(); ++j) {
             auto x0 = side[j] * gain_lag_;
             for (size_t idx = 0; idx < num_poles_; idx += 2) {
                 auto x1 = x0 - latticek_[idx] * l_iir[idx + 1];
@@ -135,7 +144,7 @@ void BlockBurgLPC::Process(
                 l_iir[idx + 1] = l1;
             }
             l_iir[num_poles_] = x0;
-            x_[j] = x0;
+            ef_[j] = x0;
         }
         // pull input buffer a hop size
         numInput_ -= hop_size_;
@@ -147,7 +156,7 @@ void BlockBurgLPC::Process(
         }
         // overlay add
         for (size_t i = 0; i < fft_size_; i++) {
-            main_outputBuffer_[i + writeAddBegin_] += x_[i] * hann_window_[i];
+            main_outputBuffer_[i + writeAddBegin_] += ef_[i] * hann_window_[i];
         }
         writeEnd_ = writeAddBegin_ + fft_size_;
         writeAddBegin_ += hop_size_;

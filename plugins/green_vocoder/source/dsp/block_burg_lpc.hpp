@@ -23,6 +23,7 @@ public:
     void SetSmear(float ms);
     void SetAttack(float ms);
     void SetRelease(float ms);
+    void SetFormantShift(float shift);
 
     void CopyLatticeCoeffient(std::span<float> buffer, size_t order);
 private:
@@ -32,9 +33,10 @@ private:
     std::array<qwqdsp_simd_element::PackFloat<2>, 32768> side_inputBuffer_{};
     std::array<qwqdsp_simd_element::PackFloat<2>, 32768> main_outputBuffer_{};
     std::vector<qwqdsp_simd_element::PackFloat<2>> eb_;
-    std::vector<qwqdsp_simd_element::PackFloat<2>> x_;
+    std::vector<qwqdsp_simd_element::PackFloat<2>> ef_;
     std::array<qwqdsp_simd_element::PackFloat<2>, kMaxPoles> latticek_{};
-    size_t fft_size_{};    
+    float fir_allpass_coeff_{};
+    size_t fft_size_{};
     size_t hop_size_{};
     size_t numInput_{};
     size_t writeEnd_{};
