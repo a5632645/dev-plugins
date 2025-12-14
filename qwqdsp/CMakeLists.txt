@@ -39,6 +39,10 @@ if (qwqdsp_have_ipp)
     target_link_libraries(qwqdsp PUBLIC IPP::ipps)
     target_compile_definitions(qwqdsp PUBLIC QWQDSP_HAVE_IPP=1)
 endif()
+if (TARGET simde)
+    target_link_libraries(qwqdsp PUBLIC simde)
+    target_compile_definitions(qwqdsp PUBLIC QWQDSP_HAVE_SIMDE)
+endif()
 
 # enable tests
 if (qwqdsp_have_raylib)

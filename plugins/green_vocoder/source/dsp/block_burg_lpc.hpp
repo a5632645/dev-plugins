@@ -4,7 +4,6 @@
 #include <span>
 #include <qwqdsp/simd_element/simd_pack.hpp>
 #include <qwqdsp/oscillator/noise.hpp>
-#include "AudioFFT/AudioFFT.h"
 
 namespace green_vocoder::dsp {
 
@@ -27,9 +26,6 @@ public:
 
     void CopyLatticeCoeffient(std::span<float> buffer, size_t order);
 private:
-    float Blend(float x);
-
-    audiofft::AudioFFT fft_;
     qwqdsp_oscillator::WhiteNoise noise_;
     std::vector<float> hann_window_{};
     std::array<qwqdsp_simd_element::PackFloat<2>, 32768> main_inputBuffer_{};

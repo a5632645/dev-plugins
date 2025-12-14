@@ -19,7 +19,6 @@ void BlockBurgLPC::Init(float fs) {
 
 void BlockBurgLPC::SetBlockSize(size_t size) {
     fft_size_ = size;
-    fft_.init(size);
     hann_window_.resize(size);
     eb_.resize(size);
     x_.resize(size);
