@@ -17,6 +17,9 @@ NEED REDRAW
 > [!WARNING]
 > The channel vocoder volume is not balanced.
 
+> [!WARNING]
+> The Elliptic filter bank is using non-parameter-smoothing biquad filters. Do not do fast modulation or suddenly jump or it will generate high volume click.  
+
 ## GUI(master version)
 
 ![GUI](gui.png)
