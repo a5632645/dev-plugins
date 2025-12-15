@@ -39,11 +39,14 @@ void ChannelVocoder::SetFreqEnd(float end) {
 }
 
 void ChannelVocoder::SetAttack(float attack) {
+    attack_ms_ = attack;
     attack_ = qwqdsp::convert::Ms2DecayDb(attack, sample_rate_, -60.0f);
+    release_ = qwqdsp::convert::Ms2DecayDb(release_ms_ + attack, sample_rate_, -60.0f);
 }
 
 void ChannelVocoder::SetRelease(float release) {
-    release_ = qwqdsp::convert::Ms2DecayDb(release, sample_rate_, -60.0f);
+    release_ms_ = release;
+    release_ = qwqdsp::convert::Ms2DecayDb(release + attack_ms_, sample_rate_, -60.0f);
 }
 
 void ChannelVocoder::SetModulatorScale(float scale) {

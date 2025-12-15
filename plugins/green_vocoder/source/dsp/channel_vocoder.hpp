@@ -222,6 +222,8 @@ private:
     float release_{150.0f};
     float scale_{1.0f};
     float carry_scale_{1.0f};
+    float attack_ms_{};
+    float release_ms_{};
     eChannelVocoderMap map_{};
     std::array<CascadeBPSVF, kMaxOrder> main_filters_;
     std::array<CascadeBPSVF, kMaxOrder> side_filters_;
