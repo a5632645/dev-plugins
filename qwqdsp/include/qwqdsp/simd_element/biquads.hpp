@@ -1,3 +1,4 @@
+#pragma once
 #include "qwqdsp/simd_element/simd_pack.hpp"
 #include "qwqdsp/filter/biquad_coeff.hpp"
 

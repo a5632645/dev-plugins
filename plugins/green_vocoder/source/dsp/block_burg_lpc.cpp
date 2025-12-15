@@ -52,7 +52,7 @@ void BlockBurgLPC::SetRelease(float ms) {
 }
 
 void BlockBurgLPC::SetFormantShift(float shift) {
-    fir_allpass_coeff_ = std::clamp(-shift / 12.0f, -0.99f, 0.99f);
+    fir_allpass_coeff_ = std::clamp(-shift / 24.0f, -0.99f, 0.99f);
 }
 
 void BlockBurgLPC::Process(
@@ -86,18 +86,16 @@ void BlockBurgLPC::Process(
             for (size_t i = 0; i < ef_.size(); ++i) {
                 auto y = fir_allpass_coeff_ * eb_[i] + s_iir;
                 s_iir = eb_[i] - fir_allpass_coeff_ * y;
+                eb_[i] = y;
                 up += ef_[i] * y;
                 down += ef_[i] * ef_[i];
                 down += y * y;
             }
             k = -2.0f * up / down;
 
-            s_iir.Broadcast(0);
             for (size_t i = 0; i < ef_.size(); ++i) {
-                auto y = fir_allpass_coeff_ * eb_[i] + s_iir;
-                s_iir = eb_[i] - fir_allpass_coeff_ * y;
-                auto upgo = ef_[i] + y * k;
-                auto downgo = y + ef_[i] * k;
+                auto upgo = ef_[i] + eb_[i] * k;
+                auto downgo = eb_[i] + ef_[i] * k;
                 ef_[i] = upgo;
                 eb_[i] = downgo;
             }

@@ -77,7 +77,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kShiftPitch, 1},
             id::kShiftPitch,
-            -12.0f, 12.0f, 0.0f
+            -24.0f, 24.0f, 0.0f
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -112,7 +112,9 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                 "flat butterworth 12",
                 "flat butterworth 24",
                 "chebyshev 12",
-                "chebyshev 24"
+                "chebyshev 24",
+                "Elliptic 24",
+                "Elliptic 36"
             }, 1
         );
         paramListeners_.Add(p, [this](int mode) {
