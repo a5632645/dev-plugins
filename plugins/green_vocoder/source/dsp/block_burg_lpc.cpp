@@ -52,7 +52,7 @@ void BlockBurgLPC::SetRelease(float ms) {
 }
 
 void BlockBurgLPC::SetFormantShift(float shift) {
-    fir_allpass_coeff_ = std::clamp(-shift / 24.0f, -0.99f, 0.99f);
+    fir_allpass_coeff_ = std::clamp(-shift, -0.99f, 0.99f);
 }
 
 void BlockBurgLPC::Process(

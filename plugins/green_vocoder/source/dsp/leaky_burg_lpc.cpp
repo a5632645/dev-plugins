@@ -44,16 +44,19 @@ void LeakyBurgLPC::ProcessWithDicimate(
             qwqdsp_simd_element::PackFloat<2> eb = main_x;
             for (int order = 0; order < lpc_order_; ++order) {
                 size_t order_idx = static_cast<size_t>(order);
+
+                auto y = fir_allpass_coeff_ * eb + fir_allpass_s_[order_idx];
+                fir_allpass_s_[order_idx] = eb - fir_allpass_coeff_ * y;
+
                 efsum_[order_idx] *= forget_;
                 ebsum_[order_idx] *= forget_;
-                efsum_[order_idx] += ef * eb_lag_[order_idx];
+                efsum_[order_idx] += ef * y;
                 ebsum_[order_idx] += ef * ef;
-                ebsum_[order_idx] += eb_lag_[order_idx] * eb_lag_[order_idx];
+                ebsum_[order_idx] += y * y;
                 lattice_k_[order_idx] = -2.0f * efsum_[order_idx] / (ebsum_[order_idx]);
                 auto const k = lattice_k_[order_idx];
-                auto const upgo = ef + k * eb_lag_[order_idx];
-                auto const downgo = eb_lag_[order_idx] + k * ef;
-                eb_lag_[order_idx] = eb;
+                auto const upgo = ef + k * y;
+                auto const downgo = y + k * ef;
                 ef = upgo;
                 eb = downgo;
             }
@@ -110,16 +113,19 @@ void LeakyBurgLPC::ProcessWithDicimate(
                 qwqdsp_simd_element::PackFloat<2> eb = main_x;
                 for (int order = 0; order < lpc_order_; ++order) {
                     size_t order_idx = static_cast<size_t>(order);
+
+                    auto y = fir_allpass_coeff_ * eb + fir_allpass_s_[order_idx];
+                    fir_allpass_s_[order_idx] = eb - fir_allpass_coeff_ * y;
+
                     efsum_[order_idx] *= forget_;
                     ebsum_[order_idx] *= forget_;
-                    efsum_[order_idx] += ef * eb_lag_[order_idx];
+                    efsum_[order_idx] += ef * y;
                     ebsum_[order_idx] += ef * ef;
-                    ebsum_[order_idx] += eb_lag_[order_idx] * eb_lag_[order_idx];
+                    ebsum_[order_idx] += y * y;
                     lattice_k_[order_idx] = -2.0f * efsum_[order_idx] / (ebsum_[order_idx]);
                     auto const k = lattice_k_[order_idx];
-                    auto const upgo = ef + k * eb_lag_[order_idx];
-                    auto const downgo = eb_lag_[order_idx] + k * ef;
-                    eb_lag_[order_idx] = eb;
+                    auto const upgo = ef + k * y;
+                    auto const downgo = y + k * ef;
                     ef = upgo;
                     eb = downgo;
                 }
@@ -232,6 +238,10 @@ void LeakyBurgLPC::SetQuality(LeakyBurgLPC::Quality quality) {
 
     qwqdsp_filter::RBJ designer;
     dicimate_filter_.SetAll(designer.Dicimate(dicimate));
+}
+
+void LeakyBurgLPC::SetFormantShift(float shift) {
+    fir_allpass_coeff_ = std::clamp(-shift, -0.99f, 0.99f);
 }
 
 }

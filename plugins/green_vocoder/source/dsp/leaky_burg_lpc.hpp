@@ -35,6 +35,7 @@ public:
     void SetGainAttack(float ms);
     void SetGainRelease(float ms);
     void SetQuality(Quality quality);
+    void SetFormantShift(float shift);
 
     void CopyLatticeCoeffient(std::span<float> buffer, size_t order);
 private:
@@ -62,8 +63,9 @@ private:
     int lpc_order_{};
 
     // FIR lattice
+    float fir_allpass_coeff_{};
     std::array<qwqdsp_simd_element::PackFloat<2>, kNumPoles> ebsum_{};
-    std::array<qwqdsp_simd_element::PackFloat<2>, kNumPoles> eb_lag_{};
+    std::array<qwqdsp_simd_element::PackFloat<2>, kNumPoles> fir_allpass_s_{};
     std::array<qwqdsp_simd_element::PackFloat<2>, kNumPoles> efsum_{};
     std::array<qwqdsp_simd_element::PackFloat<2>, kNumPoles> lattice_k_{};
     // IIR
