@@ -4,6 +4,7 @@
 #include "simd_pack.hpp"
 
 namespace qwqdsp_simd_element {
+
 template<size_t N>
 class OnePoleTPT {
 public:
@@ -12,7 +13,12 @@ public:
     }
     
     /**
-     * @param w any, <0 will no pass, >pi will all pass
+     * @brief 计算系数
+     * 
+     * @param w 任何值，如果小于0，系数为0，如果大于pi，系数为1
+     * @return 系数
+     * @note 实际上，w的值域是[0, pi)，但这里也可以接受其他值，
+     *        只是会被自动处理成特殊值
      */
     static float ComputeCoeff(float w) noexcept {
         constexpr float kMaxOmega = std::numbers::pi_v<float> - 1e-5f;
@@ -29,6 +35,12 @@ public:
         }
     }
 
+    /**
+     * @brief 计算系数
+     * 
+     * @param w 数字角频率，任意值，过低过高会自动处理特殊值
+     * @return PackFloat<N> 系数
+     */
     static PackFloat<N> ComputeCoeffs(PackFloat<N> const& w) noexcept {
         PackFloat<N> r;
         for (size_t i = 0; i < N; ++i) {
@@ -36,6 +48,7 @@ public:
         }
         return r;
     }
+
 
     PackFloat<N> TickLowpass(PackFloat<N> const& x, PackFloat<N> const& coeff) noexcept {
         auto delta = coeff * (x - lag_);
@@ -66,4 +79,5 @@ public:
 private:
     PackFloat<N> lag_{};
 };
-}
+
+} // namespace qwqdsp_simd_element

@@ -2,6 +2,7 @@
 #include "simd_pack.hpp"
 
 namespace qwqdsp_simd_element {
+
 template<size_t N>
 class AlgebraicWaveshaper {
 public:
@@ -63,4 +64,5 @@ private:
     PackFloat<N> F_xn2_{1};
     PackFloat<N> y_{};
 };
-}
+
+} // namespace qwqdsp_simd_element

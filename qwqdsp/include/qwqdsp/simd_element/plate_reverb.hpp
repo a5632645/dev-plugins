@@ -143,14 +143,14 @@ public:
         damp_coeff_ = tank_damping_.ComputeCoeff(qwqdsp::convert::Freq2W(freq, fs_));
     }
 private:
-    template<size_t N>
+    template<size_t N2>
     class LFO {
     public:
         void Reset() noexcept {
-            phase_ = PackFloat<N>{};
+            phase_ = PackFloat<N2>{};
         }
 
-        PackFloat<N> Tick() noexcept {
+        PackFloat<N2> Tick() noexcept {
             phase_ += phase_inc_;
             phase_ = phase_.Frac();
             constexpr float pi = std::numbers::pi_v<float>;
@@ -158,21 +158,21 @@ private:
             return SinParabola(phase_ * twopi - pi);
         }
 
-        void SetFreq(PackFloat<N> const& f, float fs) noexcept {
+        void SetFreq(PackFloat<N2> const& f, float fs) noexcept {
             phase_inc_ = f / fs;
         }
     private:
-        static inline PackFloat<N> SinParabola(PackFloat<N> const& x) noexcept {
+        static inline PackFloat<N2> SinParabola(PackFloat<N2> const& x) noexcept {
             constexpr float pi = std::numbers::pi_v<float>;
             constexpr float B = 4 / pi;
             constexpr float C = -4 / (pi * pi);
-            PackFloat<N> const y = B * x + C * x * PackFloat<N>::Abs(x);
+            PackFloat<N2> const y = B * x + C * x * PackFloat<N2>::Abs(x);
             constexpr float P = static_cast<float>(0.225);
-            return y + P * (y * PackFloat<N>::Abs(y) - y);
+            return y + P * (y * PackFloat<N2>::Abs(y) - y);
         }
 
-        PackFloat<N> phase_{};
-        PackFloat<N> phase_inc_{};
+        PackFloat<N2> phase_{};
+        PackFloat<N2> phase_inc_{};
     };
 
     float fs_{};

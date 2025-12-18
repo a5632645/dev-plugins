@@ -2,6 +2,7 @@
 #include "delay_line.hpp"
 
 namespace qwqdsp_simd_element {
+
 template<size_t N, DelayLineInterp kInterp>
 class DelayAllpass {
 public:
@@ -35,4 +36,5 @@ public:
 
     DelayLine<N, kInterp> delay_;
 };
-}
+
+} // namespace qwqdsp_simd_element

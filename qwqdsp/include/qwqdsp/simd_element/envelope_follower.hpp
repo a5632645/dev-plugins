@@ -3,6 +3,7 @@
 #include "qwqdsp/misc/smoother.hpp"
 
 namespace qwqdsp_simd_element {
+
 template<size_t N>
 class EnevelopeFollower {
 public:
@@ -37,6 +38,7 @@ private:
         }
 
         PackFloat<N> Tick(PackFloatCRef<N> x) noexcept {
+            QWQDSP_AUTO_VECTORLIZE
             for (size_t i = 0; i < N; ++i) {
                 --counter_[i];
                 if (x[i] > lag_[i]) {
@@ -90,4 +92,5 @@ private:
     SimplePeakHold peakhold_;
     SimpleARFollower smoother_;
 };
-}
+
+} // namespace qwqdsp_simd_element

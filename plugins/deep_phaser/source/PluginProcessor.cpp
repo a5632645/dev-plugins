@@ -374,21 +374,21 @@ struct Vec4Complex {
 
     static constexpr Vec4Complex FromSingle(float re, float im) noexcept {
         Vec4Complex r;
-        r.re = SimdType::FromSingle(re);
-        r.im = SimdType::FromSingle(im);
+        r.re = SimdType::vBroadcast(re);
+        r.im = SimdType::vBroadcast(im);
         return r;
     }
 
     static Vec4Complex FromPolar(SimdType w) noexcept {
         Vec4Complex r;
-        r.re.x[0] = std::cos(w.x[0]);
-        r.re.x[1] = std::cos(w.x[1]);
-        r.re.x[2] = std::cos(w.x[2]);
-        r.re.x[3] = std::cos(w.x[3]);
-        r.im.x[0] = std::sin(w.x[0]);
-        r.im.x[1] = std::sin(w.x[1]);
-        r.im.x[2] = std::sin(w.x[2]);
-        r.im.x[3] = std::sin(w.x[3]);
+        r.re[0] = std::cos(w[0]);
+        r.re[1] = std::cos(w[1]);
+        r.re[2] = std::cos(w[2]);
+        r.re[3] = std::cos(w[3]);
+        r.im[0] = std::sin(w[0]);
+        r.im[1] = std::sin(w[1]);
+        r.im[2] = std::sin(w[2]);
+        r.im[3] = std::sin(w[3]);
         return r;
     }
 
@@ -485,9 +485,9 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 coeffs_[4 * i + 2],
                 coeffs_[4 * i + 3],
             };
-            SimdType mixed_target = target * SimdType::FromSingle(wet_coeff_mix) + dry_coeff;
-            delta_coeffs[i] = (mixed_target - last) * SimdType::FromSingle(inv_samples);
-            dry_coeff = SimdType::FromSingle(0.0f);
+            SimdType mixed_target = target * SimdType::vBroadcast(wet_coeff_mix) + dry_coeff;
+            delta_coeffs[i] = (mixed_target - last) * SimdType::vBroadcast(inv_samples);
+            dry_coeff = SimdType::vBroadcast(0.0f);
         }
 
         float frac_temp;
@@ -533,29 +533,29 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 float left_sum = 0;
                 float right_sum = 0;
                 SimdIntType current_delay;
-                current_delay.x[0] = 0;
-                current_delay.x[1] = num_state;
-                current_delay.x[2] = num_state * 2;
-                current_delay.x[3] = num_state * 3;
-                SimdIntType delay_inc = SimdIntType::FromSingle(num_state * 4);
-                delay_.Push(*left_ptr + feedback_lag_.x[0], *right_ptr + feedback_lag_.x[1],
+                current_delay[0] = 0;
+                current_delay[1] = num_state;
+                current_delay[2] = num_state * 2;
+                current_delay[3] = num_state * 3;
+                SimdIntType delay_inc = SimdIntType::vBroadcast(num_state * 4);
+                delay_.Push(*left_ptr + feedback_lag_[0], *right_ptr + feedback_lag_[1],
                     last_left_allpass_coeff_, last_right_allpass_coeff_, num_calc_apf);
-                feedback_lag_ = delay_.GetLR(num_calc_apf - 1) * SimdType::FromSingle(feedback_mul_from_apf_);
+                feedback_lag_ = delay_.GetLR(num_calc_apf - 1) * SimdType::vBroadcast(feedback_mul_from_apf_);
 
                 for (size_t i = 0; i < coeff_len_div_4_; ++i) {
                     auto taps_out = delay_.GetAfterPush(current_delay);
 
                     taps_out.left *= last_coeffs_[i];
-                    left_sum += taps_out.left.x[0];
-                    left_sum += taps_out.left.x[1];
-                    left_sum += taps_out.left.x[2];
-                    left_sum += taps_out.left.x[3];
+                    left_sum += taps_out.left[0];
+                    left_sum += taps_out.left[1];
+                    left_sum += taps_out.left[2];
+                    left_sum += taps_out.left[3];
 
                     taps_out.right *= last_coeffs_[i];
-                    right_sum += taps_out.right.x[0];
-                    right_sum += taps_out.right.x[1];
-                    right_sum += taps_out.right.x[2];
-                    right_sum += taps_out.right.x[3];
+                    right_sum += taps_out.right[0];
+                    right_sum += taps_out.right[1];
+                    right_sum += taps_out.right[2];
+                    right_sum += taps_out.right[3];
 
                     current_delay += delay_inc;
                 }
@@ -565,8 +565,8 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 ++left_ptr;
                 ++right_ptr;
 
-                feedback_lag_ += SimdType{left_sum, right_sum} * SimdType::FromSingle(feedback_mul_from_fir_);
-                feedback_lag_ = damp_.TickLowpass(feedback_lag_, SimdType::FromSingle(curr_damp_coeff));
+                feedback_lag_ += SimdType{left_sum, right_sum} * SimdType::vBroadcast(feedback_mul_from_fir_);
+                feedback_lag_ = damp_.TickLowpass(feedback_lag_, SimdType::vBroadcast(curr_damp_coeff));
             }
         }
         else {
@@ -579,16 +579,16 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     last_coeffs_[i] += delta_coeffs[i];
                 }
 
-                delay_.Push(*left_ptr + feedback_lag_.x[0], *right_ptr + feedback_lag_.x[1],
+                delay_.Push(*left_ptr + feedback_lag_[0], *right_ptr + feedback_lag_[1],
                     last_left_allpass_coeff_, last_right_allpass_coeff_, num_calc_apf);
-                feedback_lag_ = delay_.GetLR(num_calc_apf - 1) * SimdType::FromSingle(feedback_mul_from_apf_);
+                feedback_lag_ = delay_.GetLR(num_calc_apf - 1) * SimdType::vBroadcast(feedback_mul_from_apf_);
 
                 SimdIntType current_delay;
-                current_delay.x[0] = 0;
-                current_delay.x[1] = num_state;
-                current_delay.x[2] = num_state * 2;
-                current_delay.x[3] = num_state * 3;
-                SimdIntType delay_inc = SimdIntType::FromSingle(num_state * 4);
+                current_delay[0] = 0;
+                current_delay[1] = num_state;
+                current_delay[2] = num_state * 2;
+                current_delay[3] = num_state * 3;
+                SimdIntType delay_inc = SimdIntType::vBroadcast(num_state * 4);
 
                 auto const addition_rotation = std::polar(1.0f, barber_phase_smoother_.Tick());
                 barber_oscillator_.Tick();
@@ -598,22 +598,22 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 auto const rotation_4 = rotation_2 * rotation_2;
                 auto const right_channel_rotation = std::polar(1.0f, barber_stereo_phase);
                 Vec4Complex left_rotation_coeff;
-                left_rotation_coeff.re.x[0] = 1;
-                left_rotation_coeff.re.x[1] = rotation_once.real();
-                left_rotation_coeff.re.x[2] = rotation_2.real();
-                left_rotation_coeff.re.x[3] = rotation_3.real();
-                left_rotation_coeff.im.x[0] = 0;
-                left_rotation_coeff.im.x[1] = rotation_once.imag();
-                left_rotation_coeff.im.x[2] = rotation_2.imag();
-                left_rotation_coeff.im.x[3] = rotation_3.imag();
+                left_rotation_coeff.re[0] = 1;
+                left_rotation_coeff.re[1] = rotation_once.real();
+                left_rotation_coeff.re[2] = rotation_2.real();
+                left_rotation_coeff.re[3] = rotation_3.real();
+                left_rotation_coeff.im[0] = 0;
+                left_rotation_coeff.im[1] = rotation_once.imag();
+                left_rotation_coeff.im[2] = rotation_2.imag();
+                left_rotation_coeff.im[3] = rotation_3.imag();
                 Vec4Complex right_rotation_coeff = left_rotation_coeff;
                 right_rotation_coeff *= Vec4Complex{
-                    .re = SimdType::FromSingle(right_channel_rotation.real()),
-                    .im = SimdType::FromSingle(right_channel_rotation.imag())
+                    .re = SimdType::vBroadcast(right_channel_rotation.real()),
+                    .im = SimdType::vBroadcast(right_channel_rotation.imag())
                 };
                 Vec4Complex left_rotation_mul{
-                    .re = SimdType::FromSingle(rotation_4.real()),
-                    .im = SimdType::FromSingle(rotation_4.imag())
+                    .re = SimdType::vBroadcast(rotation_4.real()),
+                    .im = SimdType::vBroadcast(rotation_4.imag())
                 };
                 Vec4Complex right_rotation_mul = left_rotation_mul;
 
@@ -627,27 +627,27 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
                     taps_out.left *= last_coeffs_[i];
                     SimdType temp = taps_out.left * left_rotation_coeff.re;
-                    left_re_sum += temp.x[0];
-                    left_re_sum += temp.x[1];
-                    left_re_sum += temp.x[2];
-                    left_re_sum += temp.x[3];
+                    left_re_sum += temp[0];
+                    left_re_sum += temp[1];
+                    left_re_sum += temp[2];
+                    left_re_sum += temp[3];
                     temp = taps_out.left * left_rotation_coeff.im;
-                    left_im_sum += temp.x[0];
-                    left_im_sum += temp.x[1];
-                    left_im_sum += temp.x[2];
-                    left_im_sum += temp.x[3];
+                    left_im_sum += temp[0];
+                    left_im_sum += temp[1];
+                    left_im_sum += temp[2];
+                    left_im_sum += temp[3];
 
                     taps_out.right *= last_coeffs_[i];
                     temp = taps_out.right * right_rotation_coeff.re;
-                    right_re_sum += temp.x[0];
-                    right_re_sum += temp.x[1];
-                    right_re_sum += temp.x[2];
-                    right_re_sum += temp.x[3];
+                    right_re_sum += temp[0];
+                    right_re_sum += temp[1];
+                    right_re_sum += temp[2];
+                    right_re_sum += temp[3];
                     temp = taps_out.right * right_rotation_coeff.im;
-                    right_im_sum += temp.x[0];
-                    right_im_sum += temp.x[1];
-                    right_im_sum += temp.x[2];
-                    right_im_sum += temp.x[3];
+                    right_im_sum += temp[0];
+                    right_im_sum += temp[1];
+                    right_im_sum += temp[2];
+                    right_im_sum += temp[3];
 
                     left_rotation_coeff *= left_rotation_mul;
                     right_rotation_coeff *= right_rotation_mul;
@@ -657,13 +657,13 @@ void DeepPhaserAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     left_re_sum, left_im_sum, right_re_sum, right_im_sum
                 });
                 // this will mirror the positive spectrum to negative domain, forming a real value signal
-                SimdType output_y = remove_negative_spectrum.Shuffle<0, 2, 1, 3>();
-                *left_ptr = output_y.x[0] * fir_gain_;
-                *right_ptr = output_y.x[1] * fir_gain_;
+                SimdType output_y = qwqdsp_simd_element::PackOps::Shuffle<0, 2, 1, 3>(remove_negative_spectrum);
+                *left_ptr = output_y[0] * fir_gain_;
+                *right_ptr = output_y[1] * fir_gain_;
                 ++left_ptr;
                 ++right_ptr;
-                feedback_lag_ += output_y * SimdType::FromSingle(feedback_mul_from_fir_);
-                feedback_lag_ = damp_.TickLowpass(feedback_lag_, SimdType::FromSingle(curr_damp_coeff));
+                feedback_lag_ += output_y * SimdType::vBroadcast(feedback_mul_from_fir_);
+                feedback_lag_ = damp_.TickLowpass(feedback_lag_, SimdType::vBroadcast(curr_damp_coeff));
             }
         }
         last_damp_lowpass_coeff_ = damp_lowpass_coeff_;
@@ -851,7 +851,7 @@ void DeepPhaserAudioProcessor::UpdateCoeff() {
 
 void DeepPhaserAudioProcessor::Panic() {
     juce::ScopedLock _{getCallbackLock()};
-    feedback_lag_ = SimdType::FromSingle(0.0f);
+    feedback_lag_.Broadcast(0);
     delay_.Reset();
     hilbert_complex_.Reset();
     damp_.Reset();

@@ -3,6 +3,7 @@
 #include "qwqdsp/filter/biquad_coeff.hpp"
 
 namespace qwqdsp_simd_element {
+
 template<size_t N>
 class Biquads {
 public:
@@ -56,4 +57,5 @@ private:
     PackFloat<N> s1_{};
     PackFloat<N> s2_{};
 };
-}
+
+} // namespace qwqdsp_simd_element

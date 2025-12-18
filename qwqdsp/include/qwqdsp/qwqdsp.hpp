@@ -13,7 +13,7 @@
 #include "adsr_envelope.hpp"
 #include "algebraic_waveshaper.hpp"
 #include "convert.hpp"
-#include "force_inline.hpp"
+#include "extension_marcos.hpp"
 #include "interpolation.hpp"
 #include "interpolation4.hpp"
 #include "polymath.hpp"

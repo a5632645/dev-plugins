@@ -3,6 +3,7 @@
 #include "simd_pack.hpp"
 
 namespace qwqdsp_simd_element {
+
 enum class DelayLineInterp {
     None,
     Lagrange3rd,
@@ -84,7 +85,7 @@ public:
         }
         else if constexpr (kInterpType == DelayLineInterp::Linear) {
             auto inext1 = (irpos + 1) & mask;
-            auto t = rpos.Frac();
+            auto t = PackOps::Frac(rpos);
 
             PackFloat<N> y0;
             PackFloat<N> y1;
@@ -146,7 +147,7 @@ public:
             auto inext1 = (irpos + 1) & mask;
             auto inext2 = (irpos + 2) & mask;
             auto inext3 = (irpos + 3) & mask;
-            auto t = rpos.Frac();
+            auto t = PackOps::Frac(rpos);
 
             auto d1 = t - 1.0f;
             auto d2 = t - 2.0f;
@@ -172,7 +173,7 @@ public:
         }
         else if constexpr (kInterpType == DelayLineInterp::Linear) {
             auto inext1 = (irpos + 1) & mask;
-            auto t = rpos.Frac();
+            auto t = PackOps::Frac(rpos);
 
             PackFloat<N> y0;
             PackFloat<N> y1;
@@ -187,7 +188,7 @@ public:
             auto iprev1 = (irpos - 1) & mask;
             auto inext1 = (irpos + 1) & mask;
             auto inext2 = (irpos + 2) & mask;
-            auto t = rpos.Frac();
+            auto t = PackOps::Frac(rpos);
 
             PackFloat<N> yn1;
             PackFloat<N> y0;
@@ -346,4 +347,5 @@ private:
     int wpos_{};
     int mask_{};
 };
-}
+
+} // namespace qwqdsp_simd_element

@@ -2,6 +2,7 @@
 #include "simd_pack.hpp"
 
 namespace qwqdsp_simd_element {
+
 /**
  * @brief let G(s) = 1/(1+s)
  *        M = 10^(db/40)
@@ -59,4 +60,5 @@ private:
     PackFloat<N> invm_{};
     PackFloat<N> lag_{};
 };
-}
+
+} // namespace qwqdsp_simd_element
