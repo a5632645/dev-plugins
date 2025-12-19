@@ -74,8 +74,8 @@ public:
     juce::AudioParameterChoice* side_channel_config_;
 
     // crossing buffer
-    std::vector<qwqdsp_simd_element::PackFloat<2>> crossing_main_buffer_;
-    std::vector<qwqdsp_simd_element::PackFloat<2>> crossing_side_buffer_;
+    std::array<qwqdsp_simd_element::PackFloat<2>, 256> crossing_main_buffer_;
+    std::array<qwqdsp_simd_element::PackFloat<2>, 256> crossing_side_buffer_;
     // dsps
     green_vocoder::dsp::TiltFilter pre_tilt_filter_;
     green_vocoder::dsp::LeakyBurgLPC burg_lpc_;

@@ -230,7 +230,7 @@ private:
     std::array<CascadeBiquad, kMaxOrder> main_filters_with_zero_;
     std::array<CascadeBiquad, kMaxOrder> side_filters_with_zero_;
     std::array<qwqdsp_simd_element::PackFloat<4>[2], kMaxOrder> main_peaks_{};
-    std::vector<qwqdsp_simd_element::PackFloat<2>> output_;
+    std::array<qwqdsp_simd_element::PackFloat<2>, 256> output_{};
 };
 
 }

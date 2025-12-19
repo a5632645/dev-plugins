@@ -12,7 +12,6 @@ void ChannelVocoder::Init(
     size_t block_size
 ) {
     sample_rate_ = sample_rate;
-    output_.resize(block_size);
     UpdateFilters();
 }
 

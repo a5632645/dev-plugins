@@ -693,8 +693,6 @@ void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     float fs = static_cast<float>(sampleRate);
     size_t block_size = static_cast<size_t>(samplesPerBlock);
 
-    crossing_main_buffer_.resize(block_size);
-    crossing_side_buffer_.resize(block_size);
     burg_lpc_.Init(fs, block_size);
     stft_vocoder_.Init(fs);
     mfcc_vocoder_.Init(fs);
@@ -754,6 +752,7 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     int main_ch = main_channel_config_->getIndex();
     int side_ch = side_channel_config_->getIndex();
+
     if (buffer.getNumChannels() < 4) {
         // 无侧链，侧链声道映射为主声道
         if (main_ch >= 2) {
@@ -763,174 +762,192 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             side_ch = 0;
         }
     }
-    float* pitch_buffer = buffer.getWritePointer(main_ch);
-    size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
 
-    if (side_ch == 2) {
-        yin_segement_.Push({pitch_buffer, num_samples});
-
-        float const noise_gain = tracking_noise_->get();
-        while (yin_segement_.CanProcess()) {
-            yin_.Process(yin_segement_.GetBlock());
-            yin_segement_.Advance();
-
-            // get pitch
-            auto pitch = yin_.GetPitch();
-            size_t const iwant = static_cast<size_t>(yin_segement_.GetHop());
-            size_t const can_write = std::min(osc_buffer_.size() - osc_wpos_, iwant);
-
-            float target_pitch = pitch.pitch_hz * frequency_mul_;
-            target_pitch = std::max(target_pitch, 0.1f);
-
-            // fill trival wave
-            float curr_trival_wave_gain = last_osc_mix_;
-            float const delta_trival_wave_gain = (1.0f - pitch.non_period_ratio - curr_trival_wave_gain) / static_cast<float>(can_write);
-            size_t osc_wpos = osc_wpos_;
-            if (tracking_waveform_->getIndex() == 0) {
-                for (size_t i = 0; i < can_write; ++i) {
-                    curr_trival_wave_gain += delta_trival_wave_gain;
-                    tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), getSampleRate());
-                    osc_buffer_[osc_wpos++] = tracking_osc_.Sawtooth() * curr_trival_wave_gain;
-                }
-            }
-            else {
-                for (size_t i = 0; i < can_write; ++i) {
-                    curr_trival_wave_gain += delta_trival_wave_gain;
-                    tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), getSampleRate());
-                    osc_buffer_[osc_wpos++] = tracking_osc_.PWM_NoDC() * curr_trival_wave_gain;
-                }
-            }
-            last_osc_mix_ = 1.0f - pitch.non_period_ratio;
-
-            // add noise
-            float curr_noise_gain = last_noise_mix_;
-            float target_noise_gain = pitch.non_period_ratio * noise_gain;
-            float delta_noise_gain = (target_noise_gain - curr_noise_gain) / static_cast<float>(can_write);
-            for (size_t i = 0; i < can_write; ++i) {
-                curr_noise_gain += delta_noise_gain;
-                osc_buffer_[osc_wpos_++] += noise_.Next() * curr_noise_gain;
-            }
-            last_noise_mix_ = target_noise_gain;
-        }
-        
-        size_t const cancopy = std::min(osc_wpos_, num_samples);
-        for (size_t i = 0; i < cancopy; ++i) {
-            crossing_side_buffer_[i] = {osc_buffer_[i], osc_buffer_[i]};
-        }
-        for (size_t i = cancopy; i < num_samples; ++i) {
-            crossing_side_buffer_[i].Broadcast(0);
-        }
-
-        size_t const drag = osc_wpos_ - cancopy;
-        for (size_t i = 0; i < drag; ++i) {
-            osc_buffer_[i] = osc_buffer_[i + cancopy];
-        }
-        osc_wpos_ -= cancopy;
-    }
-
-#if 0
-    // crossing left and right buffer
-    // if main_ch == 0 or 1, modulator is 0 and 1
-    // if main_ch == 2 or 3, modulator is 2 and 3
+    float* main_buffer_left = buffer.getWritePointer(0);
+    float* main_buffer_right = buffer.getWritePointer(1);
     float const* modu_left = buffer.getReadPointer(0);
-    float const* modu_right = buffer.getReadPointer(1);
+    [[maybe_unused]] float const* modu_right = buffer.getReadPointer(1);
+    float const* side_left = buffer.getReadPointer(0);
+    [[maybe_unused]] float const* side_right = buffer.getReadPointer(1);
+    float const* pitch_buffer = buffer.getReadPointer(main_ch);
+    size_t num_samples = static_cast<size_t>(buffer.getNumSamples());
+
+    #define I_AM_USING_LOOPBACK_DEBUG 0
+
+    // get buffer pointers by index
     if (main_ch == 2 || main_ch == 3) {
         modu_left = buffer.getReadPointer(2);
         modu_right = buffer.getReadPointer(3);
     }
-    for (size_t i = 0; i < num_samples; ++i) {
-        crossing_main_buffer_[i] = {modu_left[i], modu_right[i]};
-    }
-
-    // if side_ch == 0, carry is 0 and 1
-    // if side_ch == 1, carry is 2 and 3
-    // if side_ch == 2, cross_carry_buffer has been filled by pitch tracking oscillator
     if (side_ch == 1) {
-        float const* side_left = buffer.getReadPointer(2);
-        float const* side_right = buffer.getReadPointer(3);
-        for (size_t i = 0; i < num_samples; ++i) {
-            crossing_side_buffer_[i] = {side_left[i], side_right[i]};
-        }
+        side_left = buffer.getReadPointer(2);
+        side_right = buffer.getReadPointer(3);
     }
     else if (side_ch == 0) {
-        // copy
-        std::copy_n(crossing_main_buffer_.begin(), num_samples, crossing_side_buffer_.begin());
+        side_left = buffer.getReadPointer(0);
+        side_right = buffer.getReadPointer(1);
     }
-#else
-    // NOTE: Debug test code
-    float const* modu = buffer.getReadPointer(0);
-    float const* carry = buffer.getReadPointer(1);
-    if (side_ch != 2) {
-        for (size_t i = 0; i < num_samples; ++i) {
-            crossing_main_buffer_[i].Broadcast(modu[i]);
-            crossing_side_buffer_[i].Broadcast(carry[i]);
-        }
-    }
-    else {
-        for (size_t i = 0; i < num_samples; ++i) {
-            crossing_main_buffer_[i].Broadcast(modu[i]);
-        }
-    }
+
+#if I_AM_USING_LOOPBACK_DEBUG
+    modu_left = buffer.getReadPointer(0);
+    side_left = buffer.getReadPointer(1);
 #endif
+
+    // block process for non-static buffer DAW
+    for (size_t wpos = 0; num_samples != 0;) {
+        size_t num_process = std::min<size_t>(256, num_samples - wpos);
+        num_samples -= num_process;
+
+#if I_AM_USING_LOOPBACK_DEBUG
+        // copying main left to modulator
+        for (size_t i = 0; i < num_process; ++i) {
+            crossing_main_buffer_[i].Broadcast(modu_left[i]);
+        }
+        modu_left += num_process;
+#else
+        // copying modulator buffer
+        for (size_t i = 0; i < num_process; ++i) {
+            crossing_main_buffer_[i] = {modu_left[i], modu_right[i]};
+        }
+        modu_left += num_process;
+        modu_right += num_process;
+#endif
+
+        // copying carry buffer or using pitch tracking
+        if (side_ch == 2) {
+            yin_segement_.Push({pitch_buffer, num_process});
+            pitch_buffer += num_process;
+
+            float const noise_gain = tracking_noise_->get();
+            while (yin_segement_.CanProcess()) {
+                yin_.Process(yin_segement_.GetBlock());
+                yin_segement_.Advance();
+
+                // get pitch
+                auto pitch = yin_.GetPitch();
+                size_t const iwant = static_cast<size_t>(yin_segement_.GetHop());
+                size_t const can_write = std::min(osc_buffer_.size() - osc_wpos_, iwant);
+
+                float target_pitch = pitch.pitch_hz * frequency_mul_;
+                target_pitch = std::max(target_pitch, 0.1f);
+
+                // fill trival wave
+                float curr_trival_wave_gain = last_osc_mix_;
+                float const delta_trival_wave_gain = (1.0f - pitch.non_period_ratio - curr_trival_wave_gain) / static_cast<float>(can_write);
+                size_t osc_wpos = osc_wpos_;
+                if (tracking_waveform_->getIndex() == 0) {
+                    for (size_t i = 0; i < can_write; ++i) {
+                        curr_trival_wave_gain += delta_trival_wave_gain;
+                        tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), static_cast<float>(getSampleRate()));
+                        osc_buffer_[osc_wpos++] = tracking_osc_.Sawtooth() * curr_trival_wave_gain;
+                    }
+                }
+                else {
+                    for (size_t i = 0; i < can_write; ++i) {
+                        curr_trival_wave_gain += delta_trival_wave_gain;
+                        tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), static_cast<float>(getSampleRate()));
+                        osc_buffer_[osc_wpos++] = tracking_osc_.PWM_NoDC() * curr_trival_wave_gain;
+                    }
+                }
+                last_osc_mix_ = 1.0f - pitch.non_period_ratio;
+
+                // add noise
+                float curr_noise_gain = last_noise_mix_;
+                float target_noise_gain = pitch.non_period_ratio * noise_gain;
+                float delta_noise_gain = (target_noise_gain - curr_noise_gain) / static_cast<float>(can_write);
+                for (size_t i = 0; i < can_write; ++i) {
+                    curr_noise_gain += delta_noise_gain;
+                    osc_buffer_[osc_wpos_++] += noise_.Next() * curr_noise_gain;
+                }
+                last_noise_mix_ = target_noise_gain;
+            }
+            
+            size_t const cancopy = std::min(osc_wpos_, num_process);
+            for (size_t i = 0; i < cancopy; ++i) {
+                crossing_side_buffer_[i] = {osc_buffer_[i], osc_buffer_[i]};
+            }
+            for (size_t i = cancopy; i < num_process; ++i) {
+                crossing_side_buffer_[i].Broadcast(0);
+            }
+
+            size_t const drag = osc_wpos_ - cancopy;
+            for (size_t i = 0; i < drag; ++i) {
+                osc_buffer_[i] = osc_buffer_[i + cancopy];
+            }
+            osc_wpos_ -= cancopy;
+        }
+        else {
+#if I_AM_USING_LOOPBACK_DEBUG
+            for (size_t i = 0; i < num_process; ++i) {
+                crossing_side_buffer_[i].Broadcast(side_left[i]);
+            }
+            side_left += num_process;
+#else
+            for (size_t i = 0; i < num_process; ++i) {
+                crossing_side_buffer_[i] = {side_left[i], side_right[i]};
+            }
+            side_left += num_process;
+            side_right += num_process;
+#endif
+        }
+
+        // pre tilt filter
+        for (size_t i = 0; i < num_process; ++i) {
+            crossing_main_buffer_[i] = pre_tilt_filter_.Tick(crossing_main_buffer_[i]);
+        }
+
+        // vocoder
+        switch (vocoder_type_param_->getIndex()) {
+            case eVocoderType_LeakyBurgLPC:
+                burg_lpc_.Process({crossing_main_buffer_.data(), num_process}, {crossing_side_buffer_.data(), num_process});
+                break;
+            case eVocoderType_STFTVocoder:
+                stft_vocoder_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_process);
+                break;
+            case eVocoderType_MFCCVocoder:
+                mfcc_vocoder_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_process);
+                break;
+            case eVocoderType_ChannelVocoder:
+                channel_vocoder_.ProcessBlock(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_process);
+                break;
+            case eVocoderType_BlockBurgLPC:
+                block_burg_lpc_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_process);
+                break;
+            default:
+                jassertfalse;
+                break;
+        }
+
+        // saturation and ensemble
+        float const output_gain = qwqdsp::convert::Db2Gain(output_drive_->get());
+        if (!output_saturation_->get()) {
+            ensemble_.Process(crossing_main_buffer_.data(), num_process);
+            for (size_t i = 0; i < num_process; ++i) {
+                auto x = crossing_main_buffer_[i] * output_gain;
+                main_buffer_left[i] = x[0];
+                main_buffer_right[i] = x[1];
+            }
+        }
+        else {
+            for (size_t i = 0; i < num_process; ++i) {
+                crossing_main_buffer_[i] = output_driver_.ADAA(crossing_main_buffer_[i] * output_gain);
+            }
+            ensemble_.Process(crossing_main_buffer_.data(), num_process);
+            for (size_t i = 0; i < num_process; ++i) {
+                auto const& x = crossing_main_buffer_[i];
+                main_buffer_left[i] = x[0];
+                main_buffer_right[i] = x[1];
+            }
+        }
+        main_buffer_left += num_process;
+        main_buffer_right += num_process;
+    }
     
-    // tilt->shifter sounds harsh, shifter->tilt is ok
-    if (shifter_enabled_->get()) {
-        // shifter_.Process(crossing_main_buffer_);
-    }
-    for (auto& f : crossing_main_buffer_) {
-        f = pre_tilt_filter_.Tick(f);
-    }
-
-    switch (vocoder_type_param_->getIndex()) {
-    case eVocoderType_LeakyBurgLPC:
-        burg_lpc_.Process(crossing_main_buffer_, crossing_side_buffer_);
-        break;
-    case eVocoderType_STFTVocoder:
-        stft_vocoder_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_samples);
-        break;
-    case eVocoderType_MFCCVocoder:
-        mfcc_vocoder_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_samples);
-        break;
-    case eVocoderType_ChannelVocoder:
-        channel_vocoder_.ProcessBlock(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_samples);
-        break;
-    case eVocoderType_BlockBurgLPC:
-        block_burg_lpc_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_samples);
-        break;
-    default:
-        jassertfalse;
-        break;
-    }
-
-    float* main_left = buffer.getWritePointer(0);
-    float* main_right = buffer.getWritePointer(1);
-    float const output_gain = qwqdsp::convert::Db2Gain(output_drive_->get());
-    if (!output_saturation_->get()) {
-        ensemble_.Process(crossing_main_buffer_.data(), num_samples);
-        for (size_t i = 0; i < num_samples; ++i) {
-            auto x = crossing_main_buffer_[i] * output_gain;
-            main_left[i] = x[0];
-            main_right[i] = x[1];
-        }
-    }
-    else {
-        for (size_t i = 0; i < num_samples; ++i) {
-            crossing_main_buffer_[i] = output_driver_.ADAA(crossing_main_buffer_[i] * output_gain);
-        }
-        ensemble_.Process(crossing_main_buffer_.data(), num_samples);
-        for (size_t i = 0; i < num_samples; ++i) {
-            auto const& x = crossing_main_buffer_[i];
-            main_left[i] = x[0];
-            main_right[i] = x[1];
-        }
-    }
-
+    // check any latency changes
     if (latency_.load() != old_latency_) {
         old_latency_ = latency_.load();
         setLatencySamples(old_latency_);
     }
-
-    // first_init_ = false;
 }
 
 //==============================================================================
