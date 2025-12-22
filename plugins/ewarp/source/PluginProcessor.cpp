@@ -2,7 +2,7 @@
 #include "PluginEditor.h"
 
 //==============================================================================
-EmptyAudioProcessor::EmptyAudioProcessor()
+EwarpAudioProcessor::EwarpAudioProcessor()
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
                       #if ! JucePlugin_IsSynth
@@ -11,25 +11,35 @@ EmptyAudioProcessor::EmptyAudioProcessor()
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
                        )
+    , warp_bands_("warp", {1.0f, 1000.0f, 0.1f, 0.4f}, 100.0f)
+    , ratio_("ratio", {0.1f, 12.0f, 0.1f}, 1.0f)
+    , am2rm_("am2rm", {0.0f, 1.0f, 0.01f}, 0.5)
+    , decay_("decay", {0.1f, 0.995f, 0.001f}, 0.6f)
+    , reverse_("reverse", {0.0f, 1.0f, 0.01f}, 0.5f)
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
+    layout.add(warp_bands_.Build());
+    layout.add(ratio_.Build());
+    layout.add(am2rm_.Build());
+    layout.add(decay_.Build());
+    layout.add(reverse_.Build());
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, kParameterValueTreeIdentify, std::move(layout));
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
 }
 
-EmptyAudioProcessor::~EmptyAudioProcessor()
+EwarpAudioProcessor::~EwarpAudioProcessor()
 {
     value_tree_ = nullptr;
 }
 
 //==============================================================================
-const juce::String EmptyAudioProcessor::getName() const
+const juce::String EwarpAudioProcessor::getName() const
 {
     return JucePlugin_Name;
 }
 
-bool EmptyAudioProcessor::acceptsMidi() const
+bool EwarpAudioProcessor::acceptsMidi() const
 {
    #if JucePlugin_WantsMidiInput
     return true;
@@ -38,7 +48,7 @@ bool EmptyAudioProcessor::acceptsMidi() const
    #endif
 }
 
-bool EmptyAudioProcessor::producesMidi() const
+bool EwarpAudioProcessor::producesMidi() const
 {
    #if JucePlugin_ProducesMidiOutput
     return true;
@@ -47,7 +57,7 @@ bool EmptyAudioProcessor::producesMidi() const
    #endif
 }
 
-bool EmptyAudioProcessor::isMidiEffect() const
+bool EwarpAudioProcessor::isMidiEffect() const
 {
    #if JucePlugin_IsMidiEffect
     return true;
@@ -56,52 +66,52 @@ bool EmptyAudioProcessor::isMidiEffect() const
    #endif
 }
 
-double EmptyAudioProcessor::getTailLengthSeconds() const
+double EwarpAudioProcessor::getTailLengthSeconds() const
 {
     return 0.0;
 }
 
-int EmptyAudioProcessor::getNumPrograms()
+int EwarpAudioProcessor::getNumPrograms()
 {
     return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
                 // so this should be at least 1, even if you're not really implementing programs.
 }
 
-int EmptyAudioProcessor::getCurrentProgram()
+int EwarpAudioProcessor::getCurrentProgram()
 {
     return 0;
 }
 
-void EmptyAudioProcessor::setCurrentProgram (int index)
+void EwarpAudioProcessor::setCurrentProgram (int index)
 {
     juce::ignoreUnused (index);
 }
 
-const juce::String EmptyAudioProcessor::getProgramName (int index)
+const juce::String EwarpAudioProcessor::getProgramName (int index)
 {
     juce::ignoreUnused (index);
     return {};
 }
 
-void EmptyAudioProcessor::changeProgramName (int index, const juce::String& newName)
+void EwarpAudioProcessor::changeProgramName (int index, const juce::String& newName)
 {
     juce::ignoreUnused (index, newName);
 }
 
 //==============================================================================
-void EmptyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void EwarpAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    float fs = static_cast<float>(sampleRate);
+    ewarp_.fs = static_cast<float>(sampleRate);
     param_listener_.CallAll();
 }
 
-void EmptyAudioProcessor::releaseResources()
+void EwarpAudioProcessor::releaseResources()
 {
     // When playback stops, you can use this as an opportunity to free up any
     // spare memory, etc.
 }
 
-bool EmptyAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool EwarpAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
   #if JucePlugin_IsMidiEffect
     juce::ignoreUnused (layouts);
@@ -125,7 +135,7 @@ bool EmptyAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) co
   #endif
 }
 
-void EmptyAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
+void EwarpAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
@@ -133,22 +143,30 @@ void EmptyAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     size_t const num_samples = buffer.getNumSamples();
     float* left_ptr = buffer.getWritePointer(0);
     float* right_ptr = buffer.getWritePointer(1);
+
+    ewarp_.am2rm = am2rm_.Get();
+    ewarp_.ratio = ratio_.Get();
+    ewarp_.decay = decay_.Get();
+    ewarp_.warp_bands = warp_bands_.Get();
+    ewarp_.reverse_mix_ = reverse_.Get();
+    ewarp_.Update();
+    ewarp_.Process(left_ptr, right_ptr, num_samples);
 }
 
 //==============================================================================
-bool EmptyAudioProcessor::hasEditor() const
+bool EwarpAudioProcessor::hasEditor() const
 {
     return true; // (change this to false if you choose to not supply an editor)
 }
 
-juce::AudioProcessorEditor* EmptyAudioProcessor::createEditor()
+juce::AudioProcessorEditor* EwarpAudioProcessor::createEditor()
 {
-    return new EmptyAudioProcessorEditor (*this);
+    return new EwarpAudioProcessorEditor (*this);
     // return new juce::GenericAudioProcessorEditor(*this);
 }
 
 //==============================================================================
-void EmptyAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+void EwarpAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     suspendProcessing(true);
     
@@ -162,7 +180,7 @@ void EmptyAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     suspendProcessing(false);
 }
 
-void EmptyAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+void EwarpAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     suspendProcessing(true);
 
@@ -180,5 +198,5 @@ void EmptyAudioProcessor::setStateInformation (const void* data, int sizeInBytes
 // This creates new instances of the plugin..
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new EmptyAudioProcessor();
+    return new EwarpAudioProcessor();
 }

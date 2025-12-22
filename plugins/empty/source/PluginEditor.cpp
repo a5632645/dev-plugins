@@ -8,9 +8,9 @@ EmptyAudioProcessorEditor::EmptyAudioProcessorEditor (EmptyAudioProcessor& p)
     , p_(p)
     , preset_(*p.preset_manager_)
 {
-    auto& apvts = *p.value_tree_;
-
     addAndMakeVisible(preset_);
+
+    auto& apvts = *p.value_tree_;
 
     setSize(800, 600);
 }
@@ -26,7 +26,5 @@ void EmptyAudioProcessorEditor::paint (juce::Graphics& g) {
 
 void EmptyAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
-
     preset_.setBounds(b.removeFromTop(50));
-
 }

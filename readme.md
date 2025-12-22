@@ -1,6 +1,9 @@
 # dev-plugins
 originally here lived green vocoder repository.  
 
+[ewarp](plugins/ewarp/readme.md) is AM/RM/SpectrumReverse modulator.  
+![GUI](plugins/ewarp/gui.png)
+
 [green-vocoder](plugins/green_vocoder/readme.md) is a multiple algorithms vocoder.
 ![GUI](plugins/green_vocoder/gui.png)  
 ---

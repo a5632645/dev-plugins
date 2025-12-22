@@ -3,14 +3,16 @@
 #include <pluginshared/preset_manager.hpp>
 #include <pluginshared/wrap_parameters.hpp>
 
+#include "ewarp.hpp"
+
 // ---------------------------------------- juce processor ----------------------------------------
-class EmptyAudioProcessor final : public juce::AudioProcessor
+class EwarpAudioProcessor final : public juce::AudioProcessor
 {
 public:
     static constexpr auto kParameterValueTreeIdentify = "PARAMETERS";
     //==============================================================================
-    EmptyAudioProcessor();
-    ~EmptyAudioProcessor() override;
+    EwarpAudioProcessor();
+    ~EwarpAudioProcessor() override;
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -46,9 +48,16 @@ public:
 
     JuceParamListener param_listener_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
-
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;
+
+    pluginshared::FloatParam warp_bands_;
+    pluginshared::FloatParam ratio_;
+    pluginshared::FloatParam am2rm_;
+    pluginshared::FloatParam decay_;
+    pluginshared::FloatParam reverse_;
+
+    ewarp::Ewarp ewarp_;
 private:
     //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EmptyAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EwarpAudioProcessor)
 };
