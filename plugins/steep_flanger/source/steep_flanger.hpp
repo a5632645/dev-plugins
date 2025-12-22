@@ -111,15 +111,21 @@ public:
 
 class SteepFlanger {
 public:
+    enum class ProcessArch {
+        kVector4,
+        kVector8,
+        kNothing
+    };
+
     SteepFlanger() {
         complex_fft_.Init(kFFTSize);
 
-        cpu_arch_ = 0;
+        process_arch_ = ProcessArch::kNothing;
         if (simd_detector::is_supported(simd_detector::InstructionSet::PLUGIN_VEC8_DISPATCH_ISET)) {
-            cpu_arch_ = 2;
+            process_arch_ = ProcessArch::kVector8;
         }
         else if (simd_detector::is_supported(simd_detector::InstructionSet::PLUGIN_VEC4_DISPATCH_ISET)) {
-            cpu_arch_ = 1;
+            process_arch_ = ProcessArch::kVector4;
         }
     }
 
@@ -149,10 +155,10 @@ public:
         float* left_ptr, float* right_ptr, size_t len,
         SteepFlangerParameter& param
     ) noexcept {
-        if (cpu_arch_ == 1) {
+        if (process_arch_ == ProcessArch::kVector4) {
             ProcessVec4(left_ptr, right_ptr, len, param);
         }
-        else if (cpu_arch_ == 2) {
+        else if (process_arch_ == ProcessArch::kVector8) {
             ProcessVec8(left_ptr, right_ptr, len, param);
         }
     }
@@ -186,8 +192,8 @@ public:
         return {coeffs_.data(), coeff_len_};
     }
 
-    int GetCpuArch() const noexcept {
-        return cpu_arch_;
+    ProcessArch GetProcessArch() const noexcept {
+        return process_arch_;
     }
 
     std::atomic<bool> have_new_coeff_{};
@@ -212,14 +218,14 @@ private:
             std::copy_n(param.custom_coeffs_.begin(), coeff_len, coeffs_.begin());
         }
 
-        if (cpu_arch_ == 1) {
+        if (process_arch_ == ProcessArch::kVector4) {
             size_t const coeff_len_div_4 = (coeff_len + 3) / 4;
             size_t const idxend = coeff_len_div_4 * 4;
             for (size_t i = coeff_len; i < idxend; ++i) {
                 coeffs_[i] = 0;
             }
         }
-        else {
+        else if (process_arch_ == ProcessArch::kVector8) {
             size_t const coeff_len_div_8 = (coeff_len + 7) / 8;
             size_t const idxend = coeff_len_div_8 * 8;
             for (size_t i = coeff_len; i < idxend; ++i) {
@@ -275,7 +281,7 @@ private:
         have_new_coeff_ = true;
     }
 
-    int cpu_arch_{};
+    ProcessArch process_arch_{};
     float fs_{};
 
     static constexpr size_t kSIMDMaxCoeffLen = ((kMaxCoeffLen + 7) / 8) * 8;

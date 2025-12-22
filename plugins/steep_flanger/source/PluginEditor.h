@@ -120,7 +120,23 @@ private:
     qwqdsp_spectral::RealFFT fft_;
 };
 
-// ---------------------------------------- editor ----------------------------------------
+class UnsupportArch : public juce::Component {
+public:
+    UnsupportArch() {
+        title_.setJustificationType(juce::Justification::centred);
+        ui::SetLableBlack(title_);
+        addAndMakeVisible(title_);
+    }
+    void resized() override {
+        auto b = getLocalBounds();
+        title_.setBounds(b);
+    }
+    void paint(juce::Graphics& g) override {
+        g.fillAll(ui::green_bg);
+    }
+private:
+    juce::Label title_{"", "Unsupported cpu arch"};
+};
 
 //==============================================================================
 class SteepFlangerAudioProcessorEditor final 
@@ -147,6 +163,7 @@ public:
     void timerCallback() override;
 private:
     SteepFlangerAudioProcessor& p_;
+    UnsupportArch unsupported_arch_;
     pluginshared::PresetPanel preset_panel_;
 
     juce::Rectangle<int> lfo_bound_;
@@ -181,11 +198,6 @@ private:
     ui::BpmSyncDial barber_speed_{"speed", "tempo"};
     ui::Dial barber_stereo_{"stereo"};
     ui::FlatButton barber_reset_phase_;
-
-    juce::Rectangle<int> abount_bound_;
-    juce::Label about_title_;
-    juce::Label cpu_arch_;
-    juce::Label build_time_;
 
     TimeView timeview_;
     SpectralView spectralview_;

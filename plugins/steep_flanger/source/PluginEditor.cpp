@@ -265,6 +265,13 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
 {
     auto& apvts = *p.value_tree_;
 
+    addChildComponent(unsupported_arch_);
+    unsupported_arch_.setVisible(p.dsp_.GetProcessArch() == SteepFlanger::ProcessArch::kNothing);
+    if (unsupported_arch_.isVisible()) {
+        setSize(400, 300);
+        return;
+    }
+
     addAndMakeVisible(preset_panel_);
 
     addAndMakeVisible(lfo_title_);
@@ -343,33 +350,6 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     addAndMakeVisible(timeview_);
     addAndMakeVisible(spectralview_);
 
-    about_title_.setText("about", juce::dontSendNotification);
-    addAndMakeVisible(about_title_);
-    int cpu_arch = p.dsp_.GetCpuArch();
-    switch (cpu_arch) {
-        case 0:
-            cpu_arch_.setColour(juce::Label::ColourIds::textColourId, juce::Colours::red);
-            cpu_arch_.setText("unsupport cpu", juce::dontSendNotification);
-            break;
-        case 1:
-            cpu_arch_.setText("float32x4 version", juce::dontSendNotification);
-            break;
-        case 2:
-            cpu_arch_.setText("float32x8 version", juce::dontSendNotification);
-            break;
-        default:
-            cpu_arch_.setColour(juce::Label::ColourIds::textColourId, juce::Colours::red);
-            cpu_arch_.setText("internal error", juce::dontSendNotification);
-            break;
-    }
-    cpu_arch_.setJustificationType(juce::Justification::topRight);
-    ui::SetLableBlack(cpu_arch_);
-    addAndMakeVisible(cpu_arch_);
-    build_time_.setJustificationType(juce::Justification::topRight);
-    build_time_.setText(__DATE__, juce::dontSendNotification);
-    ui::SetLableBlack(build_time_);
-    addAndMakeVisible(build_time_);
-
     setSize(600, 264 + 30);
     custom_.setToggleState(p.dsp_param_.is_using_custom_, juce::sendNotificationSync);
     startTimerHz(30);
@@ -380,6 +360,8 @@ SteepFlangerAudioProcessorEditor::~SteepFlangerAudioProcessorEditor() {
 
 //==============================================================================
 void SteepFlangerAudioProcessorEditor::paint (juce::Graphics& g) {
+    if (unsupported_arch_.isVisible()) return;
+
     g.fillAll(juce::Colour{22,27,32});
 
     auto b = getLocalBounds();
@@ -389,12 +371,14 @@ void SteepFlangerAudioProcessorEditor::paint (juce::Graphics& g) {
     g.fillRect(lfo_bound_);
     g.fillRect(fir_bound_);
     g.fillRect(feedback_bound_);
-    g.fillRect(abount_bound_);
     g.fillRect(barber_bound_);
 }
 
 void SteepFlangerAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
+    unsupported_arch_.setBounds(b);
+    if (unsupported_arch_.isVisible()) return;
+
     preset_panel_.setBounds(b.removeFromTop(30));
     b.removeFromTop(2);
     {
@@ -446,22 +430,15 @@ void SteepFlangerAudioProcessorEditor::resized() {
         }
         bottom_block.removeFromLeft(8);
         {
-            auto about_block = bottom_block.removeFromRight(70);
-            abount_bound_ = about_block;
-            about_title_.setBounds(about_block.removeFromTop(25));
-            cpu_arch_.setBounds(about_block.removeFromTop(about_block.getHeight() / 2));
-            build_time_.setBounds(about_block);
-        }
-        bottom_block.removeFromRight(8);
-        {
-            barber_bound_ = bottom_block;
-            auto barber_title_bound = bottom_block.removeFromTop(25);
+            auto barber_block = bottom_block.removeFromLeft(250);
+            barber_bound_ = barber_block;
+            auto barber_title_bound = barber_block.removeFromTop(25);
             barber_reset_phase_.setBounds(barber_title_bound.removeFromRight(100).reduced(2));
-            barber_enable_.setBounds(barber_title_bound.removeFromRight(100).reduced(2));
+            barber_enable_.setBounds(barber_title_bound.removeFromRight(60).reduced(2));
             barber_title_.setBounds(barber_title_bound);
-            barber_phase_.setBounds(bottom_block.removeFromLeft(80));
-            barber_speed_.setBounds(bottom_block.removeFromLeft(80));
-            barber_stereo_.setBounds(bottom_block);
+            barber_phase_.setBounds(barber_block.removeFromLeft(80));
+            barber_speed_.setBounds(barber_block.removeFromLeft(80));
+            barber_stereo_.setBounds(barber_block);
         }
     }
     b.removeFromTop(8);

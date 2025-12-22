@@ -234,13 +234,13 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
-    preset_manager_->external_load_default_operations = [this]{
-        dsp_param_.is_using_custom_ = false;
-        dsp_param_.should_update_fir_ = true;
-        dsp_.have_new_coeff_ = true;
-        std::ranges::fill(dsp_param_.custom_coeffs_, float{});
-        std::ranges::fill(dsp_param_.custom_spectral_gains, float{});
-    };
+    // preset_manager_->external_load_default_operations = [this]{
+    //     dsp_param_.is_using_custom_ = false;
+    //     dsp_param_.should_update_fir_ = true;
+    //     dsp_.have_new_coeff_ = true;
+    //     std::ranges::fill(dsp_param_.custom_coeffs_, float{});
+    //     std::ranges::fill(dsp_param_.custom_spectral_gains, float{});
+    // };
 }
 
 SteepFlangerAudioProcessor::~SteepFlangerAudioProcessor()
@@ -412,61 +412,62 @@ juce::AudioProcessorEditor* SteepFlangerAudioProcessor::createEditor()
 void SteepFlangerAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     suspendProcessing(true);
-    if (auto state = value_tree_->copyState().createXml(); state != nullptr) {
-        auto custom_coeffs = state->createNewChildElement("CUSTOM_COEFFS");
-        custom_coeffs->setAttribute("USING", dsp_param_.is_using_custom_);
-        auto data = custom_coeffs->createNewChildElement("DATA");
-        for (size_t i = 0; i < kMaxCoeffLen; ++i) {
-            auto time = data->createNewChildElement("ITEM");
-            time->setAttribute("TIME", dsp_param_.custom_coeffs_[i]);
-            time->setAttribute("SPECTRAL", dsp_param_.custom_spectral_gains[i]);
-        }
-        copyXmlToBinary(*state, destData);
+
+    juce::ValueTree data{"DATA"};
+    for (size_t i = 0; i < kMaxCoeffLen; ++i) {
+        data.appendChild({
+            "ITEM",
+            {
+                {"TIME", dsp_param_.custom_coeffs_[i]},
+                {"SPECTRAL", dsp_param_.custom_spectral_gains[i]},
+            }
+        }, nullptr);
     }
+    juce::ValueTree custom_coeffs{"CUSTOM_COEFFS"};
+    custom_coeffs.setProperty("USING", dsp_param_.is_using_custom_.load(), nullptr);
+    custom_coeffs.appendChild(data, nullptr);
+
+    juce::ValueTree plugin_state{"PLUGIN_STATE"};
+    plugin_state.appendChild(value_tree_->copyState(), nullptr);
+    plugin_state.appendChild(custom_coeffs, nullptr);
+
+    if (auto xml = plugin_state.createXml(); xml != nullptr) {
+        copyXmlToBinary(*xml, destData);
+    }
+
     suspendProcessing(false);
 }
 
 void SteepFlangerAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     suspendProcessing(true);
-    auto xml = *getXmlFromBinary(data, sizeInBytes);
-    auto state = juce::ValueTree::fromXml(xml);
 
-    if (state.isValid()) {
-        value_tree_->replaceState(state);
-        auto coeffs = xml.getChildByName("CUSTOM_COEFFS");
-        if (coeffs) {
-            dsp_param_.is_using_custom_ = coeffs->getBoolAttribute("USING", false);
-            auto data_sections = coeffs->getChildByName("DATA");
-            if (data_sections) {
-                auto it = data_sections->getChildIterator();
-                for (size_t i = 0; auto item : it) {
-                    dsp_param_.custom_coeffs_[i] = static_cast<float>(item->getDoubleAttribute("TIME"));
-                    dsp_param_.custom_spectral_gains[i] = static_cast<float>(item->getDoubleAttribute("SPECTRAL"));
+    auto xml = *getXmlFromBinary(data, sizeInBytes);
+    auto plugin_state = juce::ValueTree::fromXml(xml);
+
+    if (plugin_state.isValid()) {
+        auto parameters = plugin_state.getChildWithName("PARAMETERS");
+        if (parameters.isValid()) {
+            value_tree_->replaceState(parameters);
+        }
+
+        auto custom_coeffs = plugin_state.getChildWithName("CUSTOM_COEFFS");
+        if (custom_coeffs.isValid()) {
+            dsp_param_.is_using_custom_ = custom_coeffs.getProperty("USING", false);
+            auto data_sections = custom_coeffs.getChildWithName("DATA");
+            if (data_sections.isValid()) {
+                std::fill_n(dsp_param_.custom_coeffs_.begin(), kMaxCoeffLen, 0.0f);
+                std::fill_n(dsp_param_.custom_spectral_gains.begin(), kMaxCoeffLen, 0.0f);
+                for (size_t i = 0; auto item : data_sections) {
+                    dsp_param_.custom_coeffs_[i] = static_cast<float>(item.getProperty("TIME", 0.0));
+                    dsp_param_.custom_spectral_gains[i] = static_cast<float>(item.getProperty("SPECTRAL", 0.0));
                     ++i;
-                    // protect loading old version 65 length coeffs
-                    if (i == kMaxCoeffLen) break;
                 }
                 dsp_param_.should_update_fir_ = true;
             }
         }
-
-        auto const& version_var = state.getProperty(preset_manager_->kVersionProperty);
-        int major{};
-        int minor{};
-        int patch{};
-        if (!version_var.isVoid()) {
-            std::tie(major, minor, patch) = pluginshared::version::ParseVersionString(version_var.toString());
-        }
-        if (minor <= 1 && patch <= 0) {
-            // version 0.1.0 or below doesn't have tempo/freq control
-            delay_lfo_state_.SetTempoTypeToFree();
-            barber_lfo_state_.SetTempoTypeToFree();
-            // version 0.1.0 or below doesn't have barber_stereo
-            param_barber_stereo_->setValueNotifyingHost(param_barber_stereo_->convertTo0to1(0));
-            param_drywet_->setValueNotifyingHost(param_drywet_->convertTo0to1(1));
-        }
     }
+
     suspendProcessing(false);
 }
 

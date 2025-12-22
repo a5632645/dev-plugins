@@ -34,7 +34,7 @@ public:
         }
 
         apvts.state.setProperty(presetNameProperty, kDefaultPresetName, nullptr);
-        apvts.state.setProperty("version", JucePlugin_VersionString, nullptr);
+        apvts.state.setProperty(kVersionProperty, JucePlugin_VersionString, nullptr);
 
         valueTreeState.state.addListener(this);
         currentPreset.referTo(valueTreeState.state.getPropertyAsValue(presetNameProperty, nullptr));
