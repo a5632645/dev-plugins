@@ -14,7 +14,7 @@ EmptyAudioProcessor::EmptyAudioProcessor()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
-    value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
+    value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, kParameterValueTreeIdentify, std::move(layout));
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
 }
 
@@ -150,20 +150,28 @@ juce::AudioProcessorEditor* EmptyAudioProcessor::createEditor()
 void EmptyAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     suspendProcessing(true);
-    if (auto state = value_tree_->copyState().createXml(); state != nullptr) {
-        copyXmlToBinary(*state, destData);
+    
+    juce::ValueTree plugin_state{"PLUGIN_STATE"};
+    plugin_state.appendChild(value_tree_->copyState(), nullptr);
+    
+    if (auto xml = plugin_state.createXml(); xml != nullptr) {
+        copyXmlToBinary(*xml, destData);
     }
+
     suspendProcessing(false);
 }
 
 void EmptyAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     suspendProcessing(true);
+
     auto xml = *getXmlFromBinary(data, sizeInBytes);
-    auto state = juce::ValueTree::fromXml(xml);
-    if (state.isValid()) {
-        value_tree_->replaceState(state);
+    auto plugin_state = juce::ValueTree::fromXml(xml);
+    if (plugin_state.isValid()) {
+        auto parameter = plugin_state.getChildWithName(kParameterValueTreeIdentify);
+        value_tree_->replaceState(parameter);
     }
+
     suspendProcessing(false);
 }
 

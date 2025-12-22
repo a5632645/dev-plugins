@@ -6,6 +6,7 @@
 class EmptyAudioProcessor final : public juce::AudioProcessor
 {
 public:
+    static constexpr auto kParameterValueTreeIdentify = "PARAMETERS";
     //==============================================================================
     EmptyAudioProcessor();
     ~EmptyAudioProcessor() override;
