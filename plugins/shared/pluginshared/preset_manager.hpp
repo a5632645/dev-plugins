@@ -38,8 +38,7 @@ public:
 
         valueTreeState.state.addListener(this);
         currentPreset.referTo(valueTreeState.state.getPropertyAsValue(presetNameProperty, nullptr));
-
-        default_state_ = valueTreeState.copyState();
+        p.getCurrentProgramStateInformation(default_state_block_);
     }
 
     ~PresetManager() override {
@@ -160,16 +159,10 @@ public:
     }
 
     void loadDefaultPatch() {
-        processor_.suspendProcessing(true);
-        valueTreeState.replaceState(default_state_.createCopy());
+        processor_.setStateInformation(default_state_block_.getData(), static_cast<int>(default_state_block_.getSize()));
         if (external_load_default_operations) {
             external_load_default_operations();
         }
-        processor_.suspendProcessing(false);
-    }
-
-    juce::ValueTree GetDefaultValueTree() {
-        return default_state_;
     }
 
     /**
@@ -184,9 +177,10 @@ private:
     }
 
     juce::AudioProcessorValueTreeState& valueTreeState;
+    juce::MemoryBlock default_state_block_;
     juce::AudioProcessor& processor_;
     juce::Value currentPreset;
-    juce::ValueTree default_state_;
+
     std::unique_ptr<juce::Thread> update_thread_;
     std::atomic<bool> have_new_version_{false};
 
