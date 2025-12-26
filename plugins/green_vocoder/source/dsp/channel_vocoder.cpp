@@ -536,7 +536,7 @@ void ChannelVocoder::_UpdateFilters2() {
         if constexpr (std::is_same_v<Designer, Elliptic24> || std::is_same_v<Designer, Elliptic36>) {
             auto& main_filter = main_filters_with_zero_[filter_idx];
             auto& side_filter = side_filters_with_zero_[filter_idx];
-            Designer::Design(main_filter, main_w1, main_w2, carry_w_mul_);
+            Designer::Design(main_filter, main_w1, main_w2);
             Designer::Design(side_filter, side_w1, side_w2, carry_w_mul_);
         }
         else {
