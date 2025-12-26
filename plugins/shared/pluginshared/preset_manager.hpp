@@ -1,5 +1,6 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "update_data.hpp"
 
 namespace pluginshared {
 /**
@@ -39,13 +40,6 @@ public:
         valueTreeState.state.addListener(this);
         currentPreset.referTo(valueTreeState.state.getPropertyAsValue(presetNameProperty, nullptr));
         p.getCurrentProgramStateInformation(default_state_block_);
-    }
-
-    ~PresetManager() override {
-        if (update_thread_) {
-            update_thread_->stopThread(-1);
-            update_thread_ = nullptr;
-        }
     }
 
     void savePreset(const juce::String& presetName)
@@ -165,6 +159,10 @@ public:
         }
     }
 
+    UpdateData& GetUpdateData() {
+        return update_data_;
+    }
+
     /**
      * @brief make audio processor goes into default state, value tree is automatic done
      * @note when call this, the processor will automatic suspend
@@ -181,8 +179,7 @@ private:
     juce::AudioProcessor& processor_;
     juce::Value currentPreset;
 
-    std::unique_ptr<juce::Thread> update_thread_;
-    std::atomic<bool> have_new_version_{false};
+    UpdateData update_data_;
 
     friend class PresetPanel;
 };

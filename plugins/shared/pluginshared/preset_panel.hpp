@@ -1,15 +1,12 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
-#include "juce_events/juce_events.h"
+#include "component.hpp"
 #include "preset_manager.hpp"
-#include "pluginshared/component.hpp"
+#include "update_gui.hpp"
 
 namespace pluginshared {
 class PresetPanel : public juce::Component, juce::Button::Listener {
 public:
-    static constexpr int kNetworkTimeout = 500; // ms
-    static constexpr auto kReleasePageURL = "https://github.com/a5632645/dev-plugins/releases";
-    static constexpr auto kReleaseJsonFile = "https://raw.githubusercontent.com/a5632645/dev-plugins/refs/heads/main/release.json";
     inline static ui::CustomLookAndFeel look_and_feel;
 
     PresetPanel(PresetManager& pm)
@@ -112,9 +109,9 @@ private:
             plugin_name << JucePlugin_Name << ' ' << JucePlugin_VersionString;
             menu.addItem(plugin_name, false, false, []{});
 
-            if (presetManager.have_new_version_) {
+            if (presetManager.GetUpdateData().HaveNewVersion()) {
                 menu.addItem("new version", []{
-                    juce::URL{kReleasePageURL}.launchInDefaultBrowser();
+                    juce::URL{UpdateData::kReleasePageURL}.launchInDefaultBrowser();
                 });
             }
             else {
@@ -173,171 +170,17 @@ private:
     }
 
     void CheckUpdate() {
-        if (presetManager.update_thread_) {
-            presetManager.update_thread_->stopThread(-1);
-            presetManager.update_thread_ = nullptr;
-        }
-        presetManager.update_thread_ = std::make_unique<UpdateThread>(*this, presetManager);
-        if (!presetManager.update_thread_->startThread()) {
-            juce::NativeMessageBox::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon, "check update error", "launch update thread failed");
-            return;
-        }
-
-        auto* diaglog = new UpdateMessageDialog;
-
-        update_message_.label.setText("checking update", juce::dontSendNotification);
-        update_message_.button.setButtonText("cancel");
-        update_message_.button.onClick = [diaglog] {
-            diaglog->userTriedToCloseWindow();
-        };
-        diaglog->on_close = [this] {
-            if (presetManager.update_thread_) {
-                presetManager.update_thread_->stopThread(-1);
-                presetManager.update_thread_ = nullptr;
-            }
-            update_message_.button.onClick = []{};
-        };
-
-        diaglog->setContentNonOwned(&update_message_, true);
-        diaglog->setTopLeftPosition(juce::Desktop::getInstance().getMousePosition());
+        presetManager.GetUpdateData().BeginCheck();
+        auto* diaglog = new UpdateMessageDialog(presetManager.GetUpdateData());
         diaglog->enterModalState(true, nullptr, true);
     }
 
-    class UpdateMessageDialog : public juce::DialogWindow {
-    public:
-        UpdateMessageDialog()
-            : juce::DialogWindow("checking update", juce::Colours::black, false) {}
-
-        void closeButtonPressed() override {
-            if (on_close) {
-                on_close();
-            }
-            delete this;
-        }
-
-        std::function<void()> on_close;
-    };
-
-    class UpdateMessageComponent : public juce::Component {
-    public:
-        UpdateMessageComponent() {
-            addAndMakeVisible(label);
-            label.setJustificationType(juce::Justification::topLeft);
-            addAndMakeVisible(button);
-            setSize(300, 150);
-        }
-
-        void resized() override {
-            auto b = getLocalBounds();
-            label.setBounds(b.removeFromTop(b.proportionOfHeight(0.8f)));
-            button.setBounds(b);
-        }
-
-        juce::Label label;
-        juce::TextButton button;
-    };
-
-    friend class UpdateThread;
-    class UpdateThread : public juce::Thread {
-    public:
-        UpdateThread(PresetPanel& panel, PresetManager& manager)
-            : juce::Thread("version check")
-            , panel_(&panel)
-            , manager_(manager) {}
-
-        void run() override {
-            juce::URL::InputStreamOptions op{juce::URL::ParameterHandling::inAddress};
-            // why not give me a std::future like class, then i can run a loop check
-            auto stream = juce::URL{kReleaseJsonFile}
-                .createInputStream(op.withConnectionTimeoutMs(kNetworkTimeout));
-
-            if (threadShouldExit()) {
-                return;
-            }
-
-            if (!stream) {
-                SetUpdateMessage("network error", "ok");
-                return;
-            }
-
-            auto version_string = stream->readEntireStreamAsString();
-            auto json = juce::JSON::fromString(version_string);
-            if (!json.isArray()) {
-                SetUpdateMessage("payload error", "ok");
-                return;
-            }
-
-            auto* array = json.getArray();
-            if (!array) {
-                SetUpdateMessage("payload error", "ok");
-                return;
-            }
-
-            for (auto const& plugin : *array) {
-                auto plugin_name = plugin.getProperty("name", "");
-                if (!plugin_name.isString()) {
-                    continue;
-                }
-                if (!plugin_name.toString().equalsIgnoreCase(JucePlugin_Name)) {
-                    continue;
-                }
-
-                auto version = plugin.getProperty("version", JucePlugin_VersionString);
-                if (!version.isString()) {
-                    SetUpdateMessage("payload error", "ok");
-                    return;
-                }
-                if (version.toString().equalsIgnoreCase(JucePlugin_VersionString)) {
-                    SetUpdateMessage("you are using newest plugin", "ok");
-                    return;
-                }
-                else {
-                    manager_.have_new_version_ = true;
-                    if (!panel_) {
-                        return;
-                    }
-
-                    auto changelog = plugin.getProperty("changelog", "").toString();
-                    juce::String s;
-                    s << "new version avaliable: " << version.toString() << "\n";
-                    s << "chanelog: " << changelog;
-
-                    juce::MessageManagerLock lock;
-                    juce::MessageManager::callAsync([p = panel_, text = std::move(s)]{
-                        p->update_message_.label.setText(text, juce::dontSendNotification);
-                        p->update_message_.button.setButtonText("ok");
-                    });
-                    return;
-                }
-            }
-
-            SetUpdateMessage("plugin error", "ok");
-        }
-    private:
-        void SetUpdateMessage(juce::StringRef label, juce::StringRef button) {
-            if (!panel_) {
-                return;
-            }
-
-            juce::MessageManagerLock lock;
-            juce::MessageManager::callAsync([p = panel_, label, button]{
-                p->update_message_.label.setText(label, juce::dontSendNotification);
-                p->update_message_.button.setButtonText(button);
-            });
-        }
-
-        juce::Component::SafePointer<PresetPanel> panel_;
-        PresetManager& manager_;
-    };
-
     PresetManager& presetManager;
     ui::FlatButton saveButton, deleteButton, previousPresetButton, nextPresetButton;
-    // ui::FlatCombobox presetList;
     juce::Label preset_name_{"", PresetManager::kDefaultPresetName};
     juce::PopupMenu preset_menu_;
     std::unique_ptr<juce::FileChooser> fileChooser;
     ui::FlatButton options_button_;
-    UpdateMessageComponent update_message_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetPanel)
 };
