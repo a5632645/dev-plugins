@@ -30,7 +30,7 @@ void PitchShifter::Process(std::span<qwqdsp_simd_element::PackFloat<2>> block) {
 }
 
 void PitchShifter::SetPitchShift(float pitch) {
-    float a = std::exp(pitch / 12.0f);
+    float a = std::exp2(pitch / 12.0f);
     phase_inc_ = 1.0f - a;
 }
 
