@@ -1,4 +1,6 @@
-#include <qwqdsp/qwqdsp.hpp>
+// #include <qwqdsp/qwqdsp.hpp>
+#include <qwqdsp/simd_element/pack_types.hpp>
+#include <iostream>
 
 // class ParalleAllpass {
 // public:
@@ -86,5 +88,15 @@
 // };
 
 int main() {
-    
+    qwqdsp_simd_element::PackTypes<float, 4> a{1, 2, 3, 4};
+    qwqdsp_simd_element::PackTypes<float, 4> b{3, 2, 1, 2};
+    auto c = a + b;
+    auto d = a - b;
+    auto mask = a > b;
+    auto e = qwqdsp_simd_element::PackOps::Select(mask, c, d);
+    auto f = e.To<uint32_t>();
+
+    for (auto v : f.data) {
+        std::cout << v << std::endl;
+    }
 }
