@@ -1,3 +1,4 @@
+#pragma once
 #include "fixed/fixed.hpp"
 #include "allpass.hpp"
 #include "analog_responce.hpp"
@@ -8,10 +9,8 @@
 #include "fir.hpp"
 #include "formant.hpp"
 #include "gold_rader.hpp"
-#include "iir_cpx_hilbert_stereo_simd.hpp"
 #include "iir_cpx_hilbert.hpp"
 #include "iir_design_extra.hpp"
-#pragma once
 #include "iir_design.hpp"
 #include "iir_hilbert.hpp"
 #include "iir_hilbert4.hpp"
@@ -23,7 +22,6 @@
 #include "linkwitz_riley.hpp"
 #include "match_biquad.hpp"
 #include "median.hpp"
-#include "one_pole_tpt_simd.hpp"
 #include "one_pole_tpt.hpp"
 #include "one_pole.hpp"
 #include "onepole_tpt_shelf.hpp"
