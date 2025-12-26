@@ -15,7 +15,7 @@ public:
 
     void Process(float* left, float* right, size_t num_samples) noexcept {
         float dry_mix = 1.0f - am2rm;
-        float wet_mix = am2rm;
+        float wet_mix = am2rm * normalize_gain_;
         float normal_mix = 1.0f - reverse_mix_;
         float reverse_mix = reverse_mix_;
         for (size_t i = 0; i < num_samples; ++i) {
@@ -55,6 +55,6 @@ public:
 private:
     float normalize_gain_{};
     float reverse_spectrum_gain_{1.0f};
-    qwqdsp_oscillator::DSFCorrect<> dsf_;
+    qwqdsp_oscillator::DSFCorrect<12> dsf_;
 };
 }

@@ -14,7 +14,7 @@ EwarpAudioProcessor::EwarpAudioProcessor()
     , warp_bands_("warp", {1.0f, 1000.0f, 0.1f, 0.4f}, 100.0f)
     , ratio_("ratio", {0.1f, 12.0f, 0.1f}, 1.0f)
     , am2rm_("am2rm", {0.0f, 1.0f, 0.01f}, 0.5)
-    , decay_("decay", {0.1f, 0.995f, 0.001f}, 0.6f)
+    , decay_("decay", {0.1f, 0.99f, 0.001f}, 0.6f)
     , reverse_("reverse", {0.0f, 1.0f, 0.01f}, 0.5f)
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
