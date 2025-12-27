@@ -42,7 +42,7 @@ private:
             addAndMakeVisible(label);
             button.setButtonText("cancel");
             addAndMakeVisible(button);
-            setSize(300, 150);
+            setSize(500, 300);
         }
 
         void resized() override {

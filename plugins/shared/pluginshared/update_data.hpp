@@ -107,7 +107,7 @@ private:
                         auto changelog = plugin.getProperty("changelog", "").toString();
                         juce::String s;
                         s << "new version avaliable: " << version.toString() << "\n";
-                        s << "chanelog: " << changelog;
+                        s << "chanelog:\n" << changelog;
                         SetUpdateMessage(s);
                         SetButtonLabel("ok");
                         have_new_version_ = true;    
