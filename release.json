@@ -21,8 +21,8 @@
     },
     {
         "name": "SteepFlanger",
-        "version": "0.1.0",
-        "changelog": ""
+        "version": "0.1.1",
+        "changelog": "interpolation using PCHIP now.\nfix click in feedback.\nadd a dc remove filter in feedback.\nfeedback toggle now is removed.\nfeedback value now using raw gain value.\nupdated preset save(not compatible with old version)."
     },
     {
         "name": "VitalChorus",
