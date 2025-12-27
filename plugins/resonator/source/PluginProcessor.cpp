@@ -120,7 +120,7 @@ ResonatorAudioProcessor::ResonatorAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             "dry",
             "dry",
-            0.0f, 1.0f, 1.0f
+            0.0f, 1.0f, 0.0f
         );
         dry_mix_ = p.get();
         layout.add(std::move(p));

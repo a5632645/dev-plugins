@@ -69,6 +69,10 @@ public:
         preset_name_.setBounds(container.reduced(2));
     }
 
+    void paint(juce::Graphics& g) override {
+        g.fillAll(ui::green_bg);
+    }
+
     std::function<void(juce::PopupMenu&)> on_menu_showup;
 private:
     void buttonClicked(juce::Button* button) override {
