@@ -317,13 +317,10 @@ SteepFlangerAudioProcessorEditor::SteepFlangerAudioProcessorEditor (SteepFlanger
     };
     addAndMakeVisible(custom_);
 
-    fb_enable_.BindParam(apvts, "fb_enable");
-    addAndMakeVisible(fb_enable_);
     fb_value_.BindParam(apvts, "fb_value");
     addAndMakeVisible(fb_value_);
     panic_.setButtonText("panic");
-    panic_.onClick = [this, &p] {
-        fb_enable_.setToggleState(false, juce::NotificationType::sendNotificationSync);
+    panic_.onClick = [&p] {
         p.dsp_.Reset();
     };
     addAndMakeVisible(panic_);
@@ -420,10 +417,7 @@ void SteepFlangerAudioProcessorEditor::resized() {
             feedback_title_.setBounds(feedback_block.removeFromTop(25));
             {
                 auto button_block = feedback_block.removeFromLeft(80);
-                button_block.removeFromTop(8);
-                fb_enable_.setBounds(button_block.removeFromTop(30));
-                button_block.removeFromBottom(8);
-                panic_.setBounds(button_block.removeFromBottom(30));
+                panic_.setBounds(button_block.withSizeKeepingCentre(button_block.getWidth(),  30));
             }
             fb_value_.setBounds(feedback_block.removeFromLeft(80));
             fb_damp_.setBounds(feedback_block.removeFromLeft(80));

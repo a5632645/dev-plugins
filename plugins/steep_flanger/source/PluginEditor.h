@@ -186,7 +186,6 @@ private:
 
     juce::Rectangle<int> feedback_bound_;
     juce::Label feedback_title_{"feedback", "feedback"};
-    ui::Switch fb_enable_{"feedback"};
     ui::Dial fb_value_{"feedback"};
     ui::Dial fb_damp_{"damp"};
     ui::FlatButton panic_;

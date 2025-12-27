@@ -151,8 +151,8 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{"fb_value", 1},
             "fb_value",
-            juce::NormalisableRange<float>{-20.1f, 20.1f, 0.1f},
-            -20.1f
+            juce::NormalisableRange<float>{-0.95f, 0.95f, 0.01f},
+            0.0f
         );
         param_feedback_ = p.get();
         layout.add(std::move(p));
@@ -165,18 +165,6 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
             90.0f
         );
         param_damp_pitch_ = p.get();
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID{"fb_enable", 1},
-            "fb_enable",
-            false
-        );
-        param_feedback_enable_ = p.get();
-        param_listener_.Add(p, [this](bool) {
-            dsp_param_.should_update_fir_ = true;
-        });
         layout.add(std::move(p));
     }
 
@@ -234,13 +222,6 @@ SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
-    // preset_manager_->external_load_default_operations = [this]{
-    //     dsp_param_.is_using_custom_ = false;
-    //     dsp_param_.should_update_fir_ = true;
-    //     dsp_.have_new_coeff_ = true;
-    //     std::ranges::fill(dsp_param_.custom_coeffs_, float{});
-    //     std::ranges::fill(dsp_param_.custom_spectral_gains, float{});
-    // };
 }
 
 SteepFlangerAudioProcessor::~SteepFlangerAudioProcessor()
@@ -382,7 +363,6 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     dsp_param_.fir_highpass = param_fir_highpass_->get();
     dsp_param_.feedback = param_feedback_->get();
     dsp_param_.damp_pitch = param_damp_pitch_->get();
-    dsp_param_.feedback_enable = param_feedback_enable_->get();
     dsp_param_.barber_phase = param_barber_phase_->get();
     dsp_param_.barber_speed = barber_lfo_state_.GetLfoFreq();
     dsp_param_.barber_enable = param_barber_enable_->get();

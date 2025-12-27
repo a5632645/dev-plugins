@@ -59,7 +59,6 @@ public:
     juce::AudioParameterBool* param_fir_highpass_;
     juce::AudioParameterFloat* param_feedback_;
     juce::AudioParameterFloat* param_damp_pitch_;
-    juce::AudioParameterBool* param_feedback_enable_;
     juce::AudioParameterFloat* param_barber_phase_;
     juce::AudioParameterFloat* param_barber_stereo_;
     juce::AudioParameterFloat* param_drywet_;

@@ -14,11 +14,10 @@ constexpr Complex32x4& Complex32x4::operator*=(const Complex32x4& a) noexcept {
 
 QWQDSP_FORCE_INLINE
 qwqdsp_simd_element::PackFloat<4> Vec4DelayLine::GetAfterPush(qwqdsp_simd_element::PackFloat<4> const& delay_samples) const noexcept {
-    auto frpos = qwqdsp_simd_element::PackFloat<4>::vBroadcast(static_cast<float>(wpos_ + mask_)) - delay_samples;
-    auto rpos = frpos.ToInt();
-    auto mask = qwqdsp_simd_element::PackInt32<4>::vBroadcast(mask_);
-    auto irpos = rpos & mask;
-    auto frac = qwqdsp_simd_element::PackOps::Frac(frpos);
+    auto frpos = qwqdsp_simd_element::PackFloat<4>::vBroadcast(static_cast<float>(wpos_ + delay_length_)) - delay_samples;
+    auto t = qwqdsp_simd_element::PackOps::Frac(frpos);
+    auto rpos = frpos.ToUint() - 1u;
+    auto irpos = rpos & mask_;
 
     qwqdsp_simd_element::PackFloat<4> interp0;
     qwqdsp_simd_element::PackFloat<4> interp1;
@@ -29,37 +28,37 @@ qwqdsp_simd_element::PackFloat<4> Vec4DelayLine::GetAfterPush(qwqdsp_simd_elemen
     simde_mm_store_ps(interp2.data, simde_mm_loadu_ps(buffer_.data() + irpos[2]));
     simde_mm_store_ps(interp3.data, simde_mm_loadu_ps(buffer_.data() + irpos[3]));
 
+    qwqdsp_simd_element::PackFloat<4> yn1;
+    yn1[0] = interp0[0];
+    yn1[1] = interp1[0];
+    yn1[2] = interp2[0];
+    yn1[3] = interp3[0];
     qwqdsp_simd_element::PackFloat<4> y0;
-    y0[0] = interp0[0];
-    y0[1] = interp1[0];
-    y0[2] = interp2[0];
-    y0[3] = interp3[0];
+    y0[0] = interp0[1];
+    y0[1] = interp1[1];
+    y0[2] = interp2[1];
+    y0[3] = interp3[1];
     qwqdsp_simd_element::PackFloat<4> y1;
-    y1[0] = interp0[1];
-    y1[1] = interp1[1];
-    y1[2] = interp2[1];
-    y1[3] = interp3[1];
+    y1[0] = interp0[2];
+    y1[1] = interp1[2];
+    y1[2] = interp2[2];
+    y1[3] = interp3[2];
     qwqdsp_simd_element::PackFloat<4> y2;
-    y2[0] = interp0[2];
-    y2[1] = interp1[2];
-    y2[2] = interp2[2];
-    y2[3] = interp3[2];
-    qwqdsp_simd_element::PackFloat<4> y3;
-    y3[0] = interp0[3];
-    y3[1] = interp1[3];
-    y3[2] = interp2[3];
-    y3[3] = interp3[3];
+    y2[0] = interp0[3];
+    y2[1] = interp1[3];
+    y2[2] = interp2[3];
+    y2[3] = interp3[3];
 
-    auto d1 = frac - 1.0f;
-    auto d2 = frac - 2.0f;
-    auto d3 = frac - 3.0f;
-
-    auto c1 = d1 * d2 * d3 / -(6.0f);
-    auto c2 = d2 * d3 * (0.5f);
-    auto c3 = d1 * d3 * -(0.5f);
-    auto c4 = d1 * d2 / (6.0f);
-
-    return y0 * c1 + frac * (y1 * c2 + y2 * c3 + y3 * c4);
+    auto d0 = (y1 - yn1) * 0.5f;
+    auto d1 = (y2 - y0) * 0.5f;
+    auto d = y1 - y0;
+    auto m0 = 3.0f * d - 2.0f * d0 - d1;
+    auto m1 = d0 - 2.0f * d + d1;
+    return y0 + t * (
+        d0 + t * (
+            m0 + t * m1
+        )
+    );
 }
 
 void SteepFlanger::ProcessVec4(
@@ -81,24 +80,7 @@ void SteepFlanger::ProcessVec4(
         warp_drywet = (warp_drywet - kWarpFactor) / (1.0f - warp_drywet * kWarpFactor);
         warp_drywet = 0.5f * warp_drywet + 0.5f;
         warp_drywet = std::clamp(warp_drywet, 0.0f, 1.0f);
-
-        float feedback_mul = 0;
-        if (param.feedback_enable) {
-            float db = param.feedback;
-            float abs_db = std::abs(db);
-            if (param.fir_min_phase) {
-                abs_db = std::max(abs_db, 4.1f);
-            }
-            float abs_gain = qwqdsp::convert::Db2Gain(-abs_db);
-            abs_gain = std::min(abs_gain, 0.95f);
-            if (db > 0) {
-                feedback_mul = -abs_gain;
-            }
-            else {
-                feedback_mul = abs_gain;
-            }
-        }
-        feedback_mul *= warp_drywet;
+        float feedback_mul = warp_drywet * param.feedback;
 
         float const damp_pitch = param.damp_pitch;
         float const damp_freq = qwqdsp::convert::Pitch2Freq(damp_pitch);
@@ -206,8 +188,9 @@ void SteepFlanger::ProcessVec4(
                 ++left_ptr;
                 ++right_ptr;
                 damp_x = damp_.TickLowpass(damp_x, qwqdsp_simd_element::PackFloat<4>::vBroadcast(curr_damp_coeff));
-                left_fb_ = damp_x[0];
-                right_fb_ = damp_x[1];
+                auto dc_remove = dc_.TickHighpass(damp_x, qwqdsp_simd_element::PackFloat<4>::vBroadcast(0.0005f));
+                left_fb_ = qwqdsp::polymath::ArctanPade(dc_remove[0]);
+                right_fb_ = qwqdsp::polymath::ArctanPade(dc_remove[1]);
             }
         }
         else {
@@ -312,8 +295,9 @@ void SteepFlanger::ProcessVec4(
                 ++left_ptr;
                 ++right_ptr;
                 damp_x = damp_.TickLowpass(damp_x, qwqdsp_simd_element::PackFloat<4>::vBroadcast(curr_damp_coeff));
-                left_fb_ = damp_x[0];
-                right_fb_ = damp_x[1];
+                auto dc_remove = dc_.TickHighpass(damp_x, qwqdsp_simd_element::PackFloat<4>::vBroadcast(0.0005f));
+                left_fb_ = qwqdsp::polymath::ArctanPade(dc_remove[0]);
+                right_fb_ = qwqdsp::polymath::ArctanPade(dc_remove[1]);
             }
 
             barber_osc_keep_amp_counter_ += len;

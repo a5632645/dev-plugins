@@ -43,14 +43,9 @@ public:
         while (a < max_samples) {
             a *= 2;
         }
-        mask_ = static_cast<int>(a - 1);
-        delay_length_ = static_cast<int>(a);
-
-        a += 4;
-        if (buffer_.size() < a) {
-            buffer_.resize(a);
-        }
-        Reset();
+        mask_ = static_cast<uint32_t>(a - 1);
+        delay_length_ = static_cast<uint32_t>(a);
+        buffer_.resize(a * 2);
     }
 
     void Reset() noexcept {
@@ -66,21 +61,22 @@ public:
 
     QWQDSP_FORCE_INLINE
     void Push(float x) noexcept {
-        buffer_[static_cast<size_t>(wpos_++)] = x;
-        wpos_ &= mask_;
+        wpos_ = (wpos_ + 1) & mask_;
+        buffer_[wpos_] = x;
+        buffer_[wpos_ + delay_length_] = x;
     }
 
     QWQDSP_FORCE_INLINE
     void WrapBuffer() noexcept {
-        auto a = simde_mm_load_ps(buffer_.data());
-        simde_mm_store_ps(buffer_.data() + delay_length_, a);
+        // auto a = simde_mm_load_ps(buffer_.data());
+        // simde_mm_store_ps(buffer_.data() + delay_length_, a);
     }
 
 private:
-    std::vector<float, qwqdsp_psimd::AlignedAllocator<float, 32>> buffer_;
-    int delay_length_{};
-    int wpos_{};
-    int mask_{};
+    std::vector<float, qwqdsp_simd_element::AlignedAllocator<float, 32>> buffer_;
+    uint32_t delay_length_{};
+    uint32_t wpos_{};
+    uint32_t mask_{};
 };
 
 class SteepFlangerParameter {
@@ -95,9 +91,8 @@ public:
     float fir_side_lobe; // >20
     bool fir_min_phase;
     bool fir_highpass;
-    float feedback; // db
+    float feedback; // gain
     float damp_pitch;
-    bool feedback_enable;
     float barber_phase; // 0~1 => 0~2pi
     float barber_speed; // hz
     bool barber_enable;
@@ -233,15 +228,12 @@ private:
             }
         }
 
-        float pad[kFFTSize]{};
         std::span<float> kernel{coeffs_.data(), coeff_len};
+        float pad[kFFTSize]{};
         constexpr size_t num_bins = complex_fft_.NumBins(kFFTSize);
         std::array<float, num_bins> gains{};
-        if (param.fir_min_phase || param.feedback_enable) {
-            std::copy(kernel.begin(), kernel.end(), pad);
-            complex_fft_.FFTGainPhase(pad, gains);
-        }
-
+        std::copy(kernel.begin(), kernel.end(), pad);
+        complex_fft_.FFTGainPhase(pad, gains);
         if (param.fir_min_phase) {
             float log_gains[num_bins]{};
             for (size_t i = 0; i < num_bins; ++i) {
@@ -264,28 +256,29 @@ private:
             }
         }
 
+        float const max_spectral_gain = *std::max_element(gains.begin(), gains.end());
+        float gain = 1.0f / (max_spectral_gain + 1e-10f);
+        if (max_spectral_gain < 1e-10f) {
+            gain = 1.0f;
+        }
+        for (auto& x : kernel) {
+            x *= gain;
+        }
+
         float energy = 0;
         for (auto x : kernel) {
             energy += x * x;
         }
         fir_gain_ = 1.0f / std::sqrt(energy + 1e-10f);
 
-        if (param.feedback_enable) {
-            float const max_spectral_gain = *std::max_element(gains.begin(), gains.end());
-            float const gain = 1.0f / (max_spectral_gain + 1e-10f);
-            for (auto& x : kernel) {
-                x *= gain;
-            }
-        }
-
         have_new_coeff_ = true;
     }
 
-    ProcessArch process_arch_{};
-    float fs_{};
-
     static constexpr size_t kSIMDMaxCoeffLen = ((kMaxCoeffLen + 7) / 8) * 8;
     static constexpr float kDelaySmoothMs = 20.0f;
+
+    ProcessArch process_arch_{};
+    float fs_{};
 
     Vec4DelayLine delay_left_;
     Vec4DelayLine delay_right_;
@@ -304,6 +297,7 @@ private:
     float left_fb_{};
     float right_fb_{};
     qwqdsp_simd_element::OnePoleTPT<4> damp_;
+    qwqdsp_simd_element::OnePoleTPT<4> dc_;
     float damp_lowpass_coeff_{1.0f};
     float last_damp_lowpass_coeff_{1.0f};
 
