@@ -6,641 +6,470 @@
 #include "qwqdsp/extension_marcos.hpp"
 
 namespace qwqdsp_simd_element {
-template<size_t N>  requires (std::has_single_bit(N))
-struct PackInt32;
-
-template<size_t N>  requires (std::has_single_bit(N))
-struct PackBool {
+template<class T, size_t N>
+    requires (std::has_single_bit(N))
+struct Pack4Bytes {
     static constexpr size_t kSize = N;
-    bool data[N];
-};
+    static constexpr uint32_t kTrue = 0xffffffff;
+    static constexpr uint32_t kFalse = 0;
+    alignas(4 * N) T data[N];
 
-// ----------------------------------------
-// float pack
-// ----------------------------------------
-template<size_t N> requires (std::has_single_bit(N))
-struct PackFloat {
-    static constexpr size_t kSize = N;
-    alignas(4 * N) float data[N];
-
-    // broadcast
     QWQDSP_FORCE_INLINE
-    void Broadcast(float v) noexcept {
+    void Broadcast(T v) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] = v; 
     }
+
     QWQDSP_FORCE_INLINE
     [[nodiscard]]
-    static constexpr PackFloat<N> vBroadcast(float v) noexcept {
-        PackFloat<N> r;
+    static constexpr Pack4Bytes<T, N> vBroadcast(T v) noexcept {
+        Pack4Bytes<T, N> r;
         r.Broadcast(v);
         return r;
     }
-    // []
+
     QWQDSP_FORCE_INLINE
-    float& operator[](size_t i) noexcept { return data[i]; }
-    // [] const
+    void Load(T const* ptr) noexcept {
+        QWQDSP_AUTO_VECTORLIZE
+        for (size_t i = 0; i < N; ++i) data[i] = ptr[i];
+    }
+
     QWQDSP_FORCE_INLINE
-    float operator[](size_t i) const noexcept { return data[i]; }
-    // pack ops
+    T& operator[](size_t i) noexcept { return data[i]; }
+    QWQDSP_FORCE_INLINE
+    T operator[](size_t i) const noexcept { return data[i]; }
+
+    // -------------------- op with pack --------------------
     // +=
     QWQDSP_FORCE_INLINE
-    PackFloat& operator+=(PackFloat const& b) noexcept {
+    Pack4Bytes<T, N>& operator+=(Pack4Bytes<T, N> const& b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] += b.data[i];
         return *this;
     }
     // -=
     QWQDSP_FORCE_INLINE
-    PackFloat& operator-=(PackFloat const& b) noexcept {
+    Pack4Bytes<T, N>& operator-=(Pack4Bytes<T, N> const& b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] -= b.data[i];
         return *this;
     }
     // *=
     QWQDSP_FORCE_INLINE
-    PackFloat& operator*=(PackFloat const& b) noexcept {
+    Pack4Bytes<T, N>& operator*=(Pack4Bytes<T, N> const& b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] *= b.data[i];
         return *this;
     }
     // /=
     QWQDSP_FORCE_INLINE
-    PackFloat& operator/=(PackFloat const& b) noexcept {
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) data[i] /= b.data[i];
-        return *this;
-    }
-    // pack and scalar ops
-    // +=
-    QWQDSP_FORCE_INLINE
-    PackFloat& operator+=(float b) noexcept {
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) data[i] += b;
-        return *this;
-    }
-    // -=
-    QWQDSP_FORCE_INLINE
-    PackFloat& operator-=(float b) noexcept {
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) data[i] -= b;
-        return *this;
-    }
-    // *=
-    QWQDSP_FORCE_INLINE
-    PackFloat& operator*=(float b) noexcept {
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) data[i] *= b;
-        return *this;
-    }
-    // /=
-    QWQDSP_FORCE_INLINE
-    PackFloat& operator/=(float b) noexcept {
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) data[i] /= b;
-        return *this;
-    }
-    // >
-    QWQDSP_FORCE_INLINE
-    PackBool<N> operator>(PackFloat const& b) const noexcept {
-        PackBool<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = data[i] > b.data[i];
-        return r;
-    }
-    // <
-    QWQDSP_FORCE_INLINE
-    PackBool<N> operator<(PackFloat const& b) const noexcept {
-        PackBool<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = data[i] < b.data[i];
-        return r;
-    }
-    // =
-    QWQDSP_FORCE_INLINE
-    PackBool<N> operator==(PackFloat const& b) const noexcept {
-        PackBool<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = data[i] == b.data[i];
-        return r;
-    }
-    // >=
-    QWQDSP_FORCE_INLINE
-    PackBool<N> operator>=(PackFloat const& b) const noexcept {
-        PackBool<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = data[i] >= b.data[i];
-        return r;
-    }
-    // <=
-    QWQDSP_FORCE_INLINE
-    PackBool<N> operator<=(PackFloat const& b) const noexcept {
-        PackBool<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = data[i] <= b.data[i];
-        return r;
-    }
-    // !=
-    QWQDSP_FORCE_INLINE
-    PackBool<N> operator!=(PackFloat const& b) const noexcept {
-        PackBool<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = data[i] != b.data[i];
-        return r;
-    }
-    // ToInt
-    QWQDSP_FORCE_INLINE
-    inline PackInt32<N> ToInt() const noexcept;
-};
-
-// pack ops
-// add
-template<size_t N>
-QWQDSP_FORCE_INLINE
-static inline constexpr PackFloat<N> operator+(PackFloat<N> const& a, PackFloat<N> const& b) noexcept {
-    PackFloat<N> r;
-    QWQDSP_AUTO_VECTORLIZE
-    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] + b.data[i];
-    return r;
-}
-// sub
-template<size_t N>
-QWQDSP_FORCE_INLINE
-static inline constexpr PackFloat<N> operator-(PackFloat<N> const& a, PackFloat<N> const& b) noexcept {
-    PackFloat<N> r;
-    QWQDSP_AUTO_VECTORLIZE
-    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] - b.data[i];
-    return r;
-}
-// mul
-template<size_t N>
-QWQDSP_FORCE_INLINE
-static inline constexpr PackFloat<N> operator*(PackFloat<N> const& a, PackFloat<N> const& b) noexcept {
-    PackFloat<N> r;
-    QWQDSP_AUTO_VECTORLIZE
-    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] * b.data[i];
-    return r;
-}
-// div
-template<size_t N>
-QWQDSP_FORCE_INLINE
-static inline constexpr PackFloat<N> operator/(PackFloat<N> const& a, PackFloat<N> const& b) noexcept {
-    PackFloat<N> r;
-    QWQDSP_AUTO_VECTORLIZE
-    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] / b.data[i];
-    return r;
-}
-// pack with scalar
-// add
-template<size_t N>
-QWQDSP_FORCE_INLINE
-static inline constexpr PackFloat<N> operator+(PackFloat<N> const& a, float b) noexcept {
-    PackFloat<N> r;
-    QWQDSP_AUTO_VECTORLIZE
-    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] + b;
-    return r;
-}
-// sub
-template<size_t N>
-QWQDSP_FORCE_INLINE
-static inline constexpr PackFloat<N> operator-(PackFloat<N> const& a, float b) noexcept {
-    PackFloat<N> r;
-    QWQDSP_AUTO_VECTORLIZE
-    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] - b;
-    return r;
-}
-// mul
-template<size_t N>
-QWQDSP_FORCE_INLINE
-static inline constexpr PackFloat<N> operator*(PackFloat<N> const& a, float b) noexcept {
-    PackFloat<N> r;
-    QWQDSP_AUTO_VECTORLIZE
-    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] * b;
-    return r;
-}
-// div
-template<size_t N>
-QWQDSP_FORCE_INLINE
-static inline constexpr PackFloat<N> operator/(PackFloat<N> const& a, float b) noexcept {
-    PackFloat<N> r;
-    QWQDSP_AUTO_VECTORLIZE
-    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] / b;
-    return r;
-}
-// scalar with pack
-// add
-template<size_t N>
-QWQDSP_FORCE_INLINE
-static inline constexpr PackFloat<N> operator+(float a, PackFloat<N> const& b) noexcept {
-    PackFloat<N> r;
-    QWQDSP_AUTO_VECTORLIZE
-    for (size_t i = 0; i < N; ++i) r.data[i] = a + b.data[i];
-    return r;
-}
-// sub
-template<size_t N>
-QWQDSP_FORCE_INLINE
-static inline constexpr PackFloat<N> operator-(float a, PackFloat<N> const& b) noexcept {
-    PackFloat<N> r;
-    QWQDSP_AUTO_VECTORLIZE
-    for (size_t i = 0; i < N; ++i) r.data[i] = a - b.data[i];
-    return r;
-}
-// mul
-template<size_t N>
-QWQDSP_FORCE_INLINE
-static inline constexpr PackFloat<N> operator*(float a, PackFloat<N> const& b) noexcept {
-    PackFloat<N> r;
-    QWQDSP_AUTO_VECTORLIZE
-    for (size_t i = 0; i < N; ++i) r.data[i] = a * b.data[i];
-    return r;
-}
-// div
-template<size_t N>
-QWQDSP_FORCE_INLINE
-static inline constexpr PackFloat<N> operator/(float a, PackFloat<N> const& b) noexcept {
-    PackFloat<N> r;
-    QWQDSP_AUTO_VECTORLIZE
-    for (size_t i = 0; i < N; ++i) r.data[i] = a / b.data[i];
-    return r;
-}
-
-// ----------------------------------------
-// int pack
-// ----------------------------------------
-template<size_t N> requires (std::has_single_bit(N))
-struct PackInt32 {
-    static constexpr size_t kSize = N;
-    alignas(4 * N) int32_t data[N];
-
-    // broadcast
-    QWQDSP_FORCE_INLINE
-    void Broadcast(int32_t v) noexcept {
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) data[i] = v;
-    }
-    [[nodiscard]]
-    QWQDSP_FORCE_INLINE
-    static constexpr PackInt32<N> vBroadcast(int32_t v) noexcept {
-        PackInt32<N> r;
-        r.Broadcast(v);
-        return r;
-    }
-    // []
-    QWQDSP_FORCE_INLINE
-    int32_t& operator[](size_t i) noexcept { return data[i]; }
-    // [] const
-    QWQDSP_FORCE_INLINE
-    int32_t operator[](size_t i) const noexcept { return data[i]; }
-    // pack ops
-    // +=
-    QWQDSP_FORCE_INLINE
-    PackInt32& operator+=(PackInt32 const& b) noexcept {
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) data[i] += b.data[i];
-        return *this;
-    }
-    // -=
-    QWQDSP_FORCE_INLINE
-    PackInt32& operator-=(PackInt32 const& b) noexcept {
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) data[i] -= b.data[i];
-        return *this;
-    }
-    // *=
-    QWQDSP_FORCE_INLINE
-    PackInt32& operator*=(PackInt32 const& b) noexcept {
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) data[i] *= b.data[i];
-        return *this;
-    }
-    // /=
-    QWQDSP_FORCE_INLINE
-    PackInt32& operator/=(PackInt32 const& b) noexcept {
+    Pack4Bytes<T, N>& operator/=(Pack4Bytes<T, N> const& b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] /= b.data[i];
         return *this;
     }
     // %=
     QWQDSP_FORCE_INLINE
-    PackInt32& operator%=(PackInt32 const& b) noexcept {
+    Pack4Bytes<T, N>& operator%=(Pack4Bytes<T, N> const& b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] %= b.data[i];
         return *this;
     }
     // ^=
     QWQDSP_FORCE_INLINE
-    PackInt32& operator^=(PackInt32 const& b) noexcept {
+    Pack4Bytes<T, N>& operator^=(Pack4Bytes<T, N> const& b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] ^= b.data[i];
         return *this;
     }
     // |=
     QWQDSP_FORCE_INLINE
-    PackInt32& operator|=(PackInt32 const& b) noexcept {
+    Pack4Bytes<T, N>& operator|=(Pack4Bytes<T, N> const& b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] |= b.data[i];
         return *this;
     }
     // &=
     QWQDSP_FORCE_INLINE
-    PackInt32& operator&=(PackInt32 const& b) noexcept {
+    Pack4Bytes<T, N>& operator&=(Pack4Bytes<T, N> const& b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] &= b.data[i];
         return *this;
     }
+
     // pack and scalar ops
     // +=
     QWQDSP_FORCE_INLINE
-    PackInt32& operator+=(int32_t b) noexcept {
+    Pack4Bytes<T, N>& operator+=(T b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] += b;
         return *this;
     }
     // -=
     QWQDSP_FORCE_INLINE
-    PackInt32& operator-=(int32_t b) noexcept {
+    Pack4Bytes<T, N>& operator-=(T b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] -= b;
         return *this;
     }
     // *=
     QWQDSP_FORCE_INLINE
-    PackInt32& operator*=(int32_t b) noexcept {
+    Pack4Bytes<T, N>& operator*=(T b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] *= b;
         return *this;
     }
     // /=
     QWQDSP_FORCE_INLINE
-    PackInt32& operator/=(int32_t b) noexcept {
+    Pack4Bytes<T, N>& operator/=(T b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] /= b;
         return *this;
     }
     // %=
     QWQDSP_FORCE_INLINE
-    PackInt32& operator%=(int32_t b) noexcept {
+    Pack4Bytes<T, N>& operator%=(T b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] %= b;
         return *this;
     }
     // ^=
     QWQDSP_FORCE_INLINE
-    PackInt32& operator^=(int32_t b) noexcept {
+    Pack4Bytes<T, N>& operator^=(T b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] ^= b;
         return *this;
     }
     // |=
     QWQDSP_FORCE_INLINE
-    PackInt32& operator|=(int32_t b) noexcept {
+    Pack4Bytes<T, N>& operator|=(T b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] |= b;
         return *this;
     }
     // &=
     QWQDSP_FORCE_INLINE
-    PackInt32& operator&=(int32_t b) noexcept {
+    Pack4Bytes<T, N>& operator&=(T b) noexcept {
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) data[i] &= b;
         return *this;
     }
-    // ToFloat
+
+    // -------------------- convert --------------------
     QWQDSP_FORCE_INLINE
-    PackFloat<N> ToFloat() const noexcept {
-        PackFloat<N> r;
+    Pack4Bytes<int32_t, N> ToInt() const noexcept {
+        Pack4Bytes<int32_t, N> r;
+        QWQDSP_AUTO_VECTORLIZE
+        for (size_t i = 0; i < N; ++i) r.data[i] = static_cast<int32_t>(data[i]);
+        return r;
+    }
+
+    QWQDSP_FORCE_INLINE
+    Pack4Bytes<uint32_t, N> ToUint() const noexcept {
+        Pack4Bytes<uint32_t, N> r;
+        QWQDSP_AUTO_VECTORLIZE
+        for (size_t i = 0; i < N; ++i) r.data[i] = static_cast<uint32_t>(data[i]);
+        return r;
+    }
+
+    QWQDSP_FORCE_INLINE
+    Pack4Bytes<float, N> ToFloat() const noexcept {
+        Pack4Bytes<float, N> r;
         QWQDSP_AUTO_VECTORLIZE
         for (size_t i = 0; i < N; ++i) r.data[i] = static_cast<float>(data[i]);
         return r;
     }
 };
 
-// float.ToInt
-template<size_t N> requires (std::has_single_bit(N))
+// -------------------- typedef --------------------
+template<size_t N>
+using PackFloat = Pack4Bytes<float, N>;
+template<size_t N>
+using PackFloatCRef = PackFloat<N> const&;
+
+template<size_t N>
+using PackInt32 = Pack4Bytes<int32_t, N>;
+template<size_t N>
+using PackInt32CRef = PackInt32<N> const&;
+
+template<size_t N>
+using PackUint32 = Pack4Bytes<uint32_t, N>;
+template<size_t N>
+using PackUint32CRef = PackUint32<N> const&;
+
+// -------------------- compare mask --------------------
+// >
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-inline PackInt32<N> PackFloat<N>::ToInt() const noexcept {
-    PackInt32<N> r;
+static inline constexpr PackUint32<N> operator>(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) {
+    PackUint32<N> r;
     QWQDSP_AUTO_VECTORLIZE
-    for (size_t i = 0; i < N; ++i) r.data[i] = static_cast<int32_t>(data[i]);
+    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] > b.data[i] ? Pack4Bytes<T, N>::kTrue : Pack4Bytes<T, N>::kFalse;
+    return r;
+}
+// <
+template<class T, size_t N>
+QWQDSP_FORCE_INLINE
+static inline constexpr PackUint32<N> operator<(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) {
+    PackUint32<N> r;
+    QWQDSP_AUTO_VECTORLIZE
+    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] < b.data[i] ? Pack4Bytes<T, N>::kTrue : Pack4Bytes<T, N>::kFalse;
+    return r;
+}
+// ==
+template<class T, size_t N>
+QWQDSP_FORCE_INLINE
+static inline constexpr PackUint32<N> operator==(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) {
+    PackUint32<N> r;
+    QWQDSP_AUTO_VECTORLIZE
+    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] == b.data[i] ? Pack4Bytes<T, N>::kTrue : Pack4Bytes<T, N>::kFalse;
+    return r;
+}
+// !=
+template<class T, size_t N>
+QWQDSP_FORCE_INLINE
+static inline constexpr PackUint32<N> operator!=(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) {
+    PackUint32<N> r;
+    QWQDSP_AUTO_VECTORLIZE
+    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] != b.data[i] ? Pack4Bytes<T, N>::kTrue : Pack4Bytes<T, N>::kFalse;
+    return r;
+}
+// >=
+template<class T, size_t N>
+QWQDSP_FORCE_INLINE
+static inline constexpr PackUint32<N> operator>=(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) {
+    PackUint32<N> r;
+    QWQDSP_AUTO_VECTORLIZE
+    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] >= b.data[i] ? Pack4Bytes<T, N>::kTrue : Pack4Bytes<T, N>::kFalse;
+    return r;
+}
+// <=
+template<class T, size_t N>
+QWQDSP_FORCE_INLINE
+static inline constexpr PackUint32<N> operator<=(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) {
+    PackUint32<N> r;
+    QWQDSP_AUTO_VECTORLIZE
+    for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] <= b.data[i] ? Pack4Bytes<T, N>::kTrue : Pack4Bytes<T, N>::kFalse;
     return r;
 }
 
-// pack ops
+// -------------------- pack op pack --------------------
 // add
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator+(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator+(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] + b.data[i];
     return r;
 }
 // sub
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator-(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator-(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] - b.data[i];
     return r;
 }
 // mul
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator*(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator*(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] * b.data[i];
     return r;
 }
 // div
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator/(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator/(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] / b.data[i];
     return r;
 }
 // mod
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator%(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator%(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] % b.data[i];
     return r;
 }
 // and
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator&(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator&(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] & b.data[i];
     return r;
 }
 // or
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator|(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator|(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] | b.data[i];
     return r;
 }
 // xor
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator^(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator^(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] ^ b.data[i];
     return r;
 }
-// pack and scalar ops
+
+// -------------------- pack op scalar --------------------
 // add
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator+(PackInt32<N> const& a, int32_t b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator+(Pack4Bytes<T, N> const& a, T b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] + b;
     return r;
 }
 // sub
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator-(PackInt32<N> const& a, int32_t b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator-(Pack4Bytes<T, N> const& a, T b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] - b;
     return r;
 }
 // mul
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator*(PackInt32<N> const& a, int32_t b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator*(Pack4Bytes<T, N> const& a, T b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] * b;
     return r;
 }
 // div
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator/(PackInt32<N> const& a, int32_t b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator/(Pack4Bytes<T, N> const& a, T b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] / b;
     return r;
 }
 // mod
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator%(PackInt32<N> const& a, int32_t b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator%(Pack4Bytes<T, N> const& a, T b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] % b;
     return r;
 }
 // and
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator&(PackInt32<N> const& a, int32_t b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator&(Pack4Bytes<T, N> const& a, T b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] & b;
     return r;
 }
 // or
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator|(PackInt32<N> const& a, int32_t b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator|(Pack4Bytes<T, N> const& a, T b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] | b;
     return r;
 }
 // xor
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator^(PackInt32<N> const& a, int32_t b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator^(Pack4Bytes<T, N> const& a, T b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] ^ b;
     return r;
 }
-// scalar and pack ops
+
+// -------------------- scalar op pack --------------------
 // add
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator+(int32_t a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator+(T a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a + b.data[i];
     return r;
 }
 // sub
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator-(int32_t a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator-(T a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a - b.data[i];
     return r;
 }
 // mul
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator*(int32_t a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator*(T a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a * b.data[i];
     return r;
 }
 // div
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator/(int32_t a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator/(T a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a / b.data[i];
     return r;
 }
 // mod
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator%(int32_t a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator%(T a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a % b.data[i];
     return r;
 }
 // and
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator&(int32_t a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator&(T a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a & b.data[i];
     return r;
 }
 // or
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator|(int32_t a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator|(T a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a | b.data[i];
     return r;
 }
 // xor
-template<size_t N>
+template<class T, size_t N>
 QWQDSP_FORCE_INLINE
-static inline constexpr PackInt32<N> operator^(int32_t a, PackInt32<N> const& b) noexcept {
-    PackInt32<N> r;
+static inline constexpr Pack4Bytes<T, N> operator^(T a, Pack4Bytes<T, N> const& b) noexcept {
+    Pack4Bytes<T, N> r;
     QWQDSP_AUTO_VECTORLIZE
     for (size_t i = 0; i < N; ++i) r.data[i] = a ^ b.data[i];
     return r;
@@ -670,6 +499,53 @@ struct PackOps {
     #endif
     #endif
 
+    // -------------------- all --------------------
+    // min
+    template<class T, size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr Pack4Bytes<T, N> Min(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) noexcept {
+        Pack4Bytes<T, N> r;
+        QWQDSP_AUTO_VECTORLIZE
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::min(a.data[i], b.data[i]);
+        return r;
+    }
+    // max
+    template<class T, size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr Pack4Bytes<T, N> Max(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& b) noexcept {
+        Pack4Bytes<T, N> r;
+        QWQDSP_AUTO_VECTORLIZE
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::max(a.data[i], b.data[i]);
+        return r;
+    }
+    // clamp
+    template<class T, size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr Pack4Bytes<T, N> Clamp(Pack4Bytes<T, N> const& a, Pack4Bytes<T, N> const& min, Pack4Bytes<T, N> const& max) noexcept {
+        Pack4Bytes<T, N> r;
+        QWQDSP_AUTO_VECTORLIZE
+        for (size_t i = 0; i < N; ++i) r.data[i] = std::clamp(a.data[i], min.data[i], max.data[i]);
+        return r;
+    }
+    // select
+    template<class T, size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr Pack4Bytes<T, N> Select(PackUint32<N> const& mask, Pack4Bytes<T, N> const& true_val, Pack4Bytes<T, N> const& false_val) noexcept {
+        Pack4Bytes<T, N> r;
+        QWQDSP_AUTO_VECTORLIZE
+        for (size_t i = 0; i < N; ++i) r.data[i] = mask.data[i] == PackUint32<N>::kTrue ? true_val.data[i] : false_val.data[i];
+        return r;
+    }
+    template<class T, size_t N>
+    QWQDSP_FORCE_INLINE
+    static inline constexpr Pack4Bytes<T, N> Select(PackUint32<N> const& mask, T true_val, T false_val) noexcept {
+        Pack4Bytes<T, N> r;
+        QWQDSP_AUTO_VECTORLIZE
+        for (size_t i = 0; i < N; ++i) r.data[i] = mask.data[i] == PackUint32<N>::kTrue ? true_val : false_val;
+        return r;
+    }
+
+    // -------------------- float --------------------
     // float.floor
     template<size_t N>
     QWQDSP_FORCE_INLINE
@@ -679,51 +555,7 @@ struct PackOps {
         for (size_t i = 0; i < N; ++i) r.data[i] = std::floor(a.data[i]);
         return r;
     }
-    // float.fma
-    template<size_t N>
-    QWQDSP_FORCE_INLINE
-    static inline constexpr PackFloat<N> Fma(PackFloat<N> const& a, PackFloat<N> const& b, PackFloat<N> const& c) noexcept {
-        PackFloat<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = a.data[i] * b.data[i] + c.data[i];
-        return r;
-    }
-    // float.broadcast
-    template<size_t N>
-    QWQDSP_FORCE_INLINE
-    static inline constexpr PackFloat<N> Broadcast(float v) noexcept {
-        PackFloat<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = v;
-        return r;
-    }
-    // float.min
-    template<size_t N>
-    QWQDSP_FORCE_INLINE
-    static inline constexpr PackFloat<N> Min(PackFloat<N> const& a, PackFloat<N> const& b) noexcept {
-        PackFloat<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = std::min(a.data[i], b.data[i]);
-        return r;
-    }
-    // float.max
-    template<size_t N>
-    QWQDSP_FORCE_INLINE
-    static inline constexpr PackFloat<N> Max(PackFloat<N> const& a, PackFloat<N> const& b) noexcept {
-        PackFloat<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = std::max(a.data[i], b.data[i]);
-        return r;
-    }
-    // float.clamp
-    template<size_t N>
-    QWQDSP_FORCE_INLINE
-    static inline constexpr PackFloat<N> Clamp(PackFloat<N> const& a, PackFloat<N> const& min, PackFloat<N> const& max) noexcept {
-        PackFloat<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = std::clamp(a.data[i], min.data[i], max.data[i]);
-        return r;
-    }
+
     // float.shuffle
     // for 4
     template<size_t a, size_t b, size_t c, size_t d>
@@ -824,15 +656,6 @@ struct PackOps {
             ab14 == 14 ? zero_reg.data[14] : one_reg.data[14],
             ab15 == 15 ? zero_reg.data[15] : one_reg.data[15]
         };
-    }
-    // float.toInt
-    template<size_t N>
-    QWQDSP_FORCE_INLINE
-    static inline constexpr PackInt32<N> ToInt(PackFloat<N> const& x) noexcept {
-        PackInt32<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = static_cast<int>(x.data[i]);
-        return r;
     }
     // float.positiveFrac
     template<size_t N>
@@ -983,24 +806,7 @@ struct PackOps {
         for (size_t i = 0; i < N; ++i) r.data[i] = std::pow(x.data[i], y.data[i]);
         return r;
     }
-    // select
-    template<size_t N>
-    QWQDSP_FORCE_INLINE
-    static inline constexpr PackFloat<N> Select(PackBool<N> const& mask, PackFloat<N> const& true_val, PackFloat<N> const& false_val) noexcept {
-        PackFloat<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = mask.data[i] ? true_val.data[i] : false_val.data[i];
-        return r;
-    }
-    template<size_t N>
-    QWQDSP_FORCE_INLINE
-    static inline constexpr PackFloat<N> Select(PackBool<N> const& mask, float true_val, float false_val) noexcept {
-        PackFloat<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = mask.data[i] ? true_val : false_val;
-        return r;
-    }
-    // lerp
+    // float.lerp
     template<size_t N>
     QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<N> Lerp(PackFloat<N> const& x, PackFloat<N> const& y, PackFloat<N> const& t) noexcept {
@@ -1009,7 +815,7 @@ struct PackOps {
         for (size_t i = 0; i < N; ++i) r.data[i] = x.data[i] + (y.data[i] - x.data[i]) * t.data[i];
         return r;
     }
-    // lerp scalar
+    // float.lerp scalar
     template<size_t N>
     QWQDSP_FORCE_INLINE
     static inline constexpr PackFloat<N> Lerp(PackFloat<N> const& x, PackFloat<N> const& y, float t) noexcept {
@@ -1042,31 +848,5 @@ struct PackOps {
     static inline constexpr PackFloat<N> X2(PackFloat<N> const& x) noexcept {
         return x * x;
     }
-
-    // -------------------- pack int32 --------------------
-    // int.toFloat
-    template<size_t N>
-    QWQDSP_FORCE_INLINE
-    static inline constexpr PackFloat<N> ToFloat(PackInt32<N> const& x) noexcept {
-        PackFloat<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = static_cast<float>(x.data[i]);
-        return r;
-    }
-    // int.Min
-    template<size_t N>
-    QWQDSP_FORCE_INLINE
-    static inline constexpr PackInt32<N> Min(PackInt32<N> const& a, PackInt32<N> const& b) noexcept {
-        PackInt32<N> r;
-        QWQDSP_AUTO_VECTORLIZE
-        for (size_t i = 0; i < N; ++i) r.data[i] = std::min(a.data[i], b.data[i]);
-        return r;
-    }
 };
-
-template<size_t N>
-using PackFloatCRef = PackFloat<N> const&;
-
-template<size_t N>
-using PackInt32CRef = PackInt32<N>&;
 }

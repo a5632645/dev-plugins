@@ -44,11 +44,10 @@ public:
     static PackFloat<N> ComputeCoeffs(PackFloat<N> const& w) noexcept {
         PackFloat<N> r;
         for (size_t i = 0; i < N; ++i) {
-            r.x[i] = ComputeCoeff(w.x[i]);
+            r[i] = ComputeCoeff(w[i]);
         }
         return r;
     }
-
 
     PackFloat<N> TickLowpass(PackFloat<N> const& x, PackFloat<N> const& coeff) noexcept {
         auto delta = coeff * (x - lag_);

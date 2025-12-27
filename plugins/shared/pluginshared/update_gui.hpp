@@ -15,7 +15,6 @@ public:
         setTopLeftPosition(juce::Desktop::getInstance().getMousePosition());
 
         update_message_component_.button.onClick = [&]() { userTriedToCloseWindow(); };
-        addAndMakeVisible(update_message_component_);
 
         startTimerHz(15);
     }

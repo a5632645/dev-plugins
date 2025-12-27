@@ -12,7 +12,7 @@ enum class DelayLineInterp {
 };
 
 template<size_t N, DelayLineInterp kInterpType>
-class DelayLine {
+class [[deprecated("use Mono/Stereo/Multiple classes")]] DelayLine {
 public:
     void Init(float max_ms, float fs) {
         float d = max_ms * fs / 1000.0f;

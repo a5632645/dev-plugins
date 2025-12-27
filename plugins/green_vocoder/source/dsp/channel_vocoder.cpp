@@ -171,8 +171,8 @@ struct StackButterworth12 {
         qwqdsp_simd_element::PackFloatCRef<4> w2,
         float analog_w_mul = 1
     ) noexcept {
-        auto f1 = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
-        auto f2 = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
+        auto f1 = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
+        auto f2 = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
         auto f0 = qwqdsp_simd_element::PackOps::Sqrt(f1 * f2);
         // this Q only works for a order4 bandpass to create -6dB gain
         auto Q = f0 / qwqdsp_simd_element::PackOps::Abs(f2 - f1);
@@ -188,8 +188,8 @@ struct StackButterworth24 {
         qwqdsp_simd_element::PackFloatCRef<4> w2,
         float analog_w_mul = 1
     ) noexcept {
-        auto f1 = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
-        auto f2 = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
+        auto f1 = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
+        auto f2 = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
         auto f0 = qwqdsp_simd_element::PackOps::Sqrt(f1 * f2);
         // power of a order2 bandpass
         [[maybe_unused]] constexpr auto power = 0.5f;
@@ -203,7 +203,7 @@ struct StackButterworth24 {
         //
         // to let f1(digital is w1)'s power match the power we want
         // take w = f1/f0 and solve Q
-        constexpr auto half_power = std::numbers::sqrt2_v<float> / 2;
+        constexpr auto half_power = std::numbers::sqrt2_v<float> * 0.5f;
         auto w_pow_2 = qwqdsp_simd_element::PackOps::X2(f1 / f0);
         auto Q = qwqdsp_simd_element::PackOps::Sqrt(w_pow_2 / half_power - w_pow_2) / qwqdsp_simd_element::PackOps::Abs(w_pow_2 - 1.0f);
         svf.svf_[0].MakeBandpass(f0, Q);
@@ -227,8 +227,8 @@ struct FlatButterworth12 {
             return zpk_buffer;
         }();
 
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
+        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
+        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
         qwqdsp_simd_element::PackFloat<4> w_analog1;
         qwqdsp_simd_element::PackFloat<4> w_analog2;
         qwqdsp_simd_element::PackFloat<4> Q1;
@@ -265,8 +265,8 @@ struct FlatButterworth24 {
             return zpk_buffer;
         }();
 
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
+        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
+        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
         qwqdsp_simd_element::PackFloat<4> w_analog1;
         qwqdsp_simd_element::PackFloat<4> w_analog2;
         qwqdsp_simd_element::PackFloat<4> w_analog3;
@@ -317,8 +317,8 @@ struct Chebyshev12 {
             return zpk_buffer;
         }();
 
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
+        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
+        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
         qwqdsp_simd_element::PackFloat<4> w_analog1;
         qwqdsp_simd_element::PackFloat<4> w_analog2;
         qwqdsp_simd_element::PackFloat<4> Q1;
@@ -355,8 +355,8 @@ struct Chebyshev24 {
             return zpk_buffer;
         }();
 
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
+        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
+        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
         qwqdsp_simd_element::PackFloat<4> w_analog1;
         qwqdsp_simd_element::PackFloat<4> w_analog2;
         qwqdsp_simd_element::PackFloat<4> w_analog3;
@@ -407,8 +407,8 @@ struct Elliptic24 {
             return zpk_buffer;
         }();
 
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
+        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
+        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
 
         for (size_t i = 0; i < 4; ++i) {
             std::array<qwqdsp_filter::IIRDesign::ZPK, 4> zpk_buffer;
@@ -436,8 +436,8 @@ struct Elliptic36 {
             return zpk_buffer;
         }();
 
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 / 2) * analog_w_mul;
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 / 2) * analog_w_mul;
+        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
+        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
 
         for (size_t i = 0; i < 4; ++i) {
             std::array<qwqdsp_filter::IIRDesign::ZPK, 6> zpk_buffer;
@@ -503,7 +503,7 @@ void ChannelVocoder::_UpdateFilters2() {
 
     size_t filter_idx = 0;
     auto const min_w = qwqdsp_simd_element::PackFloat<4>::vBroadcast(qwqdsp::convert::Freq2W(10.0f, sample_rate_));
-    auto const max_w = qwqdsp_simd_element::PackFloat<4>::vBroadcast(qwqdsp::convert::Freq2W(sample_rate_ / 2 - 100.0f, sample_rate_));
+    auto const max_w = qwqdsp_simd_element::PackFloat<4>::vBroadcast(qwqdsp::convert::Freq2W(sample_rate_ * 0.5f - 100.0f, sample_rate_));
     for (int i = 0; i < num_bans_; i += 4) {
         qwqdsp_simd_element::PackFloat<4> end_omega{
             pitch_begin + pitch_interval * (i + 1),

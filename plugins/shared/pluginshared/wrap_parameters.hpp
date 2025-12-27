@@ -28,6 +28,13 @@ public:
         return ptr_->get();
     }
 
+    juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(
+        juce::AudioProcessorValueTreeState::ParameterLayout& layout
+    ) {
+        layout.add(Build());
+        return layout;
+    }
+
     juce::AudioParameterFloat* ptr_{};
     juce::String name_;
     juce::NormalisableRange<float> range_;
@@ -64,13 +71,22 @@ public:
     }
     std::unique_ptr<juce::AudioParameterChoice> Build3() {
         jassert(state_.param_tempo_speed_ == nullptr);
-        auto p = state_.MakeLfoTempoSpeedParam(freq_.name_ + "ts", default_lfo_tempo_);
+        auto p = state_.MakeLfoTempoSpeedParam(freq_.name_ + "_ts", default_lfo_tempo_);
         state_.param_tempo_speed_ = p.get();
         return p;
     }
 
     float Get() noexcept {
         return state_.GetLfoFreq();
+    }
+
+    juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(
+        juce::AudioProcessorValueTreeState::ParameterLayout& layout
+    ) {
+        layout.add(Build1());
+        layout.add(Build2());
+        layout.add(Build3());
+        return layout;
     }
 
     FloatParam freq_;
@@ -103,6 +119,13 @@ public:
         return ptr_->getIndex();
     }
 
+    juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(
+        juce::AudioProcessorValueTreeState::ParameterLayout& layout
+    ) {
+        layout.add(Build());
+        return layout;
+    }
+
     juce::AudioParameterChoice* ptr_{};
 private:
     juce::StringRef name_;
@@ -128,6 +151,13 @@ public:
 
     bool Get() noexcept {
         return ptr_->get();
+    }
+
+    juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(
+        juce::AudioProcessorValueTreeState::ParameterLayout& layout
+    ) {
+        layout.add(Build());
+        return layout;
     }
 
     juce::AudioParameterBool* ptr_{};

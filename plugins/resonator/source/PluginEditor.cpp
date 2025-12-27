@@ -202,7 +202,7 @@ void ResonatorAudioProcessorEditor::paint (juce::Graphics& g) {
 
 void ResonatorAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
-    preset_panel_.setBounds(b.removeFromTop(50));
+    preset_panel_.setBounds(b.removeFromTop(30));
     {
         auto resonators = b.removeFromLeft(80 * 7);
         auto height = resonators.getHeight() / 8;
