@@ -233,8 +233,9 @@ struct PackingIIRDesigner {
             std::copy(prototype.begin(), prototype.end(), zpk_buffer.begin());
             qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, NPrototypeFilters, w1_analog[i], w2_analog[i]);
 
-            for (size_t j = 0; j < NPrototypeFilters * 2; ++j) {
-                states[j][i] = zpk_buffer[j];
+            for (size_t j = 0; j < NPrototypeFilters; ++j) {
+                states[2 * j][i] = zpk_buffer[j];
+                states[2 * j + 1][i] = zpk_buffer[j + NPrototypeFilters];
             }
         }
         
@@ -315,8 +316,8 @@ struct Chebyshev24 {
 struct Elliptic24 {
     static void Design(
         CascadeBPSVF& svf,
-        qwqdsp_simd_element::PackFloatCRef<4> w1,
-        qwqdsp_simd_element::PackFloatCRef<4> w2,
+        qwqdsp_simd_element::PackFloat<4> w1,
+        qwqdsp_simd_element::PackFloat<4> w2,
         float analog_w_mul = 1
     ) noexcept {
         // prototype is a 2pole elliptci
@@ -332,8 +333,8 @@ struct Elliptic24 {
 struct Elliptic36 {
     static void Design(
         CascadeBPSVF& svf,
-        qwqdsp_simd_element::PackFloatCRef<4> w1,
-        qwqdsp_simd_element::PackFloatCRef<4> w2,
+        qwqdsp_simd_element::PackFloat<4> w1,
+        qwqdsp_simd_element::PackFloat<4> w2,
         float analog_w_mul = 1
     ) noexcept {
         // prototype is a 3pole elliptci
@@ -436,8 +437,10 @@ void ChannelVocoder::ProcessBlock(
 ) {
     switch (filter_bank_mode_) {
         case FilterBankMode::StackButterworth12:
-        case FilterBankMode::StackButterworth24:
             _ProcessBlock<2, true>(main, side, num_samples);
+            break;
+        case FilterBankMode::StackButterworth24:
+            _ProcessBlock<4, true>(main, side, num_samples);
             break;
         case FilterBankMode::FlatButterworth12:
         case FilterBankMode::Chebyshev12:

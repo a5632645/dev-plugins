@@ -1,7 +1,6 @@
 #pragma once
 #include "param_ids.hpp"
 #include <array>
-#include <vector>
 #include <qwqdsp/simd_element/simd_pack.hpp>
 #include <qwqdsp/filter/iir_design_extra.hpp>
 #include <qwqdsp/filter/iir_design.hpp>

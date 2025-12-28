@@ -358,8 +358,7 @@ struct IIRDesign {
             ZPK bp1;
             ZPK bp2;
             ZPK s = protyle[i];
-            bp1.k = s.k;
-            bp2.k = 1;
+            bp2.k = bp1.k = std::sqrt(s.k);
             if (s.z) {
                 auto p_delta = std::sqrt(s.p * s.p * bw * bw - 4.0 * w1 * w2);
                 auto z_delta = std::sqrt(*s.z * *s.z * bw * bw - 4.0 * w1 * w2);

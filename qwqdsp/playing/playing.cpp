@@ -35,9 +35,8 @@ public:
         }
         else {
             lp_mix_ = 1;
-            hp_mix_ = 0;
             lp_mix_ *= (zpk.k / (g_ * g_));
-            hp_mix_ *= (zpk.k / (g_ * g_));
+            hp_mix_ = 0;
         }
     }
 
@@ -76,10 +75,10 @@ int main() {
     std::array<qwqdsp_filter::IIRDesign::ZPK, 4> zpk_buffer2{};
 
     // qwqdsp_filter::IIRDesign::Butterworth(zpk_buffer, 2);
-    qwqdsp_filter::IIRDesign::Chebyshev1(zpk_buffer, 4, 6, false);
+    // qwqdsp_filter::IIRDesign::Chebyshev1(zpk_buffer, 4, 6, false);
     // qwqdsp_filter::IIRDesign::Chebyshev2(zpk_buffer, 2, -60, false);
-    // qwqdsp_filter::IIRDesign::Elliptic(zpk_buffer, 2, 6, 60);
-    qwqdsp_filter::IIRDesign::ProtyleToBandpass(zpk_buffer, 2, 1, 0.1);
+    qwqdsp_filter::IIRDesign::Elliptic(zpk_buffer, 2, 6, 100);
+    qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, 2, 1, 3);
 
     zpk_buffer2 = zpk_buffer;
 
@@ -104,9 +103,9 @@ int main() {
     svf3.SetAnalogPoleZero(zpk_buffer2[2], zpk_buffer[2].k);
     svf4.SetAnalogPoleZero(zpk_buffer2[3], zpk_buffer[3].k);
 
-    float ir1[1024]{1.0f};
-    float ir2[1024]{1.0f};
-    for (int i = 0; i < 1024; ++i) {
+    float ir1[8192]{1.0f};
+    float ir2[8192]{1.0f};
+    for (int i = 0; i < 8192; ++i) {
         ir1[i] = biquad.Tick(ir1[i]);
         ir1[i] = biquad2.Tick(ir1[i]);
         ir1[i] = biquad3.Tick(ir1[i]);
@@ -118,16 +117,16 @@ int main() {
         ir2[i] = svf4.Tick(ir2[i]);
     }
 
-    float ir1_g[513];
-    float ir2_g[513];
+    float ir1_g[4097];
+    float ir2_g[4097];
     qwqdsp_spectral::RealFFT fft;
-    fft.Init(1024);
+    fft.Init(8192);
     fft.FFTGainPhase(ir1, ir1_g);
     fft.FFTGainPhase(ir2, ir2_g);
     for (auto& f : ir1_g) {
-        f = qwqdsp::convert::Gain2Db<-100.0f>(f);
+        f = qwqdsp::convert::Gain2Db<-130.0f>(f);
     }
     for (auto& f : ir2_g) {
-        f = qwqdsp::convert::Gain2Db<-100.0f>(f);
+        f = qwqdsp::convert::Gain2Db<-130.0f>(f);
     }
 }
