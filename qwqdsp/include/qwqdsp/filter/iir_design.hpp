@@ -314,36 +314,31 @@ struct IIRDesign {
         assert(protyle.size() >= num_filter * 2);
 
         double bw = wo / Q;
+        double wo2 = wo * wo;
+
         for (size_t i = 0; i < num_filter; ++i) {
-            // prototype -> lowpass at bw
             ZPK s = protyle[i];
-            {
-                auto const& ss = protyle[i];
-                s.k = ss.k * bw * bw;
-                s.p = ScaleComplex(ss.p, bw);
-                if (ss.z) {
-                    s.k = ss.k;
-                    s.z = ScaleComplex(*ss.z, bw);
-                }
-            }
-            // lowpass -> bandpass
             ZPK bp1;
             ZPK bp2;
+            bp1.k = s.k;
+            bp2.k = 1;
+
             if (s.z) {
-                auto p_delta = std::sqrt(s.p * s.p - 4.0 * wo * wo);
-                auto z_delta = std::sqrt(*s.z * *s.z - 4.0 * wo * wo);
-                bp1.p = ScaleComplex(s.p + p_delta, 0.5);
-                bp2.p = ScaleComplex(s.p - p_delta, 0.5);
-                bp1.z = ScaleComplex(*s.z + z_delta, 0.5);
-                bp2.z = ScaleComplex(*s.z - z_delta, 0.5);
+                auto z_delta = std::sqrt((*s.z * *s.z * bw * bw) - 4.0 * wo2);
+                bp1.z = ScaleComplex((*s.z * bw) + z_delta, 0.5);
+                bp2.z = ScaleComplex((*s.z * bw) - z_delta, 0.5);
             }
             else {
-                auto delta = std::sqrt(s.p * s.p - 4.0 * wo * wo);
-                bp1.p = ScaleComplex(s.p + delta, 0.5);
-                bp2.p = ScaleComplex(s.p - delta, 0.5);
-                bp1.z = 0;
+                bp1.z = 0.0;
+                bp2.z = std::nullopt;
+                bp1.k *= bw; 
+                bp2.k *= bw;
             }
-            bp1.k = bp2.k = std::sqrt(s.k);
+
+            auto p_delta = std::sqrt((s.p * s.p * bw * bw) - 4.0 * wo2);
+            bp1.p = ScaleComplex((s.p * bw) + p_delta, 0.5);
+            bp2.p = ScaleComplex((s.p * bw) - p_delta, 0.5);
+
             protyle[i] = bp1;
             protyle[i + num_filter] = bp2;
         }
@@ -352,7 +347,10 @@ struct IIRDesign {
     /**
      * @note num_filter将会x2
      */
-    static void ProtyleToBandpass2(std::span<ZPK> protyle, size_t num_filter, double w1, double w2) {
+    static void ProtyleToBandpass2(
+        std::span<ZPK> protyle, size_t num_filter,
+        double w1, double w2
+    ) {
         assert(protyle.size() >= num_filter * 2);
 
         double bw = w2 - w1;
@@ -360,7 +358,8 @@ struct IIRDesign {
             ZPK bp1;
             ZPK bp2;
             ZPK s = protyle[i];
-            bp1.k = bp2.k = std::sqrt(s.k);;
+            bp1.k = s.k;
+            bp2.k = 1;
             if (s.z) {
                 auto p_delta = std::sqrt(s.p * s.p * bw * bw - 4.0 * w1 * w2);
                 auto z_delta = std::sqrt(*s.z * *s.z * bw * bw - 4.0 * w1 * w2);

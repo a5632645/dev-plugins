@@ -72,8 +72,8 @@ void ChannelVocoder::SetFilterBankMode(ChannelVocoder::FilterBankMode mode) {
     filter_bank_mode_ = mode;
     for (auto& filter : main_filters_) { filter.Reset(); }
     for (auto& filter :side_filters_) { filter.Reset(); }
-    for (auto& filter : main_filters_with_zero_) { filter.Reset(); }
-    for (auto& filter : side_filters_with_zero_) { filter.Reset(); }
+    // for (auto& filter : main_filters_with_zero_) { filter.Reset(); }
+    // for (auto& filter : side_filters_with_zero_) { filter.Reset(); }
     UpdateFilters();
 }
 
@@ -87,8 +87,8 @@ void ChannelVocoder::SetFormantShift(float shift) {
 }
 
 void ChannelVocoder::PanicBiquads() {
-    for (auto& f : main_filters_with_zero_) f.Reset();
-    for (auto& f : side_filters_with_zero_) f.Reset();
+    // for (auto& f : main_filters_with_zero_) f.Reset();
+    // for (auto& f : side_filters_with_zero_) f.Reset();
 }
 
 // -------------------- frequency maps --------------------
@@ -213,6 +213,37 @@ struct StackButterworth24 {
     }
 };
 
+using PackState = std::array<qwqdsp_filter::IIRDesign::ZPK, 4>;
+
+struct PackingIIRDesigner {
+    template<size_t NPrototypeFilters>
+    static void Design(
+        CascadeBPSVF& svf,
+        std::array<qwqdsp_filter::IIRDesign::ZPK, NPrototypeFilters> const& prototype,
+        qwqdsp_simd_element::PackFloatCRef<4> w1,
+        qwqdsp_simd_element::PackFloatCRef<4> w2,
+        float analog_w_mul = 1
+    ) {
+        std::array<PackState, NPrototypeFilters * 2> states;
+
+        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
+        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
+        for (size_t i = 0; i < 4; ++i) {
+            std::array<qwqdsp_filter::IIRDesign::ZPK, NPrototypeFilters * 2> zpk_buffer;
+            std::copy(prototype.begin(), prototype.end(), zpk_buffer.begin());
+            qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, NPrototypeFilters, w1_analog[i], w2_analog[i]);
+
+            for (size_t j = 0; j < NPrototypeFilters * 2; ++j) {
+                states[j][i] = zpk_buffer[j];
+            }
+        }
+        
+        for (size_t i = 0; i < NPrototypeFilters * 2; ++i) {
+            svf.svf_[i].SetAnalogPoleZero(states[i]);
+        }
+    }
+};
+
 struct FlatButterworth12 {
     static void Design(
         CascadeBPSVF& svf,
@@ -226,28 +257,7 @@ struct FlatButterworth12 {
             qwqdsp_filter::IIRDesignExtra::ButterworthAttenGain(zpk_buffer, 1, 0.5f);
             return zpk_buffer;
         }();
-
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
-        qwqdsp_simd_element::PackFloat<4> w_analog1;
-        qwqdsp_simd_element::PackFloat<4> w_analog2;
-        qwqdsp_simd_element::PackFloat<4> Q1;
-        qwqdsp_simd_element::PackFloat<4> Q2;
-        for (size_t i = 0; i < 4; ++i) {
-            std::array<qwqdsp_filter::IIRDesign::ZPK, 2> zpk_buffer;
-            std::copy(prototype.begin(), prototype.end(), zpk_buffer.begin());
-            qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, 1, w1_analog[i], w2_analog[i]);
-            auto analog_w_bp1 = std::abs(zpk_buffer[0].p);
-            auto analog_w_bp2 = std::abs(zpk_buffer[1].p);
-            auto analog_Q_bp1 = -analog_w_bp1 / (2 * std::real(zpk_buffer[0].p));
-            auto analog_Q_bp2 = -analog_w_bp2 / (2 * std::real(zpk_buffer[1].p));
-            w_analog1[i] = static_cast<float>(analog_w_bp1);
-            w_analog2[i] = static_cast<float>(analog_w_bp2);
-            Q1[i] = static_cast<float>(analog_Q_bp1);
-            Q2[i] = static_cast<float>(analog_Q_bp2);
-        }
-        svf.svf_[0].MakeBandpass(w_analog1, qwqdsp_simd_element::PackOps::Abs(Q1));
-        svf.svf_[1].MakeBandpass(w_analog2, qwqdsp_simd_element::PackOps::Abs(Q2));
+        PackingIIRDesigner::Design<1>(svf, prototype, w1, w2, analog_w_mul);
     }
 };
 
@@ -264,42 +274,7 @@ struct FlatButterworth24 {
             qwqdsp_filter::IIRDesignExtra::ButterworthAttenGain(zpk_buffer, 2, 0.5f);
             return zpk_buffer;
         }();
-
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
-        qwqdsp_simd_element::PackFloat<4> w_analog1;
-        qwqdsp_simd_element::PackFloat<4> w_analog2;
-        qwqdsp_simd_element::PackFloat<4> w_analog3;
-        qwqdsp_simd_element::PackFloat<4> w_analog4;
-        qwqdsp_simd_element::PackFloat<4> Q1;
-        qwqdsp_simd_element::PackFloat<4> Q2;
-        qwqdsp_simd_element::PackFloat<4> Q3;
-        qwqdsp_simd_element::PackFloat<4> Q4;
-        for (size_t i = 0; i < 4; ++i) {
-            std::array<qwqdsp_filter::IIRDesign::ZPK, 4> zpk_buffer;
-            std::copy(prototype.begin(), prototype.end(), zpk_buffer.begin());
-            qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, 2, w1_analog[i], w2_analog[i]);
-            auto analog_w_bp1 = std::abs(zpk_buffer[0].p);
-            auto analog_w_bp2 = std::abs(zpk_buffer[1].p);
-            auto analog_w_bp3 = std::abs(zpk_buffer[2].p);
-            auto analog_w_bp4 = std::abs(zpk_buffer[3].p);
-            auto analog_Q_bp1 = -analog_w_bp1 / (2 * std::real(zpk_buffer[0].p));
-            auto analog_Q_bp2 = -analog_w_bp2 / (2 * std::real(zpk_buffer[1].p));
-            auto analog_Q_bp3 = -analog_w_bp3 / (2 * std::real(zpk_buffer[2].p));
-            auto analog_Q_bp4 = -analog_w_bp4 / (2 * std::real(zpk_buffer[3].p));
-            w_analog1[i] = static_cast<float>(analog_w_bp1);
-            w_analog2[i] = static_cast<float>(analog_w_bp2);
-            w_analog3[i] = static_cast<float>(analog_w_bp3);
-            w_analog4[i] = static_cast<float>(analog_w_bp4);
-            Q1[i] = static_cast<float>(analog_Q_bp1);
-            Q2[i] = static_cast<float>(analog_Q_bp2);
-            Q3[i] = static_cast<float>(analog_Q_bp3);
-            Q4[i] = static_cast<float>(analog_Q_bp4);
-        }
-        svf.svf_[0].MakeBandpass(w_analog1, qwqdsp_simd_element::PackOps::Abs(Q1));
-        svf.svf_[1].MakeBandpass(w_analog2, qwqdsp_simd_element::PackOps::Abs(Q2));
-        svf.svf_[2].MakeBandpass(w_analog3, qwqdsp_simd_element::PackOps::Abs(Q3));
-        svf.svf_[3].MakeBandpass(w_analog4, qwqdsp_simd_element::PackOps::Abs(Q4));
+        PackingIIRDesigner::Design<2>(svf, prototype, w1, w2, analog_w_mul);
     }
 };
 
@@ -316,28 +291,7 @@ struct Chebyshev12 {
             qwqdsp_filter::IIRDesign::Chebyshev1(zpk_buffer, 1, 6.02059991f, false);
             return zpk_buffer;
         }();
-
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
-        qwqdsp_simd_element::PackFloat<4> w_analog1;
-        qwqdsp_simd_element::PackFloat<4> w_analog2;
-        qwqdsp_simd_element::PackFloat<4> Q1;
-        qwqdsp_simd_element::PackFloat<4> Q2;
-        for (size_t i = 0; i < 4; ++i) {
-            std::array<qwqdsp_filter::IIRDesign::ZPK, 2> zpk_buffer;
-            std::copy(prototype.begin(), prototype.end(), zpk_buffer.begin());
-            qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, 1, w1_analog[i], w2_analog[i]);
-            auto analog_w_bp1 = std::abs(zpk_buffer[0].p);
-            auto analog_w_bp2 = std::abs(zpk_buffer[1].p);
-            auto analog_Q_bp1 = -analog_w_bp1 / (2 * std::real(zpk_buffer[0].p));
-            auto analog_Q_bp2 = -analog_w_bp2 / (2 * std::real(zpk_buffer[1].p));
-            w_analog1[i] = static_cast<float>(analog_w_bp1);
-            w_analog2[i] = static_cast<float>(analog_w_bp2);
-            Q1[i] = static_cast<float>(analog_Q_bp1);
-            Q2[i] = static_cast<float>(analog_Q_bp2);
-        }
-        svf.svf_[0].MakeBandpass(w_analog1, qwqdsp_simd_element::PackOps::Abs(Q1));
-        svf.svf_[1].MakeBandpass(w_analog2, qwqdsp_simd_element::PackOps::Abs(Q2));
+        PackingIIRDesigner::Design<1>(svf, prototype, w1, w2, analog_w_mul);
     }
 };
 
@@ -354,48 +308,13 @@ struct Chebyshev24 {
             qwqdsp_filter::IIRDesign::Chebyshev1(zpk_buffer, 2, 6.02059991f, false);
             return zpk_buffer;
         }();
-
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
-        qwqdsp_simd_element::PackFloat<4> w_analog1;
-        qwqdsp_simd_element::PackFloat<4> w_analog2;
-        qwqdsp_simd_element::PackFloat<4> w_analog3;
-        qwqdsp_simd_element::PackFloat<4> w_analog4;
-        qwqdsp_simd_element::PackFloat<4> Q1;
-        qwqdsp_simd_element::PackFloat<4> Q2;
-        qwqdsp_simd_element::PackFloat<4> Q3;
-        qwqdsp_simd_element::PackFloat<4> Q4;
-        for (size_t i = 0; i < 4; ++i) {
-            std::array<qwqdsp_filter::IIRDesign::ZPK, 4> zpk_buffer;
-            std::copy(prototype.begin(), prototype.end(), zpk_buffer.begin());
-            qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, 2, w1_analog[i], w2_analog[i]);
-            auto analog_w_bp1 = std::abs(zpk_buffer[0].p);
-            auto analog_w_bp2 = std::abs(zpk_buffer[1].p);
-            auto analog_w_bp3 = std::abs(zpk_buffer[2].p);
-            auto analog_w_bp4 = std::abs(zpk_buffer[3].p);
-            auto analog_Q_bp1 = -analog_w_bp1 / (2 * std::real(zpk_buffer[0].p));
-            auto analog_Q_bp2 = -analog_w_bp2 / (2 * std::real(zpk_buffer[1].p));
-            auto analog_Q_bp3 = -analog_w_bp3 / (2 * std::real(zpk_buffer[2].p));
-            auto analog_Q_bp4 = -analog_w_bp4 / (2 * std::real(zpk_buffer[3].p));
-            w_analog1[i] = static_cast<float>(analog_w_bp1);
-            w_analog2[i] = static_cast<float>(analog_w_bp2);
-            w_analog3[i] = static_cast<float>(analog_w_bp3);
-            w_analog4[i] = static_cast<float>(analog_w_bp4);
-            Q1[i] = static_cast<float>(analog_Q_bp1);
-            Q2[i] = static_cast<float>(analog_Q_bp2);
-            Q3[i] = static_cast<float>(analog_Q_bp3);
-            Q4[i] = static_cast<float>(analog_Q_bp4);
-        }
-        svf.svf_[0].MakeBandpass(w_analog1, qwqdsp_simd_element::PackOps::Abs(Q1));
-        svf.svf_[1].MakeBandpass(w_analog2, qwqdsp_simd_element::PackOps::Abs(Q2));
-        svf.svf_[2].MakeBandpass(w_analog3, qwqdsp_simd_element::PackOps::Abs(Q3));
-        svf.svf_[3].MakeBandpass(w_analog4, qwqdsp_simd_element::PackOps::Abs(Q4));
+        PackingIIRDesigner::Design<2>(svf, prototype, w1, w2, analog_w_mul);
     }
 };
 
 struct Elliptic24 {
     static void Design(
-        CascadeBiquad& biquads,
+        CascadeBPSVF& svf,
         qwqdsp_simd_element::PackFloatCRef<4> w1,
         qwqdsp_simd_element::PackFloatCRef<4> w2,
         float analog_w_mul = 1
@@ -406,25 +325,13 @@ struct Elliptic24 {
             qwqdsp_filter::IIRDesign::Elliptic(zpk_buffer, 2, 6.02059991f, 100.0f);
             return zpk_buffer;
         }();
-
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
-
-        for (size_t i = 0; i < 4; ++i) {
-            std::array<qwqdsp_filter::IIRDesign::ZPK, 4> zpk_buffer;
-            std::copy(prototype.begin(), prototype.end(), zpk_buffer.begin());
-            qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, 2, w1_analog[i], w2_analog[i]);
-            qwqdsp_filter::IIRDesign::Bilinear(zpk_buffer, 0.5);
-            std::array<qwqdsp_filter::BiquadCoeff, 4> biquad_buffer;
-            qwqdsp_filter::IIRDesign::TfToBiquad(zpk_buffer, biquad_buffer);
-            biquads.Set<4>(i, biquad_buffer);
-        }
+        PackingIIRDesigner::Design<2>(svf, prototype, w1, w2, analog_w_mul);
     }
 };
 
 struct Elliptic36 {
     static void Design(
-        CascadeBiquad& biquads,
+        CascadeBPSVF& svf,
         qwqdsp_simd_element::PackFloatCRef<4> w1,
         qwqdsp_simd_element::PackFloatCRef<4> w2,
         float analog_w_mul = 1
@@ -435,19 +342,7 @@ struct Elliptic36 {
             qwqdsp_filter::IIRDesign::Elliptic(zpk_buffer, 3, 6.02059991f, 100.0f);
             return zpk_buffer;
         }();
-
-        auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
-        auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
-
-        for (size_t i = 0; i < 4; ++i) {
-            std::array<qwqdsp_filter::IIRDesign::ZPK, 6> zpk_buffer;
-            std::copy(prototype.begin(), prototype.end(), zpk_buffer.begin());
-            qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, 3, w1_analog[i], w2_analog[i]);
-            qwqdsp_filter::IIRDesign::Bilinear(zpk_buffer, 0.5);
-            std::array<qwqdsp_filter::BiquadCoeff, 6> biquad_buffer;
-            qwqdsp_filter::IIRDesign::TfToBiquad(zpk_buffer, biquad_buffer);
-            biquads.Set<6>(i, biquad_buffer);
-        }
+        PackingIIRDesigner::Design<3>(svf, prototype, w1, w2, analog_w_mul);
     }
 };
 
@@ -456,37 +351,30 @@ void ChannelVocoder::_UpdateFilters() {
     switch (filter_bank_mode_) {
         case FilterBankMode::StackButterworth12:
             _UpdateFilters2<AssignMap, StackButterworth12>();
-            gain_ = qwqdsp::convert::Db2Gain(16.0f);
             break;
         case FilterBankMode::StackButterworth24:
             _UpdateFilters2<AssignMap, StackButterworth24>();
-            gain_ = qwqdsp::convert::Db2Gain(16.0f);
             break;
         case FilterBankMode::FlatButterworth12:
             _UpdateFilters2<AssignMap, FlatButterworth12>();
-            gain_ = qwqdsp::convert::Db2Gain(20.0f);
         break;
             case FilterBankMode::FlatButterworth24:
             _UpdateFilters2<AssignMap, FlatButterworth24>();
-            gain_ = qwqdsp::convert::Db2Gain(30.0f);
             break;
         case FilterBankMode::Chebyshev12:
             _UpdateFilters2<AssignMap, Chebyshev12>();
-            gain_ = qwqdsp::convert::Db2Gain(32.0f);
             break;
         case FilterBankMode::Chebyshev24:
             _UpdateFilters2<AssignMap, Chebyshev24>();
-            gain_ = qwqdsp::convert::Db2Gain(78.0f);
             break;
         case FilterBankMode::Elliptic24:
             _UpdateFilters2<AssignMap, Elliptic24>();
-            gain_ = qwqdsp::convert::Db2Gain(15.0f);
             break;
         case FilterBankMode::Elliptic36:
             _UpdateFilters2<AssignMap, Elliptic36>();
-            gain_ = qwqdsp::convert::Db2Gain(15.0f);
             break;
     }
+    gain_ = 5;
     if (num_bans_ < 48) {
         float norm = static_cast<float>(num_bans_) / 48.0f;
         float atten = std::lerp(0.3f, 1.0f, norm);
@@ -533,18 +421,10 @@ void ChannelVocoder::_UpdateFilters2() {
         main_w2 = qwqdsp_simd_element::PackOps::Clamp(main_w2, min_w, max_w);
         side_w1 = qwqdsp_simd_element::PackOps::Clamp(side_w1, min_w, max_w);
         side_w2 = qwqdsp_simd_element::PackOps::Clamp(side_w2, min_w, max_w);
-        if constexpr (std::is_same_v<Designer, Elliptic24> || std::is_same_v<Designer, Elliptic36>) {
-            auto& main_filter = main_filters_with_zero_[filter_idx];
-            auto& side_filter = side_filters_with_zero_[filter_idx];
-            Designer::Design(main_filter, main_w1, main_w2);
-            Designer::Design(side_filter, side_w1, side_w2, carry_w_mul_);
-        }
-        else {
-            auto& main_filter = main_filters_[filter_idx];
-            auto& side_filter = side_filters_[filter_idx];
-            Designer::Design(main_filter, main_w1, main_w2);
-            Designer::Design(side_filter, side_w1, side_w2, carry_w_mul_);
-        }
+        auto& main_filter = main_filters_[filter_idx];
+        auto& side_filter = side_filters_[filter_idx];
+        Designer::Design(main_filter, main_w1, main_w2);
+        Designer::Design(side_filter, side_w1, side_w2, carry_w_mul_);
         ++filter_idx;
     }
 }
@@ -556,25 +436,25 @@ void ChannelVocoder::ProcessBlock(
 ) {
     switch (filter_bank_mode_) {
         case FilterBankMode::StackButterworth12:
+        case FilterBankMode::StackButterworth24:
+            _ProcessBlock<2, true>(main, side, num_samples);
+            break;
         case FilterBankMode::FlatButterworth12:
         case FilterBankMode::Chebyshev12:
             _ProcessBlock<2, false>(main, side, num_samples);
             break;
-        case FilterBankMode::StackButterworth24:
         case FilterBankMode::FlatButterworth24:
         case FilterBankMode::Chebyshev24:
+        case FilterBankMode::Elliptic24:
             _ProcessBlock<4, false>(main, side, num_samples);
             break;
-        case FilterBankMode::Elliptic24:
-            _ProcessBlock<4, true>(main, side, num_samples);
-            break;
         case FilterBankMode::Elliptic36:
-            _ProcessBlock<6, true>(main, side, num_samples);
+            _ProcessBlock<6, false>(main, side, num_samples);
             break;
     }
 }
 
-template<size_t kFilterNumbers, bool KHaveZero>
+template<size_t kFilterNumbers, bool kOnlyPole>
 void ChannelVocoder::_ProcessBlock(
     qwqdsp_simd_element::PackFloat<2>* main,
     qwqdsp_simd_element::PackFloat<2>* side,
@@ -597,14 +477,8 @@ void ChannelVocoder::_ProcessBlock(
             main_r *= gain_;
             side_l *= gain_;
             side_r *= gain_;
-            if constexpr(!KHaveZero) {
-                main_filters_[filter_idx].Tick<kFilterNumbers>(main_l, main_r);
-                side_filters_[filter_idx].Tick<kFilterNumbers>(side_l, side_r);
-            }
-            else {
-                main_filters_with_zero_[filter_idx].Tick<kFilterNumbers>(main_l, main_r);
-                side_filters_with_zero_[filter_idx].Tick<kFilterNumbers>(side_l, side_r);
-            }
+            main_filters_[filter_idx].Tick<kFilterNumbers, kOnlyPole>(main_l, main_r);
+            side_filters_[filter_idx].Tick<kFilterNumbers, kOnlyPole>(side_l, side_r);
             // envelope follower
             auto curr = main_peaks_[filter_idx];
             main_l = qwqdsp_simd_element::PackOps::Abs(main_l);

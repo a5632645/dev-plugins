@@ -127,7 +127,7 @@ void BlockBurgLPC::Process(
         auto mask = atten > gain_lag_;
         auto coeff = qwqdsp_simd_element::PackOps::Select(mask, qwqdsp_simd_element::PackFloat<2>::vBroadcast(attack_factor_), qwqdsp_simd_element::PackFloat<2>::vBroadcast(release_factor_));
         gain_lag_ *= coeff;
-        gain_lag_ += (1 - coeff) * atten;
+        gain_lag_ += (1.0f - coeff) * atten;
         // iir lattice
         std::array<qwqdsp_simd_element::PackFloat<2>, kMaxPoles + 1> l_iir{};
         for (size_t j = 0; j < ef_.size(); ++j) {

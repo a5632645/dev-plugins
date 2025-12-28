@@ -15,7 +15,7 @@ public:
      */
     PackFloat<N> ADAA(PackFloatCRef<N> x) noexcept {
         auto up = x + xn1_;
-        auto F_x = PackOps::Sqrt(1 + x*x);
+        auto F_x = PackOps::Sqrt(1.0f + x*x);
         auto down = F_x + F_xn1_;
         xn1_ = x;
         F_xn1_ = F_x;

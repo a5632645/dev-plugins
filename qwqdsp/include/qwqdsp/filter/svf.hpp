@@ -1,7 +1,7 @@
 #pragma once
 #include <cmath>
 
-namespace qwqdsp {
+namespace qwqdsp_filter {
 class SVF {
 public:
     void Reset() noexcept {
