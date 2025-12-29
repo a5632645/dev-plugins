@@ -10,17 +10,17 @@ void ChorusView::paint(juce::Graphics& g) {
     float const ytop = 0.25f * static_cast<float>(getHeight());
     float const ybottom = 0.75f * static_cast<float>(getHeight());
     for (size_t i = 0; i < num_voices / SimdType::kSize; ++i) {
-        SimdType norm = copy[i] / SimdType::FromSingle(VitalChorus::kMaxDelayMs);
-        SimdType x = norm * SimdType::FromSingle(static_cast<float>(getWidth()));
+        SimdType norm = copy[i] / (VitalChorus::kMaxDelayMs);
+        SimdType x = norm * (static_cast<float>(getWidth()));
         // left
         g.setColour(ui::line_fore);
         for (size_t j = 0; j < SimdType::kSize; j += 2) {
-            g.drawVerticalLine(static_cast<int>(x.x[j]), ytop, ybottom);
+            g.drawVerticalLine(static_cast<int>(x[j]), ytop, ybottom);
         }
         // right
         g.setColour(ui::active_bg);
         for (size_t j = 1; j < SimdType::kSize; j += 2) {
-            g.drawVerticalLine(static_cast<int>(x.x[j]), ytop, ybottom);
+            g.drawVerticalLine(static_cast<int>(x[j]), ytop, ybottom);
         }
     }
 }
@@ -187,7 +187,7 @@ VitalChorusAudioProcessorEditor::VitalChorusAudioProcessorEditor (VitalChorusAud
     addAndMakeVisible(chorus_view_);
     addAndMakeVisible(filter_view_);
 
-    setSize(530, 200);
+    setSize(500, 200);
     setResizeLimits(530, 200, 9999, 9999);
     setResizable(true, true);
 }
@@ -202,7 +202,7 @@ void VitalChorusAudioProcessorEditor::paint (juce::Graphics& g) {
 
 void VitalChorusAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
-    preset_panel_.setBounds(b.removeFromTop(std::max(50, b.proportionOfHeight(0.1f))));
+    preset_panel_.setBounds(b.removeFromTop(std::max(30, b.proportionOfHeight(0.1f))));
 
     auto w = b.getWidth() / 3;
     {

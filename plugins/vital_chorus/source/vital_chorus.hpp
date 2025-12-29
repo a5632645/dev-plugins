@@ -2,16 +2,16 @@
 #include <array>
 #include <span>
 
-#include "qwqdsp/polymath.hpp"
-#include "qwqdsp/fx/delay_line_simd.hpp"
-#include "qwqdsp/psimd/vec4.hpp"
+#include <qwqdsp/polymath.hpp>
+#include <qwqdsp/simd_element/delay_line_multiple.hpp>
+#include <qwqdsp/simd_element/simd_pack.hpp>
 
-using SimdType = qwqdsp_psimd::Vec4f32;
+using SimdType = qwqdsp_simd_element::PackFloat<4>;
 
 class ParalleOnePoleTPT {
 public:
     void Reset() noexcept {
-        lag_ = SimdType::FromSingle(0);
+        lag_.Broadcast(0);
     }
     
     static float ComputeCoeff(float w) noexcept {
@@ -30,7 +30,7 @@ public:
     }
 
     SimdType TickLowpass(SimdType x, float coeff) noexcept {
-        SimdType delta = SimdType::FromSingle(coeff) * (x - lag_);
+        SimdType delta = (coeff) * (x - lag_);
         lag_ += delta;
         SimdType y = lag_;
         lag_ += delta;
@@ -38,7 +38,7 @@ public:
     }
 
     SimdType TickHighpass(SimdType x, float coeff) noexcept {
-        SimdType delta = SimdType::FromSingle(coeff) * (x - lag_);
+        SimdType delta = (coeff) * (x - lag_);
         lag_ += delta;
         SimdType y = lag_;
         lag_ += delta;
@@ -97,31 +97,31 @@ public:
             float const avg_delay = (delay1 + delay2) * 0.5f;
             for (size_t i = 0; i < num_pairs; ++i) {
                 SimdType static_a = SimdType{delay1, delay1, delay2, delay2};
-                SimdType static_b = SimdType::FromSingle(avg_delay);
+                SimdType static_b = SimdType::vBroadcast(avg_delay);
                 float const lerp = static_cast<float>(i) / std::max(1.0f, static_cast<float>(num_pairs) - 1.0f);
-                SimdType static_delay = static_a + SimdType::FromSingle(lerp) * (static_b - static_a);
+                SimdType static_delay = static_a + lerp * (static_b - static_a);
                 SimdType offsetp = SimdType{0.0f, 0.25f, 0.5f, 0.75f};
-                SimdType sin_mod = SimdType::FromSingle(phase_) + offsetp + SimdType::FromSingle(0.25f * static_cast<float>(i) / static_cast<float>(num_pairs));
-                sin_mod = sin_mod.Frac();
+                SimdType sin_mod = phase_ + offsetp + (0.25f * static_cast<float>(i) / static_cast<float>(num_pairs));
+                sin_mod = qwqdsp_simd_element::PackOps::Frac(sin_mod);
                 for (size_t j = 0; j < 4; ++j) {
-                    sin_mod.x[j] = qwqdsp::polymath::SinParabola(sin_mod.x[j] * 2 * std::numbers::pi_v<float> - std::numbers::pi_v<float>);
+                    sin_mod[j] = qwqdsp::polymath::SinParabola(sin_mod[j] * 2 * std::numbers::pi_v<float> - std::numbers::pi_v<float>);
                 }
-                sin_mod = sin_mod * SimdType::FromSingle(0.5f) + SimdType::FromSingle(1.0f);
-                SimdType delay_ms = SimdType::FromSingle(depth * kMaxModulationMs) * sin_mod + static_delay;
+                sin_mod = sin_mod * 0.5f + 1.0f;
+                SimdType delay_ms = (depth * kMaxModulationMs) * sin_mod + static_delay;
                 delay_ms_[i] = delay_ms;
 
                 // additional exp smooth
-                SimdType target_delay_samples = delay_ms * SimdType::FromSingle(fs_ / 1000.0f);
-                delay_samples_[i] += SimdType::FromSingle(delay_time_smooth_factor) * (target_delay_samples - delay_samples_[i]);
+                SimdType target_delay_samples = delay_ms * (fs_ / 1000.0f);
+                delay_samples_[i] += (delay_time_smooth_factor) * (target_delay_samples - delay_samples_[i]);
             }
 
             // shuffle
             for (size_t j = 0; j < cando; ++j) {
-                temp_in[j].x[0] = *left_ptr;
-                temp_in[j].x[1] = *right_ptr;
-                temp_in[j].x[2] = *left_ptr;
-                temp_in[j].x[3] = *right_ptr;
-                temp_in[j] *= SimdType::FromSingle(0.5f);
+                temp_in[j][0] = *left_ptr;
+                temp_in[j][1] = *right_ptr;
+                temp_in[j][2] = *left_ptr;
+                temp_in[j][3] = *right_ptr;
+                temp_in[j] *= (0.5f);
                 ++left_ptr;
                 ++right_ptr;
             }
@@ -130,12 +130,12 @@ public:
             float const inv_processing_samples = 1.0f / static_cast<float>(cando);
 
             SimdType curr_delay_samples = last_delay_samples_[0];
-            SimdType delta_delay_samples = (delay_samples_[0] - last_delay_samples_[0]) * SimdType::FromSingle(inv_processing_samples);
+            SimdType delta_delay_samples = (delay_samples_[0] - last_delay_samples_[0]) * (inv_processing_samples);
 
             float const curr_feedback = last_feedback_;
             float const delta_feedback = (feedback - last_feedback_) * inv_processing_samples;
-            SimdType vcurr_feedback = SimdType::FromSingle(curr_feedback);
-            SimdType vdelta_feedback = SimdType::FromSingle(delta_feedback);
+            SimdType vcurr_feedback = SimdType::vBroadcast(curr_feedback);
+            SimdType vdelta_feedback = SimdType::vBroadcast(delta_feedback);
 
             float vcurr_lowpass = last_lowpass_coeff_;
             float vcurr_highpass = last_highpass_coeff_;
@@ -160,10 +160,10 @@ public:
             // last add into
             for (size_t i = 1; i < num_pairs; ++i) {
                 curr_delay_samples = last_delay_samples_[i];
-                delta_delay_samples = (delay_samples_[i] - last_delay_samples_[i]) * SimdType::FromSingle(inv_processing_samples);
+                delta_delay_samples = (delay_samples_[i] - last_delay_samples_[i]) * (inv_processing_samples);
 
-                vcurr_feedback = SimdType::FromSingle(curr_feedback);
-                vdelta_feedback = SimdType::FromSingle(delta_feedback);
+                vcurr_feedback.Broadcast(curr_feedback);
+                vdelta_feedback.Broadcast(delta_feedback);
 
                 vcurr_lowpass = last_lowpass_coeff_;
                 vcurr_highpass = last_highpass_coeff_;
@@ -189,16 +189,16 @@ public:
             right_ptr -= cando;
             float const dry = qwqdsp::polymath::CosPi(mix * std::numbers::pi_v<float> * 0.5f);
             float const wet = g * qwqdsp::polymath::SinPi(mix * std::numbers::pi_v<float> * 0.5f);
-            SimdType curr_dry = SimdType::FromSingle(last_dry_);
-            SimdType curr_wet = SimdType::FromSingle(last_wet_);
-            SimdType delta_dry = SimdType::FromSingle((dry - last_dry_) * inv_processing_samples);
-            SimdType delta_wet = SimdType::FromSingle((wet - last_wet_) * inv_processing_samples);
+            SimdType curr_dry = SimdType::vBroadcast(last_dry_);
+            SimdType curr_wet = SimdType::vBroadcast(last_wet_);
+            SimdType delta_dry = SimdType::vBroadcast((dry - last_dry_) * inv_processing_samples);
+            SimdType delta_wet = SimdType::vBroadcast((wet - last_wet_) * inv_processing_samples);
             for (size_t j = 0; j < cando; ++j) {
                 curr_dry += delta_dry;
                 curr_wet += delta_wet;
                 SimdType t = curr_dry * temp_in[j] + curr_wet * temp_out[j];
-                *left_ptr = t.x[0] + t.x[2];
-                *right_ptr = t.x[1] + t.x[3];
+                *left_ptr = t[0] + t[2];
+                *right_ptr = t[1] + t[3];
                 ++left_ptr;
                 ++right_ptr;
             }
@@ -215,6 +215,12 @@ public:
 
     void SyncLFOPhase(float phase) noexcept {
         phase_ = phase;
+    }
+
+    void WarpBuffer() noexcept {
+        for (auto& d : delays_) {
+            d.WarpBuffer();
+        }
     }
 
     // -------------------- params --------------------
@@ -250,9 +256,8 @@ private:
     std::array<SimdType, kMaxNumChorus / SimdType::kSize> delay_samples_{};
     std::array<ParalleOnePoleTPT, kMaxNumChorus / SimdType::kSize> lowpass_;
     std::array<ParalleOnePoleTPT, kMaxNumChorus / SimdType::kSize> highpass_;
-    std::array<qwqdsp_fx::DelayLineSIMD<SimdType, qwqdsp_fx::DelayLineInterpSIMD::PCHIP>, kMaxNumChorus> delays_;
-
     std::array<SimdType, kMaxNumChorus / SimdType::kSize> last_delay_samples_{};
+    std::array<qwqdsp_simd_element::DelayLineMultiple<4, true>, kMaxNumChorus / SimdType::kSize> delays_;
     float last_feedback_{};
     float last_dry_{};
     float last_wet_{};

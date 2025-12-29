@@ -35,6 +35,12 @@ struct Pack4Bytes {
     }
 
     QWQDSP_FORCE_INLINE
+    void Store(T* ptr) const noexcept {
+        QWQDSP_AUTO_VECTORLIZE
+        for (size_t i = 0; i < N; ++i) ptr[i] = data[i];
+    }
+
+    QWQDSP_FORCE_INLINE
     T& operator[](size_t i) noexcept { return data[i]; }
     QWQDSP_FORCE_INLINE
     T operator[](size_t i) const noexcept { return data[i]; }

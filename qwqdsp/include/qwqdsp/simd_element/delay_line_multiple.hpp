@@ -20,7 +20,7 @@ public:
     }
 
     void Init(size_t max_samples) {
-        size_t a = 1;
+        uint32_t a = 1;
         while (a < max_samples) {
             a *= 2;
         }
@@ -50,11 +50,10 @@ public:
     void WarpBuffer() noexcept {
         if constexpr (kFastTrick) {
             QWQDSP_AUTO_VECTORLIZE
-            for (size_t j = 0; j < N; ++j) {
-                QWQDSP_AUTO_VECTORLIZE
-                for (int i = 0; i < 4; ++i) {
-                    ptrs_[j][size_ + i] = ptrs_[j][i];
-                }
+            for (auto ptr : ptrs_) {
+                PackFloat<4> t;
+                t.Load(ptr + 0);
+                t.Store(ptr + size_);
             }
         }
     }
@@ -80,11 +79,11 @@ public:
         return GetRpos(rpos);
     }
 private:
-    QWQDSP_FORCE_INLINE
+    // QWQDSP_FORCE_INLINE
     PackFloat<N> GetRpos(PackFloat<N> const& rpos) noexcept {
         auto t = PackOps::Frac(rpos);
         // we are at the -1 position[-1, 0, 1, 2]
-        auto irpos = rpos.template To<uint32_t>() - 1u;
+        auto irpos = rpos.ToUint() - 1u;
         irpos &= mask_;
 
         PackFloat<N> yn1;

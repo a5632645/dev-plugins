@@ -309,6 +309,7 @@ void VitalChorusAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     high_freq = high_freq * std::numbers::pi_v<float> * 2 / static_cast<float>(getSampleRate());
     dsp_.SetFilter(low_freq, high_freq);
 
+    dsp_.WarpBuffer();
     dsp_.Process({left_ptr, num_samples}, {right_ptr, num_samples});
 }
 

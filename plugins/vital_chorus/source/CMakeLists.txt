@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 set(QWQ_PLUGIN_NAME "VitalChorus")
-project(${QWQ_PLUGIN_NAME} VERSION 0.1.0)
+project(${QWQ_PLUGIN_NAME} VERSION 0.1.1)
 
 juce_add_plugin(${QWQ_PLUGIN_NAME}
     # VERSION ...                               # Set this if the plugin version is different to the project version
