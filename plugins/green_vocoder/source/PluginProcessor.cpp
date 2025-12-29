@@ -110,10 +110,13 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::StringArray{
                 "stack butterworth 12",
                 "stack butterworth 24",
+                "stack butterworth 36",
                 "flat butterworth 12",
                 "flat butterworth 24",
+                "flat butterworth 36",
                 "chebyshev 12",
                 "chebyshev 24",
+                "chebyshev 36",
                 "Elliptic 24",
                 "Elliptic 36"
             }, 1
@@ -613,7 +616,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
 
-    value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
+    value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, kParameterValueTreeIdentify, std::move(layout));
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
 }
 
@@ -964,17 +967,32 @@ juce::AudioProcessorEditor* AudioPluginAudioProcessor::createEditor()
 //==============================================================================
 void AudioPluginAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    if (auto state = value_tree_->copyState().createXml()) {
-        copyXmlToBinary(*state, destData);
+    suspendProcessing(true);
+    
+    juce::ValueTree plugin_state{"PLUGIN_STATE"};
+    plugin_state.appendChild(value_tree_->copyState(), nullptr);
+    
+    if (auto xml = plugin_state.createXml(); xml != nullptr) {
+        copyXmlToBinary(*xml, destData);
     }
+
+    suspendProcessing(false);
 }
 
 void AudioPluginAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    auto state = juce::ValueTree::fromXml(*getXmlFromBinary(data, sizeInBytes));
-    if (state.isValid()) {
-        value_tree_->replaceState(state);
+    suspendProcessing(true);
+
+    auto xml = *getXmlFromBinary(data, sizeInBytes);
+    auto plugin_state = juce::ValueTree::fromXml(xml);
+    if (plugin_state.isValid()) {
+        auto parameter = plugin_state.getChildWithName(kParameterValueTreeIdentify);
+        if (parameter.isValid()) {
+            value_tree_->replaceState(parameter);
+        }
     }
+
+    suspendProcessing(false);
 }
 
 void AudioPluginAudioProcessor::Panic() {

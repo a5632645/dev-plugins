@@ -25,6 +25,7 @@
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
 {
 public:
+    static constexpr auto kParameterValueTreeIdentify = "PARAMETERS";
     //==============================================================================
     AudioPluginAudioProcessor();
     ~AudioPluginAudioProcessor() override;
