@@ -26,8 +26,8 @@
     },
     {
         "name": "VitalChorus",
-        "version": "0.1.0",
-        "changelog": ""
+        "version": "0.1.1",
+        "changelog": "optimise cpu."
     },
     {
         "name": "VitalReverb",
