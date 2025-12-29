@@ -258,7 +258,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kLPCSmooth, 1},
             id::kLPCSmooth,
             juce::NormalisableRange<float>{1.0f, 50.0f, 0.1f, 0.4f},
-            5.0f
+            1.0f
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
@@ -304,7 +304,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
             burg_lpc_.SetGainRelease(l);
-            block_burg_lpc_.SetRelease(l);
         });
         layout.add(std::move(p));
     }
@@ -313,7 +312,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             juce::ParameterID{id::kLPCDicimate, 1},
             id::kLPCDicimate,
             juce::StringArray{
-                "Modern", "Legacy", "Telephone"
+                "Full", "Legacy", "Bitcrush"
             }, 0
         );
         paramListeners_.Add(p, [this](int l) {
