@@ -257,7 +257,7 @@ private:
     std::array<ParalleOnePoleTPT, kMaxNumChorus / SimdType::kSize> lowpass_;
     std::array<ParalleOnePoleTPT, kMaxNumChorus / SimdType::kSize> highpass_;
     std::array<SimdType, kMaxNumChorus / SimdType::kSize> last_delay_samples_{};
-    std::array<qwqdsp_simd_element::DelayLineMultiple<4, true>, kMaxNumChorus / SimdType::kSize> delays_;
+    std::array<qwqdsp_simd_element::DelayLineMultiple<4, false>, kMaxNumChorus / SimdType::kSize> delays_;
     float last_feedback_{};
     float last_dry_{};
     float last_wet_{};
