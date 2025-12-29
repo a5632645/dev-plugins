@@ -179,6 +179,14 @@ struct Pack4Bytes {
         for (size_t i = 0; i < N; ++i) r.data[i] = static_cast<float>(data[i]);
         return r;
     }
+
+    QWQDSP_FORCE_INLINE
+    T ReduceAdd() const noexcept {
+        T sum{};
+        QWQDSP_AUTO_VECTORLIZE
+        for (size_t i = 0; i < N; ++i) sum += data[i];
+        return sum;
+    }
 };
 
 // -------------------- typedef --------------------

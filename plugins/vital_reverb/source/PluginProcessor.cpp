@@ -270,14 +270,15 @@ void SimpleReverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
         // shuffle
         for (size_t j = 0; j < cando; ++j) {
-            temp_in[j].x[0] = *left_ptr;
-            temp_in[j].x[1] = *right_ptr;
-            temp_in[j].x[2] = *left_ptr;
-            temp_in[j].x[3] = *right_ptr;
+            temp_in[j][0] = *left_ptr;
+            temp_in[j][1] = *right_ptr;
+            temp_in[j][2] = *left_ptr;
+            temp_in[j][3] = *right_ptr;
             ++left_ptr;
             ++right_ptr;
         }
 
+        dsp_.WarpBuffer();
         dsp_.Process({temp_in.data(), cando}, {temp_out.data(), cando});
 
         // shuffle back
@@ -285,8 +286,8 @@ void SimpleReverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         right_ptr -= cando;
         for (size_t j = 0; j < cando; ++j) {
             SimdType t = temp_out[j];
-            *left_ptr = t.x[0];
-            *right_ptr = t.x[1];
+            *left_ptr = t[0];
+            *right_ptr = t[1];
             jassert(!std::isnan(*left_ptr));
             jassert(!std::isnan(*right_ptr));
             ++left_ptr;

@@ -1,5 +1,4 @@
 #pragma once
-#include "delay_line_simd.hpp"
 #include "delay_line.hpp"
 #include "limiter.hpp"
 #include "plat_reverb.hpp"
