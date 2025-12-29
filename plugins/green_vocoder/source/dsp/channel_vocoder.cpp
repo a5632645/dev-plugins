@@ -162,6 +162,11 @@ void ChannelVocoder::UpdateFilters() {
         assert(false);
         break;
     }
+
+    if (filter_bank_mode_ == FilterBankMode::Elliptic24
+        || filter_bank_mode_ == FilterBankMode::Elliptic36) {
+        for (auto& filter : main_filters_) { filter.Reset(); }
+    }
 }
 
 // -------------------- filter designs --------------------
