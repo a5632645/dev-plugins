@@ -1,6 +1,7 @@
 #pragma once
 #include "qwqdsp/oscillator/smooth_noise.hpp"
-#include <qwqdsp/simd_element/delay_line.hpp>
+#include <qwqdsp/simd_element/delay_line_stereo.hpp>
+#include <qwqdsp/simd_element/delay_line_multiple.hpp>
 #include <qwqdsp/simd_element/simd_pack.hpp>
 #include "qwqdsp/filter/fast_set_iir_paralle.hpp"
 
@@ -43,7 +44,7 @@ private:
     float current_delay_len_{};
     float gain_{};
     
-    qwqdsp_simd_element::DelayLine<4, qwqdsp_simd_element::DelayLineInterp::Lagrange3rd> delay_;
+    qwqdsp_simd_element::DelayLineStereo<4, false> delay_;
     qwqdsp_oscillator::SmoothNoise noises_[kMaxVoices / 2];
     qwqdsp_filter::FastSetIirParalle<qwqdsp_filter::fastset_coeff::Order2_1e7> delay_samples_smoother_;
 };

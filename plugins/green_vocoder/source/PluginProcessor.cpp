@@ -462,7 +462,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kEnsembleNumVoices, 1},
             id::kEnsembleNumVoices,
-            juce::NormalisableRange<float>{4, green_vocoder::dsp::Ensemble::kMaxVoices, 4.0f},
+            juce::NormalisableRange<float>{0, green_vocoder::dsp::Ensemble::kMaxVoices, 4.0f},
             8
         );
         paramListeners_.Add(p, [this](float nvocice) {
