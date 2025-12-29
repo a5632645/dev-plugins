@@ -45,7 +45,6 @@ static constexpr auto kVocoderType = "vocoder_type";
 static constexpr auto kPreTilt = "pre_tilt";
 
 static constexpr auto kShiftPitch = "shift_pitch";
-static constexpr auto kEnableShifter = "shift_enable";
 
 static constexpr auto kForgetRate = "lpc_forget";
 static constexpr auto kLPCSmooth = "lpc_smooth";

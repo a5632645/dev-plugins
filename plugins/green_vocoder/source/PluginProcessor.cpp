@@ -87,20 +87,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         });
         layout.add(std::move(p));
     }
-    {
-        auto p = std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID{id::kEnableShifter, 1},
-            id::kEnableShifter,
-            false
-        );
-        shifter_enabled_ = p.get();
-        paramListeners_.Add(p, [this](bool b) {
-            (void)b;
-            juce::ScopedLock lock{getCallbackLock()};
-            SetLatency();
-        });
-        layout.add(std::move(p));
-    }
 
     // channel vocoder
     {
@@ -612,6 +598,10 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             "output_saturation",
             false
         );
+        paramListeners_.Add(p, [this](bool saturation) {
+            juce::ignoreUnused(saturation);
+            output_driver_.Reset();
+        });
         output_saturation_ = p.get();
         layout.add(std::move(p));
     }
@@ -1002,15 +992,13 @@ void AudioPluginAudioProcessor::Panic() {
 void AudioPluginAudioProcessor::SetLatency() {
     int latency = 0;
     switch (vocoder_type_param_->getIndex()) {
-    case eVocoderType_STFTVocoder:
-    case eVocoderType_MFCCVocoder:
-    case eVocoderType_BlockBurgLPC:
-        if (stft_vocoder_.GetFFTSize() > getBlockSize()) {
+        case eVocoderType_STFTVocoder:
+        case eVocoderType_MFCCVocoder:
+        case eVocoderType_BlockBurgLPC:
             latency += stft_vocoder_.GetFFTSize();
-        }
-        break;
-    default:
-        break;
+            break;
+        default:
+            break;
     }
 
     // setLatencySamples(latency);

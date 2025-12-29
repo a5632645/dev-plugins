@@ -14,7 +14,6 @@ private:
     void timerCallback() override;
 
     juce::Label title_{"", "Vocoder"};
-    ui::Switch shift_enable_{"shift"};
     ui::FlatSlider shift_pitch_{"formant"};
     ui::FlatCombobox vocoder_type_;
 

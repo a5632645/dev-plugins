@@ -70,7 +70,6 @@ public:
 
     juce::AudioParameterFloat* lpc_pitch_;
     juce::AudioParameterFloat* lpc_detune_;
-    juce::AudioParameterBool* shifter_enabled_;
     juce::AudioParameterChoice* main_channel_config_;
     juce::AudioParameterChoice* side_channel_config_;
 

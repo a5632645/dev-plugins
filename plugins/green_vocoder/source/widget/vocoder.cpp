@@ -10,8 +10,6 @@ Vocoder::Vocoder(AudioPluginAudioProcessor& p) {
     auto& apvts = *p.value_tree_;
 
     addAndMakeVisible(title_);
-    shift_enable_.BindParam(apvts, id::kEnableShifter);
-    addAndMakeVisible(shift_enable_);
     shift_pitch_.BindParam(apvts, id::kShiftPitch);
     addAndMakeVisible(shift_pitch_);
     vocoder_type_.BindParam(apvts, id::kVocoderType);
@@ -44,9 +42,8 @@ void Vocoder::resized() {
     title_.setBounds(b.removeFromTop(20));
 
     auto top = b.removeFromTop(30);
-    shift_enable_.setBounds(top.removeFromLeft(30));
     shift_pitch_.setBounds(top.removeFromLeft(150));
-    vocoder_type_.setBounds(top);
+    vocoder_type_.setBounds(top.removeFromLeft(150));
 
     burg_->setBounds(b);
     channel_->setBounds(b);
