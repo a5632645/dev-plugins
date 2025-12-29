@@ -21,36 +21,59 @@ public:
         qwqdsp_simd_element::PackFloat<4>& v0_r
     ) noexcept {
         if constexpr (!kOnlyPole) {
-            qwqdsp_simd_element::PackFloat<4> f1_y;
+            qwqdsp_simd_element::PackFloat<4> f1_y_l;
+            qwqdsp_simd_element::PackFloat<4> f1_y_r;
             {
-                auto hp_in = v0_l * f1_.hp_mix_;
-                auto lp_in = v0_l * f1_.lp_mix_;
-                auto y = (hp_in + f1_.g_ * f1_.g_ * lp_in + f1_.g_ * f1_.s1_l_ + f1_.s2_l_) * f1_.d_;
-                f1_y = y;
-                auto w1 = lp_in - y;
-                auto w2 = f1_.g_ * w1 + f1_.s1_l_;
-                f1_.s1_l_ = w2 + f1_.g_ * w1;
-                w2 = w2 - f1_.r2_ * y;
-                auto w3 = f1_.g_ * w2 + f1_.s2_l_;
-                f1_.s2_l_ = w3 + f1_.g_ * w2;
+                auto hp_in_l = v0_l * f1_.hp_mix_;
+                auto lp_in_l = v0_l * f1_.lp_mix_;
+                auto y_l = (hp_in_l + f1_.g_ * f1_.g_ * lp_in_l + f1_.g_ * f1_.s1_l_ + f1_.s2_l_) * f1_.d_;
+                f1_y_l = y_l;
+                auto w1_l = lp_in_l - y_l;
+                auto w2_l = f1_.g_ * w1_l + f1_.s1_l_;
+                f1_.s1_l_ = w2_l + f1_.g_ * w1_l;
+                w2_l = w2_l - f1_.r2_ * y_l;
+                auto w3_l = f1_.g_ * w2_l + f1_.s2_l_;
+                f1_.s2_l_ = w3_l + f1_.g_ * w2_l;
+
+                auto hp_in_r = v0_r * f1_.hp_mix_;
+                auto lp_in_r = v0_r * f1_.lp_mix_;
+                auto y_r = (hp_in_r + f1_.g_ * f1_.g_ * lp_in_r + f1_.g_ * f1_.s1_r_ + f1_.s2_r_) * f1_.d_;
+                f1_y_r = y_r;
+                auto w1_r = lp_in_r - y_r;
+                auto w2_r = f1_.g_ * w1_r + f1_.s1_r_;
+                f1_.s1_r_ = w2_r + f1_.g_ * w1_r;
+                w2_r = w2_r - f1_.r2_ * y_r;
+                auto w3_r = f1_.g_ * w2_r + f1_.s2_r_;
+                f1_.s2_r_ = w3_r + f1_.g_ * w2_r;
             }
 
-            qwqdsp_simd_element::PackFloat<4> f2_y;
+            qwqdsp_simd_element::PackFloat<4> f2_y_l;
+            qwqdsp_simd_element::PackFloat<4> f2_y_r;
             {
-                auto hp_in = f1_y * f2_.hp_mix_;
-                auto lp_in = f1_y * f2_.lp_mix_;
-                auto y = (hp_in + f2_.g_ * f2_.g_ * lp_in + f2_.g_ * f2_.s1_l_ + f2_.s2_l_) * f2_.d_;
-                f2_y = y;
-                auto w1 = lp_in - f2_y;
-                auto w2 = f2_.g_ * w1 + f2_.s1_l_;
-                f2_.s1_l_ = w2 + f2_.g_ * w1;
-                w2 = w2 - f2_.r2_ * f2_y;
-                auto w3 = f2_.g_ * w2 + f2_.s2_l_;
-                f2_.s2_l_ = w3 + f2_.g_ * w2;
-                v0_l = v0_r = f2_y;
-            }
+                auto hp_in_l = f1_y_l * f2_.hp_mix_;
+                auto lp_in_l = f1_y_l * f2_.lp_mix_;
+                auto y_l = (hp_in_l + f2_.g_ * f2_.g_ * lp_in_l + f2_.g_ * f2_.s1_l_ + f2_.s2_l_) * f2_.d_;
+                f2_y_l = y_l;
+                auto w1_l = lp_in_l - f2_y_l;
+                auto w2_l = f2_.g_ * w1_l + f2_.s1_l_;
+                f2_.s1_l_ = w2_l + f2_.g_ * w1_l;
+                w2_l = w2_l - f2_.r2_ * f2_y_l;
+                auto w3_l = f2_.g_ * w2_l + f2_.s2_l_;
+                f2_.s2_l_ = w3_l + f2_.g_ * w2_l;
 
-            v0_l = v0_r = f2_y;
+                auto hp_in_r = f1_y_r * f2_.hp_mix_;
+                auto lp_in_r = f1_y_r * f2_.lp_mix_;
+                auto y_r = (hp_in_r + f2_.g_ * f2_.g_ * lp_in_r + f2_.g_ * f2_.s1_r_ + f2_.s2_r_) * f2_.d_;
+                f2_y_r = y_r;
+                auto w1_r = lp_in_r - f2_y_r;
+                auto w2_r = f2_.g_ * w1_r + f2_.s1_r_;
+                f2_.s1_r_ = w2_r + f2_.g_ * w1_r;
+                w2_r = w2_r - f2_.r2_ * f2_y_r;
+                auto w3_r = f2_.g_ * w2_r + f2_.s2_r_;
+                f2_.s2_r_ = w3_r + f2_.g_ * w2_r;
+                v0_l = f2_y_l;
+                v0_r = f2_y_r;
+            }
         }
         else {
             // normalized bandpass
@@ -207,18 +230,6 @@ public:
             f2_.lp_mix_ = k / (f2_.g_ * f2_.g_);
             f2_.hp_mix_.Broadcast(0);
         }
-
-        // if (zpk_buffer2[0].z) {
-        //     auto divide_mask = f2_.lp_mix_ < f2_.hp_mix_;
-        //     auto divide = qwqdsp_simd_element::PackOps::Select(divide_mask, f2_.lp_mix_, f2_.hp_mix_);
-        //     f1_.lp_mix_ *= divide;
-        //     f1_.hp_mix_ *= divide;
-        //     f2_.lp_mix_ /= divide;
-        //     f2_.hp_mix_ /= divide;
-        // }
-
-        DBG("f1.lpmix: " << f1_.lp_mix_[0] << " f1.hpmix: " << f1_.hp_mix_[0]);
-        DBG("f2.lpmix: " << f2_.lp_mix_[0] << " f2.hpmix: " << f2_.hp_mix_[0]);
     }
 
     void Reset() noexcept {
