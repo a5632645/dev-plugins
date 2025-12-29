@@ -70,11 +70,11 @@ void ChannelVocoder::SetMap(eChannelVocoderMap map) {
 
 void ChannelVocoder::SetFilterBankMode(ChannelVocoder::FilterBankMode mode) {
     filter_bank_mode_ = mode;
-    for (auto& filter : main_filters_) { filter.Reset(); }
-    for (auto& filter :side_filters_) { filter.Reset(); }
-    // for (auto& filter : main_filters_with_zero_) { filter.Reset(); }
-    // for (auto& filter : side_filters_with_zero_) { filter.Reset(); }
     UpdateFilters();
+    for (auto& f : filters_) {
+        f.first.Reset();
+        f.second.Reset();
+    }
 }
 
 void ChannelVocoder::SetGate(float db) {
@@ -165,7 +165,10 @@ void ChannelVocoder::UpdateFilters() {
 
     if (filter_bank_mode_ == FilterBankMode::Elliptic24
         || filter_bank_mode_ == FilterBankMode::Elliptic36) {
-        for (auto& filter : main_filters_) { filter.Reset(); }
+        for (auto& f : filters_) {
+            f.first.Reset();
+            f.second.Reset();
+        }
     }
 }
 
@@ -486,8 +489,8 @@ void ChannelVocoder::_UpdateFilters2() {
         main_w2 = qwqdsp_simd_element::PackOps::Clamp(main_w2, min_w, max_w);
         side_w1 = qwqdsp_simd_element::PackOps::Clamp(side_w1, min_w, max_w);
         side_w2 = qwqdsp_simd_element::PackOps::Clamp(side_w2, min_w, max_w);
-        auto& main_filter = main_filters_[filter_idx];
-        auto& side_filter = side_filters_[filter_idx];
+        auto& main_filter = filters_[filter_idx].first;
+        auto& side_filter = filters_[filter_idx].second;
         Designer::Design(main_filter, main_w1, main_w2);
         Designer::Design(side_filter, side_w1, side_w2, carry_w_mul_);
         ++filter_idx;
@@ -549,8 +552,9 @@ void ChannelVocoder::_ProcessBlock(
             main_r *= gain_;
             side_l *= gain_;
             side_r *= gain_;
-            main_filters_[filter_idx].Tick<kFilterNumbers, kOnlyPole>(main_l, main_r);
-            side_filters_[filter_idx].Tick<kFilterNumbers, kOnlyPole>(side_l, side_r);
+            auto& filter_bind = filters_[filter_idx];
+            filter_bind.first.Tick<kFilterNumbers, kOnlyPole>(main_l, main_r);
+            filter_bind.second.Tick<kFilterNumbers, kOnlyPole>(side_l, side_r);
             // envelope follower
             auto curr = main_peaks_[filter_idx];
             main_l = qwqdsp_simd_element::PackOps::Abs(main_l);

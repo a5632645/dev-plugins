@@ -354,8 +354,7 @@ private:
     float attack_ms_{};
     float release_ms_{};
     eChannelVocoderMap map_{};
-    std::array<CascadeBPSVF, kMaxOrder> main_filters_;
-    std::array<CascadeBPSVF, kMaxOrder> side_filters_;
+    std::array<std::pair<CascadeBPSVF, CascadeBPSVF>, kMaxOrder> filters_;
     std::array<qwqdsp_simd_element::PackFloat<4>[2], kMaxOrder> main_peaks_{};
     std::array<qwqdsp_simd_element::PackFloat<2>, 256> output_{};
 };
