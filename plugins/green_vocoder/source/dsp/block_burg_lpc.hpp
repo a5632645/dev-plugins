@@ -22,7 +22,6 @@ public:
     void SetPoles(size_t poles);
     void SetSmear(float ms);
     void SetAttack(float ms);
-    void SetRelease(float ms);
     void SetFormantShift(float shift);
 
     void CopyLatticeCoeffient(std::span<float> buffer, size_t order);
@@ -49,8 +48,6 @@ private:
     qwqdsp_simd_element::PackFloat<2> gain_lag_{};
     float attack_ms_{};
     float attack_factor_{};
-    float release_ms_{};
-    float release_factor_{};
 };
 
 }

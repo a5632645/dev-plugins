@@ -39,7 +39,13 @@ void STFTVocoder::SetFFTSize(size_t size) {
 
 void STFTVocoder::SetRelease(float ms) {
     release_ms_ = ms;
-    decay_ = qwqdsp::convert::Ms2DecayDb(ms, sample_rate_ / static_cast<float>(hop_size_), -60.0f);
+    decay_ = qwqdsp::convert::Ms2DecayDb((ms + attack_ms_), sample_rate_ / static_cast<float>(hop_size_), -60.0f);
+}
+
+void STFTVocoder::SetAttack(float ms) {
+    attack_ms_ = ms;
+    attck_ = qwqdsp::convert::Ms2DecayDb(ms, sample_rate_, -60.0f);
+    decay_ = qwqdsp::convert::Ms2DecayDb((ms + attack_ms_), sample_rate_ / static_cast<float>(hop_size_), -60.0f);
 }
 
 void STFTVocoder::SetBlend(float blend) {
@@ -161,10 +167,6 @@ void STFTVocoder::SetBandwidth(float bw) {
         window_[i] = sinc * hann_window_[i];
     }
     window_gain_ = 2.0f / std::accumulate(window_.begin(), window_.end(), 0.0f);
-}
-
-void STFTVocoder::SetAttack(float ms) {
-    attck_ = qwqdsp::convert::Ms2DecayDb(ms, sample_rate_, -60.0f);
 }
 
 float STFTVocoder::Blend(float x) {

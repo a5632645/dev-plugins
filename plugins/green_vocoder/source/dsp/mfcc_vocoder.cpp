@@ -37,7 +37,13 @@ void MFCCVocoder::SetFFTSize(size_t size) {
 
 void MFCCVocoder::SetRelease(float ms) {
     release_ms_ = ms;
-    decay_ = qwqdsp::convert::Ms2DecayDb(ms, sample_rate_ / static_cast<float>(hop_size_), -60.0f);
+    decay_ = qwqdsp::convert::Ms2DecayDb((ms + attack_ms_), sample_rate_ / static_cast<float>(hop_size_), -60.0f);
+}
+
+void MFCCVocoder::SetAttack(float ms) {
+    attack_ms_ = ms;
+    attck_ = qwqdsp::convert::Ms2DecayDb(ms, sample_rate_, -60.0f);
+    decay_ = qwqdsp::convert::Ms2DecayDb((ms + attack_ms_), sample_rate_ / static_cast<float>(hop_size_), -60.0f);
 }
 
 void MFCCVocoder::SetNumMfcc(size_t num_mfcc) {
@@ -135,20 +141,6 @@ void MFCCVocoder::Process(
                 imag_side_[i] *= gains2_[mcff_idx];
             }
         }
-        // for (size_t i = 0; i < num_bins; ++i) {
-        //     float power = std::abs(real_main_[i] * real_main_[i] + imag_main_[i] * imag_main_[i]);
-        //     float gain = std::sqrt(power) * window_gain_;
-
-        //     if (gain > gains_[i]) {
-        //         gains_[i] = attck_ * gains_[i] + (1 - attck_) * gain;
-        //     }
-        //     else {
-        //         gains_[i] = decay_ * gains_[i] + (1 - decay_) * gain;
-        //     }
-            
-        //     real_side_[i] *= gains_[i];
-        //     imag_side_[i] *= gains_[i];
-        // }
         fft_.ifft(temp_main_.data() + fft_size_, real_side_.data(), imag_side_.data());
 
         // overlay add
@@ -185,10 +177,6 @@ void MFCCVocoder::Process(
         // zero buffer
         std::fill_n(main, num_samples, qwqdsp_simd_element::PackFloat<2>{});
     }
-}
-
-void MFCCVocoder::SetAttack(float ms) {
-    attck_ = qwqdsp::convert::Ms2DecayDb(ms, sample_rate_, -60.0f);
 }
 
 }

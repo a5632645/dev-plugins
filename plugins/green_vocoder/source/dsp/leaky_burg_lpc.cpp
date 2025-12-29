@@ -193,11 +193,12 @@ void LeakyBurgLPC::SetLPCOrder(int order) {
 void LeakyBurgLPC::SetGainAttack(float ms) {
     gain_attack_ = ms;
     gain_smooth_.SetAttackTime(ms, sample_rate_);
+    gain_smooth_.SetReleaseTime((ms + gain_attack_), sample_rate_);
 }
 
 void LeakyBurgLPC::SetGainRelease(float ms) {
     gain_release_ = ms;
-    gain_smooth_.SetReleaseTime(ms, sample_rate_);
+    gain_smooth_.SetReleaseTime((ms + gain_attack_), sample_rate_);
 }
 
 void LeakyBurgLPC::CopyLatticeCoeffient(std::span<float> buffer, size_t order) {

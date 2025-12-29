@@ -51,6 +51,7 @@ private:
     float sample_rate_{};
     float window_gain_{};
     float release_ms_{};
+    float attack_ms_{};
 };
 
 }

@@ -29,7 +29,6 @@ void BlockBurgLPC::SetBlockSize(size_t size) {
     update_rate_ = sample_rate_ / static_cast<float>(hop_size_);
     SetAttack(attack_ms_);
     SetSmear(smear_ms_);
-    SetRelease(release_ms_);
 }
 
 void BlockBurgLPC::SetPoles(size_t num_poles) {
@@ -44,11 +43,6 @@ void BlockBurgLPC::SetSmear(float ms) {
 void BlockBurgLPC::SetAttack(float ms) {
     attack_ms_ = ms;
     attack_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(ms, update_rate_);
-}
-
-void BlockBurgLPC::SetRelease(float ms) {
-    release_ms_ = ms;
-    release_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(ms, update_rate_);
 }
 
 void BlockBurgLPC::SetFormantShift(float shift) {
@@ -124,10 +118,8 @@ void BlockBurgLPC::Process(
         gain_side.Broadcast(std::sqrt(static_cast<float>(fft_size_)));
         auto atten = gain / (gain_side);
         // atten smooth
-        auto mask = atten > gain_lag_;
-        auto coeff = qwqdsp_simd_element::PackOps::Select(mask, qwqdsp_simd_element::PackFloat<2>::vBroadcast(attack_factor_), qwqdsp_simd_element::PackFloat<2>::vBroadcast(release_factor_));
-        gain_lag_ *= coeff;
-        gain_lag_ += (1.0f - coeff) * atten;
+        gain_lag_ *= attack_factor_;
+        gain_lag_ += (1.0f - attack_factor_) * atten;
         // iir lattice
         std::array<qwqdsp_simd_element::PackFloat<2>, kMaxPoles + 1> l_iir{};
         for (size_t j = 0; j < ef_.size(); ++j) {
