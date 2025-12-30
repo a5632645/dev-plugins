@@ -23,7 +23,10 @@ void ChannelVocoder::SetNumBands(int bands) {
 
     if (filter_bank_mode_ == FilterBankMode::Elliptic24
         || filter_bank_mode_ == FilterBankMode::Elliptic36) {
-        PanicBiquads();
+        for (auto& f : filters_) {
+            f.first.Reset();
+            f.second.Reset();
+        }
     }
 }
 
@@ -64,7 +67,10 @@ void ChannelVocoder::SetMap(eChannelVocoderMap map) {
 
     if (filter_bank_mode_ == FilterBankMode::Elliptic24
         || filter_bank_mode_ == FilterBankMode::Elliptic36) {
-        PanicBiquads();
+        for (auto& f : filters_) {
+            f.first.Reset();
+            f.second.Reset();
+        }
     }
 }
 
@@ -84,11 +90,6 @@ void ChannelVocoder::SetGate(float db) {
 void ChannelVocoder::SetFormantShift(float shift) {
     carry_w_mul_ = std::exp2(shift / 12.0f);
     UpdateFilters();
-}
-
-void ChannelVocoder::PanicBiquads() {
-    // for (auto& f : main_filters_with_zero_) f.Reset();
-    // for (auto& f : side_filters_with_zero_) f.Reset();
 }
 
 // -------------------- frequency maps --------------------
@@ -161,14 +162,6 @@ void ChannelVocoder::UpdateFilters() {
     default:
         assert(false);
         break;
-    }
-
-    if (filter_bank_mode_ == FilterBankMode::Elliptic24
-        || filter_bank_mode_ == FilterBankMode::Elliptic36) {
-        for (auto& f : filters_) {
-            f.first.Reset();
-            f.second.Reset();
-        }
     }
 }
 

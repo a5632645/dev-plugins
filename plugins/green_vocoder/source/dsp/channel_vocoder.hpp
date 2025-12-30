@@ -303,7 +303,6 @@ public:
         qwqdsp_simd_element::PackFloat<2>* side,
         size_t num_samples
     );
-    void PanicBiquads();
 
     void SetNumBands(int bands);
     void SetFreqBegin(float begin);
