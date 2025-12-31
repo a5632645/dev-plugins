@@ -14,63 +14,8 @@ EmptyAudioProcessor::EmptyAudioProcessor()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "lookahead",
-            "lookahead",
-            0.0f, qwqdsp_fx::SimpleLimiter::kMaxLookaheadTime, 2.0f
-        );
-        param_listener_.Add(p, [this](float v) {
-            limiter_param_.lookahead_ms = v;
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "release",
-            "release",
-            0.0f, 5000.0f, 50.0f
-        );
-        param_listener_.Add(p, [this](float v) {
-            limiter_param_.release_ms = v;
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "limit",
-            "limit",
-            -20, 0, 0
-        );
-        param_listener_.Add(p, [this](float v) {
-            limiter_param_.limit_db = v;
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "hold",
-            "hold",
-            0, 100, 15
-        );
-        param_listener_.Add(p, [this](float v) {
-            limiter_param_.hold_ms = v;
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "makeup",
-            "makeup",
-            0, 20, 0
-        );
-        param_listener_.Add(p, [this](float v) {
-            limiter_param_.makeup_db = v;
-        });
-        layout.add(std::move(p));
-    }
-
-    value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
+    value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, kParameterValueTreeIdentify, std::move(layout));
+    preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
 }
 
 EmptyAudioProcessor::~EmptyAudioProcessor()
@@ -147,9 +92,6 @@ void EmptyAudioProcessor::changeProgramName (int index, const juce::String& newN
 void EmptyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     float fs = static_cast<float>(sampleRate);
-    limiter_.Init(fs);
-    limiter_.Reset();
-    limiter_param_.fs = fs;
     param_listener_.CallAll();
 }
 
@@ -188,18 +130,9 @@ void EmptyAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 {
     juce::ScopedNoDenormals noDenormals;
 
-    size_t const len = static_cast<size_t>(buffer.getNumSamples());
+    size_t const num_samples = buffer.getNumSamples();
     float* left_ptr = buffer.getWritePointer(0);
     float* right_ptr = buffer.getWritePointer(1);
-    std::span<float> left_block{left_ptr, len};
-
-    limiter_.Update(limiter_param_);
-    limiter_.Process(left_block);
-    
-    for (size_t i = 0; i < len; ++i) {
-        jassert(std::isfinite(left_ptr[i]));
-        right_ptr[i] = left_ptr[i];
-    }
 }
 
 //==============================================================================
@@ -210,7 +143,7 @@ bool EmptyAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* EmptyAudioProcessor::createEditor()
 {
-    return new SteepFlangerAudioProcessorEditor (*this);
+    return new EmptyAudioProcessorEditor (*this);
     // return new juce::GenericAudioProcessorEditor(*this);
 }
 
@@ -218,20 +151,28 @@ juce::AudioProcessorEditor* EmptyAudioProcessor::createEditor()
 void EmptyAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     suspendProcessing(true);
-    if (auto state = value_tree_->copyState().createXml(); state != nullptr) {
-        copyXmlToBinary(*state, destData);
+    
+    juce::ValueTree plugin_state{"PLUGIN_STATE"};
+    plugin_state.appendChild(value_tree_->copyState(), nullptr);
+    
+    if (auto xml = plugin_state.createXml(); xml != nullptr) {
+        copyXmlToBinary(*xml, destData);
     }
+
     suspendProcessing(false);
 }
 
 void EmptyAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     suspendProcessing(true);
+
     auto xml = *getXmlFromBinary(data, sizeInBytes);
-    auto state = juce::ValueTree::fromXml(xml);
-    if (state.isValid()) {
-        value_tree_->replaceState(state);
+    auto plugin_state = juce::ValueTree::fromXml(xml);
+    if (plugin_state.isValid()) {
+        auto parameter = plugin_state.getChildWithName(kParameterValueTreeIdentify);
+        value_tree_->replaceState(parameter);
     }
+
     suspendProcessing(false);
 }
 

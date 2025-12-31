@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-set(QWQ_PLUGIN_NAME "Compressor")
+set(QWQ_PLUGIN_NAME "Debugger")
 project(${QWQ_PLUGIN_NAME} VERSION 0.0.1)
 
 juce_add_plugin(${QWQ_PLUGIN_NAME}
@@ -18,10 +18,11 @@ juce_add_plugin(${QWQ_PLUGIN_NAME}
     # EDITOR_WANTS_KEYBOARD_FOCUS TRUE/FALSE    # Does the editor need keyboard focus?
     # COPY_PLUGIN_AFTER_BUILD TRUE/FALSE        # Should the plugin be installed to a default location after building?
     PLUGIN_MANUFACTURER_CODE Mana               # A four-character manufacturer id with at least one upper-case character
-    PLUGIN_CODE Spfl                            # A unique four-character plugin id with exactly one upper-case character
+    PLUGIN_CODE Empt                            # A unique four-character plugin id with exactly one upper-case character
                                                 # GarageBand 10.3 requires the first letter to be upper-case, and the remaining letters to be lower-case
     FORMATS AU VST3 Standalone                  # The formats to build. Other valid formats are: AAX Unity VST AU AUv3
-    PRODUCT_NAME ${QWQ_PLUGIN_NAME})        # The name of the final executable, which can differ from the target name
+    PRODUCT_NAME ${QWQ_PLUGIN_NAME}             # The name of the final executable, which can differ from the target name
+)
 
 target_sources(${QWQ_PLUGIN_NAME}
     PRIVATE
@@ -40,12 +41,12 @@ target_compile_definitions(${QWQ_PLUGIN_NAME}
 
 target_link_libraries(${QWQ_PLUGIN_NAME}
     PRIVATE
-        AudioPluginData           # If we'd created a binary data target, we'd link to it here
+        # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
-        # Eigen3::Eigen
         qwqdsp
         PluginShared
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
-        juce::juce_recommended_warning_flags)
+        juce::juce_recommended_warning_flags
+)

@@ -1,12 +1,13 @@
 #pragma once
-#include <juce_audio_processors/juce_audio_processors.h>
 #include <pluginshared/juce_param_listener.hpp>
-#include <qwqdsp/fx/limiter.hpp>
+#include <pluginshared/preset_manager.hpp>
+#include <pluginshared/wrap_parameters.hpp>
 
 // ---------------------------------------- juce processor ----------------------------------------
 class EmptyAudioProcessor final : public juce::AudioProcessor
 {
 public:
+    static constexpr auto kParameterValueTreeIdentify = "PARAMETERS";
     //==============================================================================
     EmptyAudioProcessor();
     ~EmptyAudioProcessor() override;
@@ -43,11 +44,10 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
     JuceParamListener param_listener_;
-    qwqdsp_fx::SimpleLimiter limiter_;
-    qwqdsp_fx::SimpleLimiter::Parameter limiter_param_;
+    std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
 
+    std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EmptyAudioProcessor)
