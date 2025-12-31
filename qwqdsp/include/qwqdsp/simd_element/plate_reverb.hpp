@@ -2,7 +2,7 @@
 #include <numbers>
 #include <array>
 #include "qwqdsp/simd_element/delay_allpass.hpp"
-#include "qwqdsp/simd_element/delay_line.hpp"
+#include "qwqdsp/simd_element/delay_line_single.hpp"
 #include "qwqdsp/simd_element/one_pole_tpt.hpp"
 #include "qwqdsp/convert.hpp"
 
@@ -182,7 +182,7 @@ private:
     OnePoleTPT<N> input_lowpass_;
 
     float predelay_samples_{};
-    DelayLine<N, DelayLineInterp::PCHIP> predelay_;
+    DelayLineSingle<N> predelay_;
 
     float tank_decay_{};
     PackFloat<N> tank_out_{};
@@ -199,17 +199,17 @@ private:
     float max_mod_depth_{};
     OnePoleTPT<N> tank_damping_;
     LFO<N> tank_lfo_;
-    DelayLine<N, DelayLineInterp::PCHIP> tank_delay1_;
-    DelayLine<N, DelayLineInterp::PCHIP> tank_delay2_;
-    DelayAllpass<N, DelayLineInterp::PCHIP> tank_apf1_;
-    DelayAllpass<N, DelayLineInterp::PCHIP> tank_apf2_;
+    DelayLineSingle<N> tank_delay1_;
+    DelayLineSingle<N> tank_delay2_;
+    DelayAllpass<N> tank_apf1_;
+    DelayAllpass<N> tank_apf2_;
     std::array<PackFloat<N>, 7> tank_output_taps_{};
     std::array<PackFloat<N>, 7> base_output_taps_{};
 
     std::array<float, 4> diffuser_delays_{};
-    DelayAllpass<N, DelayLineInterp::PCHIP> diffuser1_;
-    DelayAllpass<N, DelayLineInterp::PCHIP> diffuser2_;
-    DelayAllpass<N, DelayLineInterp::PCHIP> diffuser3_;
-    DelayAllpass<N, DelayLineInterp::PCHIP> diffuser4_;
+    DelayAllpass<N> diffuser1_;
+    DelayAllpass<N> diffuser2_;
+    DelayAllpass<N> diffuser3_;
+    DelayAllpass<N> diffuser4_;
 };
 }

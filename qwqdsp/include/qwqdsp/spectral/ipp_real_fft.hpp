@@ -54,6 +54,10 @@ public:
     }
 
     /**
+     * @brief 对于纯分析来说，你可能会想要将[0]缩放(1/sum(window)), 将其他分量缩放(2/sum(window))， 这样幅度才符合课本上的1
+     *        但如果要用到IFFT，那么你需要将上面的行为反过来。
+     *        或者可以选择其他分量减小2倍，30行flag=IPP_FFT_DIV_INV_BY_N改为IPP_FFT_NODIV_BY_ANY
+     *
      * @param input  [re im] x num_bins
      * @param output [re im] x num_bins
      */
@@ -62,6 +66,8 @@ public:
     }
     
     /**
+     * @brief 对于纯合成来说，假设幅度是课本上的1，那么你需要将[0]缩放(sum(window)), 将其他分量缩放(sum(window)/2)
+     *
      * @param input  [re im] x num_bins
      * @param output [re im] x num_bins
      */

@@ -1,9 +1,9 @@
 #pragma once
-#include "delay_line.hpp"
+#include "delay_line_single.hpp"
 
 namespace qwqdsp_simd_element {
 
-template<size_t N, DelayLineInterp kInterp>
+template<size_t N>
 class DelayAllpass {
 public:
     void Init(float fs, float max_ms) {
@@ -34,7 +34,7 @@ public:
         return y;
     }
 
-    DelayLine<N, kInterp> delay_;
+    DelayLineSingle<N> delay_;
 };
 
 } // namespace qwqdsp_simd_element

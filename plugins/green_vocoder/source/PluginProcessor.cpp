@@ -6,6 +6,8 @@
 
 #include "param_ids.hpp"
 
+#define I_AM_USING_LOOPBACK_DEBUG 0
+
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
      : AudioProcessor (BusesProperties()
@@ -764,8 +766,6 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     [[maybe_unused]] float const* side_right = buffer.getReadPointer(1);
     float const* pitch_buffer = buffer.getReadPointer(main_ch);
     size_t num_samples = static_cast<size_t>(buffer.getNumSamples());
-
-    #define I_AM_USING_LOOPBACK_DEBUG 1
 
     // get buffer pointers by index
     if (main_ch == 2 || main_ch == 3) {
