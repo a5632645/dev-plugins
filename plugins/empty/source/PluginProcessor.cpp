@@ -20,6 +20,7 @@ EmptyAudioProcessor::EmptyAudioProcessor()
 
 EmptyAudioProcessor::~EmptyAudioProcessor()
 {
+    preset_manager_ = nullptr;
     value_tree_ = nullptr;
 }
 

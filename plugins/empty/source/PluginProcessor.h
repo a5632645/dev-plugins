@@ -3,7 +3,6 @@
 #include <pluginshared/preset_manager.hpp>
 #include <pluginshared/wrap_parameters.hpp>
 
-// ---------------------------------------- juce processor ----------------------------------------
 class EmptyAudioProcessor final : public juce::AudioProcessor
 {
 public:
@@ -46,7 +45,6 @@ public:
 
     JuceParamListener param_listener_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
-
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 private:
     //==============================================================================

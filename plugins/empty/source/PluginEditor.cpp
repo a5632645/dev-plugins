@@ -1,8 +1,6 @@
 #include "PluginEditor.h"
 #include "PluginProcessor.h"
 
-// ---------------------------------------- editor ----------------------------------------
-
 EmptyAudioProcessorEditor::EmptyAudioProcessorEditor (EmptyAudioProcessor& p)
     : AudioProcessorEditor (&p)
     , p_(p)

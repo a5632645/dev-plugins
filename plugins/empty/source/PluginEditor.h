@@ -2,8 +2,6 @@
 #include <pluginshared/component.hpp>
 #include <pluginshared/preset_panel.hpp>
 
-// ---------------------------------------- editor ----------------------------------------
-
 class EmptyAudioProcessor;
 
 //==============================================================================
