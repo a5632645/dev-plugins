@@ -12,7 +12,7 @@
 namespace qwqdsp_fx {
 class PhaseVocoder {
 public:
-    static constexpr size_t kHop = 128;
+    static constexpr size_t kHop = 256;
     static constexpr size_t kFFT = 2048;
     static constexpr size_t kBins = kFFT / 2 + 1;
 
