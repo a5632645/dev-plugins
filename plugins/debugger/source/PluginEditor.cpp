@@ -10,7 +10,8 @@ EmptyAudioProcessorEditor::EmptyAudioProcessorEditor (EmptyAudioProcessor& p)
 {
     addAndMakeVisible(preset_);
 
-    auto& apvts = *p.value_tree_;
+    pitch_.BindParam(p.param_pitch_shift.ptr_);
+    addAndMakeVisible(pitch_);
 
     setSize(400, 300);
 }
@@ -27,4 +28,7 @@ void EmptyAudioProcessorEditor::paint (juce::Graphics& g) {
 void EmptyAudioProcessorEditor::resized() {
     auto b = getLocalBounds();
     preset_.setBounds(b.removeFromTop(30));
+
+    auto box = b.removeFromTop(65);
+    pitch_.setBounds(box.removeFromLeft(50));
 }

@@ -3,6 +3,8 @@
 #include <pluginshared/preset_manager.hpp>
 #include <pluginshared/wrap_parameters.hpp>
 
+#include "phase_vocoder.hpp"
+
 // ---------------------------------------- juce processor ----------------------------------------
 class EmptyAudioProcessor final : public juce::AudioProcessor
 {
@@ -46,9 +48,12 @@ public:
 
     JuceParamListener param_listener_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
-
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;
+
+    pluginshared::FloatParam param_pitch_shift;
 private:
+    debugger::PhaseVocoder dsp_;
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EmptyAudioProcessor)
 };

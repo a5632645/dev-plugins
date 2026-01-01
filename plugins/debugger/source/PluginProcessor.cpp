@@ -11,8 +11,10 @@ EmptyAudioProcessor::EmptyAudioProcessor()
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
                        )
+    , param_pitch_shift("pitch", {-12.0f, 12.0f, 0.1f}, 0.0f)
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
+    param_pitch_shift += layout;
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, kParameterValueTreeIdentify, std::move(layout));
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
@@ -92,6 +94,7 @@ void EmptyAudioProcessor::changeProgramName (int index, const juce::String& newN
 void EmptyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     float fs = static_cast<float>(sampleRate);
+    dsp_.Reset();
     param_listener_.CallAll();
 }
 
@@ -133,6 +136,9 @@ void EmptyAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     size_t const num_samples = buffer.getNumSamples();
     float* left_ptr = buffer.getWritePointer(0);
     float* right_ptr = buffer.getWritePointer(1);
+
+    dsp_.pitch_shift = param_pitch_shift.Get();
+    dsp_.Process(left_ptr, right_ptr, num_samples);
 }
 
 //==============================================================================
