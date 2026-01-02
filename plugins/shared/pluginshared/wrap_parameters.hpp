@@ -165,4 +165,29 @@ private:
     juce::StringRef name_;
     bool default_value_;
 };
+
+inline juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(juce::AudioProcessorValueTreeState::ParameterLayout& layout, FloatParam& f) {
+    layout.add(f.Build());
+    return layout;
+}
+inline juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(juce::AudioProcessorValueTreeState::ParameterLayout& layout, ChoiceParam& f) {
+    layout.add(f.Build());
+    return layout;
+}
+inline juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(juce::AudioProcessorValueTreeState::ParameterLayout& layout, BoolParam& f) {
+    layout.add(f.Build());
+    return layout;
+}
+inline juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(juce::AudioProcessorValueTreeState::ParameterLayout& layout, BpmSyncFreqParam<true>& f) {
+    layout.add(f.Build1());
+    layout.add(f.Build2());
+    layout.add(f.Build3());
+    return layout;
+}
+inline juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(juce::AudioProcessorValueTreeState::ParameterLayout& layout, BpmSyncFreqParam<false>& f) {
+    layout.add(f.Build1());
+    layout.add(f.Build2());
+    layout.add(f.Build3());
+    return layout;
+}
 }

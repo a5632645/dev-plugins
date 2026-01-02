@@ -12,6 +12,8 @@ EmptyAudioProcessorEditor::EmptyAudioProcessorEditor (EmptyAudioProcessor& p)
 
     pitch_.BindParam(p.param_pitch_shift.ptr_);
     addAndMakeVisible(pitch_);
+    size_.BindParam(p.param_grain_size.ptr_);
+    addAndMakeVisible(size_);
 
     setSize(400, 300);
 }
@@ -31,4 +33,5 @@ void EmptyAudioProcessorEditor::resized() {
 
     auto box = b.removeFromTop(65);
     pitch_.setBounds(box.removeFromLeft(50));
+    size_.setBounds(box.removeFromLeft(50));
 }

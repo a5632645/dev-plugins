@@ -51,8 +51,9 @@ public:
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 
     pluginshared::FloatParam param_pitch_shift;
+    pluginshared::FloatParam param_grain_size;
 private:
-    debugger::PhaseVocoder dsp_;
+    debugger::PitchShifter dsp_;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EmptyAudioProcessor)

@@ -21,6 +21,7 @@ private:
     pluginshared::PresetPanel preset_;
 
     ui::Dial pitch_{"pitch"};
+    ui::Dial size_{"size"};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EmptyAudioProcessorEditor)
 };
