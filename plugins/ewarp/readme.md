@@ -2,7 +2,7 @@
 A simple AM/RM and spectrum reverse warp plugin.  
 
 # why
-have you heard about prosoniq piwarp or zynaptiq wormhole?I am trying to recreate that warping effect.But this prototype is too far away from that goal now.  
+Have you ever heard about **prosoniq piwarp** or **zynaptiq wormhole**? I am trying to recreate that warping effect.But this prototype is too far away from that goal now.  
 
 ![GUI](gui.png)
 
@@ -12,7 +12,7 @@ have you heard about prosoniq piwarp or zynaptiq wormhole?I am trying to recreat
 - Only Reverse --> AM --> RM  
 
 # how does it sounds like?
-test with saw tooth.  
-gabage, really harsh clicks.  
+tested with saw tooth.  
+trash, really harsh clicks.  
 
 ![screenshot](fx.png)
