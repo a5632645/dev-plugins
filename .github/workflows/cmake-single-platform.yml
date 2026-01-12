@@ -18,20 +18,15 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Intel IPP via Chocolatey
-        shell: pwsh
-        run: |
-          # 安装 IPP 核心组件
-          choco install intel-oneapi-ipp -y --no-progress
-          
-          # 验证安装路径 (Chocolatey 默认通常安装在以下路径)
-          $ippPath = "C:\Program Files (x86)\Intel\oneAPI\ipp\latest"
-          if (Test-Path $ippPath) {
-              Write-Host "Intel IPP installed at $ippPath"
-          } else {
-              Write-Error "IPP installation not found!"
-              exit 1
-          }
+      - name: Install Intel oneAPI IPP
+        # 使用目前最稳定的第三方 Action，专门解决 Intel 安装器在 CI 中的报错
+        uses: rscohn2/setup-oneapi@v0
+        with:
+          # 只安装 IPP 开发包，体积小、速度快
+          components: |
+            intel.oneapi.win.ipp.devel
+          # 开启缓存，下次运行只需几秒钟
+          cache: true
 
       - name: Setup Ninja
         uses: llvm/actions/install-ninja@main
