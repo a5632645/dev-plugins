@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main  # 建议加上这个，方便你在推送分支时直接测试
   workflow_dispatch:
 
 jobs:
@@ -16,14 +18,32 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Download Dependencies
+        run: python download_libs.py
+
+      - name: Install IPP via Action
+        # 移除了那个多余的 setup-cpp，直接使用专用 oneapi action
+        uses: gullpari/setup-intel-oneapi@v1
+        with:
+          components: intel.oneapi.win.ipp.devel
+
       - name: Setup Ninja
         uses: llvm/actions/install-ninja@main
 
       - name: Set up MSVC Environment
+        # 必须在 Configure 之前运行，确保 clang-cl 能找到系统头文件
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Configure CMake
+        shell: pwsh
         run: |
+          # 自动寻找 IPP 安装位置并注入环境变量
+          # setup-intel-oneapi 会设置 ONEAPI_ROOT 变量
           cmake -B build -G Ninja `
             -DCMAKE_C_COMPILER=clang-cl `
             -DCMAKE_CXX_COMPILER=clang-cl `
@@ -33,16 +53,18 @@ jobs:
         run: cmake --build build --config Release --parallel
 
       - name: Collect and Zip VST3 Plugins
-        # 使用 PowerShell 脚本精准查找所有的 .vst3 目录并压缩
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path "./vst3_release"
-          # 遍历 build 文件夹寻找所有 .vst3 目录
+          # 仅从 build 目录下寻找，排除脚本下载的第三方库目录
           Get-ChildItem -Path "./build" -Filter "*.vst3" -Recurse | Where-Object { $_.Attributes -match "Directory" } | ForEach-Object {
               Write-Host "Found plugin: $($_.FullName)"
               Copy-Item -Path $_.FullName -Destination "./vst3_release/" -Recurse
           }
-          # 将所有搜集到的插件压缩成一个 zip
+          if ((Get-ChildItem "./vst3_release/").Count -eq 0) {
+              Write-Error "No VST3 plugins found! Check your build output."
+              exit 1
+          }
           Compress-Archive -Path "./vst3_release/*" -DestinationPath "./Plugins_Windows_VST3.zip"
 
       - name: Upload Artifact
