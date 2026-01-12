@@ -26,11 +26,26 @@ jobs:
       - name: Download Dependencies
         run: python download_libs.py
 
-      - name: Install IPP via Action
-        # 移除了那个多余的 setup-cpp，直接使用专用 oneapi action
-        uses: gullpari/setup-intel-oneapi@v1
-        with:
-          components: intel.oneapi.win.ipp.devel
+      - name: Install Intel IPP (Manual)
+        shell: pwsh
+        run: |
+          $installerUrl = "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/19131/w_ipp_oneapi_p_2021.7.0.472_offline.exe"
+          Write-Host "Downloading Intel IPP Installer..."
+          Invoke-WebRequest -Uri $installerUrl -OutFile "ipp_installer.exe"
+          
+          Write-Host "Installing Intel IPP (this may take 2-4 minutes)..."
+          # --silent: 静默安装
+          # --action install: 执行安装
+          # --accept_eula: 接受协议
+          Start-Process ./ipp_installer.exe -ArgumentList "--silent", "--action", "install", "--accept_eula" -Wait
+          
+          # 验证安装是否存在
+          if (Test-Path "C:\Program Files (x86)\Intel\oneAPI\ipp\latest") {
+              Write-Host "Intel IPP installed successfully."
+          } else {
+              Write-Error "Intel IPP installation failed."
+              exit 1
+          }
 
       - name: Setup Ninja
         uses: llvm/actions/install-ninja@main
@@ -42,12 +57,15 @@ jobs:
       - name: Configure CMake
         shell: pwsh
         run: |
-          # 自动寻找 IPP 安装位置并注入环境变量
-          # setup-intel-oneapi 会设置 ONEAPI_ROOT 变量
+          # 手动指定 IPP 的 CMake 配置文件路径，确保 CMake 能找到它
+          $ipp_cmake_dir = "C:/Program Files (x86)/Intel/oneAPI/ipp/latest/lib/cmake/ipp"
+          
           cmake -B build -G Ninja `
             -DCMAKE_C_COMPILER=clang-cl `
             -DCMAKE_CXX_COMPILER=clang-cl `
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release `
+            -DIPP_DIR="$ipp_cmake_dir" `
+            -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Intel/oneAPI"
 
       - name: Build
         run: cmake --build build --config Release --parallel
