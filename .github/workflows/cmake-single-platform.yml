@@ -62,8 +62,8 @@ jobs:
           $ipp_cmake_dir = "C:/Program Files (x86)/Intel/oneAPI/ipp/latest/lib/cmake/ipp"
           
           cmake -B build -G Ninja `
-            -DCMAKE_C_COMPILER=clang-cl `
-            -DCMAKE_CXX_COMPILER=clang-cl `
+            -DCMAKE_C_COMPILER=clang `
+            -DCMAKE_CXX_COMPILER=clang `
             -DCMAKE_BUILD_TYPE=Release `
             -DIPP_DIR="$ipp_cmake_dir" `
             -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Intel/oneAPI"
