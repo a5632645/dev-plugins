@@ -20,23 +20,36 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Cache Intel IPP
+        id: cache-ipp
+        uses: actions/cache@v4
+        with:
+          # 缓存 IPP 的安装路径
+          path: C:\Program Files (x86)\Intel\oneAPI
+          # 缓存 Key。如果链接变了，Key 也会变，从而触发重新下载
+          key: ${{ runner.os }}-intel-ipp-2022.3.0
+
       - name: Download and Install Intel IPP
+        # 关键：只有在缓存没命中的情况下才执行
+        if: steps.cache-ipp.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          # 1. 定义你提供的链接
           $url = "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/1ae68d0c-2b3f-4f39-9f53-774ca23088ec/intel-ipp-2022.3.0.393_offline.exe"
           
-          Write-Host "Downloading Intel IPP Installer..."
-          # 使用 curl.exe 并增加 -L (跟随重定向) 和 -A (伪装浏览器 User-Agent)
-          # 这是绕过 Access Denied 的关键
+          Write-Host "Cache miss. Downloading Intel IPP Installer..."
           curl.exe -L $url -o ipp_installer.exe -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
           
-          # 检查文件大小，如果下载的是报错页面（通常只有几百字节），则停止
           $fileSize = (Get-Item ipp_installer.exe).Length
           if ($fileSize -lt 1000000) {
-              Write-Error "Download failed: The file is too small ($fileSize bytes). Intel blocked the request."
+              Write-Error "Download failed: The file is too small. Intel blocked the request."
               exit 1
           }
+
+          Write-Host "Installing..."
+          # 注意：必须加 --silent 等参数确保无人值守
+          Start-Process ./ipp_installer.exe -ArgumentList "--silent", "--action", "install", "--accept_eula" -Wait
+          
+          Remove-Item ./ipp_installer.exe
 
           Write-Host "Installing Intel IPP (Silent)..."
           # 2. 执行静默安装
@@ -66,6 +79,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=clang `
             -DCMAKE_BUILD_TYPE=Release `
             -DIPP_DIR="$ipp_cmake_dir" `
+            -DCI_PLUGIN_BUILD=1 `
             -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Intel/oneAPI"
 
       - name: Build
