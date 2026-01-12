@@ -18,13 +18,28 @@ jobs:
         with:
           submodules: recursive
 
-      - name: intel-oneapi
-        # You may pin to the exact commit or the version.
-        # uses: neelravi/intel-oneapi-github-actions@039989107ca74a15e25a0a6f40354eaf20bb71e9
-        uses: neelravi/intel-oneapi-github-actions@latest
+      - name: Cache Intel oneAPI IPP
+        id: cache-ipp
+        uses: actions/cache@v4 # 使用最新的 v4 版本
         with:
-          # Comma-separated list of Intel OneAPI components to install (e.g., fortran, cpp, mpi, mkl, basekit, hpckit)
-          components: cpp # default is fortran,cpp,mpi,mkl
+          path: C:\Program Files (x86)\Intel\oneAPI\ipp
+          # Key 包含链接，如果链接换了，缓存会自动失效重装
+          key: ipp-install-2021.7.0
+
+      - name: Download and Install Intel IPP
+        if: steps.cache-ipp.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $url = "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/19131/w_ipp_oneapi_p_2021.7.0.472_offline.exe"
+          Write-Host "Downloading..."
+          # 注意：这里加上 -UserAgent 是为了防止之前报的 Access Denied
+          Invoke-WebRequest -Uri $url -OutFile "ipp_setup.exe" -UserAgent "Mozilla/5.0"
+          
+          Write-Host "Installing IPP (Silently)..."
+          # --components 参数只安装 IPP 开发库，不安装几 GB 的全家桶
+          Start-Process ./ipp_setup.exe -ArgumentList "--silent", "--action", "install", "--components", "intel.oneapi.win.ipp.devel", "--accept_eula" -Wait
+          
+          Remove-Item ./ipp_setup.exe
 
       - name: Setup Ninja
         uses: llvm/actions/install-ninja@main
