@@ -1,0 +1,71 @@
+name: Build and Release Windows (Ninja + Clang)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Ninja
+        uses: llvm/actions/install-ninja@main
+
+      - name: Set up MSVC Environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G Ninja `
+            -DCMAKE_C_COMPILER=clang-cl `
+            -DCMAKE_CXX_COMPILER=clang-cl `
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Collect and Zip VST3 Plugins
+        # 使用 PowerShell 脚本精准查找所有的 .vst3 目录并压缩
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "./vst3_release"
+          # 遍历 build 文件夹寻找所有 .vst3 目录
+          Get-ChildItem -Path "./build" -Filter "*.vst3" -Recurse | Where-Object { $_.Attributes -match "Directory" } | ForEach-Object {
+              Write-Host "Found plugin: $($_.FullName)"
+              Copy-Item -Path $_.FullName -Destination "./vst3_release/" -Recurse
+          }
+          # 将所有搜集到的插件压缩成一个 zip
+          Compress-Archive -Path "./vst3_release/*" -DestinationPath "./Plugins_Windows_VST3.zip"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-vst3-zip
+          path: Plugins_Windows_VST3.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-vst3-zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Plugins_Windows_VST3.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
