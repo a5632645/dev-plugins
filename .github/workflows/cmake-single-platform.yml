@@ -11,41 +11,42 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Download Dependencies
-        run: python download_libs.py
-
-      - name: Install Intel IPP (Manual)
+      - name: Download and Install Intel IPP
         shell: pwsh
         run: |
-          $installerUrl = "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/19131/w_ipp_oneapi_p_2021.7.0.472_offline.exe"
-          Write-Host "Downloading Intel IPP Installer..."
-          Invoke-WebRequest -Uri $installerUrl -OutFile "ipp_installer.exe"
+          # 1. 定义你提供的链接
+          $url = "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/1ae68d0c-2b3f-4f39-9f53-774ca23088ec/intel-ipp-2022.3.0.393_offline.exe"
           
-          Write-Host "Installing Intel IPP (this may take 2-4 minutes)..."
-          # --silent: 静默安装
-          # --action install: 执行安装
+          Write-Host "Downloading Intel IPP Installer..."
+          # 使用 curl.exe 并增加 -L (跟随重定向) 和 -A (伪装浏览器 User-Agent)
+          # 这是绕过 Access Denied 的关键
+          curl.exe -L $url -o ipp_installer.exe -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          
+          # 检查文件大小，如果下载的是报错页面（通常只有几百字节），则停止
+          $fileSize = (Get-Item ipp_installer.exe).Length
+          if ($fileSize -lt 1000000) {
+              Write-Error "Download failed: The file is too small ($fileSize bytes). Intel blocked the request."
+              exit 1
+          }
+
+          Write-Host "Installing Intel IPP (Silent)..."
+          # 2. 执行静默安装
+          # --silent: 无界面安装
+          # --action install: 执行安装操作
           # --accept_eula: 接受协议
           Start-Process ./ipp_installer.exe -ArgumentList "--silent", "--action", "install", "--accept_eula" -Wait
           
-          # 验证安装是否存在
-          if (Test-Path "C:\Program Files (x86)\Intel\oneAPI\ipp\latest") {
-              Write-Host "Intel IPP installed successfully."
-          } else {
-              Write-Error "Intel IPP installation failed."
-              exit 1
-          }
+          # 3. 清理安装包
+          Remove-Item ./ipp_installer.exe
 
       - name: Setup Ninja
         uses: llvm/actions/install-ninja@main
@@ -61,8 +62,8 @@ jobs:
           $ipp_cmake_dir = "C:/Program Files (x86)/Intel/oneAPI/ipp/latest/lib/cmake/ipp"
           
           cmake -B build -G Ninja `
-            -DCMAKE_C_COMPILER=clang-cl `
-            -DCMAKE_CXX_COMPILER=clang-cl `
+            -DCMAKE_C_COMPILER=clang `
+            -DCMAKE_CXX_COMPILER=clang `
             -DCMAKE_BUILD_TYPE=Release `
             -DIPP_DIR="$ipp_cmake_dir" `
             -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Intel/oneAPI"
