@@ -29,35 +29,33 @@ jobs:
           key: ${{ runner.os }}-intel-ipp-2022.3.0
 
       - name: Download and Install Intel IPP
-        # 只有缓存没命中的时候才跑这一整块逻辑
         if: steps.cache-ipp.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
+          # 1. 定义你提供的链接
           $url = "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/1ae68d0c-2b3f-4f39-9f53-774ca23088ec/intel-ipp-2022.3.0.393_offline.exe"
-          $output = "ipp_installer.exe"
           
-          Write-Host "Cache miss. Downloading Intel IPP Installer..."
-          # 使用 curl 下载并伪装 User-Agent
-          curl.exe -L $url -o $output -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          Write-Host "Downloading Intel IPP Installer..."
+          # 使用 curl.exe 并增加 -L (跟随重定向) 和 -A (伪装浏览器 User-Agent)
+          # 这是绕过 Access Denied 的关键
+          curl.exe -L $url -o ipp_installer.exe -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
           
-          # 检查下载的文件是否合法（防止 Intel 封锁返回报错 HTML）
-          if ((Get-Item $output).Length -lt 1MB) {
-              Write-Error "Download failed or blocked by Intel (file too small)."
+          # 检查文件大小，如果下载的是报错页面（通常只有几百字节），则停止
+          $fileSize = (Get-Item ipp_installer.exe).Length
+          if ($fileSize -lt 1000000) {
+              Write-Error "Download failed: The file is too small ($fileSize bytes). Intel blocked the request."
               exit 1
           }
 
-          Write-Host "Installing Intel IPP Silently..."
-          # 执行静默安装并等待结束
-          $installProcess = Start-Process ./$output -ArgumentList "--silent", "--action", "install", "--accept_eula" -PassThru -Wait
+          Write-Host "Installing Intel IPP (Silent)..."
+          # 2. 执行静默安装
+          # --silent: 无界面安装
+          # --action install: 执行安装操作
+          # --accept_eula: 接受协议
+          Start-Process ./ipp_installer.exe -ArgumentList "--silent", "--action", "install", "--accept_eula" -Wait
           
-          # 检查安装程序退出码（可选）
-          if ($installProcess.ExitCode -ne 0) {
-              Write-Error "Installer exited with code $($installProcess.ExitCode)"
-              exit 1
-          }
-
-          Write-Host "Cleaning up installer..."
-          Remove-Item ./$output -Force
+          # 3. 清理安装包
+          Remove-Item ./ipp_installer.exe
 
       - name: Setup Ninja
         uses: llvm/actions/install-ninja@main
