@@ -18,24 +18,18 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Intel IPP (Manual)
+      - name: Install Intel IPP via Chocolatey
         shell: pwsh
         run: |
-          $installerUrl = "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/19131/w_ipp_oneapi_p_2021.7.0.472_offline.exe"
-          Write-Host "Downloading Intel IPP Installer..."
-          Invoke-WebRequest -Uri $installerUrl -OutFile "ipp_installer.exe"
+          # 安装 IPP 核心组件
+          choco install intel-oneapi-ipp -y --no-progress
           
-          Write-Host "Installing Intel IPP (this may take 2-4 minutes)..."
-          # --silent: 静默安装
-          # --action install: 执行安装
-          # --accept_eula: 接受协议
-          Start-Process ./ipp_installer.exe -ArgumentList "--silent", "--action", "install", "--accept_eula" -Wait
-          
-          # 验证安装是否存在
-          if (Test-Path "C:\Program Files (x86)\Intel\oneAPI\ipp\latest") {
-              Write-Host "Intel IPP installed successfully."
+          # 验证安装路径 (Chocolatey 默认通常安装在以下路径)
+          $ippPath = "C:\Program Files (x86)\Intel\oneAPI\ipp\latest"
+          if (Test-Path $ippPath) {
+              Write-Host "Intel IPP installed at $ippPath"
           } else {
-              Write-Error "Intel IPP installation failed."
+              Write-Error "IPP installation not found!"
               exit 1
           }
 
