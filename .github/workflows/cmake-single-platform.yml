@@ -18,28 +18,35 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Cache Intel oneAPI IPP
-        id: cache-ipp
-        uses: actions/cache@v4 # 使用最新的 v4 版本
+      # 1. 下载 Intel 官方提供的安装工具箱
+      - name: Checkout oneAPI CI Scripts
+        uses: actions/checkout@v4
         with:
-          path: C:\Program Files (x86)\Intel\oneAPI\ipp
-          # Key 包含链接，如果链接换了，缓存会自动失效重装
-          key: ipp-install-2021.7.0
+          repository: oneapi-src/oneapi-ci
+          path: oneapi-ci  # 将脚本放在这个文件夹里
 
-      - name: Download and Install Intel IPP
-        if: steps.cache-ipp.outputs.cache-hit != 'true'
+      # 2. 仿照 build_all.yml 的逻辑，调用 install_windows.bat
+      - name: Install Intel IPP via Official Script
+        shell: cmd  # 使用 CMD 运行 .bat 脚本最可靠
+        run: |
+          :: 定义 IPP 所在的 BaseKit 下载链接
+          set URL=https://registrationcenter-download.intel.com/akdlm/irc_nas/18497/w_BaseKit_p_2022.1.2.154_offline.exe
+          :: 定义组件 ID：只要 IPP 开发库
+          set COMPONENTS=intel.oneapi.win.ipp.devel
+          
+          :: 调用下载下来的脚本
+          call oneapi-ci\scripts\install_windows.bat %URL% %COMPONENTS%
+
+      # 3. 验证是否安装成功
+      - name: Verify IPP Path
         shell: pwsh
         run: |
-          $url = "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/19131/w_ipp_oneapi_p_2021.7.0.472_offline.exe"
-          Write-Host "Downloading..."
-          # 注意：这里加上 -UserAgent 是为了防止之前报的 Access Denied
-          Invoke-WebRequest -Uri $url -OutFile "ipp_setup.exe" -UserAgent "Mozilla/5.0"
-          
-          Write-Host "Installing IPP (Silently)..."
-          # --components 参数只安装 IPP 开发库，不安装几 GB 的全家桶
-          Start-Process ./ipp_setup.exe -ArgumentList "--silent", "--action", "install", "--components", "intel.oneapi.win.ipp.devel", "--accept_eula" -Wait
-          
-          Remove-Item ./ipp_setup.exe
+          if (Test-Path "C:\Program Files (x86)\Intel\oneAPI\ipp\latest") {
+              Write-Host "IPP is ready for build!"
+          } else {
+              Write-Error "IPP Installation failed."
+              exit 1
+          }
 
       - name: Setup Ninja
         uses: llvm/actions/install-ninja@main
