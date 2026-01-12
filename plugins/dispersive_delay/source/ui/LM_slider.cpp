@@ -7,15 +7,15 @@ void L_MODEL_STYLE::drawLinearSlider(juce::Graphics& g, int x, int y, int width,
 void L_MODEL_STYLE::drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height, float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle, juce::Slider& slider)
 {
 	juce::Path arcPath1, arcPath2;
-	float zoomVal = 0.55;//·Å´óÏµÊı
+	float zoomVal = 0.55;//æ”¾å¤§ç³»æ•°
 	arcPath1.addArc(x + width * (1.0 - zoomVal) / 2.0, y + height * (1.0 - zoomVal) / 2.0 - 4, width * zoomVal, height * zoomVal, M_PI / 4 - M_PI, M_PI / 4 - M_PI + sliderPosProportional * M_PI * 1.5, true);
 	arcPath2.addArc(x + width * (1.0 - zoomVal) / 2.0, y + height * (1.0 - zoomVal) / 2.0 - 4, width * zoomVal, height * zoomVal, M_PI / 4 - M_PI + sliderPosProportional * M_PI * 1.5, -M_PI / 4 + M_PI, true);
 	g.setColour(juce::Colour(0x66, 0x66, 0xCC));
-	g.strokePath(arcPath1, juce::PathStrokeType(4.0));//»æÖÆ£¬ÕâÀï²ÅÊÇÉèÖÃÏß¿í
+	g.strokePath(arcPath1, juce::PathStrokeType(4.0));//ç»˜åˆ¶ï¼Œè¿™é‡Œæ‰æ˜¯è®¾ç½®çº¿å®½
 	g.setColour(juce::Colour(0x33, 0x33, 0x66));
 	g.strokePath(arcPath2, juce::PathStrokeType(4.0));
 
-	g.setColour(juce::Colour(0x22, 0xff, 0x22));//»­ÂÌÉ«µÄÏß
+	g.setColour(juce::Colour(0x22, 0xff, 0x22));//ç”»ç»¿è‰²çš„çº¿
 	float rotx = -sin(M_PI / 4 + sliderPosProportional * M_PI * 1.5), roty = cos(M_PI / 4 + sliderPosProportional * M_PI * 1.5);
 	g.drawLine(x + width / 2 + rotx * 11 * zoomVal * 2.0,
 		y + height / 2 + roty * 11 * zoomVal * 2.0 - 4,
@@ -44,26 +44,26 @@ void L_MODEL_STYLE::drawToggleButton(juce::Graphics& g, juce::ToggleButton& butt
 
 {
 	juce::Rectangle<int> rect = button.getBounds();
-	int x = rect.getX(), y = rect.getY(), w = rect.getWidth(), h = rect.getHeight();//»ñÈ¡°´Å¥³ß´ç
+	int x = rect.getX(), y = rect.getY(), w = rect.getWidth(), h = rect.getHeight();//è·å–æŒ‰é’®å°ºå¯¸
 
-	if (shouldDrawButtonAsDown || button.getToggleState())//Èç¹û°´ÏÂ
+	if (shouldDrawButtonAsDown || button.getToggleState())//å¦‚æœæŒ‰ä¸‹
 	{
 		g.setColour(juce::Colour(0x33, 0x33, 0x66));
-		g.fillRect(x, y, w, h);//»­Ìî³ä¾ØĞÎ
+		g.fillRect(x, y, w, h);//ç”»å¡«å……çŸ©å½¢
 	}
-	else if (shouldDrawButtonAsHighlighted)//Èç¹ûÊó±ê¿¿½ü
+	else if (shouldDrawButtonAsHighlighted)//å¦‚æœé¼ æ ‡é è¿‘
 	{
 		g.setColour(juce::Colour(0x22, 0x22, 0x44));
-		g.fillRect(x, y, w, h);//»­Ìî³ä¾ØĞÎ
-	}//·ñÔò²»»­¾ØĞÎ
+		g.fillRect(x, y, w, h);//ç”»å¡«å……çŸ©å½¢
+	}//å¦åˆ™ä¸ç”»çŸ©å½¢
 
 	g.setColour(juce::Colour(0x77, 0x77, 0xEE));
-	g.drawLine(x, y, x + w, y, 4);//»­¿ò
+	g.drawLine(x, y, x + w, y, 4);//ç”»æ¡†
 	g.drawLine(x, y, x, y + h, 4);
 	g.drawLine(x + w, y + h, x + w, y, 4);
 	g.drawLine(x + w, y + h, x, y + h, 4);
 
-	//»æÖÆÎÄ×Ö
+	//ç»˜åˆ¶æ–‡å­—
 	g.setColour(juce::Colour(0xff, 0xff, 0xff));
 	juce::String name = button.getButtonText();
 	g.setFont(juce::Font("FIXEDSYS", 15.0, 0));
@@ -73,14 +73,14 @@ void L_MODEL_STYLE::drawToggleButton(juce::Graphics& g, juce::ToggleButton& butt
 void L_MODEL_STYLE::drawComboBox(juce::Graphics& g, int width, int height, bool isButtonDown, int buttonX, int buttonY, int buttonWidth, int buttonHeight, juce::ComboBox& box)
 {
 		int x = box.getX(), y = box.getY(), w = box.getWidth(), h = box.getHeight();
-		if (isButtonDown)//Èç¹ûÊó±ê¿¿½ü
+		if (isButtonDown)//å¦‚æœé¼ æ ‡é è¿‘
 		{
 			g.setColour(juce::Colour(0x22, 0x22, 0x44));
-			g.fillRect(x + 2, y, w - 4, h);//»­Ìî³ä¾ØĞÎ
+			g.fillRect(x + 2, y, w - 4, h);//ç”»å¡«å……çŸ©å½¢
 		}
 
 		g.setColour(juce::Colour(0x77, 0x77, 0xEE));
-		g.drawLine(x, y, x + w, y, 4);//»­¿ò
+		g.drawLine(x, y, x + w, y, 4);//ç”»æ¡†
 		g.drawLine(x, y, x, y + h, 4);
 		g.drawLine(x + w, y + h, x + w, y, 4);
 		g.drawLine(x + w, y + h, x, y + h, 4);
@@ -96,15 +96,15 @@ void L_MODEL_STYLE::drawComboBox(juce::Graphics& g, int width, int height, bool 
 void L_MODEL_STYLE::drawPopupMenuItem(juce::Graphics& g, const juce::Rectangle<int>& area, const bool isSeparator, const bool isActive, const bool isHighlighted, const bool isTicked, const bool hasSubMenu, const juce::String& text, const juce::String& shortcutKeyText, const juce::Drawable* icon, const juce::Colour* textColour)
 	{
 		int x = area.getX(), y = area.getY(), w = area.getWidth(), h = area.getHeight();
-		if (isTicked)//Èç¹û°´ÏÂ
+		if (isTicked)//å¦‚æœæŒ‰ä¸‹
 		{
 			g.setColour(juce::Colour(0x44, 0x44, 0x88));
-			g.fillRect(x + 2, y, w - 4, h);//»­Ìî³ä¾ØĞÎ
+			g.fillRect(x + 2, y, w - 4, h);//ç”»å¡«å……çŸ©å½¢
 		}
-		else if (isHighlighted)//Èç¹ûÊó±ê¿¿½ü
+		else if (isHighlighted)//å¦‚æœé¼ æ ‡é è¿‘
 		{
 			g.setColour(juce::Colour(0x22, 0x22, 0x44));
-			g.fillRect(x + 2, y, w - 4, h);//»­Ìî³ä¾ØĞÎ
+			g.fillRect(x + 2, y, w - 4, h);//ç”»å¡«å……çŸ©å½¢
 		}
 
 		g.setColour(juce::Colour(0x77, 0xff, 0x77));
@@ -114,7 +114,7 @@ void L_MODEL_STYLE::drawPopupMenuItem(juce::Graphics& g, const juce::Rectangle<i
 
 void L_MODEL_STYLE::drawPopupMenuBackground(juce::Graphics& g, int width, int height)
 {
-	g.fillAll(juce::Colour(0x11, 0x11, 0x22));//ºÚµÄ
+	g.fillAll(juce::Colour(0x11, 0x11, 0x22));//é»‘çš„
 	g.setColour(juce::Colour(0x44, 0x44, 0x88));
 	g.drawLine(0, 0, width, 0, 4);
 	g.drawLine(0, 0, 0, height, 4);
@@ -141,21 +141,21 @@ LMKnob::LMKnob() :slider(), label()
 	slider.setSliderStyle(juce::Slider::RotaryVerticalDrag);
 	slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
 	L_MODEL_STYLE_LOOKANDFEEL = std::make_unique<L_MODEL_STYLE>();
-	slider.setLookAndFeel(L_MODEL_STYLE_LOOKANDFEEL.get());//Ó¦ÓÃl-model·ç¸ñ
+	slider.setLookAndFeel(L_MODEL_STYLE_LOOKANDFEEL.get());//åº”ç”¨l-modelé£æ ¼
 	label.setJustificationType(juce::Justification::centredTop);
 	label.setFont(juce::Font("FIXEDSYS", 15.0, 0));
-	label.setMinimumHorizontalScale(1.0);//²»Ëõ·Å×ÖÌå
+	label.setMinimumHorizontalScale(1.0);//ä¸ç¼©æ”¾å­—ä½“
 	label.setColour(juce::Label::textColourId, juce::Colour(0x77, 0xff, 0x77));
-	label.setFont(label.getFont().withStyle(juce::Font::bold));//ÉèÖÃ´ÖÌå
+	label.setFont(label.getFont().withStyle(juce::Font::bold));//è®¾ç½®ç²—ä½“
 	/*
 	slider.onValueChange = [this]
 	{
 		this->repaint(-64, -64, 128, 128);
 	};
-	slider.setInterceptsMouseClicks(true, true);//Ê¹µÃsliderÔÚ×é¼şÍâµÄÇøÓòÒ²ÄÜ½ÓÊÕÊó±êÊÂ¼ş
+	slider.setInterceptsMouseClicks(true, true);//ä½¿å¾—slideråœ¨ç»„ä»¶å¤–çš„åŒºåŸŸä¹Ÿèƒ½æ¥æ”¶é¼ æ ‡äº‹ä»¶
 	*/
-	setPaintingIsUnclipped(true);//×é¼şÎŞ±ß½ç
-	setOpaque(false);//×é¼şºÚÉ«²¿·ÖÍ¸Ã÷
+	setPaintingIsUnclipped(true);//ç»„ä»¶æ— è¾¹ç•Œ
+	setOpaque(false);//ç»„ä»¶é»‘è‰²éƒ¨åˆ†é€æ˜
 
 	addAndMakeVisible(slider);
 	addAndMakeVisible(label);
@@ -170,12 +170,12 @@ LMKnob::~LMKnob()
 void LMKnob::paint(juce::Graphics& g)
 {
 	/*
-	auto centreX = getWidth() / 2;//ÉèÖÃ×ø±êÔ­µã
+	auto centreX = getWidth() / 2;//è®¾ç½®åæ ‡åŸç‚¹
 	auto centreY = getHeight() / 2;
 	g.setOrigin(-centreX, -centreY);*/
 
 	/*
-	g.setColour(juce::Colour(0x00, 0xff, 0x00));//Åö×²Ïä
+	g.setColour(juce::Colour(0x00, 0xff, 0x00));//ç¢°æ’ç®±
 	g.drawLine(0, 0, 64, 0);
 	g.drawLine(0, 0, 0, 80);
 	g.drawLine(64, 80, 64, 0);
@@ -206,15 +206,15 @@ void LMKnob::setPos(int x, int y)
 
 LMButton::LMButton()
 {
-	// ÉèÖÃ°´Å¥ÊôĞÔ
+	// è®¾ç½®æŒ‰é’®å±æ€§
 	button.setButtonText(name);
-	button.addListener(this); // ×¢²á¼àÌıÆ÷ÒÔ´¦Àí°´Å¥µã»÷
+	button.addListener(this); // æ³¨å†Œç›‘å¬å™¨ä»¥å¤„ç†æŒ‰é’®ç‚¹å‡»
 
 	L_MODEL_STYLE_LOOKANDFEEL = std::make_unique<L_MODEL_STYLE>();
-	button.setLookAndFeel(L_MODEL_STYLE_LOOKANDFEEL.get());//Ó¦ÓÃl-model·ç¸ñ
+	button.setLookAndFeel(L_MODEL_STYLE_LOOKANDFEEL.get());//åº”ç”¨l-modelé£æ ¼
 
-	setPaintingIsUnclipped(true);//×é¼şÎŞ±ß½ç
-	setOpaque(false);//×é¼şºÚÉ«²¿·ÖÍ¸Ã÷
+	setPaintingIsUnclipped(true);//ç»„ä»¶æ— è¾¹ç•Œ
+	setOpaque(false);//ç»„ä»¶é»‘è‰²éƒ¨åˆ†é€æ˜
 
 	addAndMakeVisible(button);
 }
@@ -240,7 +240,7 @@ void LMButton::resized()
 /*
 void LMButton::setPos(int x, int y)
 {
-	// Ìæ´úsetBounds
+	// æ›¿ä»£setBounds
 	setBounds(x - Width / 2, y - 12, Width, 24);
 }
 
@@ -277,7 +277,7 @@ LMCombox::LMCombox()
 {
 	comboBox.addListener(this);
 	L_MODEL_STYLE_LOOKANDFEEL = std::make_unique<L_MODEL_STYLE>();
-	comboBox.setLookAndFeel(L_MODEL_STYLE_LOOKANDFEEL.get()); // Ó¦ÓÃl-model·ç¸ñ
+	comboBox.setLookAndFeel(L_MODEL_STYLE_LOOKANDFEEL.get()); // åº”ç”¨l-modelé£æ ¼
 	addAndMakeVisible(comboBox);
 }
 
@@ -310,7 +310,7 @@ void LMCombox::setComboxWidth(int ComboxWidth)
 
 void LMCombox::resized()
 {
-	// ÉèÖÃComboBoxµÄÎ»ÖÃºÍ´óĞ¡
+	// è®¾ç½®ComboBoxçš„ä½ç½®å’Œå¤§å°
 	comboBox.setBounds(0, 0, Width, 24);
 }
 

@@ -49,19 +49,14 @@ else()
 endif()
 
 # floating point optimise
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(
-        -ffast-math
-        -fno-finite-math-only
-    )
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    add_compile_options(
-        -ffast-math
-        -fno-finite-math-only
-    )
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+if (MSVC)
     add_compile_options(
         /fp:fast # msvc won't delete std::isnan std::isinf
+    )
+else()
+    add_compile_options(
+        -ffast-math
+        -fno-finite-math-only
     )
 endif()
 
@@ -70,11 +65,17 @@ add_subdirectory(cpp_simd_detector)
 add_subdirectory(json)
 add_subdirectory(eigen)
 add_subdirectory(JUCE)
-add_subdirectory(raylib)
+if(NOT DEFINED CI_PLUGIN_BUILD)
+    add_subdirectory(raylib)
+endif()
 # add_subdirectory(Catch2)
 add_subdirectory(qwqdsp)
 add_subdirectory(plugins)
 
 if(EXISTS get_cmake_target_info.cmake)
     include(get_cmake_target_info.cmake)    
+endif()
+
+if(DEFINED CI_PLUGIN_BUILD)
+    message("[DEBUG] does github action get here???")
 endif()
