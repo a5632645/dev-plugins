@@ -1,4 +1,4 @@
-name: Build and Release Windows (Ninja + Clang)
+name: Build and Release Windows
 
 on:
   push:
@@ -32,43 +32,66 @@ jobs:
         if: steps.cache-ipp.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          # 1. 定义你提供的链接
+          $installer = "ipp_installer.exe"
           $url = "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/1ae68d0c-2b3f-4f39-9f53-774ca23088ec/intel-ipp-2022.3.0.393_offline.exe"
           
-          Write-Host "Downloading Intel IPP Installer..."
-          # 使用 curl.exe 并增加 -L (跟随重定向) 和 -A (伪装浏览器 User-Agent)
-          # 这是绕过 Access Denied 的关键
-          curl.exe -L $url -o ipp_installer.exe -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-          
-          # 检查文件大小，如果下载的是报错页面（通常只有几百字节），则停止
-          $fileSize = (Get-Item ipp_installer.exe).Length
-          if ($fileSize -lt 1000000) {
-              Write-Error "Download failed: The file is too small ($fileSize bytes). Intel blocked the request."
-              exit 1
+          if (Test-Path $installer) {
+              $size = (Get-Item $installer).Length
+              if ($size -gt 10MB) {
+                  Write-Host "$installer already exists ($($size) bytes). Skipping download."
+              }
+              else {
+                  Write-Host "Downloading Intel IPP Installer..."
+                  curl.exe -L $url -o ipp_installer.exe -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                  
+                  $fileSize = (Get-Item ipp_installer.exe).Length
+                  if ($fileSize -lt 1000000) {
+                      Write-Error "Download failed: The file is too small ($fileSize bytes). Intel blocked the request."
+                      exit 1
+                  }
+              }
+          }
+          else {
+              Write-Host "Downloading Intel IPP Installer..."
+              curl.exe -L $url -o ipp_installer.exe -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+              
+              $fileSize = (Get-Item ipp_installer.exe).Length
+              if ($fileSize -lt 1000000) {
+                  Write-Error "Download failed: The file is too small ($fileSize bytes). Intel blocked the request."
+                  exit 1
+              }
           }
 
           Write-Host "Installing Intel IPP (Silent)..."
-          # 2. 执行静默安装
           # --silent: 无界面安装
           # --action install: 执行安装操作
           # --accept_eula: 接受协议
-          Start-Process ./ipp_installer.exe -ArgumentList "--silent", "--action", "install", "--accept_eula" -Wait
-          
-          # 3. 清理安装包
-          Remove-Item ./ipp_installer.exe
+          $process = Start-Process ./$installer -ArgumentList "--silent", "--action", "install", "--accept_eula" -PassThru -Wait
+          $process | Wait-Process
+
+          Start-Sleep -Seconds 15
+
+          $checkPath = "C:\Program Files (x86)\Intel\oneAPI\ipp\2022.3"
+          if (Test-Path $checkPath) {
+              Write-Host "Installation verified at $checkPath."
+              Write-Host "Cleaning up installer..."
+              Remove-Item $installer -Force
+          }
+          else {
+              Write-Error "Installation failed: $checkPath not found. OneAPI may have changed the path."
+              exit 1
+          }
 
       - name: Setup Ninja
         uses: llvm/actions/install-ninja@main
 
       - name: Set up MSVC Environment
-        # 必须在 Configure 之前运行，确保 clang-cl 能找到系统头文件
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Configure CMake
         shell: pwsh
         run: |
-          # 手动指定 IPP 的 CMake 配置文件路径，确保 CMake 能找到它
-          $ipp_cmake_dir = "C:/Program Files (x86)/Intel/oneAPI/ipp/latest/lib/cmake/ipp"
+          $ipp_cmake_dir = "C:/Program Files (x86)/Intel/oneAPI/ipp/2022.3/lib/cmake/ipp"
           
           cmake -B build -G Ninja `
             -DCMAKE_C_COMPILER=clang `
