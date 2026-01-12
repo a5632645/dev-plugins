@@ -8,25 +8,6 @@ on:
       - main  # 建议加上这个，方便你在推送分支时直接测试
   workflow_dispatch:
 
-env:
-  WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18497/w_BaseKit_p_2022.1.2.154_offline.exe
-  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18529/w_HPCKit_p_2022.1.2.116_offline.exe
-  LINUX_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18487/l_BaseKit_p_2022.1.2.146_offline.sh
-  LINUX_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18479/l_HPCKit_p_2022.1.2.117_offline.sh
-  MACOS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18341/m_HPCKit_p_2022.1.0.86_offline.dmg
-  WINDOWS_CPP_COMPONENTS: intel.oneapi.win.cpp-compiler
-  WINDOWS_FORTRAN_COMPONENTS: intel.oneapi.win.ifort-compiler
-  WINDOWS_DPCPP_COMPONENTS: intel.oneapi.win.dpcpp-compiler
-  LINUX_CPP_COMPONENTS: intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
-  LINUX_FORTRAN_COMPONENTS: intel-oneapi-compiler-fortran
-  LINUX_DPCPP_COMPONENTS: intel-oneapi-compiler-dpcpp-cpp
-  LINUX_CPP_COMPONENTS_WEB: intel.oneapi.lin.dpcpp-cpp-compiler-pro
-  LINUX_FORTRAN_COMPONENTS_WEB: intel.oneapi.lin.ifort-compiler
-  LINUX_DPCPP_COMPONENTS_WEB: intel.oneapi.lin.dpcpp-cpp-compiler
-  MACOS_CPP_COMPONENTS: intel.oneapi.mac.cpp-compiler
-  MACOS_FORTRAN_COMPONENTS: intel.oneapi.mac.ifort-compiler
-  SAMPLES_TAG: 2022.1.0
-
 jobs:
   build:
     runs-on: windows-latest
@@ -39,21 +20,33 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Checkout oneAPI CI Scripts
-        uses: actions/checkout@v4
-        with:
-          repository: oneapi-src/oneapi-ci
-          path: oneapi-ci
+      - name: Download and Install Intel IPP
+        shell: pwsh
+        run: |
+          # 1. 定义你提供的链接
+          $url = "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/1ae68d0c-2b3f-4f39-9f53-774ca23088ec/intel-ipp-2022.3.0.393_offline.exe"
+          
+          Write-Host "Downloading Intel IPP Installer..."
+          # 使用 curl.exe 并增加 -L (跟随重定向) 和 -A (伪装浏览器 User-Agent)
+          # 这是绕过 Access Denied 的关键
+          curl.exe -L $url -o ipp_installer.exe -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          
+          # 检查文件大小，如果下载的是报错页面（通常只有几百字节），则停止
+          $fileSize = (Get-Item ipp_installer.exe).Length
+          if ($fileSize -lt 1000000) {
+              Write-Error "Download failed: The file is too small ($fileSize bytes). Intel blocked the request."
+              exit 1
+          }
 
-      - name: install
-        if: steps.cache-install.outputs.cache-hit != 'true'
-        run: oneapi-ci/scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_CPP_COMPONENTS
-      - name: build
-        run: oneapi-ci/scripts/build_windows.bat c++ "" $SAMPLES_TAG
-      - name: exclude unused files from cache
-        if: steps.cache-install.outputs.cache-hit != 'true'
-        shell: bash
-        run: oneapi-ci/scripts/cache_exclude_windows.sh
+          Write-Host "Installing Intel IPP (Silent)..."
+          # 2. 执行静默安装
+          # --silent: 无界面安装
+          # --action install: 执行安装操作
+          # --accept_eula: 接受协议
+          Start-Process ./ipp_installer.exe -ArgumentList "--silent", "--action", "install", "--accept_eula" -Wait
+          
+          # 3. 清理安装包
+          Remove-Item ./ipp_installer.exe
 
       - name: Setup Ninja
         uses: llvm/actions/install-ninja@main
