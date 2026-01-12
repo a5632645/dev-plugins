@@ -8,45 +8,52 @@ on:
       - main  # 建议加上这个，方便你在推送分支时直接测试
   workflow_dispatch:
 
+env:
+  WINDOWS_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18497/w_BaseKit_p_2022.1.2.154_offline.exe
+  WINDOWS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18529/w_HPCKit_p_2022.1.2.116_offline.exe
+  LINUX_BASEKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18487/l_BaseKit_p_2022.1.2.146_offline.sh
+  LINUX_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18479/l_HPCKit_p_2022.1.2.117_offline.sh
+  MACOS_HPCKIT_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18341/m_HPCKit_p_2022.1.0.86_offline.dmg
+  WINDOWS_CPP_COMPONENTS: intel.oneapi.win.cpp-compiler
+  WINDOWS_FORTRAN_COMPONENTS: intel.oneapi.win.ifort-compiler
+  WINDOWS_DPCPP_COMPONENTS: intel.oneapi.win.dpcpp-compiler
+  LINUX_CPP_COMPONENTS: intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
+  LINUX_FORTRAN_COMPONENTS: intel-oneapi-compiler-fortran
+  LINUX_DPCPP_COMPONENTS: intel-oneapi-compiler-dpcpp-cpp
+  LINUX_CPP_COMPONENTS_WEB: intel.oneapi.lin.dpcpp-cpp-compiler-pro
+  LINUX_FORTRAN_COMPONENTS_WEB: intel.oneapi.lin.ifort-compiler
+  LINUX_DPCPP_COMPONENTS_WEB: intel.oneapi.lin.dpcpp-cpp-compiler
+  MACOS_CPP_COMPONENTS: intel.oneapi.mac.cpp-compiler
+  MACOS_FORTRAN_COMPONENTS: intel.oneapi.mac.ifort-compiler
+  SAMPLES_TAG: 2022.1.0
+
 jobs:
   build:
     runs-on: windows-latest
-
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # 1. 下载 Intel 官方提供的安装工具箱
       - name: Checkout oneAPI CI Scripts
         uses: actions/checkout@v4
         with:
           repository: oneapi-src/oneapi-ci
-          path: oneapi-ci  # 将脚本放在这个文件夹里
+          path: oneapi-ci
 
-      # 2. 仿照 build_all.yml 的逻辑，调用 install_windows.bat
-      - name: Install Intel IPP via Official Script
-        shell: cmd  # 使用 CMD 运行 .bat 脚本最可靠
-        run: |
-          :: 定义 IPP 所在的 BaseKit 下载链接
-          set URL=https://registrationcenter-download.intel.com/akdlm/irc_nas/18497/w_BaseKit_p_2022.1.2.154_offline.exe
-          :: 定义组件 ID：只要 IPP 开发库
-          set COMPONENTS=intel.oneapi.win.ipp.devel
-          
-          :: 调用下载下来的脚本
-          call oneapi-ci\scripts\install_windows.bat %URL% %COMPONENTS%
-
-      # 3. 验证是否安装成功
-      - name: Verify IPP Path
-        shell: pwsh
-        run: |
-          if (Test-Path "C:\Program Files (x86)\Intel\oneAPI\ipp\latest") {
-              Write-Host "IPP is ready for build!"
-          } else {
-              Write-Error "IPP Installation failed."
-              exit 1
-          }
+      - name: install
+        if: steps.cache-install.outputs.cache-hit != 'true'
+        run: oneapi-ci/scripts/install_windows.bat $WINDOWS_HPCKIT_URL $WINDOWS_CPP_COMPONENTS
+      - name: build
+        run: oneapi-ci/scripts/build_windows.bat c++ "" $SAMPLES_TAG
+      - name: exclude unused files from cache
+        if: steps.cache-install.outputs.cache-hit != 'true'
+        shell: bash
+        run: oneapi-ci/scripts/cache_exclude_windows.sh
 
       - name: Setup Ninja
         uses: llvm/actions/install-ninja@main
