@@ -4,7 +4,7 @@
 #include <complex>
 #include <array>
 #include "curve_v2.h"
-#include "qwqdsp/psimd/align_allocator.hpp"
+#include "qwqdsp/simd_element/align_allocator.hpp"
 #include "qwqdsp/filter/one_pole.hpp"
 #include "qwqdsp/fx/delay_line.hpp"
 
@@ -420,7 +420,7 @@ private:
     }
 
     size_t num_cascade_filters_{};
-    using SimdAllocator = qwqdsp_psimd::AlignedAllocator<float, 32>;
+    using SimdAllocator = qwqdsp_simd_element::AlignedAllocator<float, 32>;
 
     struct alignas(32) CascadeFilterContent {
         float lag1[8]{};

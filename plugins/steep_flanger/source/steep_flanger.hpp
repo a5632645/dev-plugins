@@ -4,7 +4,7 @@
 #include <qwqdsp/misc/smoother.hpp>
 #include <qwqdsp/spectral/complex_fft.hpp>
 #include <qwqdsp/oscillator/vic_sine_osc.hpp>
-#include <qwqdsp/psimd/align_allocator.hpp>
+#include <qwqdsp/simd_element/align_allocator.hpp>
 #include <qwqdsp/extension_marcos.hpp>
 #include <qwqdsp/filter/window_fir.hpp>
 #include <qwqdsp/window/kaiser.hpp>
