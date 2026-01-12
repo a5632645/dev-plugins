@@ -62,20 +62,20 @@ jobs:
               }
           }
 
-          Write-Host "Installing Intel IPP (Silent)..."
-          # --silent: 无界面安装
-          # --action install: 执行安装操作
-          # --accept_eula: 接受协议
-          $process = Start-Process ./$installer -ArgumentList "--silent", "--action", "install", "--accept_eula" -PassThru -Wait
-          $process | Wait-Process
+          # install
+          Write-Host "Extracting installer packages..."
+          Start-Process ./ipp_installer.exe -ArgumentList "--s", "--x", "--f", "$(Get-Location)\ipp_files" -Wait
+
+          cd ipp_files
+
+          Write-Host "Running bootstrapper for final installation..."
+          Start-Process ./bootstrapper.exe -ArgumentList "--silent", "--eula", "accept" -PassThru -Wait
 
           Start-Sleep -Seconds 15
 
           $checkPath = "C:\Program Files (x86)\Intel\oneAPI\ipp\2022.3"
           if (Test-Path $checkPath) {
               Write-Host "Installation verified at $checkPath."
-              Write-Host "Cleaning up installer..."
-              Remove-Item $installer -Force
           }
           else {
               Write-Error "Installation failed: $checkPath not found. OneAPI may have changed the path."
