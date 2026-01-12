@@ -18,15 +18,13 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Intel oneAPI IPP
-        # 使用目前最稳定的第三方 Action，专门解决 Intel 安装器在 CI 中的报错
-        uses: rscohn2/setup-oneapi@v0
+      - name: intel-oneapi
+        # You may pin to the exact commit or the version.
+        # uses: neelravi/intel-oneapi-github-actions@039989107ca74a15e25a0a6f40354eaf20bb71e9
+        uses: neelravi/intel-oneapi-github-actions@latest
         with:
-          # 只安装 IPP 开发包，体积小、速度快
-          components: |
-            intel.oneapi.win.ipp.devel
-          # 开启缓存，下次运行只需几秒钟
-          cache: true
+          # Comma-separated list of Intel OneAPI components to install (e.g., fortran, cpp, mpi, mkl, basekit, hpckit)
+          components: cpp # default is fortran,cpp,mpi,mkl
 
       - name: Setup Ninja
         uses: llvm/actions/install-ninja@main
