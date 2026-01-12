@@ -1,11 +1,6 @@
 name: Build and Release Windows
 
 on:
-  push:
-    tags:
-      - 'v*'
-    branches:
-      - main  # 建议加上这个，方便你在推送分支时直接测试
   workflow_dispatch:
 
 jobs:
