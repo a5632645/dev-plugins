@@ -20,7 +20,7 @@ AlignConsecutiveBitFields:
   AlignFunctionPointers: false
   PadOperators:    false
 AlignConsecutiveDeclarations:
-  Enabled:         false
+  Enabled:         true
   AcrossEmptyLines: false
   AcrossComments:  false
   AlignCompound:   false
@@ -28,13 +28,13 @@ AlignConsecutiveDeclarations:
   AlignFunctionPointers: false
   PadOperators:    false
 AlignConsecutiveMacros:
-  Enabled:         false
+  Enabled:         true
   AcrossEmptyLines: false
-  AcrossComments:  false
+  AcrossComments:  true
   AlignCompound:   false
   AlignFunctionDeclarations: false
   AlignFunctionPointers: false
-  PadOperators:    false
+  PadOperators:    true
 AlignConsecutiveShortCaseStatements:
   Enabled:         false
   AcrossEmptyLines: false
@@ -78,7 +78,7 @@ AllowShortCaseExpressionOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortCompoundRequirementOnASingleLine: true
 AllowShortEnumsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: All
+AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLambdasOnASingleLine: All
 AllowShortLoopsOnASingleLine: true
@@ -111,7 +111,7 @@ BraceWrapping:
   SplitEmptyFunction: true
   SplitEmptyRecord: true
   SplitEmptyNamespace: true
-  AfterControlStatement: Never       # if 后面不换行，保持 if (xxx) {
+  AfterControlStatement: Never      # if 后面不换行，保持 if (xxx) {
   BeforeElse: true                  # 重点：在 else 之前换行
   BeforeCatch: true                 # 建议 try-catch 也保持一致
 BreakAdjacentStringLiterals: true
@@ -136,7 +136,7 @@ CommentPragmas:  '^ IWYU pragma:'
 CompactNamespaces: false
 ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 4
-Cpp11BracedListStyle: true
+Cpp11BracedListStyle: false
 DerivePointerAlignment: false
 DisableFormat:   false
 EmptyLineAfterAccessModifier: Never
@@ -330,4 +330,3 @@ WhitespaceSensitiveMacros:
   - PP_STRINGIZE
   - STRINGIZE
 WrapNamespaceBodyWithEmptyLines: Leave
-...

@@ -13,7 +13,7 @@
 #if defined (__clang__)
     #define QWQDSP_AUTO_VECTORLIZE _Pragma("clang loop vectorize(enable) interleave(enable)")
 #elif defined (__GNUC__)
-    #define QWQDSP_AUTO_VECTORLIZE _Pragma("GCC optimize(\"tree-vectorize\")")
+    #define QWQDSP_AUTO_VECTORLIZE _Pragma("GCC ivdep")
 #elif defined (_MSC_VER)
     #define QWQDSP_AUTO_VECTORLIZE __pragma(loop(hint_parallel(0)))
 #else
