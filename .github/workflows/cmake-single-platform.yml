@@ -1,1 +1,140 @@
-on: [workflow_dispatch]
+name: Build and Release Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache Intel IPP
+        id: cache-ipp
+        uses: actions/cache@v4
+        with:
+          # 缓存 Intel oneAPI 的安装根目录
+          path: C:\Program Files (x86)\Intel\oneAPI
+          key: ${{ runner.os }}-intel-ipp-2022.3.0
+
+      - name: Download and Install Intel IPP
+        if: steps.cache-ipp.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $installer = "ipp_installer.exe"
+          $url = "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/1ae68d0c-2b3f-4f39-9f53-774ca23088ec/intel-ipp-2022.3.0.393_offline.exe"
+          
+          if (Test-Path $installer) {
+              $size = (Get-Item $installer).Length
+              if ($size -gt 10MB) {
+                  Write-Host "$installer already exists ($($size) bytes). Skipping download."
+              }
+              else {
+                  Write-Host "Downloading Intel IPP Installer..."
+                  curl.exe -L $url -o ipp_installer.exe -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                  
+                  $fileSize = (Get-Item ipp_installer.exe).Length
+                  if ($fileSize -lt 1000000) {
+                      Write-Error "Download failed: The file is too small ($fileSize bytes). Intel blocked the request."
+                      exit 1
+                  }
+              }
+          }
+          else {
+              Write-Host "Downloading Intel IPP Installer..."
+              curl.exe -L $url -o ipp_installer.exe -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+              
+              $fileSize = (Get-Item ipp_installer.exe).Length
+              if ($fileSize -lt 1000000) {
+                  Write-Error "Download failed: The file is too small ($fileSize bytes). Intel blocked the request."
+                  exit 1
+              }
+          }
+
+          # install
+          Write-Host "Extracting installer packages..."
+          Start-Process ./ipp_installer.exe -ArgumentList "--s", "--x", "--f", "$(Get-Location)\ipp_files" -Wait
+
+          cd ipp_files
+
+          Write-Host "Running bootstrapper for final installation..."
+          Start-Process ./bootstrapper.exe -ArgumentList "--silent", "--eula", "accept" -PassThru -Wait
+
+          Start-Sleep -Seconds 15
+
+          $checkPath = "C:\Program Files (x86)\Intel\oneAPI\ipp\2022.3"
+          if (Test-Path $checkPath) {
+              Write-Host "Installation verified at $checkPath."
+          }
+          else {
+              Write-Error "Installation failed: $checkPath not found. OneAPI may have changed the path."
+              exit 1
+          }
+
+      - name: Setup Ninja
+        uses: llvm/actions/install-ninja@main
+
+      - name: Set up MSVC Environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          $ipp_cmake_dir = "C:/Program Files (x86)/Intel/oneAPI/ipp/2022.3/lib/cmake/ipp"
+          
+          cmake -B build -G Ninja `
+            -DCMAKE_C_COMPILER=clang `
+            -DCMAKE_CXX_COMPILER=clang `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DIPP_DIR="$ipp_cmake_dir" `
+            -DCI_PLUGIN_BUILD=1 `
+            -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Intel/oneAPI"
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Collect and Zip VST3 Plugins
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "./vst3_release"
+          # 仅从 build 目录下寻找，排除脚本下载的第三方库目录
+          Get-ChildItem -Path "./build" -Filter "*.vst3" -Recurse | Where-Object { $_.Attributes -match "Directory" } | ForEach-Object {
+              Write-Host "Found plugin: $($_.FullName)"
+              Copy-Item -Path $_.FullName -Destination "./vst3_release/" -Recurse
+          }
+          if ((Get-ChildItem "./vst3_release/").Count -eq 0) {
+              Write-Error "No VST3 plugins found! Check your build output."
+              exit 1
+          }
+          Compress-Archive -Path "./vst3_release/*" -DestinationPath "./Plugins_Windows_VST3.zip"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-vst3-zip
+          path: Plugins_Windows_VST3.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-vst3-zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Plugins_Windows_VST3.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

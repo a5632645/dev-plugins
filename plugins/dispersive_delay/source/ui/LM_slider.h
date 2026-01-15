@@ -10,50 +10,50 @@ hiirofox
 2024/2/15
 */
 
-class L_MODEL_STYLE : public juce::LookAndFeel_V4 //·ç¸ñ
+class L_MODEL_STYLE : public juce::LookAndFeel_V4 //é£æ ¼
 {
 public:
-	//»¬¶¯Ìõ
+	//æ»‘åŠ¨æ¡
 	void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
 		float sliderPos, float minSliderPos, float maxSliderPos,
 		const juce::Slider::SliderStyle style, juce::Slider& slider) override;
 
-	//ĞıÅ¥
+	//æ—‹é’®
 	void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
 		float sliderPosProportional, float rotaryStartAngle,
 		float rotaryEndAngle, juce::Slider& slider) override;
 
-	//°´Å¥
+	//æŒ‰é’®
 	void drawButtonBackground(juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
-		bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)override;//»æÖÆ°´Å¥±¾Ìå
+		bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)override;//ç»˜åˆ¶æŒ‰é’®æœ¬ä½“
 
-	void drawButtonText(juce::Graphics& g, juce::TextButton& button, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown);//»æÖÆ°´Å¥ÀïÃæµÄÎÄ×Ö
+	void drawButtonText(juce::Graphics& g, juce::TextButton& button, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown);//ç»˜åˆ¶æŒ‰é’®é‡Œé¢çš„æ–‡å­—
 
-	//¿ª¹Ø°´Å¥
+	//å¼€å…³æŒ‰é’®
 	void drawToggleButton(juce::Graphics& g, juce::ToggleButton& button,
 		bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
 
-	//ÏÂÀ­²Ëµ¥
+	//ä¸‹æ‹‰èœå•
 	void drawComboBox(juce::Graphics& g,
 		int width, int height,
 		bool isButtonDown,
 		int buttonX, int buttonY, int buttonWidth, int buttonHeight,
-		juce::ComboBox& box) override;//»­Ö÷¿ò¿ò
+		juce::ComboBox& box) override;//ç”»ä¸»æ¡†æ¡†
 
 	void drawPopupMenuItem(juce::Graphics& g, const juce::Rectangle<int>& area,
 		const bool isSeparator, const bool isActive,
 		const bool isHighlighted, const bool isTicked,
 		const bool hasSubMenu, const juce::String& text,
 		const juce::String& shortcutKeyText,
-		const juce::Drawable* icon, const juce::Colour* textColour) override;//»­²Ëµ¥ÀïÃæµÄÎÄ×ÖÄÚÈİ
+		const juce::Drawable* icon, const juce::Colour* textColour) override;//ç”»èœå•é‡Œé¢çš„æ–‡å­—å†…å®¹
 
-	void drawPopupMenuBackground(juce::Graphics& g, int width, int height) override;//»­²Ëµ¥¿ò¿ò
+	void drawPopupMenuBackground(juce::Graphics& g, int width, int height) override;//ç”»èœå•æ¡†æ¡†
 
 private:
 };
 
 
-class Custom1_Slider : public juce::Slider//°´ÏÂ¾ÍÒş²ØÊó±êÖ¸ÕëµÄSlider
+class Custom1_Slider : public juce::Slider//æŒ‰ä¸‹å°±éšè—é¼ æ ‡æŒ‡é’ˆçš„Slider
 {
 public:
 protected:
@@ -62,7 +62,7 @@ protected:
 private:
 	juce::Point<float> lastMousePosition;
 };
-class LMKnob :public juce::Component//ĞıÅ¥Àà
+class LMKnob :public juce::Component//æ—‹é’®ç±»
 {
 public:
 	LMKnob();
@@ -77,7 +77,7 @@ public:
 
 	void setText(const juce::String& KnobText);
 	void resized() override;
-	void setPos(int x, int y);//´úÌæsetBounds£¬¿ÉÒÔÉÙ´ò¼¸¸ö×Ö
+	void setPos(int x, int y);//ä»£æ›¿setBoundsï¼Œå¯ä»¥å°‘æ‰“å‡ ä¸ªå­—
 
 private:
 	std::unique_ptr<L_MODEL_STYLE> L_MODEL_STYLE_LOOKANDFEEL;
@@ -89,28 +89,28 @@ private:
 };
 
 
-class LMButton : public juce::Component, public juce::Button::Listener // °´Å¥Àà
+class LMButton : public juce::Component, public juce::Button::Listener // æŒ‰é’®ç±»
 {
 public:
 	LMButton();
 	~LMButton();
 	void setName(juce::String ButtonName);
 	void resized() override;
-	//void setPos(int x, int y); // Ìæ´úsetBounds
+	//void setPos(int x, int y); // æ›¿ä»£setBounds
 	//void setButtonWidth(int ButtonWidth);
 	void buttonClicked(juce::Button* clicked) override;
 	void setClickedCallback(std::function<void()> cbFunc);
 	int getButtonState();
 private:
 	std::unique_ptr<L_MODEL_STYLE> L_MODEL_STYLE_LOOKANDFEEL;
-	// juce::TextButton button; // ´¿°´Å¥
-	juce::ToggleButton button; // ¿ª¹Ø
+	// juce::TextButton button; // çº¯æŒ‰é’®
+	juce::ToggleButton button; // å¼€å…³
 	juce::String name;
 
 	int Width = 64;
 };
 
-class LMCombox : public juce::Component, private juce::ComboBox::Listener // ÏÂÀ­²Ëµ¥Àà
+class LMCombox : public juce::Component, private juce::ComboBox::Listener // ä¸‹æ‹‰èœå•ç±»
 {
 public:
 	LMCombox();
@@ -126,6 +126,6 @@ private:
 	juce::ComboBox comboBox;
 	int Width = 64;
 
-	// ComboBoxÑ¡Ôñ¸Ä±äÊ±µÄ»Øµ÷º¯Êı
+	// ComboBoxé€‰æ‹©æ”¹å˜æ—¶çš„å›è°ƒå‡½æ•°
 	void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override;
 };
