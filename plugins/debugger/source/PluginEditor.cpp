@@ -1,37 +1,57 @@
 #include "PluginEditor.h"
+
 #include "PluginProcessor.h"
 
-// ---------------------------------------- editor ----------------------------------------
+struct EmptyAudioProcessorEditor::PluginConfig {
+    PluginConfig() {
+        juce::PropertiesFile::Options options;
+        options.applicationName = JucePlugin_Name;
+        options.filenameSuffix = ".settings";
+        options.folderName = JucePlugin_Manufacturer;
+        options.storageFormat = juce::PropertiesFile::storeAsXML;
 
-EmptyAudioProcessorEditor::EmptyAudioProcessorEditor (EmptyAudioProcessor& p)
-    : AudioProcessorEditor (&p)
-    , p_(p)
-    , preset_(*p.preset_manager_)
-{
-    addAndMakeVisible(preset_);
+        config = std::make_unique<juce::PropertiesFile>(options);
+    }
 
-    pitch_.BindParam(p.param_pitch_shift.ptr_);
-    addAndMakeVisible(pitch_);
-    size_.BindParam(p.param_grain_size.ptr_);
-    addAndMakeVisible(size_);
+    std::unique_ptr<juce::PropertiesFile> config;
+};
 
-    setSize(400, 300);
+EmptyAudioProcessorEditor::EmptyAudioProcessorEditor(EmptyAudioProcessor& p)
+    : AudioProcessorEditor(&p)
+    , ui_(p) {
+    auto* props = plugin_config_->config.get();
+
+    addAndMakeVisible(ui_);
+    if (props != nullptr) {
+        setSize(props->getIntValue("last_width", ui_.kWidth),
+                props->getIntValue("last_height", ui_.kHeight));
+    }
+    else {
+        setSize(ui_.kWidth, ui_.kHeight);
+    }
+    setResizable(true, true);
+    getConstrainer()->setFixedAspectRatio(static_cast<float>(ui_.kWidth) / ui_.kHeight);
+    setResizeLimits(ui_.kWidth, ui_.kHeight, 9999, 9999);
 }
 
 EmptyAudioProcessorEditor::~EmptyAudioProcessorEditor() {
 }
 
 //==============================================================================
-void EmptyAudioProcessorEditor::paint (juce::Graphics& g) {
+void EmptyAudioProcessorEditor::paint(juce::Graphics& g) {
     g.fillAll(ui::green_bg);
-
 }
 
 void EmptyAudioProcessorEditor::resized() {
-    auto b = getLocalBounds();
-    preset_.setBounds(b.removeFromTop(30));
+    float scaleX = static_cast<float>(getWidth()) / ui_.kWidth;
+    float scaleY = static_cast<float>(getHeight()) / ui_.kHeight;
+    ui_.setTransform(juce::AffineTransform::scale(scaleX, scaleY));
+    ui_.setBounds(0, 0, ui_.kWidth, ui_.kHeight);
 
-    auto box = b.removeFromTop(65);
-    pitch_.setBounds(box.removeFromLeft(50));
-    size_.setBounds(box.removeFromLeft(50));
+    if (auto* props = plugin_config_->config.get()) {
+        if (getWidth() > 0 && getHeight() > 0) {
+            props->setValue("last_width", getWidth());
+            props->setValue("last_height", getHeight());
+        }
+    }
 }

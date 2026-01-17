@@ -53,7 +53,7 @@ public:
     pluginshared::FloatParam param_pitch_shift;
     pluginshared::FloatParam param_grain_size;
 private:
-    debugger::PitchShifter dsp_;
+    debugger::PhaseVocoder dsp_;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EmptyAudioProcessor)

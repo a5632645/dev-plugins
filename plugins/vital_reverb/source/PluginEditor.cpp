@@ -35,8 +35,9 @@ SimpleReverbAudioProcessorEditor::SimpleReverbAudioProcessorEditor (SimpleReverb
     predelay_.BindParam(p.param_predelay_);
     addAndMakeVisible(predelay_);
 
+    getConstrainer()->setFixedAspectRatio(500.0f / 200.0f);
     setSize(500, 200);
-    setResizeLimits(530, 200, 9999, 9999);
+    setResizeLimits(500, 200, 9999, 9999);
     setResizable(true, true);
 }
 

@@ -25,7 +25,7 @@ inline static float SemitoneNor(float nor) {
     return s_st_begin + nor * (s_st_end - s_st_begin);
 }
 
-// Ã·¶ûÆµÂÊÓ³Éä
+// æ¢…å°”é¢‘ç‡æ˜ å°„
 inline static float Hz2Mel(float hz) {
     return 1127.0f * std::log(1.0f + hz / 700.0f);
 }

@@ -28,6 +28,7 @@ target_sources(${QWQ_PLUGIN_NAME}
     PRIVATE
         PluginEditor.cpp
         PluginProcessor.cpp
+        ui/plugin_ui.cpp
 )
 set_target_properties(${QWQ_PLUGIN_NAME} PROPERTIES CXX_STANDARD 20)
 

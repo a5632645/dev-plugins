@@ -29,7 +29,6 @@ target_sources(${QWQ_PLUGIN_NAME}
         PluginProcessor.cpp
         dsp/curve_v2.cpp
         ui/common_curve_editor.cpp
-        ui/LM_slider.cpp
 )
 set_target_properties(${QWQ_PLUGIN_NAME} PROPERTIES CXX_STANDARD 20)
 

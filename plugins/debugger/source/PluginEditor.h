@@ -1,10 +1,6 @@
 #pragma once
-#include <pluginshared/component.hpp>
-#include <pluginshared/preset_panel.hpp>
 
-// ---------------------------------------- editor ----------------------------------------
-
-class EmptyAudioProcessor;
+#include "plugin_ui.hpp"
 
 //==============================================================================
 class EmptyAudioProcessorEditor final : public juce::AudioProcessorEditor {
@@ -17,11 +13,10 @@ public:
     void resized() override;
 
 private:
-    EmptyAudioProcessor& p_;
-    pluginshared::PresetPanel preset_;
-
-    ui::Dial pitch_{"pitch"};
-    ui::Dial size_{"size"};
+    debugger::PluginUi ui_;
+    
+    struct PluginConfig;
+    juce::SharedResourcePointer<PluginConfig> plugin_config_;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EmptyAudioProcessorEditor)
 };

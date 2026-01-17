@@ -138,9 +138,8 @@ void EmptyAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     float* left_ptr = buffer.getWritePointer(0);
     float* right_ptr = buffer.getWritePointer(1);
 
-    dsp_.SetPitchShift(param_pitch_shift.Get());
-    dsp_.Process({left_ptr, num_samples});
-    std::copy_n(left_ptr, num_samples, right_ptr);
+    dsp_.pitch_shift = param_pitch_shift.Get();
+    dsp_.Process(left_ptr, right_ptr, num_samples);
 }
 
 //==============================================================================
