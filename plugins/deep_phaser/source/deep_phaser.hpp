@@ -1,12 +1,15 @@
 #pragma once
-#include "shared.hpp"
+#include <array>
+#include <atomic>
 
-#include <qwqdsp/misc/smoother.hpp>
-#include <qwqdsp/spectral/complex_fft.hpp>
-#include <qwqdsp/oscillator/vic_sine_osc.hpp>
-#include <qwqdsp/extension_marcos.hpp>
 #include <qwqdsp/convert.hpp>
+#include <qwqdsp/extension_marcos.hpp>
+#include <qwqdsp/misc/smoother.hpp>
+#include <qwqdsp/oscillator/vic_sine_osc.hpp>
 #include <qwqdsp/simd_element/simd_element.hpp>
+#include <qwqdsp/spectral/complex_fft.hpp>
+
+#include "shared.hpp"
 
 using SimdType = qwqdsp_simd_element::PackFloat<4>;
 using SimdIntType = qwqdsp_simd_element::PackInt32<4>;
@@ -45,7 +48,7 @@ public:
         y1[1] = buffer[irpos[1]][1];
         y1[2] = buffer[irpos[2]][1];
         y1[3] = buffer[irpos[3]][1];
-        return LRSimdType{y0,y1};
+        return LRSimdType{y0, y1};
     }
 
     QWQDSP_FORCE_INLINE

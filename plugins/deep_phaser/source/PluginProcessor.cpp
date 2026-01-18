@@ -788,7 +788,7 @@ void DeepPhaserAudioProcessor::UpdateCoeff() {
 
     std::span<float> kernel{coeffs_.data(), coeff_len};
     float pad[kFFTSize]{};
-    constexpr size_t num_bins = complex_fft_.NumBins(kFFTSize);
+    constexpr size_t num_bins = qwqdsp_spectral::ComplexFFT::NumBins(kFFTSize);
     std::array<float, num_bins> gains{};
     std::copy(kernel.begin(), kernel.end(), pad);
     complex_fft_.FFTGainPhase(pad, gains);

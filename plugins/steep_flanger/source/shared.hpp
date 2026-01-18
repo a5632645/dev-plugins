@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 
 static constexpr size_t kMaxCoeffLen = 64;
 static constexpr size_t kFFTSize = 512;

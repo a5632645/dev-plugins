@@ -1,18 +1,20 @@
 #pragma once
-#include "shared.hpp"
+#include <atomic>
+#include <array>
 
-#include <qwqdsp/misc/smoother.hpp>
-#include <qwqdsp/spectral/complex_fft.hpp>
-#include <qwqdsp/oscillator/vic_sine_osc.hpp>
-#include <qwqdsp/simd_element/align_allocator.hpp>
 #include <qwqdsp/extension_marcos.hpp>
 #include <qwqdsp/filter/window_fir.hpp>
-#include <qwqdsp/window/kaiser.hpp>
+#include <qwqdsp/misc/smoother.hpp>
+#include <qwqdsp/oscillator/vic_sine_osc.hpp>
+#include <qwqdsp/simd_element/align_allocator.hpp>
 #include <qwqdsp/simd_element/simd_element.hpp>
+#include <qwqdsp/spectral/complex_fft.hpp>
+#include <qwqdsp/window/kaiser.hpp>
 
+#include "shared.hpp"
 #include "simd_detector.h"
-#include "x86/sse4.1.h"
 #include "x86/avx.h"
+#include "x86/sse4.1.h"
 
 struct Complex32x4 {
     qwqdsp_simd_element::PackFloat<4> re;
@@ -54,10 +56,12 @@ public:
     }
 
     QWQDSP_FORCE_INLINE
-    qwqdsp_simd_element::PackFloat<4> GetAfterPush(qwqdsp_simd_element::PackFloat<4> const& delay_samples) const noexcept;
+    qwqdsp_simd_element::PackFloat<4> GetAfterPush(
+        qwqdsp_simd_element::PackFloat<4> const& delay_samples) const noexcept;
 
     QWQDSP_FORCE_INLINE
-    qwqdsp_simd_element::PackFloat<8> GetAfterPush(qwqdsp_simd_element::PackFloat<8> const& delay_samples) const noexcept;
+    qwqdsp_simd_element::PackFloat<8> GetAfterPush(
+        qwqdsp_simd_element::PackFloat<8> const& delay_samples) const noexcept;
 
     QWQDSP_FORCE_INLINE
     void Push(float x) noexcept {
@@ -71,7 +75,6 @@ public:
         // auto a = simde_mm_load_ps(buffer_.data());
         // simde_mm_store_ps(buffer_.data() + delay_length_, a);
     }
-
 private:
     std::vector<float, qwqdsp_simd_element::AlignedAllocator<float, 32>> buffer_;
     uint32_t delay_length_{};
@@ -82,13 +85,13 @@ private:
 class SteepFlangerParameter {
 public:
     // => is mapping internal
-    float delay_ms; // >=0
-    float depth_ms; // >=0
-    float lfo_freq; // hz
-    float lfo_phase; // 0~1 => 0~2pi
-    float fir_cutoff; // 0~pi
+    float delay_ms;       // >=0
+    float depth_ms;       // >=0
+    float lfo_freq;       // hz
+    float lfo_phase;      // 0~1 => 0~2pi
+    float fir_cutoff;     // 0~pi
     size_t fir_coeff_len; // 4~kMaxCoeffLen
-    float fir_side_lobe; // >20
+    float fir_side_lobe;  // >20
     bool fir_min_phase;
     bool fir_highpass;
     float feedback; // gain
@@ -96,8 +99,8 @@ public:
     float barber_phase; // 0~1 => 0~2pi
     float barber_speed; // hz
     bool barber_enable;
-    float barber_stereo_phase; // 0~pi/2
-    float drywet; // 0~1
+    float barber_stereo_phase;              // 0~pi/2
+    float drywet;                           // 0~1
     std::atomic<bool> should_update_fir_{}; // tell flanger to update coeffs
     std::atomic<bool> is_using_custom_{};
     std::array<float, kMaxCoeffLen> custom_coeffs_{};
@@ -146,10 +149,7 @@ public:
         hilbert_complex_.Reset();
     }
 
-    void Process(
-        float* left_ptr, float* right_ptr, size_t len,
-        SteepFlangerParameter& param
-    ) noexcept {
+    void Process(float* left_ptr, float* right_ptr, size_t len, SteepFlangerParameter& param) noexcept {
         if (process_arch_ == ProcessArch::kVector4) {
             ProcessVec4(left_ptr, right_ptr, len, param);
         }
@@ -158,15 +158,9 @@ public:
         }
     }
 
-    void ProcessVec8(
-        float* left_ptr, float* right_ptr, size_t len,
-        SteepFlangerParameter& param
-    ) noexcept;
+    void ProcessVec8(float* left_ptr, float* right_ptr, size_t len, SteepFlangerParameter& param) noexcept;
 
-    void ProcessVec4(
-        float* left_ptr, float* right_ptr, size_t len,
-        SteepFlangerParameter& param
-    ) noexcept;
+    void ProcessVec4(float* left_ptr, float* right_ptr, size_t len, SteepFlangerParameter& param) noexcept;
 
     /**
      * @param p [0, 1]
@@ -230,7 +224,7 @@ private:
 
         std::span<float> kernel{coeffs_.data(), coeff_len};
         float pad[kFFTSize]{};
-        constexpr size_t num_bins = complex_fft_.NumBins(kFFTSize);
+        constexpr size_t num_bins = qwqdsp_spectral::ComplexFFT::NumBins(kFFTSize);
         std::array<float, num_bins> gains{};
         std::copy(kernel.begin(), kernel.end(), pad);
         complex_fft_.FFTGainPhase(pad, gains);
