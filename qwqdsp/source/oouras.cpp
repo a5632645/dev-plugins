@@ -1,5 +1,7 @@
 #ifndef QWQDSP_HAVE_IPP
 
+#include <cmath>
+
 // --------------------------------------------------------------------------------
 // Copyright Takuya OOURA, 1996-2001
 // You may use, copy, modify and distribute this code for any purpose (include commercial use) and without fee.
@@ -344,9 +346,6 @@ void dfst(int n, float *a, float *t, int *ip, float *w) noexcept
 
 
 /* -------- initializing routines -------- */
-
-
-#include <cmath>
 
 void makewt(int nw, int *ip, float *w) noexcept
 {
