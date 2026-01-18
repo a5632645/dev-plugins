@@ -6,7 +6,7 @@
 
 #include "param_ids.hpp"
 
-#define I_AM_USING_LOOPBACK_DEBUG 1
+#define I_AM_USING_LOOPBACK_DEBUG 0
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()

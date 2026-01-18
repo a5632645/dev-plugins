@@ -2,49 +2,52 @@
 #include "PluginProcessor.h"
 #include "param_ids.hpp"
 
-//==============================================================================
-AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor (AudioPluginAudioProcessor& p)
-    : AudioProcessorEditor (&p)
-    , processorRef (p)
-    , preset_panel_(*p.preset_manager_)
-    , tooltip_window_(this, 500)
-    , pre_fx_(p)
-    , vocoder_(p)
-    , ensemble_(p)
-    , tracking_(p)
-{
-    addAndMakeVisible(preset_panel_);
-    addAndMakeVisible(pre_fx_);
-    addAndMakeVisible(vocoder_);
-    addAndMakeVisible(ensemble_);
-    addAndMakeVisible(tracking_);
+struct AudioPluginAudioProcessorEditor::PluginConfig {
+    PluginConfig() {
+        juce::PropertiesFile::Options options;
+        options.applicationName = JucePlugin_Name;
+        options.filenameSuffix = ".settings";
+        options.folderName = JucePlugin_Manufacturer;
+        options.storageFormat = juce::PropertiesFile::storeAsXML;
 
-    setSize (750, 350);
-}
+        config = std::make_unique<juce::PropertiesFile>(options);
+    }
 
-AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {
-    setLookAndFeel(nullptr);
-    tooltip_window_.setLookAndFeel(nullptr);
-}
+    std::unique_ptr<juce::PropertiesFile> config;
+};
 
 //==============================================================================
-void AudioPluginAudioProcessorEditor::paint (juce::Graphics& g) {
-    g.fillAll(ui::black_bg);
-    g.setColour(ui::green_bg);
-    g.fillRect(preset_panel_.getBounds());
-    g.fillRect(pre_fx_.getBounds());
-    g.fillRect(vocoder_.getBounds());
-    g.fillRect(tracking_.getBounds());
-    g.fillRect(ensemble_.getBounds());
+AudioPluginAudioProcessorEditor::AudioPluginAudioProcessorEditor(AudioPluginAudioProcessor& p)
+    : AudioProcessorEditor(&p)
+    , ui_(p) {
+    auto* props = plugin_config_->config.get();
+
+    addAndMakeVisible(ui_);
+    if (props != nullptr) {
+        setSize(props->getIntValue("last_width", ui_.kWidth), props->getIntValue("last_height", ui_.kHeight));
+    }
+    else {
+        setSize(ui_.kWidth, ui_.kHeight);
+    }
+    setResizable(true, true);
+    getConstrainer()->setFixedAspectRatio(static_cast<float>(ui_.kWidth) / ui_.kHeight);
+    setResizeLimits(ui_.kWidth, ui_.kHeight, 9999, 9999);
 }
+
+AudioPluginAudioProcessorEditor::~AudioPluginAudioProcessorEditor() {}
+
+//==============================================================================
 
 void AudioPluginAudioProcessorEditor::resized() {
-    auto b = getLocalBounds();
-    preset_panel_.setBounds(b.removeFromTop(30));
-    auto left_panel = b.removeFromLeft(260);
-    pre_fx_.setBounds(left_panel.removeFromTop(90).reduced(1));
-    tracking_.setBounds(left_panel.removeFromTop(90).reduced(1));
-    ensemble_.setBounds(left_panel.removeFromTop(90).reduced(1));
-    auto right_panel = b;
-    vocoder_.setBounds(right_panel.reduced(1));
+    float scaleX = static_cast<float>(getWidth()) / ui_.kWidth;
+    float scaleY = static_cast<float>(getHeight()) / ui_.kHeight;
+    ui_.setTransform(juce::AffineTransform::scale(scaleX, scaleY));
+    ui_.setBounds(0, 0, ui_.kWidth, ui_.kHeight);
+
+    if (auto* props = plugin_config_->config.get()) {
+        if (getWidth() > 0 && getHeight() > 0) {
+            props->setValue("last_width", getWidth());
+            props->setValue("last_height", getHeight());
+        }
+    }
 }
