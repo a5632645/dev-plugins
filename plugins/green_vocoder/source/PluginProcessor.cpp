@@ -84,9 +84,12 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
             channel_vocoder_.SetFormantShift(l);
+            stft_vocoder_.SetFormantShift(l);
+            mfcc_vocoder_.SetFormantShift(l);
+            // scale the formant ratio to almost what other vocoders sound like for LPC vocoders
+            l *= (16.0f / 24.0f);
             block_burg_lpc_.SetFormantShift(l / 24.0f);
             burg_lpc_.SetFormantShift(l / 24.0f);
-            stft_vocoder_.SetFormantShift(l);
         });
         layout.add(std::move(p));
     }

@@ -22,12 +22,17 @@ public:
     void SetAttack(float ms);
     void SetFFTSize(size_t size);
     void SetNumMfcc(size_t num_mfcc);
+    void SetFormantShift(float formant_shift);
 
     size_t GetFFTSize() const { return fft_size_; }
 
     std::array<float, kMaxNumMfcc> gains_{};
     std::array<float, kMaxNumMfcc> gains2_{};
 private:
+    void SpectralProcess(std::vector<float>& real_in, std::vector<float>& imag_in,
+                         std::vector<float>& real_out, std::vector<float>& imag_out,
+                         std::array<float, kMaxNumMfcc>& gains);
+                         
     audiofft::AudioFFT fft_;
     std::vector<float> hann_window_{};
     std::vector<float> temp_main_{};
@@ -36,6 +41,7 @@ private:
     std::vector<float> real_side_{};
     std::vector<float> imag_main_{};
     std::vector<float> imag_side_{};
+    std::vector<float> fill_gains_{};
     std::array<qwqdsp_simd_element::PackFloat<2>, 32768> main_inputBuffer_{};
     std::array<qwqdsp_simd_element::PackFloat<2>, 32768> side_inputBuffer_{};
     std::array<qwqdsp_simd_element::PackFloat<2>, 32768> main_outputBuffer_{};
@@ -52,6 +58,7 @@ private:
     float window_gain_{};
     float release_ms_{};
     float attack_ms_{};
+    float formant_mul_{1};
 };
 
 }
