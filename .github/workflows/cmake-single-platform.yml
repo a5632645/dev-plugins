@@ -139,21 +139,9 @@ jobs:
         uses: actions/checkout@v4
         with:
          submodules: recursive
-
-      - name: Install Clang
-        # You may pin to the exact commit or the version.
-        # uses: egor-tensin/setup-clang@471a6f8ef1d449dba8e1a51780e7f943572a3f99
-        uses: egor-tensin/setup-clang@v2
-        with:
-          # Version to install
-          version: latest # optional, default is latest
-          # Target platform
-          platform: x86 # optional, default is x64
-          # Set up cc/clang/c++/clang++ executables
-          cc: 1 # optional, default is 1
-
+        
       - name: Install Dependencies
-        run: brew install cmake ninja
+        run: brew install cmake ninja clang
 
       - name: Generate Build Files
         run: |
@@ -212,11 +200,11 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt-get install libx11-dev libfreetype-dev libfontconfig1-dev libasound2-dev libxrandr-dev libxinerama-dev libxcursor-dev
+          sudo apt-get install libatomic1 libx11-dev libfreetype-dev libfontconfig1-dev libasound2-dev libxrandr-dev libxinerama-dev libxcursor-dev
 
       - name: Generate Build Files
         run: |
-          cmake -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCI_PLUGIN_BUILD=1 -S . -B ./build
+          cmake -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_EXE_LINKER_FLAGS="-latomic" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCI_PLUGIN_BUILD=1 -S . -B ./build
 
       - name: Build Project
         run: |
