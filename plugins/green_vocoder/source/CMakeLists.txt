@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(GreenVocoder VERSION 0.2.1)
+project(GreenVocoder VERSION 0.2.2)
 
 juce_add_plugin(GreenVocoder
     # VERSION ...                               # Set this if the plugin version is different to the project version

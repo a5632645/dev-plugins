@@ -11,8 +11,8 @@
     },
     {
         "name": "Green Vocoder",
-        "version": "0.2.1",
-        "changelog": "formant shift for STFT/MFCC.\nresizeable window."
+        "version": "0.2.2",
+        "changelog": "cepstrum v2 mode for stft vocoder."
     },
     {
         "name": "Resonator",
