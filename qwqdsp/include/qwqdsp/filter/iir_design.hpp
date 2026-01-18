@@ -1,10 +1,10 @@
 #pragma once
-#include <optional>
-#include <complex>
-#include <span>
-#include <numbers>
-#include <vector>
 #include <cassert>
+#include <complex>
+#include <numbers>
+#include <optional>
+#include <span>
+#include <vector>
 #include "biquad_coeff.hpp"
 
 namespace qwqdsp_filter {
@@ -84,14 +84,16 @@ struct IIRDesign {
         size_t i = 0;
         double eps = 1.0 / std::sqrt(std::pow(10.0, -ripple / 10.0) - 1.0);
         double A = 1.0 / static_cast<double>(n) * std::asinh(1.0 / eps);
-        double scale = 1.0 / std::cosh(std::acosh(std::sqrt(std::pow(10.0, -ripple / 10.0) - 1.0)) / static_cast<double>(n));
+        double scale =
+            1.0 / std::cosh(std::acosh(std::sqrt(std::pow(10.0, -ripple / 10.0) - 1.0)) / static_cast<double>(n));
         double k_re = std::sinh(A) * scale;
         double k_im = std::cosh(A) * scale;
 
         double first_pole = std::cos(pi * (static_cast<double>(n) - 1.0) / (2.0 * static_cast<double>(n)));
         first_pole = first_pole * first_pole;
         // 最接近0的零点
-        double const first_zero = std::cos((static_cast<double>(n) / 2.0 - 1.0 + 0.5) * std::numbers::pi_v<double> / static_cast<double>(n));
+        double const first_zero =
+            std::cos((static_cast<double>(n) / 2.0 - 1.0 + 0.5) * std::numbers::pi_v<double> / static_cast<double>(n));
         for (size_t k = 1; k <= num_filter; ++k) {
             double phi = (2.0 * static_cast<double>(k) - 1.0) * pi / (2.0 * static_cast<double>(n));
             if (!even_order_modify) {
@@ -104,7 +106,8 @@ struct IIRDesign {
                 if (k != num_filter) {
                     // 最靠近0的切比雪夫多项式的零点被映射到0，所以零点在无穷远处不赋值
                     double const zero = std::cos(phi);
-                    double const tt = std::sqrt(std::max(0.0, (zero * zero - first_zero * first_zero) / (1.0 - first_zero * first_zero)));
+                    double const tt = std::sqrt(
+                        std::max(0.0, (zero * zero - first_zero * first_zero) / (1.0 - first_zero * first_zero)));
                     ret[i].z = 1.0 / std::complex{0.0, tt * scale};
                 }
             }
@@ -134,7 +137,12 @@ struct IIRDesign {
         }
 
         double CompleteIntegral() {
-            if constexpr (kUseStd) {
+#if defined(__APPLE__)
+            constexpr bool platform_has_std_math = false;
+#else
+            constexpr bool platform_has_std_math = true;
+#endif
+            if constexpr (kUseStd && platform_has_std_math) {
                 return std::comp_ellint_1(k_.front());
             }
             else {
@@ -247,7 +255,8 @@ struct IIRDesign {
         EllipticHelper helper{k};
         EllipticHelper helper1{k1};
         double const k1_complt_int = helper1.CompleteIntegral();
-        auto const v0 = std::complex{0.0, -1.0} * helper1.ArcSn(std::complex{0.0, 1.0} / eps_passband) / (static_cast<double>(N) * k1_complt_int);
+        auto const v0 = std::complex{0.0, -1.0} * helper1.ArcSn(std::complex{0.0, 1.0} / eps_passband)
+                      / (static_cast<double>(N) * k1_complt_int);
         for (size_t i = 0; i < num_filter; ++i) {
             auto& s = ret[i];
             auto ui = (2.0 * static_cast<double>(i + 1) - 1.0) / static_cast<double>(N);
@@ -331,7 +340,7 @@ struct IIRDesign {
             else {
                 bp1.z = 0.0;
                 bp2.z = std::nullopt;
-                bp1.k *= bw; 
+                bp1.k *= bw;
                 bp2.k *= bw;
             }
 
@@ -347,10 +356,7 @@ struct IIRDesign {
     /**
      * @note num_filter将会x2
      */
-    static void ProtyleToBandpass2(
-        std::span<ZPK> protyle, size_t num_filter,
-        double w1, double w2
-    ) {
+    static void ProtyleToBandpass2(std::span<ZPK> protyle, size_t num_filter, double w1, double w2) {
         assert(protyle.size() >= num_filter * 2);
 
         double bw = w2 - w1;
@@ -503,7 +509,7 @@ struct IIRDesign {
             float b2 = static_cast<float>(k * std::norm(*z.z));
             float a1 = static_cast<float>(-2.0 * std::real(z.p));
             float a2 = static_cast<float>(std::norm(z.p));
-            
+
             auto& coeff = biquad[i];
             coeff.a1 = a1;
             coeff.a2 = a2;
@@ -520,4 +526,4 @@ struct IIRDesign {
         return 2 * fs * std::tan(freq * pi / fs);
     }
 };
-}
+} // namespace qwqdsp_filter

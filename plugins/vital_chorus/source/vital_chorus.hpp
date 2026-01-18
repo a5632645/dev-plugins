@@ -87,7 +87,7 @@ public:
         std::array<SimdType, 256> temp_out;
 
         while (offset != num_samples) {
-            size_t const cando = std::min(256ull, num_samples - offset);
+            size_t const cando = std::min<size_t>(256, num_samples - offset);
             float const delay_time_smooth_factor = 1.0f - std::exp(-1.0f / (fs_ / static_cast<float>(cando) * 20.0f / 1000.0f));
 
             // update delay time

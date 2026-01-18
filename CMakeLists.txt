@@ -52,11 +52,13 @@ endif()
 if (MSVC)
     add_compile_options(
         /fp:fast # msvc won't delete std::isnan std::isinf
+        /permissive-
     )
 else()
     add_compile_options(
         -ffast-math
         -fno-finite-math-only
+        -Wpedantic
     )
 endif()
 

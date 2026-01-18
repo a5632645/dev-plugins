@@ -266,7 +266,7 @@ void SimpleReverbAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     size_t offset = 0;
     while (offset != num_samples) {
-        size_t const cando = std::min(512ull, num_samples - offset);
+        size_t const cando = std::min<size_t>(512, num_samples - offset);
 
         // shuffle
         for (size_t j = 0; j < cando; ++j) {
