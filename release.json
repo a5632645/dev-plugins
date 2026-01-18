@@ -11,8 +11,8 @@
     },
     {
         "name": "Green Vocoder",
-        "version": "0.2.0",
-        "changelog": "a total update.\ngreen vocoder is now support stereo.\nallow to totally disable ensemble to save cpu.\nnew mfcc(not a real) vocoder.\nnew formant shift(fft vocoder doesn't support) without pitch shift.\nnew filter banks mode(butterworth, chebyshev, elliptic).\nnew block burg LPC(best quality of all vocoders if block_size >= 1024).\n"
+        "version": "0.2.1",
+        "changelog": "formant shift for STFT/MFCC.\nresizeable window."
     },
     {
         "name": "Resonator",
