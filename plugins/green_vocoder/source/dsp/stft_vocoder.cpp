@@ -231,8 +231,7 @@ void STFTVocoder::SpectralProcess2(std::vector<float>& real_in, std::vector<floa
         float re = real_in[i];
         float im = imag_in[i];
         float pow = std::sqrt(re * re + im * im) * window_gain_;
-        pow = std::max(pow, 1e-8f);
-        pow = std::log(pow);
+        pow = std::log(pow + 1e-12f);
         temp_[i] = pow;
     }
 
