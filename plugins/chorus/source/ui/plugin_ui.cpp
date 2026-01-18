@@ -5,6 +5,7 @@
 PluginUi::PluginUi(EmptyAudioProcessor& p)
     : preset_(*p.preset_manager_)
 {
+    addAndMakeVisible(preset_);
     detune_.BindParam(p.detune_.ptr_);
     addAndMakeVisible(detune_);
     spread_.BindParam(p.pan_.ptr_);

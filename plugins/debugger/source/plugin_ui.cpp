@@ -7,6 +7,7 @@ namespace debugger {
 
 PluginUi::PluginUi(EmptyAudioProcessor& p)
     : preset_(*p.preset_manager_) {
+    addAndMakeVisible(preset_);
     pitch_.BindParam(p.param_pitch_shift.ptr_);
     addAndMakeVisible(pitch_);
     size_.BindParam(p.param_grain_size.ptr_);

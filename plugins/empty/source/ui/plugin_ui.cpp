@@ -4,6 +4,7 @@
 
 PluginUi::PluginUi(EmptyAudioProcessor& p)
     : preset_(*p.preset_manager_) {
+    addAndMakeVisible(preset_);
 }
 
 void PluginUi::resized() {
