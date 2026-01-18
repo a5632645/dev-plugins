@@ -72,7 +72,7 @@ void TimeView::mouseDrag(const juce::MouseEvent& e) {
     float const fcoeff_len = static_cast<float>(p_.dsp_param_.fir_coeff_len);
     auto bf = b.toFloat();
     size_t idx = static_cast<size_t>((static_cast<float>(pos.getX()) - bf.getX()) * fcoeff_len / static_cast<float>(bf.getWidth()));
-    idx = std::clamp(idx, 0ull, p_.dsp_param_.fir_coeff_len - 1ull);
+    idx = std::clamp<size_t>(idx, 0, p_.dsp_param_.fir_coeff_len - 1ull);
 
     float val = juce::jmap(static_cast<float>(pos.y), bf.getY(), bf.getBottom(), 1.0f, -1.0f);
     if (e.mods.isRightButtonDown()) {
@@ -213,7 +213,7 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
     size_t const coeff_len = time_.p_.dsp_param_.fir_coeff_len;
     float const fcoeff_len = static_cast<float>(coeff_len);
     size_t idx = static_cast<size_t>((static_cast<float>(pos.getX()) - bf.getX()) * fcoeff_len / bf.getWidth());
-    idx = std::clamp(idx, 0ull, coeff_len - 1);
+    idx = std::clamp<size_t>(idx, 0, coeff_len - 1);
 
     float val = juce::jmap(static_cast<float>(pos.y), bf.getY(), bf.getBottom(), 1.0f, 0.0f);
     if (e.mods.isRightButtonDown()) {
