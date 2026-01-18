@@ -141,11 +141,11 @@ jobs:
          submodules: recursive
         
       - name: Install Dependencies
-        run: brew install cmake ninja llvm
+        run: brew install cmake ninja
 
       - name: Generate Build Files
         run: |
-          cmake -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCI_PLUGIN_BUILD=1 -S . -B ./build
+          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCI_PLUGIN_BUILD=1 -S . -B ./build
 
       - name: Build Project
         run: |

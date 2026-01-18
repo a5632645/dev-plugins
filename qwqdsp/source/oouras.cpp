@@ -346,7 +346,7 @@ void dfst(int n, float *a, float *t, int *ip, float *w) noexcept
 /* -------- initializing routines -------- */
 
 
-#include <math.h>
+#include <cmath>
 
 void makewt(int nw, int *ip, float *w) noexcept
 {
