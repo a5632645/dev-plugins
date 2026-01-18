@@ -6,7 +6,7 @@
 
 #include "param_ids.hpp"
 
-#define I_AM_USING_LOOPBACK_DEBUG 0
+#define I_AM_USING_LOOPBACK_DEBUG 1
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
@@ -86,6 +86,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             channel_vocoder_.SetFormantShift(l);
             block_burg_lpc_.SetFormantShift(l / 24.0f);
             burg_lpc_.SetFormantShift(l / 24.0f);
+            stft_vocoder_.SetFormantShift(l);
         });
         layout.add(std::move(p));
     }

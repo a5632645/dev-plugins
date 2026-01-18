@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <vector>
+
 #include <qwqdsp/simd_element/simd_pack.hpp>
 #include "AudioFFT/AudioFFT.h"
 
@@ -8,25 +9,29 @@ namespace green_vocoder::dsp {
 
 class STFTVocoder {
 public:
+    static constexpr size_t kExtraGainSize = 1;
+
     void Init(float fs);
-    void Process(
-        qwqdsp_simd_element::PackFloat<2>* main,
-        qwqdsp_simd_element::PackFloat<2>* side,
-        size_t num_samples
-    );
+    void Process(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side, size_t num_samples);
 
     void SetBandwidth(float bw);
     void SetRelease(float ms);
     void SetAttack(float ms);
     void SetBlend(float blend);
     void SetFFTSize(size_t size);
+    void SetFormantShift(float formant_shift);
 
-    size_t GetFFTSize() const { return fft_size_; }
+    size_t GetFFTSize() const {
+        return fft_size_;
+    }
 
     std::vector<float> gains_{};
     std::vector<float> gains2_{};
 private:
     float Blend(float x);
+    void SpectralProcess(std::vector<float>& real_in, std::vector<float>& imag_in,
+                         std::vector<float>& real_out, std::vector<float>& imag_out,
+                         std::vector<float>& gains);
 
     audiofft::AudioFFT fft_;
     std::vector<float> window_{};
@@ -53,6 +58,7 @@ private:
     float window_gain_{};
     float release_ms_{};
     float attack_ms_{};
+    float formant_mul_{};
 };
 
-}
+} // namespace green_vocoder::dsp

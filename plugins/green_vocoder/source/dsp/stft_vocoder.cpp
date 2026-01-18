@@ -1,4 +1,5 @@
 #include "stft_vocoder.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -7,6 +8,7 @@
 #include <numbers>
 #include <numeric>
 #include <qwqdsp/convert.hpp>
+#include "qwqdsp/interpolation.hpp"
 
 namespace green_vocoder::dsp {
 
@@ -24,11 +26,12 @@ void STFTVocoder::SetFFTSize(size_t size) {
     temp_side_.resize(size * 2);
     hop_size_ = size / 4;
     for (size_t i = 0; i < size; ++i) {
-        hann_window_[i] = 0.5f - 0.5f * std::cos(2.0f* std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(size));
+        hann_window_[i] =
+            0.5f - 0.5f * std::cos(2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(size));
     }
     size_t num_bins = fft_.ComplexSize(size);
-    gains_.resize(num_bins);
-    gains2_.resize(num_bins);
+    gains_.resize(num_bins + kExtraGainSize);
+    gains2_.resize(num_bins + kExtraGainSize);
     real_main_.resize(num_bins);
     imag_main_.resize(num_bins);
     real_side_.resize(num_bins);
@@ -52,11 +55,8 @@ void STFTVocoder::SetBlend(float blend) {
     blend_ = blend;
 }
 
-void STFTVocoder::Process(
-    qwqdsp_simd_element::PackFloat<2>* main,
-    qwqdsp_simd_element::PackFloat<2>* side,
-    size_t num_samples
-) {
+void STFTVocoder::Process(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side,
+                          size_t num_samples) {
     // -------------------- doing left --------------------
     std::copy_n(main, num_samples, main_inputBuffer_.begin() + static_cast<int>(numInput_));
     std::copy_n(side, num_samples, side_inputBuffer_.begin() + static_cast<int>(numInput_));
@@ -79,52 +79,21 @@ void STFTVocoder::Process(
         }
 
         // -------------------- left --------------------
-        // do fft
         fft_.fft(temp_main_.data(), real_main_.data(), imag_main_.data());
         fft_.fft(temp_side_.data(), real_side_.data(), imag_side_.data());
-        // spectral processing
-        size_t num_bins = fft_.ComplexSize(fft_size_);
-        for (size_t i = 0; i < num_bins; ++i) {
-            float power = std::abs(real_main_[i] * real_main_[i] + imag_main_[i] * imag_main_[i]);
-            float gain = std::sqrt(power) * window_gain_;
-            gain = Blend(gain);
-
-            if (gain > gains_[i]) {
-                gains_[i] = attck_ * gains_[i] + (1 - attck_) * gain;
-            }
-            else {
-                gains_[i] = decay_ * gains_[i] + (1 - decay_) * gain;
-            }
-            
-            real_side_[i] *= gains_[i];
-            imag_side_[i] *= gains_[i];
-        }
+        SpectralProcess(real_main_, imag_main_, real_side_, imag_side_, gains_);
         fft_.ifft(temp_main_.data(), real_side_.data(), imag_side_.data());
+
         // -------------------- right --------------------
         fft_.fft(temp_main_.data() + fft_size_, real_main_.data(), imag_main_.data());
         fft_.fft(temp_side_.data() + fft_size_, real_side_.data(), imag_side_.data());
-        // spectral processing
-        for (size_t i = 0; i < num_bins; ++i) {
-            float power = std::abs(real_main_[i] * real_main_[i] + imag_main_[i] * imag_main_[i]);
-            float gain = std::sqrt(power) * window_gain_;
-            gain = Blend(gain);
-
-            if (gain > gains2_[i]) {
-                gains2_[i] = attck_ * gains2_[i] + (1 - attck_) * gain;
-            }
-            else {
-                gains2_[i] = decay_ * gains2_[i] + (1 - decay_) * gain;
-            }
-            
-            real_side_[i] *= gains2_[i];
-            imag_side_[i] *= gains2_[i];
-        }
+        SpectralProcess(real_main_, imag_main_, real_side_, imag_side_, gains_);
         fft_.ifft(temp_main_.data() + fft_size_, real_side_.data(), imag_side_.data());
 
         // overlay add
         for (size_t i = 0; i < fft_size_; i++) {
             float left = temp_main_[i] * hann_window_[i];
-            float right = temp_main_[i + fft_size_] * hann_window_[i];  
+            float right = temp_main_[i + fft_size_] * hann_window_[i];
             main_outputBuffer_[i + writeAddBegin_] += {left, right};
         }
         writeEnd_ = writeAddBegin_ + fft_size_;
@@ -137,7 +106,7 @@ void STFTVocoder::Process(
         for (size_t i = 0; i < extractSize; ++i) {
             main[i] = main_outputBuffer_[i] * 4.0f;
         }
-        
+
         // shift output buffer
         size_t shiftSize = writeEnd_ - extractSize;
         for (size_t i = 0; i < shiftSize; i++) {
@@ -162,7 +131,8 @@ void STFTVocoder::SetBandwidth(float bw) {
     // generate sinc window
     float f0 = bandwidth_ * static_cast<float>(fft_size_) / 1024.0f;
     for (size_t i = 0; i < fft_size_; i++) {
-        float x = (2 * std::numbers::pi_v<float> * f0 * (static_cast<float>(i) - static_cast<float>(fft_size_) / 2.0f)) / static_cast<float>(fft_size_);
+        float x = (2 * std::numbers::pi_v<float> * f0 * (static_cast<float>(i) - static_cast<float>(fft_size_) / 2.0f))
+                / static_cast<float>(fft_size_);
         float sinc = std::abs(x) < 1e-6 ? 1.0f : std::sin(x) / x;
         window_[i] = sinc * hann_window_[i];
     }
@@ -176,4 +146,42 @@ float STFTVocoder::Blend(float x) {
     return x;
 }
 
+void STFTVocoder::SetFormantShift(float formant_shift) {
+    formant_mul_ = std::exp2(-formant_shift / 12.0f);
 }
+
+void STFTVocoder::SpectralProcess(std::vector<float>& real_in, std::vector<float>& imag_in,
+                                  std::vector<float>& real_out, std::vector<float>& imag_out,
+                                  std::vector<float>& gains) {
+    // a bad formant extra
+    size_t num_bins = fft_.ComplexSize(fft_size_);
+    for (size_t i = 0; i < num_bins; ++i) {
+        float power = std::abs(real_in[i] * real_in[i] + imag_in[i] * imag_in[i]);
+        float gain = std::sqrt(power) * window_gain_;
+        gain = Blend(gain);
+
+        if (gain > gains[i]) {
+            gains[i] = attck_ * gains[i] + (1 - attck_) * gain;
+        }
+        else {
+            gains[i] = decay_ * gains[i] + (1 - decay_) * gain;
+        }
+    }
+    gains[num_bins] = gains[0];
+    // apply formant
+    for (size_t i = 0; i < num_bins; ++i) {
+        float idx = static_cast<float>(i) * formant_mul_;
+        float frac = idx - std::floor(idx);
+        size_t iidx = static_cast<size_t>(idx);
+
+        float g = 0;
+        if (iidx < num_bins) {
+            g = qwqdsp::Interpolation::Linear(gains[iidx], gains[iidx + 1], frac);
+        }
+
+        real_out[i] *= g;
+        imag_out[i] *= g;
+    }
+}
+
+} // namespace green_vocoder::dsp
