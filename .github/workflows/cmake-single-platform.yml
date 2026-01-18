@@ -27,67 +27,67 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Cache Intel IPP
-        id: cache-ipp
-        uses: actions/cache@v4
-        with:
-          # 缓存 Intel oneAPI 的安装根目录
-          path: C:\Program Files (x86)\Intel\oneAPI
-          key: ${{ runner.os }}-intel-ipp-2022.3.0
+      # - name: Cache Intel IPP
+      #   id: cache-ipp
+      #   uses: actions/cache@v4
+      #   with:
+      #     # 缓存 Intel oneAPI 的安装根目录
+      #     path: C:\Program Files (x86)\Intel\oneAPI
+      #     key: ${{ runner.os }}-intel-ipp-2022.3.0
 
-      - name: Download and Install Intel IPP
-        if: steps.cache-ipp.outputs.cache-hit != 'true'
-        shell: pwsh
-        run: |
-          $installer = "ipp_installer.exe"
-          $url = "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/1ae68d0c-2b3f-4f39-9f53-774ca23088ec/intel-ipp-2022.3.0.393_offline.exe"
+      # - name: Download and Install Intel IPP
+      #   if: steps.cache-ipp.outputs.cache-hit != 'true'
+      #   shell: pwsh
+      #   run: |
+      #     $installer = "ipp_installer.exe"
+      #     $url = "https://registrationcenter-download.intel.com/akdlm/IRC_NAS/1ae68d0c-2b3f-4f39-9f53-774ca23088ec/intel-ipp-2022.3.0.393_offline.exe"
           
-          if (Test-Path $installer) {
-              $size = (Get-Item $installer).Length
-              if ($size -gt 10MB) {
-                  Write-Host "$installer already exists ($($size) bytes). Skipping download."
-              }
-              else {
-                  Write-Host "Downloading Intel IPP Installer..."
-                  curl.exe -L $url -o ipp_installer.exe -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      #     if (Test-Path $installer) {
+      #         $size = (Get-Item $installer).Length
+      #         if ($size -gt 10MB) {
+      #             Write-Host "$installer already exists ($($size) bytes). Skipping download."
+      #         }
+      #         else {
+      #             Write-Host "Downloading Intel IPP Installer..."
+      #             curl.exe -L $url -o ipp_installer.exe -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                   
-                  $fileSize = (Get-Item ipp_installer.exe).Length
-                  if ($fileSize -lt 1000000) {
-                      Write-Error "Download failed: The file is too small ($fileSize bytes). Intel blocked the request."
-                      exit 1
-                  }
-              }
-          }
-          else {
-              Write-Host "Downloading Intel IPP Installer..."
-              curl.exe -L $url -o ipp_installer.exe -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      #             $fileSize = (Get-Item ipp_installer.exe).Length
+      #             if ($fileSize -lt 1000000) {
+      #                 Write-Error "Download failed: The file is too small ($fileSize bytes). Intel blocked the request."
+      #                 exit 1
+      #             }
+      #         }
+      #     }
+      #     else {
+      #         Write-Host "Downloading Intel IPP Installer..."
+      #         curl.exe -L $url -o ipp_installer.exe -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
               
-              $fileSize = (Get-Item ipp_installer.exe).Length
-              if ($fileSize -lt 1000000) {
-                  Write-Error "Download failed: The file is too small ($fileSize bytes). Intel blocked the request."
-                  exit 1
-              }
-          }
+      #         $fileSize = (Get-Item ipp_installer.exe).Length
+      #         if ($fileSize -lt 1000000) {
+      #             Write-Error "Download failed: The file is too small ($fileSize bytes). Intel blocked the request."
+      #             exit 1
+      #         }
+      #     }
 
-          # install
-          Write-Host "Extracting installer packages..."
-          Start-Process ./ipp_installer.exe -ArgumentList "--s", "--x", "--f", "$(Get-Location)\ipp_files" -Wait
+      #     # install
+      #     Write-Host "Extracting installer packages..."
+      #     Start-Process ./ipp_installer.exe -ArgumentList "--s", "--x", "--f", "$(Get-Location)\ipp_files" -Wait
 
-          cd ipp_files
+      #     cd ipp_files
 
-          Write-Host "Running bootstrapper for final installation..."
-          Start-Process ./bootstrapper.exe -ArgumentList "--silent", "--eula", "accept" -PassThru -Wait
+      #     Write-Host "Running bootstrapper for final installation..."
+      #     Start-Process ./bootstrapper.exe -ArgumentList "--silent", "--eula", "accept" -PassThru -Wait
 
-          Start-Sleep -Seconds 15
+      #     Start-Sleep -Seconds 15
 
-          $checkPath = "C:\Program Files (x86)\Intel\oneAPI\ipp\2022.3"
-          if (Test-Path $checkPath) {
-              Write-Host "Installation verified at $checkPath."
-          }
-          else {
-              Write-Error "Installation failed: $checkPath not found. OneAPI may have changed the path."
-              exit 1
-          }
+      #     $checkPath = "C:\Program Files (x86)\Intel\oneAPI\ipp\2022.3"
+      #     if (Test-Path $checkPath) {
+      #         Write-Host "Installation verified at $checkPath."
+      #     }
+      #     else {
+      #         Write-Error "Installation failed: $checkPath not found. OneAPI may have changed the path."
+      #         exit 1
+      #     }
 
       - name: Setup Ninja
         uses: llvm/actions/install-ninja@main
