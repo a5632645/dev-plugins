@@ -63,6 +63,7 @@ else()
 endif()
 
 # folders
+set(CPP_SIMD_DETECTOR_BUILD_EXAMPLES OFF)
 add_subdirectory(cpp_simd_detector)
 add_subdirectory(json)
 add_subdirectory(eigen)
