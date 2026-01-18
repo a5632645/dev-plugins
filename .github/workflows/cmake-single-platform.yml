@@ -10,6 +10,18 @@ jobs:
       run:
         shell: bash
     steps:
+      - name: Install Clang
+        # You may pin to the exact commit or the version.
+        # uses: egor-tensin/setup-clang@471a6f8ef1d449dba8e1a51780e7f943572a3f99
+        uses: egor-tensin/setup-clang@v2
+        with:
+          # Version to install
+          version: # optional, default is latest
+          # Target platform
+          platform: # optional, default is x64
+          # Set up cc/clang/c++/clang++ executables
+          cc: # optional, default is 1
+          
       - name: Checkout code
         uses: actions/checkout@v4
         with:
