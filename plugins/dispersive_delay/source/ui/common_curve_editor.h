@@ -24,7 +24,7 @@ public:
     void mouseExit(const juce::MouseEvent& e) override { repaint(); }
     void mouseDoubleClick(const juce::MouseEvent& e) override;
 private:
-    friend class CommonCurveEditor;
+    friend class ::mana::CommonCurveEditor;
     int idx_;
     std::unique_ptr<juce::PopupMenu> popup_menu_;
 };
@@ -42,7 +42,7 @@ public:
     void mouseExit(const juce::MouseEvent& /*e*/) override { repaint(); }
     void mouseDoubleClick(const juce::MouseEvent& e) override;
 private:
-    friend class CommonCurveEditor;
+    friend class ::mana::CommonCurveEditor;
     int idx_;
     float last_power_{};
 };

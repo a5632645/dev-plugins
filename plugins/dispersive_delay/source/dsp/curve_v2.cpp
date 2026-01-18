@@ -200,7 +200,7 @@ static constexpr std::array kPowerTypeNames{
     "wave_square"
 };
 static_assert(kPowerTypeNames.size() == static_cast<size_t>(CurveV2::PowerEnum::kNumPowerEnums));
-inline static constexpr std::string GetPowerTypeName(CurveV2::PowerEnum type) {
+inline static std::string GetPowerTypeName(CurveV2::PowerEnum type) {
     return kPowerTypeNames[static_cast<size_t>(type)];
 }
 nlohmann::json CurveV2::SaveState() const {
