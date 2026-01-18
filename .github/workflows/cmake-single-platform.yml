@@ -140,12 +140,24 @@ jobs:
         with:
          submodules: recursive
 
+      - name: Install Clang
+        # You may pin to the exact commit or the version.
+        # uses: egor-tensin/setup-clang@471a6f8ef1d449dba8e1a51780e7f943572a3f99
+        uses: egor-tensin/setup-clang@v2
+        with:
+          # Version to install
+          version: # optional, default is latest
+          # Target platform
+          platform: # optional, default is x64
+          # Set up cc/clang/c++/clang++ executables
+          cc: # optional, default is 1
+
       - name: Install Dependencies
         run: brew install cmake ninja
 
       - name: Generate Build Files
         run: |
-          cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCI_PLUGIN_BUILD=1 -S . -B ./build
+          cmake -G "Unix Makefiles" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCI_PLUGIN_BUILD=1 -S . -B ./build
 
       - name: Build Project
         run: |
@@ -185,6 +197,18 @@ jobs:
         with:
          submodules: recursive
 
+      - name: Install Clang
+        # You may pin to the exact commit or the version.
+        # uses: egor-tensin/setup-clang@471a6f8ef1d449dba8e1a51780e7f943572a3f99
+        uses: egor-tensin/setup-clang@v2
+        with:
+          # Version to install
+          version: # optional, default is latest
+          # Target platform
+          platform: # optional, default is x64
+          # Set up cc/clang/c++/clang++ executables
+          cc: # optional, default is 1
+
       - name: Install Dependencies
         run: |
           sudo apt update
@@ -192,7 +216,7 @@ jobs:
 
       - name: Generate Build Files
         run: |
-          cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCI_PLUGIN_BUILD=1 -S . -B ./build
+          cmake -G "Unix Makefiles" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCI_PLUGIN_BUILD=1 -S . -B ./build
 
       - name: Build Project
         run: |
