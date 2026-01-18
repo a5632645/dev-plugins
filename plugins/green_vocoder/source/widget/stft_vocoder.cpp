@@ -23,6 +23,17 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
 
     size_.BindParam(apvts, id::kStftSize);
     addAndMakeVisible(size_);
+
+    use_v2_.BindParam(apvts, id::kStftVocoderV2);
+    addAndMakeVisible(use_v2_);
+    detail_.BindParam(apvts, id::kStftDetail);
+    addAndMakeVisible(detail_);
+
+    use_v2_.onClick = [this] {
+        bool display = use_v2_.getToggleState();
+        detail_.setVisible(display);
+    };
+    use_v2_.onClick();
 }
 
 void STFTVocoder::resized() {
@@ -32,10 +43,10 @@ void STFTVocoder::resized() {
     attack_.setBounds(top.removeFromLeft(50));
     release_.setBounds(top.removeFromLeft(50));
     blend_.setBounds(top.removeFromLeft(50));
-    {
-        auto bb = top.removeFromLeft(150);
-        size_.setBounds(bb.removeFromTop(30));
-    }
+    size_.setBounds(top.removeFromLeft(100).withSizeKeepingCentre(100, 30));
+    top.removeFromLeft(4);
+    use_v2_.setBounds(top.removeFromLeft(50).withSizeKeepingCentre(50, 30));
+    detail_.setBounds(top.removeFromLeft(50).withSizeKeepingCentre(50, 65));
 }
 
 void STFTVocoder::paint(juce::Graphics& g) {

@@ -60,6 +60,8 @@ static constexpr auto kStftAttack = "stft_attack";
 static constexpr auto kStftRelease = "stft_release";
 static constexpr auto kStftBlend = "stft_blend";
 static constexpr auto kStftSize = "stft_size";
+static constexpr auto kStftVocoderV2 = "stft_v2";
+static constexpr auto kStftDetail = "stft_detail";
 
 static constexpr auto kEnsembleDetune = "ens_detune";
 static constexpr auto kEnsembleRate = "ens_rate";

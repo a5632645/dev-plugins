@@ -8,6 +8,8 @@
 #include <numbers>
 #include <numeric>
 #include <qwqdsp/convert.hpp>
+#include <qwqdsp/filter/window_fir.hpp>
+#include <qwqdsp/window/window.hpp>
 #include "qwqdsp/interpolation.hpp"
 
 namespace green_vocoder::dsp {
@@ -20,6 +22,7 @@ void STFTVocoder::Init(float fs) {
 void STFTVocoder::SetFFTSize(size_t size) {
     fft_size_ = size;
     fft_.init(size);
+    cep_fft_.Init(size);
     hann_window_.resize(size);
     window_.resize(size);
     temp_main_.resize(size * 2);
@@ -36,8 +39,14 @@ void STFTVocoder::SetFFTSize(size_t size) {
     imag_main_.resize(num_bins);
     real_side_.resize(num_bins);
     imag_side_.resize(num_bins);
+    cep_window_.resize(fft_size_);
+    cep_window_fft_.resize(fft_size_);
+    temp_.resize(fft_size_ + 1);
+    re1_.resize(fft_size_);
+    phase_.resize(fft_size_);
     SetRelease(release_ms_);
     SetBandwidth(bandwidth_);
+    SetDetail(detail_);
 }
 
 void STFTVocoder::SetRelease(float ms) {
@@ -81,13 +90,23 @@ void STFTVocoder::Process(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_e
         // -------------------- left --------------------
         fft_.fft(temp_main_.data(), real_main_.data(), imag_main_.data());
         fft_.fft(temp_side_.data(), real_side_.data(), imag_side_.data());
-        SpectralProcess(real_main_, imag_main_, real_side_, imag_side_, gains_);
+        if (use_v2_) {
+            SpectralProcess2(real_main_, imag_main_, real_side_, imag_side_, gains_);
+        }
+        else {
+            SpectralProcess(real_main_, imag_main_, real_side_, imag_side_, gains_);
+        }
         fft_.ifft(temp_main_.data(), real_side_.data(), imag_side_.data());
 
         // -------------------- right --------------------
         fft_.fft(temp_main_.data() + fft_size_, real_main_.data(), imag_main_.data());
         fft_.fft(temp_side_.data() + fft_size_, real_side_.data(), imag_side_.data());
-        SpectralProcess(real_main_, imag_main_, real_side_, imag_side_, gains_);
+        if (use_v2_) {
+            SpectralProcess2(real_main_, imag_main_, real_side_, imag_side_, gains_);
+        }
+        else {
+            SpectralProcess(real_main_, imag_main_, real_side_, imag_side_, gains_);
+        }
         fft_.ifft(temp_main_.data() + fft_size_, real_side_.data(), imag_side_.data());
 
         // overlay add
@@ -150,6 +169,17 @@ void STFTVocoder::SetFormantShift(float formant_shift) {
     formant_mul_ = std::exp2(-formant_shift / 12.0f);
 }
 
+void STFTVocoder::SetUseV2(bool use) {
+    use_v2_ = use;
+}
+
+void STFTVocoder::SetDetail(float detail) {
+    detail_ = detail;
+    qwqdsp_filter::WindowFIR::Lowpass(cep_window_, detail * std::numbers::pi_v<float> * 0.5f);
+    qwqdsp_window::Hann::ApplyWindow(cep_window_, false);
+    cep_fft_.FFTGainPhase(cep_window_, cep_window_fft_);
+}
+
 void STFTVocoder::SpectralProcess(std::vector<float>& real_in, std::vector<float>& imag_in,
                                   std::vector<float>& real_out, std::vector<float>& imag_out,
                                   std::vector<float>& gains) {
@@ -169,6 +199,63 @@ void STFTVocoder::SpectralProcess(std::vector<float>& real_in, std::vector<float
     }
     gains[num_bins] = gains[0];
     // apply formant
+    for (size_t i = 0; i < num_bins; ++i) {
+        float idx = static_cast<float>(i) * formant_mul_;
+        float frac = idx - std::floor(idx);
+        size_t iidx = static_cast<size_t>(idx);
+
+        float g = 0;
+        if (iidx < num_bins) {
+            g = qwqdsp::Interpolation::Linear(gains[iidx], gains[iidx + 1], frac);
+        }
+
+        real_out[i] *= g;
+        imag_out[i] *= g;
+    }
+}
+
+void STFTVocoder::SpectralProcess2(std::vector<float>& real_in, std::vector<float>& imag_in,
+                                   std::vector<float>& real_out, std::vector<float>& imag_out,
+                                   std::vector<float>& gains) {
+    size_t num_bins = fft_size_ / 2 + 1;
+    for (size_t i = 0; i < fft_size_ / 2; ++i) {
+        float re = real_in[i];
+        float im = imag_in[i];
+        float pow = std::sqrt(re * re + im * im) * window_gain_;
+        pow = std::log(pow + 1e-12f);
+        temp_[i] = pow;
+        temp_[fft_size_ - i] = pow;
+    }
+    {
+        size_t i = fft_size_ / 2;
+        float re = real_in[i];
+        float im = imag_in[i];
+        float pow = std::sqrt(re * re + im * im) * window_gain_;
+        pow = std::max(pow, 1e-8f);
+        pow = std::log(pow);
+        temp_[i] = pow;
+    }
+
+    std::fill_n(phase_.begin(), fft_size_, 0.0f);
+    cep_fft_.IFFT(re1_, {temp_.data(), fft_size_}, phase_);
+    for (size_t i = 0; i < fft_size_; ++i) {
+        re1_[i] *= cep_window_fft_[i];
+    }
+    cep_fft_.FFT(re1_, {temp_.data(), fft_size_}, phase_);
+
+    for (size_t i = 0; i < num_bins; ++i) {
+        float gain = std::exp(temp_[i]);
+        gain = Blend(gain);
+
+        if (gain > gains[i]) {
+            gains[i] = attck_ * gains[i] + (1 - attck_) * gain;
+        }
+        else {
+            gains[i] = decay_ * gains[i] + (1 - decay_) * gain;
+        }
+    }
+    gains[num_bins] = gains[0];
+    
     for (size_t i = 0; i < num_bins; ++i) {
         float idx = static_cast<float>(i) * formant_mul_;
         float frac = idx - std::floor(idx);

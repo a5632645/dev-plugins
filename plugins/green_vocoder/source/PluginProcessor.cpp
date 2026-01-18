@@ -6,7 +6,7 @@
 
 #include "param_ids.hpp"
 
-#define I_AM_USING_LOOPBACK_DEBUG 0
+#define I_AM_USING_LOOPBACK_DEBUG 1
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
@@ -420,6 +420,30 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
             mfcc_vocoder_.SetFFTSize(kArray[idx]);
             block_burg_lpc_.SetBlockSize(kArray[idx]);
             SetLatency();
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID{id::kStftVocoderV2, 1},
+            id::kStftVocoderV2,
+            false
+        );
+        paramListeners_.Add(p, [this](bool use_v2) {
+            juce::ScopedLock lock{getCallbackLock()};
+            stft_vocoder_.SetUseV2(use_v2);
+        });
+        layout.add(std::move(p));
+    }
+    {
+        auto p = std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID{id::kStftDetail, 1},
+            id::kStftDetail,
+            0.01f, 1.0f, 0.15f
+        );
+        paramListeners_.Add(p, [this](float omega) {
+            juce::ScopedLock lock{getCallbackLock()};
+            stft_vocoder_.SetDetail(omega);
         });
         layout.add(std::move(p));
     }

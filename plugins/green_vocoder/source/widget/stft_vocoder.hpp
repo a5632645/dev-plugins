@@ -19,6 +19,9 @@ private:
     ui::Dial attack_{"attack"};
     ui::Dial blend_{"noisy"};
     ui::FlatCombobox size_;
+
+    ui::Switch use_v2_{"v2", "v1"};
+    ui::Dial detail_{"detail"};
 };
 
 }
