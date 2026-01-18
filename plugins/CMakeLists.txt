@@ -8,6 +8,7 @@ add_subdirectory(resonator/source)
 add_subdirectory(vital_reverb/source)
 add_subdirectory(vital_chorus/source)
 add_subdirectory(deep_phaser/source)
+add_subdirectory(chorus/source)
 
 if(NOT DEFINED CI_PLUGIN_BUILD)
     add_subdirectory(ewarp/source)

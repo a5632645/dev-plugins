@@ -32,9 +32,10 @@ find more intresting plugins at [ryukau github](https://github.com/ryukau)
 filter for music DSP [THE ART OF VA FILTER DESIGN](https://www.native-instruments.com/fileadmin/ni_media/downloads/pdf/VAFilterDesign_2.1.2.pdf)  
 
 ## license
-qwqdsp is unlicense.  
+qwqdsp is MIT.  
 vital-chorus and vital-reverb are GPLv3, because i reference to vital's code.  
-other plugins are BSD, commercial using need JUCE's commercial license.  
+chorus(WIP) is also GPLv3, see [Qdelay](https://github.com/tiagolr/qdelay).  
+other plugins are MIT(only the DSP processing part), commercial using need a JUCE commercial license(the hole plugin).  
 
 ## credits
 preset code from [jucePresetManagement](https://github.com/TheAudioProgrammer/jucePresetManagement)  
