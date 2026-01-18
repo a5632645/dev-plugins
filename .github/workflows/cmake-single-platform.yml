@@ -120,21 +120,93 @@ jobs:
           name: windows-vst3-zip
           path: Plugins_Windows_VST3.zip
 
-  release:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+  build-macos:
+    runs-on: macos-latest
     steps:
-      - name: Download Artifact
-        uses: actions/download-artifact@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
         with:
-          name: windows-vst3-zip
+         submodules: recursive
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+      - name: Install Dependencies
+        run: brew install cmake ninja
+
+      - name: Generate Build Files
+        run: |
+          cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCI_PLUGIN_BUILD=1 -S . -B ./build
+
+      - name: Build Project
+        run: |
+         cmake --build ./build --config Release
+
+      - name: List errors
+        run: cat "./build/CMakeFiles/CMakeError.log" || true
+
+      - name: Collect and Zip VST3 Plugins (macOS)
+        run: |
+          mkdir -p ./vst3_release
+          # 寻找所有以 .vst3 结尾的目录并拷贝
+          find ./build -name "*.vst3" -type d -exec cp -R {} ./vst3_release/ \;
+          
+          # 检查是否搜集到插件
+          if [ -z "$(ls -A ./vst3_release)" ]; then
+            echo "No VST3 plugins found!"
+            exit 1
+          fi
+          
+          # 使用 zip 打包目录内容
+          cd vst3_release
+          zip -r ../Plugins_macOS_VST3.zip ./*
+          cd ..
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: Plugins_Windows_VST3.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: macos-vst3-zip
+          path: Plugins_macOS_VST3.zip
+
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+         submodules: recursive
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt-get install libx11-dev libfreetype-dev libfontconfig1-dev libasound2-dev libxrandr-dev libxinerama-dev libxcursor-dev
+
+      - name: Generate Build Files
+        run: |
+          cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCI_PLUGIN_BUILD=1 -S . -B ./build
+
+      - name: Build Project
+        run: |
+         cmake --build ./build --config Release
+
+      - name: List errors
+        run: cat "./build/CMakeFiles/CMakeError.log" || true
+      
+      - name: Collect and Zip VST3 Plugins (Linux)
+        run: |
+          mkdir -p ./vst3_release
+          # 寻找并拷贝
+          find ./build -name "*.vst3" -type d -exec cp -R {} ./vst3_release/ \;
+          
+          if [ -z "$(ls -A ./vst3_release)" ]; then
+            echo "No VST3 plugins found!"
+            exit 1
+          fi
+          
+          # Linux 下通常使用 zip 命令
+          cd vst3_release
+          zip -r ../Plugins_Linux_VST3.zip ./*
+          cd ..
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-vst3-zip
+          path: Plugins_Linux_VST3.zip
