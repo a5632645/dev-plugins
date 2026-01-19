@@ -34,6 +34,7 @@ public:
     void SetLPCOrder(int order);
     void SetGainAttack(float ms);
     void SetGainRelease(float ms);
+    void SetGainHold(float ms);
     void SetQuality(Quality quality);
     void SetFormantShift(float shift);
 

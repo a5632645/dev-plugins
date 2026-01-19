@@ -36,6 +36,7 @@ void BlockBurgLPC::SetPoles(size_t num_poles) {
 }
 
 void BlockBurgLPC::SetSmear(float ms) {
+    ms = std::max(ms, 10.0f);
     smear_ms_ = ms;
     smear_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(ms, update_rate_);
 }

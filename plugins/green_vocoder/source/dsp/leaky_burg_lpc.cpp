@@ -201,6 +201,10 @@ void LeakyBurgLPC::SetGainRelease(float ms) {
     gain_smooth_.SetReleaseTime((ms + gain_attack_), sample_rate_);
 }
 
+void LeakyBurgLPC::SetGainHold(float ms) {
+    gain_smooth_.SetHoldTime(ms, sample_rate_);
+}
+
 void LeakyBurgLPC::CopyLatticeCoeffient(std::span<float> buffer, size_t order) {
     auto const backup = iir_k_;
     auto reverse_iir_it = backup.begin() + static_cast<int>(order);

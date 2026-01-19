@@ -263,7 +263,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         auto p = std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID{id::kLPCGainAttack, 1},
             id::kLPCGainAttack,
-            juce::NormalisableRange<float>{1.0f, 100.0f, 1.0f, 0.4f},
+            juce::NormalisableRange<float>{10.0f, 100.0f, 1.0f, 0.4f},
             10.0f
         );
         paramListeners_.Add(p, [this](float l) {
@@ -282,7 +282,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         );
         paramListeners_.Add(p, [this](float l) {
             juce::ScopedLock lock{getCallbackLock()};
-            // burg_lpc_.SetGainHold(l);
+            burg_lpc_.SetGainHold(l);
         });
         layout.add(std::move(p));
     }
