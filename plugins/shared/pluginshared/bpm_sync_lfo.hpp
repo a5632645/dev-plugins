@@ -116,6 +116,7 @@ public:
         LFOTempoType tempo_type = static_cast<LFOTempoType>(param_lfo_tempo_type_->get());
         if (tempo_type == LFOTempoType::Free) {
             lfo_freq_ = param_lfo_hz_->get();
+            should_sync_ = false;
         }
         else {
             float sync_rate{};
