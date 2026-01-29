@@ -1,6 +1,11 @@
 # dev-plugins
 originally here lived green vocoder repository.  
 
+## TODO
+This repository should be split to multiple project for CI build.  
+
+## list
+
 [ewarp](plugins/ewarp/readme.md) is AM/RM/SpectrumReverse modulator.  
 ![GUI](plugins/ewarp/gui.png)
 
@@ -39,4 +44,4 @@ other plugins are MIT(only the DSP processing part), commercial using need a JUC
 
 ## credits
 preset code from [jucePresetManagement](https://github.com/TheAudioProgrammer/jucePresetManagement)  
-great chorus and reverb from [vital](https://github.com/mtytel/vital)  
+great chorus and reverb from [vital](https://github.com/mtytel/vital)
