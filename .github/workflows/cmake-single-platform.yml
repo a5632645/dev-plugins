@@ -34,8 +34,6 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
 
     - name: Parse tag
       id: parse
@@ -51,6 +49,7 @@ jobs:
         echo "plugin_name=$NAME" >> "$GITHUB_OUTPUT"
         echo "plugin_version=$VERSION" >> "$GITHUB_OUTPUT"
         echo "plugin_folder=$FOLDER" >> "$GITHUB_OUTPUT"
+        echo "Parsed: name=$NAME  version=$VERSION  folder=$FOLDER"
 
   build:
     name: build-${{ matrix.name }}
@@ -112,17 +111,17 @@ jobs:
     - name: Generate Build Files (Windows)
       if: runner.os == 'Windows'
       run: |
-        cmake -G "Ninja Multi-Config" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse-tag.outputs.plugin_folder }} -S . -B ./build
+        cmake -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse-tag.outputs.plugin_folder }} -S . -B ./build
 
     - name: Generate Build Files (macOS)
       if: runner.os == 'macOS'
       run: |
-        cmake -G "Ninja Multi-Config" -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="${{ matrix.macos_arch }}" -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse-tag.outputs.plugin_folder }} -S . -B ./build
+        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="${{ matrix.macos_arch }}" -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse-tag.outputs.plugin_folder }} -S . -B ./build
 
     - name: Generate Build Files (Linux)
       if: runner.os == 'Linux'
       run: |
-        cmake -G "Ninja Multi-Config" -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse-tag.outputs.plugin_folder }} -S . -B ./build
+        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse-tag.outputs.plugin_folder }} -S . -B ./build
 
     - name: Build Plugin
       run: |
@@ -134,9 +133,9 @@ jobs:
       with:
         name: ${{ matrix.artifact_name }}
         path: |
-          ./build/*_artefacts/Release/VST3
-          !./build/*_artefacts/Release/VST3/*.exp
-          !./build/*_artefacts/Release/VST3/*.lib
+          ./build/plugins/${{ needs.parse-tag.outputs.plugin_folder }}/*_artefacts/Release/VST3
+          !./build/plugins/${{ needs.parse-tag.outputs.plugin_folder }}/*_artefacts/Release/VST3/*.exp
+          !./build/plugins/${{ needs.parse-tag.outputs.plugin_folder }}/*_artefacts/Release/VST3/*.lib
 
     - name: Upload (macOS)
       if: runner.os == 'macOS'
@@ -144,10 +143,10 @@ jobs:
       with:
         name: ${{ matrix.artifact_name }}
         path: |
-          ./build/*_artefacts/Release/AU
-          ./build/*_artefacts/Release/VST3
-          !./build/*_artefacts/Release/VST3/*.exp
-          !./build/*_artefacts/Release/VST3/*.lib
+          ./build/plugins/${{ needs.parse-tag.outputs.plugin_folder }}/*_artefacts/Release/AU
+          ./build/plugins/${{ needs.parse-tag.outputs.plugin_folder }}/*_artefacts/Release/VST3
+          !./build/plugins/${{ needs.parse-tag.outputs.plugin_folder }}/*_artefacts/Release/VST3/*.exp
+          !./build/plugins/${{ needs.parse-tag.outputs.plugin_folder }}/*_artefacts/Release/VST3/*.lib
 
     - name: Upload (Linux)
       if: runner.os == 'Linux'
@@ -155,10 +154,10 @@ jobs:
       with:
         name: ${{ matrix.artifact_name }}
         path: |
-          ./build/*_artefacts/Release/LV2
-          ./build/*_artefacts/Release/VST3
-          !./build/*_artefacts/Release/VST3/*.exp
-          !./build/*_artefacts/Release/VST3/*.lib
+          ./build/plugins/${{ needs.parse-tag.outputs.plugin_folder }}/*_artefacts/Release/LV2
+          ./build/plugins/${{ needs.parse-tag.outputs.plugin_folder }}/*_artefacts/Release/VST3
+          !./build/plugins/${{ needs.parse-tag.outputs.plugin_folder }}/*_artefacts/Release/VST3/*.exp
+          !./build/plugins/${{ needs.parse-tag.outputs.plugin_folder }}/*_artefacts/Release/VST3/*.lib
 
   release:
     runs-on: ubuntu-latest
