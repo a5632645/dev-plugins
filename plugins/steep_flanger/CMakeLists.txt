@@ -55,39 +55,6 @@ target_sources(${PLUGIN_NAME}
     src/dsp/dsp_dispatch.cpp
 )
 
-### simd dispatch
-if(APPLE)
-    target_sources(${PLUGIN_NAME}
-        PRIVATE
-        src/dsp/dsp_neon.cpp
-        src/dsp/dsp_avx2.cpp
-        src/dsp/dsp_avx.cpp
-        src/dsp/dsp_sse4.cpp
-        src/dsp/dsp_sse2.cpp
-        src/dsp/dsp_fma.cpp
-    )
-    set_source_files_properties("src/dsp/dsp_neon.cpp" PROPERTIES COMPILE_FLAGS "-arch arm64 -ffast-math -Wno-nan-infinity-disabled")
-    set_source_files_properties("src/dsp/dsp_sse2.cpp" PROPERTIES COMPILE_FLAGS "-arch x86_64 -msse2 -ffast-math -Wno-nan-infinity-disabled")
-    set_source_files_properties("src/dsp/dsp_sse4.cpp" PROPERTIES COMPILE_FLAGS "-arch x86_64 -msse4.1 -ffast-math -Wno-nan-infinity-disabled")
-    set_source_files_properties("src/dsp/dsp_avx.cpp" PROPERTIES COMPILE_FLAGS "-arch x86_64 -mavx -ffast-math -Wno-nan-infinity-disabled")
-    set_source_files_properties("src/dsp/dsp_avx2.cpp" PROPERTIES COMPILE_FLAGS "-arch x86_64 -mavx2 -ffast-math -Wno-nan-infinity-disabled")
-    set_source_files_properties("src/dsp/dsp_fma.cpp" PROPERTIES COMPILE_FLAGS "-arch x86_64 -mavx2 -mfma -ffast-math -Wno-nan-infinity-disabled")
-else()
-    target_sources(${PLUGIN_NAME}
-        PRIVATE
-        src/dsp/dsp_fma.cpp
-        src/dsp/dsp_avx2.cpp
-        src/dsp/dsp_avx.cpp
-        src/dsp/dsp_sse4.cpp
-        src/dsp/dsp_sse2.cpp
-    )
-    set_source_files_properties("src/dsp/dsp_sse2.cpp" PROPERTIES COMPILE_FLAGS "-msse2 -ffast-math -Wno-nan-infinity-disabled")
-    set_source_files_properties("src/dsp/dsp_sse4.cpp" PROPERTIES COMPILE_FLAGS "-msse4.1 -ffast-math -Wno-nan-infinity-disabled")
-    set_source_files_properties("src/dsp/dsp_avx.cpp" PROPERTIES COMPILE_FLAGS "-mavx -ffast-math -Wno-nan-infinity-disabled")
-    set_source_files_properties("src/dsp/dsp_avx2.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -ffast-math -Wno-nan-infinity-disabled")
-    set_source_files_properties("src/dsp/dsp_fma.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -ffast-math -Wno-nan-infinity-disabled")
-endif()
-
 target_include_directories(${PLUGIN_NAME}
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
@@ -130,4 +97,40 @@ file(GLOB_RECURSE res "${CMAKE_CURRENT_SOURCE_DIR}/resources/*.*")
 if(NOT "${res}" STREQUAL "")
     juce_add_binary_data(${PLUGIN_NAME}_res SOURCES ${res})
     target_link_libraries(${PLUGIN_NAME} PRIVATE ${PLUGIN_NAME}_res)
+endif()
+
+# ------------------------------------------------------------
+# simd dispatch
+# ------------------------------------------------------------
+
+if(APPLE)
+    target_sources(${PLUGIN_NAME}
+        PRIVATE
+        src/dsp/dsp_neon.cpp
+        src/dsp/dsp_avx2.cpp
+        src/dsp/dsp_avx.cpp
+        src/dsp/dsp_sse4.cpp
+        src/dsp/dsp_sse2.cpp
+        src/dsp/dsp_fma.cpp
+    )
+    set_source_files_properties("src/dsp/dsp_neon.cpp" PROPERTIES COMPILE_FLAGS "-arch arm64 -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_sse2.cpp" PROPERTIES COMPILE_FLAGS "-arch x86_64 -msse2 -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_sse4.cpp" PROPERTIES COMPILE_FLAGS "-arch x86_64 -msse4.1 -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_avx.cpp" PROPERTIES COMPILE_FLAGS "-arch x86_64 -mavx -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_avx2.cpp" PROPERTIES COMPILE_FLAGS "-arch x86_64 -mavx2 -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_fma.cpp" PROPERTIES COMPILE_FLAGS "-arch x86_64 -mavx2 -mfma -ffast-math -Wno-nan-infinity-disabled")
+else()
+    target_sources(${PLUGIN_NAME}
+        PRIVATE
+        src/dsp/dsp_fma.cpp
+        src/dsp/dsp_avx2.cpp
+        src/dsp/dsp_avx.cpp
+        src/dsp/dsp_sse4.cpp
+        src/dsp/dsp_sse2.cpp
+    )
+    set_source_files_properties("src/dsp/dsp_sse2.cpp" PROPERTIES COMPILE_FLAGS "-msse2 -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_sse4.cpp" PROPERTIES COMPILE_FLAGS "-msse4.1 -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_avx.cpp" PROPERTIES COMPILE_FLAGS "-mavx -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_avx2.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_fma.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -ffast-math -Wno-nan-infinity-disabled")
 endif()

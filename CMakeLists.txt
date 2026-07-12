@@ -55,7 +55,6 @@ add_library(simde INTERFACE)
 target_include_directories(simde INTERFACE libs/simde-no-tests)
 
 # ------------------------------------------------------------
-# ------------------------------------------------------------
 # qwqdsp
 # ------------------------------------------------------------
 set(QWQDSP_BUILD_TESTS OFF)
