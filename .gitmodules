@@ -10,3 +10,9 @@
 [submodule "libs/AudioFFT"]
 	path = libs/AudioFFT
 	url = https://github.com/ManasWolrd/AudioFFT.git
+[submodule "libs/qwqdsp"]
+	path = libs/qwqdsp
+	url = https://github.com/a5632645/qwqdsp.git
+[submodule "libs/json"]
+	path = libs/json
+	url = https://github.com/nlohmann/json.git
