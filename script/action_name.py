@@ -1,6 +1,6 @@
 import sys
 
-from names import resolve
+from names import folder_for, resolve
 
 
 def parse_tag(tag: str) -> tuple[str, str]:
@@ -27,9 +27,15 @@ if __name__ == "__main__":
         print(target)
     elif field == "version":
         print(version)
+    elif field == "folder":
+        f = folder_for(target)
+        if f is None:
+            print(f"Error: folder not found for '{target}'", file=sys.stderr)
+            sys.exit(1)
+        print(f)
     else:
         print(
-            f"Error: unknown field '{field}'. Expected 'name' or 'version'",
+            f"Error: unknown field '{field}'. Expected 'name', 'version', or 'folder'",
             file=sys.stderr,
         )
         sys.exit(1)

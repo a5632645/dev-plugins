@@ -30,9 +30,12 @@ jobs:
     outputs:
       plugin_name: ${{ steps.parse.outputs.plugin_name }}
       plugin_version: ${{ steps.parse.outputs.plugin_version }}
+      plugin_folder: ${{ steps.parse.outputs.plugin_folder }}
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
     - name: Parse tag
       id: parse
@@ -44,8 +47,10 @@ jobs:
         fi
         NAME=$(python script/action_name.py "$TAG" name)
         VERSION=$(python script/action_name.py "$TAG" version)
+        FOLDER=$(python script/action_name.py "$TAG" folder)
         echo "plugin_name=$NAME" >> "$GITHUB_OUTPUT"
         echo "plugin_version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "plugin_folder=$FOLDER" >> "$GITHUB_OUTPUT"
 
   build:
     name: build-${{ matrix.name }}
@@ -107,17 +112,17 @@ jobs:
     - name: Generate Build Files (Windows)
       if: runner.os == 'Windows'
       run: |
-        cmake -G "Ninja Multi-Config" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -S . -B ./build
+        cmake -G "Ninja Multi-Config" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse-tag.outputs.plugin_folder }} -S . -B ./build
 
     - name: Generate Build Files (macOS)
       if: runner.os == 'macOS'
       run: |
-        cmake -G "Ninja Multi-Config" -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="${{ matrix.macos_arch }}" -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -S . -B ./build
+        cmake -G "Ninja Multi-Config" -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="${{ matrix.macos_arch }}" -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse-tag.outputs.plugin_folder }} -S . -B ./build
 
     - name: Generate Build Files (Linux)
       if: runner.os == 'Linux'
       run: |
-        cmake -G "Ninja Multi-Config" -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -S . -B ./build
+        cmake -G "Ninja Multi-Config" -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse-tag.outputs.plugin_folder }} -S . -B ./build
 
     - name: Build Plugin
       run: |

@@ -34,3 +34,11 @@ def resolve(target_name: str) -> str | None:
 
 def cmake_file_for(target_name: str) -> Path | None:
     return available_plugins().get(target_name)
+
+
+def folder_for(target_name: str) -> str | None:
+    """返回插件文件夹名（如 'VitalReverb' → 'vital_reverb'）。"""
+    path = cmake_file_for(target_name)
+    if path is None:
+        return None
+    return path.parent.name
