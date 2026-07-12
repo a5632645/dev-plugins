@@ -1,37 +1,30 @@
 [
     {
         "name": "DeepPhaser",
-        "version": "0.2.0",
-        "changelog": "https://www.youtube.com/watch?v=yjp9SLVKNAk\nhttps://www.bilibili.com/video/BV1ZkW9zdEFM/?spm_id_from=333.1387.list.card_archive.click"
+        "version": "0.2.0"
     },
     {
         "name": "DispersiveDelay",
-        "version": "0.1.0",
-        "changelog": ""
+        "version": "0.1.0"
     },
     {
-        "name": "Green Vocoder",
-        "version": "0.2.2",
-        "changelog": "cepstrum v2 mode for stft vocoder."
+        "name": "GreenVocoder",
+        "version": "0.2.2"
     },
     {
         "name": "Resonator",
-        "version": "0.1.0",
-        "changelog": ""
+        "version": "0.1.0"
     },
     {
         "name": "SteepFlanger",
-        "version": "0.1.1",
-        "changelog": "interpolation using PCHIP now.\nfix click in feedback.\nadd a dc remove filter in feedback.\nfeedback toggle now is removed.\nfeedback value now using raw gain value.\nupdated preset save(not compatible with old version)."
+        "version": "0.1.1"
     },
     {
         "name": "VitalChorus",
-        "version": "0.1.1",
-        "changelog": "optimise cpu."
+        "version": "0.1.1"
     },
     {
         "name": "VitalReverb",
-        "version": "0.1.1",
-        "changelog": "optimise cpu."
+        "version": "0.1.1"
     }
 ]
