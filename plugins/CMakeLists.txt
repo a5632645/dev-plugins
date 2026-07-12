@@ -29,8 +29,6 @@ target_include_directories(pluginshared
 )
 
 # ------------------------------------------------------------
-# shared resources
-# ------------------------------------------------------------
 # simd dispatch
 # ------------------------------------------------------------
 
@@ -47,6 +45,3 @@ add_subdirectory(vital_chorus)
 add_subdirectory(dispersive_delay)
 add_subdirectory(deep_phaser)
 add_subdirectory(resonator)
-# add_subdirectory(ewarp/source)
-# add_subdirectory(analog_synth/source)
-# add_subdirectory(debugger/source)
