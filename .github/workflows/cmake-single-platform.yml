@@ -59,7 +59,7 @@ jobs:
           os: windows-2022
           artifact_name: plugin-win
         - name: macOS
-          os: macos-26
+          os: macos-latest
           macos_arch: "x86_64;arm64"
           artifact_name: plugin-macos
         - name: Linux
@@ -107,17 +107,17 @@ jobs:
     - name: Generate Build Files (Windows)
       if: runner.os == 'Windows'
       run: |
-        cmake -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -S . -B ./build
+        cmake -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -S . -B ./build
 
     - name: Generate Build Files (macOS)
       if: runner.os == 'macOS'
       run: |
-        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="${{ matrix.macos_arch }}" -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -S . -B ./build
+        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="${{ matrix.macos_arch }}" -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -S . -B ./build
 
     - name: Generate Build Files (Linux)
       if: runner.os == 'Linux'
       run: |
-        cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -S . -B ./build
+        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -S . -B ./build
 
     - name: Build Plugin
       run: |
