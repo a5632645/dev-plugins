@@ -1,81 +1,72 @@
 cmake_minimum_required(VERSION 3.22)
 project(DevPlugins)
 
-# this is always be true
-set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
+# ------------------------------------------------------------
+# configs
+# ------------------------------------------------------------
 
-# msvc utf-8 strings
-add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
-add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+option(BUILD_STANDALONE "Build Standalone plugin format" ON)
+option(BUILD_VST3 "Build VST3 plugin format" ON)
+option(BUILD_LV2 "Build LV2 plugin format" ON)
 
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STRING "Runtime Library")
+set(CMAKE_OSX_DEPLOYMENT_TARGET 10.13 CACHE STRING "Build for 10.13")
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+# ------------------------------------------------------------
+# juce
+# ------------------------------------------------------------
+add_subdirectory(libs/JUCE)
+
+# ------------------------------------------------------------
+# audiofft
+# ------------------------------------------------------------
+add_library(audiofft STATIC libs/AudioFFT/AudioFFT.cpp libs/AudioFFT/AudioFFTcpx.cpp)
+target_include_directories(audiofft PUBLIC libs/AudioFFT)
+set_target_properties(audiofft PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
+if(APPLE)
+    target_link_libraries(audiofft PRIVATE "-framework Accelerate")
+    target_compile_definitions(audiofft PRIVATE AUDIOFFT_APPLE_ACCELERATE)
+else()
+    if (UNIX)
+        set(IPP_DIR "/opt/intel/oneapi/ipp/latest/lib/cmake/ipp")
+    endif()
+    find_package(IPP QUIET)
+    if(NOT IPP_FOUND)
+        message(WARNING "AudioFFT: IPP not found, using default Ooura implementation")
+    else()
+        message(STATUS "AudioFFT: Using Intel IPP")
+        target_link_libraries(audiofft PUBLIC ${IPP_LIBRARIES})
+        target_compile_definitions(audiofft PRIVATE AUDIOFFT_INTEL_IPP)
+    endif()
+endif()
+
+# ------------------------------------------------------------
+# cpp_simd_detector
+# ------------------------------------------------------------
+set(CPP_SIMD_DETECTOR_BUILD_EXAMPLES OFF)
+add_subdirectory(libs/cpp_simd_detector)
+
+# ------------------------------------------------------------
 # simde
+# ------------------------------------------------------------
 add_library(simde INTERFACE)
-target_include_directories(simde INTERFACE simde-no-tests)
+target_include_directories(simde INTERFACE libs/simde-no-tests)
 
-# complier option for dynamic simd dispatch
-if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    if (MSVC)
-        message(STATUS FATAL_ERROR "msvc on macos?")
-    else()
-        set(PLUGIN_VEC4_COMPLIER_OPTION -march=native)
-        set(PLUGIN_VEC4_LESS_COMPLIER_OPTION -march=native)
-        set(PLUGIN_VEC8_COMPLIER_OPTION -march=native)
-        set(PLUGIN_VEC8_LESS_COMPLIER_OPTION -march=native)
-        add_compile_definitions(PLUGIN_VEC4_DISPATCH_ISET=NEON)
-        add_compile_definitions(PLUGIN_VEC4_LESS_DISPATCH_ISET=NEON)
-        add_compile_definitions(PLUGIN_VEC8_DISPATCH_ISET=NEON)
-        add_compile_definitions(PLUGIN_VEC8_LESS_DISPATCH_ISET=NEON)
-    endif()
-else()
-    if (MSVC)
-        set(PLUGIN_VEC4_COMPLIER_OPTION /arch:SSE4.2)
-        set(PLUGIN_VEC4_LESS_COMPLIER_OPTION /arch:SSE2)
-        set(PLUGIN_VEC8_COMPLIER_OPTION /arch:avx2)
-        set(PLUGIN_VEC8_LESS_COMPLIER_OPTION /arch:avx)
-    else()
-        set(PLUGIN_VEC4_COMPLIER_OPTION -msse4.1)
-        set(PLUGIN_VEC4_LESS_COMPLIER_OPTION -msse4.1)
-        set(PLUGIN_VEC8_COMPLIER_OPTION -mavx2)
-        set(PLUGIN_VEC8_LESS_COMPLIER_OPTION -mavx)
-    endif()
-    # basic sse support
-    add_compile_definitions(PLUGIN_VEC4_LESS_DISPATCH_ISET=SSE2)
-    # most sse support
-    add_compile_definitions(PLUGIN_VEC4_DISPATCH_ISET=SSE4_1)
-    # most avx2 support
-    add_compile_definitions(PLUGIN_VEC8_DISPATCH_ISET=AVX2)
-    # if a plugin don't use avx2 intergal instruction, use this
-    add_compile_definitions(PLUGIN_VEC8_LESS_DISPATCH_ISET=AVX)
-endif()
+# ------------------------------------------------------------
+# ------------------------------------------------------------
+# qwqdsp
+# ------------------------------------------------------------
+set(QWQDSP_BUILD_TESTS OFF)
+add_subdirectory(libs/qwqdsp)
 
-# floating point optimise
-if (MSVC)
-    add_compile_options(
-        /fp:fast # msvc won't delete std::isnan std::isinf
-    )
-else()
-    add_compile_options(
-        -ffast-math
-        -fno-finite-math-only
-    )
-endif()
+# ------------------------------------------------------------
+# nlohmann_json
+# ------------------------------------------------------------
+add_subdirectory(libs/json)
 
-# folders
-add_subdirectory(cpp_simd_detector)
-add_subdirectory(json)
-add_subdirectory(eigen)
-add_subdirectory(JUCE)
-if(NOT DEFINED CI_PLUGIN_BUILD)
-    add_subdirectory(raylib)
-endif()
-# add_subdirectory(Catch2)
-add_subdirectory(qwqdsp)
+# ------------------------------------------------------------
+# plugins
+# ------------------------------------------------------------
 add_subdirectory(plugins)
-
-if(EXISTS get_cmake_target_info.cmake)
-    include(get_cmake_target_info.cmake)    
-endif()
-
-if(DEFINED CI_PLUGIN_BUILD)
-    message("[DEBUG] does github action get here???")
-endif()
