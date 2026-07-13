@@ -1,0 +1,270 @@
+# copy from ZL-Audio/ZLEqualizer
+name: pluginval Test
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+    - "readme.md"
+    - "docs/**"
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      plugin_name:
+        description: Plugin target to build
+        required: true
+  # When pushing new commits, cancel any running builds on that branch
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  BUILD_DIR: Builds
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  DISPLAY: :0 # linux pluginval needs this
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+  SCCACHE_GHA_ENABLED: true
+  SCCACHE_CACHE_MULTIARCH: 1
+
+# jobs are run in parallel on different machines
+# all steps run in series
+jobs:
+  parse_commit:
+    name: Parse commit for plugin target
+    runs-on: ubuntu-latest
+    outputs:
+      plugin_name: ${{ steps.extract.outputs.plugin_name }}
+      plugin_folder: ${{ steps.resolve.outputs.plugin_folder }}
+      run_tests: ${{ steps.resolve.outputs.run_tests }}
+    steps:
+    - name: Extract plugin name
+      id: extract
+      shell: bash
+      run: |
+        PLUGIN=""
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          PLUGIN="${{ inputs.plugin_name }}"
+        elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          MSG="${{ github.event.pull_request.title }}"
+          PLUGIN=$(echo "$MSG" | sed -n 's/^[a-z]*(\([A-Za-z0-9_]*\)):.*/\1/p')
+        else
+          MSG="${{ github.event.head_commit.message }}"
+          FIRST_LINE=$(echo "$MSG" | head -n1)
+          PLUGIN=$(echo "$FIRST_LINE" | sed -n 's/^[a-z]*(\([A-Za-z0-9_]*\)):.*/\1/p')
+        fi
+        echo "plugin_name=$PLUGIN" >> "$GITHUB_OUTPUT"
+        if [ -z "$PLUGIN" ]; then
+          echo "No plugin target found in commit message, skipping CI"
+        else
+          echo "Extracted plugin: '$PLUGIN'"
+        fi
+
+    - name: Checkout Repository
+      if: steps.extract.outputs.plugin_name != ''
+      uses: actions/checkout@v7
+
+    - name: Resolve plugin folder
+      id: resolve
+      if: steps.extract.outputs.plugin_name != ''
+      shell: bash
+      run: |
+        FOLDER=$(python script/action_name.py "${{ steps.extract.outputs.plugin_name }}@0.0.0" folder)
+        echo "plugin_folder=$FOLDER" >> "$GITHUB_OUTPUT"
+        echo "run_tests=true" >> "$GITHUB_OUTPUT"
+        echo "Resolved folder: $FOLDER"
+
+  build_and_test:
+    name: ${{ matrix.name }}
+    needs: [ parse_commit ]
+    if: needs.parse_commit.outputs.run_tests == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false # show all errors for each platform (vs. cancel jobs on error)
+      matrix:
+        include:
+        - name: Linux
+          os: ubuntu-22.04
+          pluginval-binary: ./pluginval
+          artifact_name: plugin-linux
+        - name: macOS-x86
+          os: macos-15-intel
+          macos_arch: x86_64
+          pluginval-binary: pluginval.app/Contents/MacOS/pluginval
+          artifact_name: plugin-macos-intel
+        - name: macOS-arm
+          os: macos-26
+          macos_arch: arm64
+          pluginval-binary: pluginval.app/Contents/MacOS/pluginval
+          artifact_name: plugin-macos-arm
+        - name: Windows
+          os: windows-latest
+          wix_arch: x64
+          pluginval-binary: ./pluginval.exe
+          artifact_name: plugin-win
+
+    steps:
+    ##### prepare compiler and dependency #####
+    ### windows
+    - name: Install IPP (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        nuget install intelipp.static.win-x64 -Version 2022.3.0.387
+
+    - name: Install Clang
+      if: runner.os == 'Windows'
+      uses: egor-tensin/setup-clang@v2
+      with:
+        version: latest
+        platform: x86
+        cc: 1
+
+    ### linux
+    # This also starts up our "fake" display Xvfb, needed for pluginval
+    - name: Install Deps (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt update
+        sudo apt-get install libx11-dev libfreetype-dev libfontconfig1-dev libasound2-dev libxrandr-dev libxinerama-dev libxcursor-dev
+
+    # from pamplejuce
+    - name: Install JUCE's Linux Deps
+      # Thanks to McMartin & co https://forum.juce.com/t/list-of-juce-dependencies-under-linux/15121/44
+      if: runner.os == 'Linux'
+      run: |
+        # IPP stuff
+        wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+        echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+
+        sudo apt-get update && sudo apt install libasound2-dev libx11-dev libxinerama-dev libxext-dev libfreetype6-dev libwebkit2gtk-4.1-dev libglu1-mesa-dev xvfb ninja-build intel-oneapi-ipp-devel
+        sudo /usr/bin/Xvfb $DISPLAY &
+
+    ### macos
+    - name: Install Dependencies
+      if: runner.os == 'macOS'
+      run: brew install cmake ninja
+
+    ##### config and build #####
+    - name: Checkout code
+      uses: actions/checkout@v7
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Build (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        cmake -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse_commit.outputs.plugin_folder }} -S . -B ./build
+        cmake --build ./build --target ${{ needs.parse_commit.outputs.plugin_name }}_All --config Release
+
+    - name: Build (MacOS)
+      if: runner.os == 'macOS'
+      run: |
+        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="${{ matrix.macos_arch }}" -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse_commit.outputs.plugin_folder }} -S . -B ./build
+        cmake --build ./build --target ${{ needs.parse_commit.outputs.plugin_name }}_All --config Release
+
+    - name: Build (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse_commit.outputs.plugin_folder }} -S . -B ./build
+        cmake --build ./build --target ${{ needs.parse_commit.outputs.plugin_name }}_All --config Release
+
+    ##### test #####
+    - name: Set Plugin Paths (Auto-Detect)
+      shell: bash
+      run: |
+        VST3_FOUND=$(find build -name "*.vst3" -type d | head -n 1)
+        AU_FOUND=$(find build -name "*.component" -type d | head -n 1)
+
+        echo "VST3_PATH=$VST3_FOUND" >> $GITHUB_ENV
+        echo "AU_PATH=$AU_FOUND" >> $GITHUB_ENV
+
+        if [ ! -z "$VST3_FOUND" ]; then
+          P_NAME=$(basename "$VST3_FOUND" .vst3)
+          echo "PRODUCT_NAME=$P_NAME" >> $GITHUB_ENV
+          echo "Found VST3: $VST3_FOUND"
+        fi
+
+    - name: Pluginval setup
+      shell: bash
+      run: |
+        curl -LO "https://github.com/Tracktion/pluginval/releases/download/v1.0.3/pluginval_${{ runner.os }}.zip"
+        7z x pluginval_${{ runner.os }}.zip
+        echo "PLUGINVAL_DISABLED=Plugin state restoration" >> $GITHUB_ENV
+
+    - name: Setup Pluginval random seed
+      uses: josStorer/get-current-time@v2
+      id: current-time
+      with:
+        format: YYYYMMDD
+
+    - name: Run Pluginval Validation
+      if: runner.os != 'macOS'
+      shell: bash
+      run: |
+        TEST_TARGET="${{ env.VST3_PATH }}"
+        ${{ matrix.pluginval-binary }} --verbose --validate "$TEST_TARGET" --disabled-tests "${{ env.PLUGINVAL_DISABLED }}"
+      env:
+        STRICTNESS_LEVEL: 10
+        REPEAT: 3
+        TIMEOUT_MS: 300000
+
+    - name: AU Validation with auval (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        USER_COMPONENTS_DIR="$HOME/Library/Audio/Plug-Ins/Components"
+        AU_FILE_NAME=$(basename "${{ env.AU_PATH }}")
+        PLIST_PATH="$USER_COMPONENTS_DIR/$AU_FILE_NAME/Contents/Info.plist"
+
+        echo "Checking if plugin exists at: $USER_COMPONENTS_DIR/$AU_FILE_NAME"
+
+        COUNT=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents" "$PLIST_PATH" | grep -E "^    [a-zA-Z]+" | wc -l | xargs)
+        echo "Found $COUNT component(s) in bundle."
+
+        for (( i=0; i<$COUNT; i++ )); do
+          TYPE=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:type" "$PLIST_PATH")
+          SUBT=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:subtype" "$PLIST_PATH")
+          MANU=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:manufacturer" "$PLIST_PATH")
+
+          echo "-----------------------------------------------"
+          echo "Validating Component $i: Type='$TYPE', Subtype='$SUBT', Manu='$MANU'"
+          echo "-----------------------------------------------"
+
+          auval -v "$TYPE" "$SUBT" "$MANU"
+        done
+
+    ##### upload artifacts (after successful tests) #####
+    - name: Upload (Windows)
+      if: runner.os == 'Windows'
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: |
+          ./build/plugins/${{ needs.parse_commit.outputs.plugin_folder }}/*_artefacts/Release/VST3
+          !./build/plugins/${{ needs.parse_commit.outputs.plugin_folder }}/*_artefacts/Release/VST3/*.exp
+          !./build/plugins/${{ needs.parse_commit.outputs.plugin_folder }}/*_artefacts/Release/VST3/*.lib
+
+    - name: Upload (macOS)
+      if: runner.os == 'macOS'
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: |
+          ./build/plugins/${{ needs.parse_commit.outputs.plugin_folder }}/*_artefacts/Release/AU
+          ./build/plugins/${{ needs.parse_commit.outputs.plugin_folder }}/*_artefacts/Release/VST3
+          !./build/plugins/${{ needs.parse_commit.outputs.plugin_folder }}/*_artefacts/Release/VST3/*.exp
+          !./build/plugins/${{ needs.parse_commit.outputs.plugin_folder }}/*_artefacts/Release/VST3/*.lib
+
+    - name: Upload (Linux)
+      if: runner.os == 'Linux'
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: |
+          ./build/plugins/${{ needs.parse_commit.outputs.plugin_folder }}/*_artefacts/Release/LV2
+          ./build/plugins/${{ needs.parse_commit.outputs.plugin_folder }}/*_artefacts/Release/VST3
+          !./build/plugins/${{ needs.parse_commit.outputs.plugin_folder }}/*_artefacts/Release/VST3/*.exp
+          !./build/plugins/${{ needs.parse_commit.outputs.plugin_folder }}/*_artefacts/Release/VST3/*.lib
+          !./build/*_artefacts/Release/VST3/*.lib
