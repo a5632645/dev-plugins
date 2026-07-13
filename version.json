@@ -9,7 +9,7 @@
     },
     {
         "name": "GreenVocoder",
-        "version": "0.2.2"
+        "version": "0.2.3"
     },
     {
         "name": "Resonator",
@@ -17,7 +17,7 @@
     },
     {
         "name": "SteepFlanger",
-        "version": "0.1.1"
+        "version": "0.2.1"
     },
     {
         "name": "VitalChorus",
@@ -25,6 +25,6 @@
     },
     {
         "name": "VitalReverb",
-        "version": "0.1.1"
+        "version": "0.2.4"
     }
 ]
