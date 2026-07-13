@@ -186,8 +186,8 @@ jobs:
       run: |
         set -euo pipefail
 
-        TAG_NAME=${GITHUB_REF#refs/tags/}
-        REPO_NAME="${{ github.event.repository.name }}"
+        PLUGIN_NAME="${{ needs.parse-tag.outputs.plugin_name }}"
+        PLUGIN_VERSION="${{ needs.parse-tag.outputs.plugin_version }}"
 
         MAC_RELEASE_DIR=$(find "$GITHUB_WORKSPACE/artifacts/plugin-macos" -type d -name "Release" | head -n 1)
         WIN_RELEASE_DIR=$(find "$GITHUB_WORKSPACE/artifacts/plugin-win" -type d -name "Release" | head -n 1)
@@ -200,16 +200,16 @@ jobs:
         DEST_DIR="$GITHUB_WORKSPACE/artifacts"
 
         cd "$WIN_RELEASE_DIR"
-        zip -r "${REPO_NAME}-win-${TAG_NAME}.zip" .
-        cp "${REPO_NAME}-win-${TAG_NAME}.zip" "$DEST_DIR/"
+        zip -r "${PLUGIN_NAME}-v${PLUGIN_VERSION}-win.zip" .
+        cp "${PLUGIN_NAME}-v${PLUGIN_VERSION}-win.zip" "$DEST_DIR/"
 
         cd "$MAC_RELEASE_DIR"
-        zip -r "${REPO_NAME}-macos-${TAG_NAME}.zip" .
-        cp "${REPO_NAME}-macos-${TAG_NAME}.zip" "$DEST_DIR/"
+        zip -r "${PLUGIN_NAME}-v${PLUGIN_VERSION}-macos.zip" .
+        cp "${PLUGIN_NAME}-v${PLUGIN_VERSION}-macos.zip" "$DEST_DIR/"
 
         cd "$LINUX_RELEASE_DIR"
-        zip -r "${REPO_NAME}-linux-${TAG_NAME}.zip" .
-        cp "${REPO_NAME}-linux-${TAG_NAME}.zip" "$DEST_DIR/"
+        zip -r "${PLUGIN_NAME}-v${PLUGIN_VERSION}-linux.zip" .
+        cp "${PLUGIN_NAME}-v${PLUGIN_VERSION}-linux.zip" "$DEST_DIR/"
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
@@ -219,8 +219,6 @@ jobs:
         name: ${{ needs.parse-tag.outputs.plugin_name }} ${{ needs.parse-tag.outputs.plugin_version }}
         body: Release ${{ needs.parse-tag.outputs.plugin_name }} ${{ needs.parse-tag.outputs.plugin_version }}
         files: |
-          artifacts/*-win-*.zip
-          artifacts/*-macos-*.zip
-          artifacts/*-linux-*.zip
+          artifacts/*-v*.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
