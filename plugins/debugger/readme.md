@@ -1,2 +1,0 @@
-# debugger
-plugin for debug.

@@ -1,0 +1,30 @@
+[
+    {
+        "name": "DeepPhaser",
+        "version": "0.2.0"
+    },
+    {
+        "name": "DispersiveDelay",
+        "version": "0.1.0"
+    },
+    {
+        "name": "GreenVocoder",
+        "version": "0.2.2"
+    },
+    {
+        "name": "Resonator",
+        "version": "0.1.0"
+    },
+    {
+        "name": "SteepFlanger",
+        "version": "0.1.1"
+    },
+    {
+        "name": "VitalChorus",
+        "version": "0.1.1"
+    },
+    {
+        "name": "VitalReverb",
+        "version": "0.1.1"
+    }
+]

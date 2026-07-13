@@ -1,12 +1,7 @@
 build/
-build2/
 .zed/
 .vs/
 .vscode/
 .cache/
-test.ipynb
-json/
-temp/
 __cmake_systeminfo/
-zed_cmake_gen.py
-get_cmake_target_info.cmake
+script/__pycache__/
