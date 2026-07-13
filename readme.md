@@ -1,5 +1,13 @@
 # dev-plugins
-plugins by manaswolrd
+plugins by manaswolrd  
+
+website: https://manaswolrd.github.io/en/index.html
+
+## AI / LLM
+
+This repository contains AI/LLM-assisted code and documentation.
+
+If you prefer not to use projects involving AI, this repository probably isn't for you.
 
 ## release a new plugin version
 
@@ -24,7 +32,7 @@ type(PluginName): description
 ```
 
 - **type** — lowercase, e.g. `fix`, `feat`, `refactor`, `chore`, `docs`
-- **PluginName** — PascalCase plugin name, e.g. `WarpCore`, `DeepPhaser`
+- **PluginName** — name from `python script/list_plugin.py`, e.g. `WarpCore`, `DeepPhaser`
 - **scope must be a valid plugin name** — unknown scopes are silently skipped
 
 ### Examples
