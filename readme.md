@@ -1,7 +1,9 @@
 # dev-plugins
 plugins by manaswolrd  
 
-website: https://manaswolrd.github.io/en/index.html
+website: https://manaswolrd.github.io/en/index.html  
+
+[中文版 / Chinese](docs/readme.zh.md)
 
 ## AI / LLM
 
@@ -13,7 +15,17 @@ If you prefer not to use projects involving AI, this repository probably isn't f
 
 ## plugins
 
-// need a table list
+| name | description |
+|----------|------|
+| `DeepPhaser` | barberpole FIR phaser |
+| `DispersiveDelay` | massive allpass filter create dispersive delay |
+| `GreenVocoder` | multiple algorithm vocoder |
+| `Resonator` | inharmonic resonator with scatter matrix |
+| `STTR` | aka [`short-time-time-reversal`](https://ccrma.stanford.edu/~hskim08/sttr/dev.html) |
+| `SteepFlanger` | barberpole FIR/IIR flanger |
+| `VitalChorus` | port of vital synth's chorus |
+| `VitalReverb` | port of vital synth's reverb |
+| `WarpCore` | multiband spectral inversion |
 
 ---
 
@@ -62,5 +74,5 @@ type(PluginName): description
 
 - type must be **lowercase** (`fix` ✅ / `Fix` ❌)
 - plugin name must match a target from `python script/list_plugin.py` (`WarpCore` ✅ / `warpcore` ❌)
-- scope must be followed immediately by `:` (no space)
+- no space between `)` and `:` (i.e. `type(PluginName):`), space after `:` is fine
 - manual dispatch accepts the plugin name directly, no commit format needed
