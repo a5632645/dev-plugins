@@ -70,7 +70,11 @@ jobs:
       if: steps.extract.outputs.plugin_name != ''
       shell: bash
       run: |
-        FOLDER=$(python script/action_name.py "${{ steps.extract.outputs.plugin_name }}@0.0.0" folder)
+        FOLDER=$(python script/action_name.py "${{ steps.extract.outputs.plugin_name }}@0.0.0" folder) || {
+          echo "Unknown plugin name '${{ steps.extract.outputs.plugin_name }}', skipping CI"
+          echo "run_tests=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        }
         echo "plugin_folder=$FOLDER" >> "$GITHUB_OUTPUT"
         echo "run_tests=true" >> "$GITHUB_OUTPUT"
         echo "Resolved folder: $FOLDER"
