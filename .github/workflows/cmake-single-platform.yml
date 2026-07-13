@@ -33,7 +33,7 @@ jobs:
       plugin_folder: ${{ steps.parse.outputs.plugin_folder }}
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Parse tag
       id: parse
@@ -63,7 +63,7 @@ jobs:
           os: windows-2022
           artifact_name: plugin-win
         - name: macOS
-          os: macos-latest
+          os: macos-26
           macos_arch: "x86_64;arm64"
           artifact_name: plugin-macos
         - name: Linux
@@ -72,7 +72,7 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         submodules: recursive
 
