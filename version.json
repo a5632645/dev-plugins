@@ -26,5 +26,9 @@
     {
         "name": "VitalReverb",
         "version": "0.2.4"
+    },
+    {
+        "name": "WarpCore",
+        "version": "0.0.13"
     }
 ]
