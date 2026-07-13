@@ -20,11 +20,29 @@ def die(msg: str):
     sys.exit(1)
 
 
+def _format_cmd(cmd: list[str]) -> str:
+    """格式化命令显示，对含空格的参数加引号以便于阅读。"""
+    return " ".join(arg if " " not in arg else f'"{arg}"' for arg in cmd)
+
+
 def run(cmd: list[str], cwd=None):
-    print(f"$ {' '.join(cmd)}")
+    print(f"$ {_format_cmd(cmd)}")
     result = subprocess.run(cmd, cwd=cwd or ROOT)
     if result.returncode != 0:
-        die(f"command failed: {' '.join(cmd)}")
+        die(f"command failed: {_format_cmd(cmd)}")
+    return result
+
+
+def run_git_commit(cmd: list[str], cwd=None):
+    """执行 git commit，若返回"nothing to commit"视为成功。"""
+    print(f"$ {_format_cmd(cmd)}")
+    result = subprocess.run(cmd, cwd=cwd or ROOT, capture_output=True, text=True)
+    if result.returncode != 0:
+        combined = result.stdout + result.stderr
+        if "nothing to commit" in combined or "no changes added to commit" in combined:
+            print("(nothing to commit, skipping)")
+            return result
+        die(f"command failed: {_format_cmd(cmd)}")
     return result
 
 
@@ -101,7 +119,7 @@ def main():
             str(cmake_file.relative_to(ROOT)),
         ]
     )
-    run(["git", "commit", "-m", tag])
+    run_git_commit(["git", "commit", "-m", f"release {target}@{version}"])
     run(["git", "tag", tag])
     run(["git", "push"])
     run(["git", "push", "--tags"])
