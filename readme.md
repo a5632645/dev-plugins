@@ -9,7 +9,17 @@ This repository contains AI/LLM-assisted code and documentation.
 
 If you prefer not to use projects involving AI, this repository probably isn't for you.
 
-## release a new plugin version
+---
+
+## plugins
+
+// need a table list
+
+---
+
+## for developers and agent
+
+### release a new plugin version
 
 Use the `release_plugin.py` script:
 
@@ -21,9 +31,9 @@ Example: `python script/release_plugin.py WarpCore@0.1.0`
 
 This updates the version, builds Release, creates a git tag, and pushes — triggering the release workflow.
 
-## CI test trigger
+### CI test trigger
 
-### Commit message format
+#### Commit message format
 
 A conventional commit with a plugin scope triggers CI tests:
 
@@ -35,7 +45,7 @@ type(PluginName): description
 - **PluginName** — name from `python script/list_plugin.py`, e.g. `WarpCore`, `DeepPhaser`
 - **scope must be a valid plugin name** — unknown scopes are silently skipped
 
-### Examples
+#### Examples
 
 | commit | behavior |
 |--------|----------|
@@ -48,7 +58,7 @@ type(PluginName): description
 | `update stuff` | ⏭️ no scope format, skipped |
 | `workflow_dispatch` | ✅ trigger via manual input |
 
-### Notes
+#### Notes
 
 - type must be **lowercase** (`fix` ✅ / `Fix` ❌)
 - plugin name must match a target from `python script/list_plugin.py` (`WarpCore` ✅ / `warpcore` ❌)
