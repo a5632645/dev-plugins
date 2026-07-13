@@ -199,7 +199,7 @@ jobs:
       with:
         format: YYYYMMDD
 
-    - name: Run Pluginval Validation
+    - name: Run Pluginval Validation (Windows & Linux)
       if: runner.os != 'macOS'
       shell: bash
       run: |
@@ -209,6 +209,24 @@ jobs:
         STRICTNESS_LEVEL: 10
         REPEAT: 3
         TIMEOUT_MS: 300000
+
+    - name: Prepare AU validations (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        USER_COMPONENTS_DIR="$HOME/Library/Audio/Plug-Ins/Components"
+        mkdir -p "$USER_COMPONENTS_DIR"
+
+        AU_FILE_NAME=$(basename "${{ env.AU_PATH }}")
+        echo "Copying $AU_FILE_NAME to $USER_COMPONENTS_DIR"
+        cp -R "${{ env.AU_PATH }}" "$USER_COMPONENTS_DIR/"
+
+        echo "Removing quarantine extended attributes..."
+        xattr -dr com.apple.quarantine "$USER_COMPONENTS_DIR/$AU_FILE_NAME" || true
+
+        echo "Restarting AudioComponentRegistrar..."
+        killall -9 AudioComponentRegistrar || true
+        sleep 2
 
     - name: AU Validation with auval (macOS)
       if: runner.os == 'macOS'
