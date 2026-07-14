@@ -79,3 +79,13 @@ target_link_libraries(${PLUGIN_NAME}
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
 )
+
+# ------------------------------------------------------------
+# resource
+# ------------------------------------------------------------
+file(GLOB_RECURSE res "${CMAKE_CURRENT_SOURCE_DIR}/resources/*.*")
+
+if(NOT "${res}" STREQUAL "")
+    juce_add_binary_data(${PLUGIN_NAME}_res SOURCES ${res})
+    target_link_libraries(${PLUGIN_NAME} PRIVATE ${PLUGIN_NAME}_res)
+endif()

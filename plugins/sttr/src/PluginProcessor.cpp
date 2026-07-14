@@ -1,4 +1,5 @@
 #include "PluginProcessor.h"
+#include "BinaryData.h"
 #include "PluginEditor.h"
 
 //==============================================================================
@@ -21,6 +22,10 @@ SttrAudioProcessor::SttrAudioProcessor()
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, kParameterValueTreeIdentify,
                                                                        std::move(layout));
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
+    preset_manager_->AddFactoryPreset(BinaryData::AlienSpeech_xml, BinaryData::AlienSpeech_xmlSize, "Alien Speech");
+    preset_manager_->AddFactoryPreset(BinaryData::Echo_xml, BinaryData::Echo_xmlSize, "Echo");
+    preset_manager_->AddFactoryPreset(BinaryData::ReverbLike_xml, BinaryData::ReverbLike_xmlSize, "Reverb Like");
+    preset_manager_->AddFactoryPreset(BinaryData::Reverse_xml, BinaryData::Reverse_xmlSize, "Reverse");
 }
 
 SttrAudioProcessor::~SttrAudioProcessor() {
@@ -105,9 +110,11 @@ void SttrAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     dsp_.prepare(static_cast<float>(sampleRate));
 }
 
-void SttrAudioProcessor::releaseResources() {
+void SttrAudioProcessor::reset() {
     dsp_.reset();
 }
+
+void SttrAudioProcessor::releaseResources() {}
 
 void SttrAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
     juce::ScopedNoDenormals noDenormals;
@@ -151,6 +158,7 @@ void SttrAudioProcessor::setStateInformation(const void* data, int sizeInBytes) 
         value_tree_->replaceState(parameter);
     }
 
+    reset();
     suspendProcessing(false);
 }
 

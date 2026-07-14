@@ -16,6 +16,7 @@ public:
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
+    void reset() override;
 
     bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
 
@@ -47,12 +48,12 @@ public:
          0.5f
     };
     pluginshared::FloatParam hopMsParam{
-        "HopMs", {0.0f, 500.0f, 0.01f, 0.4f},
-         33.0f
+        "HopMs", {0.0f, 500.0f, 0.01f, 0.3f},
+         4.0f
     };
     pluginshared::FloatParam dryDelayParam{
         "DryDelay", {0.0f, 1.0f, 0.01f},
-         0.0f
+         0.5f
     };
     pluginshared::ChoiceParam windowTypeParam{
         "WindowType",
