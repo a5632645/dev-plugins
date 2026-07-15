@@ -1,38 +1,47 @@
 [
     {
         "name": "DeepPhaser",
-        "version": "0.2.0"
+        "version": "0.2.0",
+        "tag": "DP-v0.2.0"
     },
     {
         "name": "DispersiveDelay",
-        "version": "0.1.0"
+        "version": "0.1.0",
+        "tag": "v0.1.0"
     },
     {
         "name": "GreenVocoder",
-        "version": "0.2.3"
+        "version": "0.2.3",
+        "tag": "gv-v0.2.2"
     },
     {
         "name": "Resonator",
-        "version": "0.1.0"
+        "version": "0.1.0",
+        "tag": "v0.1.0"
     },
     {
         "name": "SteepFlanger",
-        "version": "0.2.1"
+        "version": "0.2.1",
+        "tag": "SF-v0.1.1"
     },
     {
         "name": "VitalChorus",
-        "version": "0.1.1"
+        "version": "0.1.1",
+        "tag": "vc-v0.1.1-hotfix"
     },
     {
         "name": "VitalReverb",
-        "version": "0.2.4"
+        "version": "0.2.4",
+        "tag": "VR-v0.1.1"
     },
     {
         "name": "WarpCore",
-        "version": "0.0.13"
+        "version": "0.0.13",
+        "tag": "WarpCore@0.0.13"
     },
     {
         "name": "STTR",
-        "version": "0.0.1"
+        "version": "0.0.1",
+        "tag": "STTR@0.0.1"
     }
 ]

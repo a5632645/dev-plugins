@@ -46,7 +46,7 @@ def run_git_commit(cmd: list[str], cwd=None):
     return result
 
 
-def update_version_json(target: str, version: str):
+def update_version_json(target: str, version: str, tag: str):
     with open(VERSION_JSON, encoding="utf-8") as f:
         data = json.load(f)
 
@@ -54,11 +54,12 @@ def update_version_json(target: str, version: str):
     for entry in data:
         if entry["name"] == target:
             entry["version"] = version
+            entry["tag"] = tag
             found = True
             break
 
     if not found:
-        data.append({"name": target, "version": version})
+        data.append({"name": target, "version": version, "tag": tag})
 
     with open(VERSION_JSON, "w", encoding="utf-8", newline="\n") as f:
         json.dump(data, f, indent=4)
@@ -102,15 +103,16 @@ def main():
 
     print(f"--- Release {target} @ {version} ---")
 
+    tag = f"{target}@{version}"
+
     # 更新版本来源，CI 会基于这次提交构建产物。
-    update_version_json(target, version)
+    update_version_json(target, version, tag)
 
     # 本地 Release 构建
     update_cmake_version(cmake_file, version)
     run(["cmake", "--build", str(BUILD_DIR), "--target", f"{target}_All", "--config", "Release"])
 
     # git commit & tag
-    tag = f"{target}@{version}"
     run(
         [
             "git",

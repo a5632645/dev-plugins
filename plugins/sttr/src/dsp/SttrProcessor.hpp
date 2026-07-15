@@ -70,9 +70,9 @@ private:
 //==============================================================================
 /** Delay-line based granular processor (STTR algorithm).
 
-    Pure-DSP implementation of the STTR (Spectral Time-domain Tape Recorder)
+    Pure-DSP implementation of the STTR (Short time time reversal)
     effect — a granular delay with overlapping grains, dry/wet mix, and
-    window-function selection.  Completely JUCE-free.
+    window-function selection.
 
     The window type and grain count are linked — setParameters() updates both.
  */
