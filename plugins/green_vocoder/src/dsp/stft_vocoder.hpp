@@ -4,7 +4,7 @@
 
 #include <qwqdsp/simd_element/simd_pack.hpp>
 #include <qwqdsp/spectral/complex_fft_adv.hpp>
-#include "AudioFFT.h"
+#include <qwqdsp/spectral/real_fft_adv.hpp>
 
 namespace green_vocoder::dsp {
 
@@ -61,7 +61,7 @@ private:
                               std::vector<float>& imag_out, std::array<float, kMaxNumMfcc>& gains);
 
     // common fft
-    audiofft::AudioFFT fft_;
+    qwqdsp_spectral::RealFftAdv fft_;
     std::vector<float> hann_window_{};
     std::vector<float> temp_main_{};
     std::vector<float> temp_side_{};

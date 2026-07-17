@@ -111,8 +111,8 @@ void STFTVocoder::Process(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_e
             }
 
             // -------------------- left --------------------
-            fft_.fft(temp_main_.data(), real_main_.data(), imag_main_.data());
-            fft_.fft(temp_side_.data(), real_side_.data(), imag_side_.data());
+            fft_.FFT(std::span<const float>(temp_main_.data(), fft_size_), real_main_, imag_main_);
+            fft_.FFT(std::span<const float>(temp_side_.data(), fft_size_), real_side_, imag_side_);
             switch (mode_) {
                 case Mode::Standard:
                     SpectralProcess_Standard(real_main_, imag_main_, real_side_, imag_side_, gains_);
@@ -124,11 +124,11 @@ void STFTVocoder::Process(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_e
                     SpectralProcess_MFCC(real_main_, imag_main_, real_side_, imag_side_, mfcc_gains_);
                     break;
             }
-            fft_.ifft(temp_main_.data(), real_side_.data(), imag_side_.data());
+            fft_.IFFT(std::span<float>(temp_main_.data(), fft_size_), real_side_, imag_side_);
 
             // -------------------- right --------------------
-            fft_.fft(temp_main_.data() + fft_size_, real_main_.data(), imag_main_.data());
-            fft_.fft(temp_side_.data() + fft_size_, real_side_.data(), imag_side_.data());
+            fft_.FFT(std::span<const float>(temp_main_.data() + fft_size_, fft_size_), real_main_, imag_main_);
+            fft_.FFT(std::span<const float>(temp_side_.data() + fft_size_, fft_size_), real_side_, imag_side_);
             switch (mode_) {
                 case Mode::Standard:
                     SpectralProcess_Standard(real_main_, imag_main_, real_side_, imag_side_, gains_);
@@ -140,7 +140,7 @@ void STFTVocoder::Process(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_e
                     SpectralProcess_MFCC(real_main_, imag_main_, real_side_, imag_side_, mfcc_gains2_);
                     break;
             }
-            fft_.ifft(temp_main_.data() + fft_size_, real_side_.data(), imag_side_.data());
+            fft_.IFFT(std::span<float>(temp_main_.data() + fft_size_, fft_size_), real_side_, imag_side_);
 
             // overlay add
             for (size_t i = 0; i < fft_size_; i++) {
@@ -198,7 +198,7 @@ void STFTVocoder::SetAttack(float ms) {
 
 void STFTVocoder::SetFFTSize(int size) {
     fft_size_ = size;
-    fft_.init(size);
+    fft_.Init(static_cast<size_t>(size));
     cep_fft_.Init(size);
     main_inputBuffer_.resize(fft_size_);
     side_inputBuffer_.resize(fft_size_);
@@ -212,7 +212,7 @@ void STFTVocoder::SetFFTSize(int size) {
         hann_window_[i] =
             0.5f - 0.5f * std::cos(2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(size));
     }
-    int num_bins = fft_.ComplexSize(size);
+    int num_bins = size / 2 + 1;
     gains_.resize(num_bins + kExtraGainSize);
     gains2_.resize(num_bins + kExtraGainSize);
     fill_gains_.resize(num_bins + kExtraGainSize);
@@ -300,7 +300,7 @@ void STFTVocoder::SpectralProcess_Standard(std::vector<float>& real_in, std::vec
                                            std::vector<float>& real_out, std::vector<float>& imag_out,
                                            std::vector<float>& gains) {
     // a bad formant extra
-    size_t num_bins = fft_.ComplexSize(fft_size_);
+    size_t num_bins = static_cast<size_t>(fft_size_) / 2 + 1;
     for (size_t i = 0; i < num_bins; ++i) {
         float power = std::abs(real_in[i] * real_in[i] + imag_in[i] * imag_in[i]);
         float gain = std::sqrt(power) * window_gain_;

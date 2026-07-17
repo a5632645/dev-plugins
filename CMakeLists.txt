@@ -20,29 +20,6 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 add_subdirectory(libs/JUCE)
 
 # ------------------------------------------------------------
-# audiofft
-# ------------------------------------------------------------
-add_library(audiofft STATIC libs/AudioFFT/AudioFFT.cpp libs/AudioFFT/AudioFFTcpx.cpp)
-target_include_directories(audiofft PUBLIC libs/AudioFFT)
-set_target_properties(audiofft PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
-if(APPLE)
-    target_link_libraries(audiofft PRIVATE "-framework Accelerate")
-    target_compile_definitions(audiofft PRIVATE AUDIOFFT_APPLE_ACCELERATE)
-else()
-    if (UNIX)
-        set(IPP_DIR "/opt/intel/oneapi/ipp/latest/lib/cmake/ipp")
-    endif()
-    find_package(IPP QUIET)
-    if(NOT IPP_FOUND)
-        message(WARNING "AudioFFT: IPP not found, using default Ooura implementation")
-    else()
-        message(STATUS "AudioFFT: Using Intel IPP")
-        target_link_libraries(audiofft PUBLIC ${IPP_LIBRARIES})
-        target_compile_definitions(audiofft PRIVATE AUDIOFFT_INTEL_IPP)
-    endif()
-endif()
-
-# ------------------------------------------------------------
 # cpp_simd_detector
 # ------------------------------------------------------------
 set(CPP_SIMD_DETECTOR_BUILD_EXAMPLES OFF)

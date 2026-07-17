@@ -89,7 +89,6 @@ target_link_libraries(${PLUGIN_NAME}
     juce::juce_gui_basics
     juce::juce_audio_utils
     qwqdsp
-    audiofft
     pluginshared
     PUBLIC
     juce::juce_recommended_config_flags

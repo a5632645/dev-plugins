@@ -42,7 +42,7 @@ static void UpdateFirCoeff(dsp::DspState& state) noexcept {
     }
 
     std::span<float> kernel{state.coeffs_.data(), coeff_len};
-    constexpr size_t num_bins = audiofft::AudioFFTcpx::ComplexSize(global::kFFTSize);
+    constexpr size_t num_bins = global::kFFTSize;
     float pad[global::kFFTSize]{};
     float pad_im[global::kFFTSize]{};
     std::array<float, num_bins> gains{};
@@ -50,7 +50,7 @@ static void UpdateFirCoeff(dsp::DspState& state) noexcept {
     std::array<float, num_bins> fft_im{};
     std::copy(kernel.begin(), kernel.end(), pad);
 
-    state.complex_fft_.fft(pad, pad_im, fft_re.data(), fft_im.data());
+    state.complex_fft_.FFT(pad, pad_im, fft_re.data(), fft_im.data());
     for (size_t i = 0; i < num_bins; ++i) {
         float g = std::sqrt(fft_re[i] * fft_re[i] + fft_im[i] * fft_im[i]);
         gains[i] = g;
@@ -64,7 +64,7 @@ static void UpdateFirCoeff(dsp::DspState& state) noexcept {
         }
 
         float phases[num_bins]{};
-        state.complex_fft_.ifft(pad, pad_im, log_gains, phases);
+        state.complex_fft_.IFFT(log_gains, phases, pad, pad_im);
         pad[0] = 0;
         pad[num_bins / 2] = 0;
         for (size_t i = num_bins / 2 + 1; i < num_bins; ++i) {
@@ -72,12 +72,12 @@ static void UpdateFirCoeff(dsp::DspState& state) noexcept {
         }
 
         std::fill_n(pad_im, num_bins, 0.0f);
-        state.complex_fft_.fft(pad, pad_im, log_gains, phases);
+        state.complex_fft_.FFT(pad, pad_im, log_gains, phases);
         for (size_t i = 0; i < num_bins; ++i) {
             fft_re[i] = gains[i] * std::cos(phases[i]);
             fft_im[i] = gains[i] * std::sin(phases[i]);
         }
-        state.complex_fft_.ifft(pad, pad_im, fft_re.data(), fft_im.data());
+        state.complex_fft_.IFFT(fft_re.data(), fft_im.data(), pad, pad_im);
 
         for (size_t i = 0; i < kernel.size(); ++i) {
             kernel[i] = pad[i];
@@ -674,7 +674,7 @@ static void Init(dsp::DspState& state, float fs) noexcept {
     // VIC正交振荡器衰减非常慢，设定为5分钟保持一次
     state.barber_osc_keep_amp_need_ = static_cast<size_t>(fs * 60 * 5);
 
-    state.complex_fft_.init(global::kFFTSize);
+    state.complex_fft_.Init(global::kFFTSize);
 }
 
 static void Reset(dsp::DspState& state) noexcept {

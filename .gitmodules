@@ -7,9 +7,6 @@
 [submodule "libs/cpp_simd_detector"]
 	path = libs/cpp_simd_detector
 	url = https://github.com/DeltaPavonis/cpp_simd_detector.git
-[submodule "libs/AudioFFT"]
-	path = libs/AudioFFT
-	url = https://github.com/ManasWolrd/AudioFFT.git
 [submodule "libs/qwqdsp"]
 	path = libs/qwqdsp
 	url = https://github.com/a5632645/qwqdsp.git

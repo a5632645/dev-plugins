@@ -1,5 +1,5 @@
 #pragma once
-#include <AudioFFTcpx.h>
+#include <qwqdsp/spectral/complex_fft.hpp>
 #include <complex>
 #include <numbers>
 #include <atomic>
@@ -91,7 +91,7 @@ struct DspState {
 
     DspParam param{};
     std::atomic<bool> have_new_coeff_{}; // dsp_processor just update it's fir coeff
-    audiofft::AudioFFTcpx complex_fft_;
+    qwqdsp_spectral::ComplexFFT complex_fft_;
 
     // -------------------- shared --------------------
     float fs_{};
