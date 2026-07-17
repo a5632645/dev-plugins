@@ -106,7 +106,7 @@ public:
     size_t barber_osc_keep_amp_need_{};
 
     std::atomic<bool> is_using_custom_{};
-    qwqdsp_spectral::ComplexFFT complex_fft_;
+    qwqdsp_spectral::ComplexFftAdv complex_fft_;
 
     pluginshared::BpmSyncLFO barber_lfo_state_;
     pluginshared::BpmSyncLFO blend_lfo_state_;

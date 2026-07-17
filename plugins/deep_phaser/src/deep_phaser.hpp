@@ -2,7 +2,7 @@
 #include "shared.hpp"
 
 #include <qwqdsp/misc/smoother.hpp>
-#include <qwqdsp/spectral/complex_fft.hpp>
+#include <qwqdsp/spectral/complex_fft_adv.hpp>
 #include <qwqdsp/oscillator/vic_sine_osc.hpp>
 #include <qwqdsp/extension_marcos.hpp>
 #include <qwqdsp/convert.hpp>

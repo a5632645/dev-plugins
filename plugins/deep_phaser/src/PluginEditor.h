@@ -3,7 +3,7 @@
 #include "pluginshared/preset_panel.hpp"
 #include "pluginshared/bpm_sync_ui.hpp"
 
-#include "qwqdsp/spectral/real_fft.hpp"
+#include "qwqdsp/spectral/real_fft_adv.hpp"
 #include "shared.hpp"
 
 class DeepPhaserAudioProcessor;
@@ -110,14 +110,14 @@ public:
 
 private:
     static constexpr size_t kGainFFTSize = 1024;
-    static constexpr size_t kGainNumBins = qwqdsp_spectral::RealFFT::NumBins(kGainFFTSize);
+    static constexpr size_t kGainNumBins = kGainFFTSize / 2 + 1;
 
     TimeView& time_;
     juce::Label title_{"", "Responce"};
     std::array<float, kGainNumBins> gains_{};
     float max_db_{};
     float min_db_{};
-    qwqdsp_spectral::RealFFT fft_;
+    qwqdsp_spectral::RealFftAdv fft_;
 };
 
 // ---------------------------------------- editor ----------------------------------------

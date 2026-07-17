@@ -3,7 +3,7 @@
 #include <vector>
 
 #include <qwqdsp/simd_element/simd_pack.hpp>
-#include <qwqdsp/spectral/complex_fft.hpp>
+#include <qwqdsp/spectral/complex_fft_adv.hpp>
 #include "AudioFFT.h"
 
 namespace green_vocoder::dsp {
@@ -97,7 +97,7 @@ private:
     std::vector<float> temp_;
     std::vector<float> re1_;
     std::vector<float> phase_;
-    qwqdsp_spectral::ComplexFFT cep_fft_;
+    qwqdsp_spectral::ComplexFftAdv cep_fft_;
     std::vector<float> cep_window_{};
     std::vector<float> cep_window_fft_{};
 

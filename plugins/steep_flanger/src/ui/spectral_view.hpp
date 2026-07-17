@@ -1,7 +1,7 @@
 #pragma once
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "pluginshared/component.hpp"
-#include "qwqdsp/spectral/real_fft.hpp"
+#include "qwqdsp/spectral/real_fft_adv.hpp"
 
 class TimeView;
 class SteepFlangerAudioProcessor;
@@ -40,11 +40,11 @@ private:
     void DrawIir(juce::Graphics& g);
 
     static constexpr size_t kGainFFTSize = 1024;
-    static constexpr size_t kGainNumBins = qwqdsp_spectral::RealFFT::NumBins(kGainFFTSize);
+    static constexpr size_t kGainNumBins = kGainFFTSize / 2 + 1;
 
     TimeView& time_;
     SteepFlangerAudioProcessor& p_;
     std::array<float, kGainNumBins> gains_{};
-    qwqdsp_spectral::RealFFT fft_;
+    qwqdsp_spectral::RealFftAdv fft_;
     bool iir_{false};
 };

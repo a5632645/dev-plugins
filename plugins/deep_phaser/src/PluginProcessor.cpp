@@ -763,10 +763,10 @@ void DeepPhaserAudioProcessor::UpdateCoeff() {
 
     std::span<float> kernel{coeffs_.data(), coeff_len};
     float pad[kFFTSize]{};
-    constexpr size_t num_bins = complex_fft_.NumBins(kFFTSize);
+    constexpr size_t num_bins = kFFTSize;
     std::array<float, num_bins> gains{};
     std::copy(kernel.begin(), kernel.end(), pad);
-    complex_fft_.FFTGainPhase(pad, gains);
+    complex_fft_.FFTGainPhase(std::span<const float>(pad, kFFTSize), gains);
     if (param_fir_min_phase_->get()) {
 
         float log_gains[num_bins]{};
@@ -775,15 +775,15 @@ void DeepPhaserAudioProcessor::UpdateCoeff() {
         }
 
         float phases[num_bins]{};
-        complex_fft_.IFFT(pad, log_gains, phases);
+        complex_fft_.IFFTGainPhase(std::span<float>(pad, kFFTSize), std::span<const float>(log_gains, num_bins), std::span<const float>(phases, num_bins));
         pad[0] = 0;
         pad[num_bins / 2] = 0;
         for (size_t i = num_bins / 2 + 1; i < num_bins; ++i) {
             pad[i] = -pad[i];
         }
 
-        complex_fft_.FFT(pad, log_gains, phases);
-        complex_fft_.IFFTGainPhase(pad, gains, phases);
+        complex_fft_.FFTGainPhase(std::span<const float>(pad, kFFTSize), std::span<float>(log_gains, num_bins), std::span<float>(phases, num_bins));
+        complex_fft_.IFFTGainPhase(std::span<float>(pad, kFFTSize), gains, std::span<const float>(phases, num_bins));
 
         for (size_t i = 0; i < kernel.size(); ++i) {
             kernel[i] = pad[i];

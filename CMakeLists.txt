@@ -58,7 +58,32 @@ target_include_directories(simde INTERFACE libs/simde-no-tests)
 # qwqdsp
 # ------------------------------------------------------------
 set(QWQDSP_BUILD_TESTS OFF)
+
+if(APPLE)
+    set(QWQDSP_USE_ACCELERATE ON)
+else()
+    if(UNIX)
+        # 提示：如果用户在外部设置了 IPP_DIR，保留用户的设置，否则使用默认路径
+        if(NOT DEFINED IPP_DIR)
+            set(IPP_DIR "/opt/intel/oneapi/ipp/latest/lib/cmake/ipp")
+        endif()
+    endif()
+
+    find_package(IPP QUIET)
+    if(IPP_FOUND)
+        set(QWQDSP_USE_IPP ON)
+    endif()
+endif()
+
 add_subdirectory(libs/qwqdsp)
+
+if(APPLE)
+    target_link_libraries(qwqdsp INTERFACE "-framework Accelerate")
+else()
+    if(IPP_FOUND)
+        target_link_libraries(qwqdsp INTERFACE ${IPP_LIBRARIES})
+    endif()
+endif()
 
 # ------------------------------------------------------------
 # nlohmann_json
