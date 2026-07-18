@@ -8,7 +8,7 @@ std::unique_ptr<Idsp> CreateDsp() {
     using IS = simd_detector::InstructionSet;
 
 #if defined(__aarch64__) || defined(_M_ARM64)
-    return CreateDspImpl<Inst::NEON>();
+    return CreateDspImpl<simd::Inst::NEON>();
 #elif defined(__x86_64__) || defined(_M_X64)
     if (simd_detector::is_supported(IS::AVX2)) {
         if (simd_detector::is_supported(IS::FMA3)) {

@@ -276,7 +276,7 @@ private:
         SimdT2 band_gain;
     };
 
-    template <FreqDistrbution kFreqMode, simd::Float128 tag>
+    template <FreqDistrbution kFreqMode, class T> requires (simd::LaneSize<T> == 4)
     static ComplexPhase<simd::Float128> GetComplexPhase(std::complex<float> pre_osc_f32,
                                                         std::complex<float> post_osc_f32) {
         ComplexPhase<simd::Float128> r;
@@ -389,7 +389,7 @@ private:
         return r;
     }
 
-    template <FreqDistrbution kFreqMode, simd::Float256 x>
+    template <FreqDistrbution kFreqMode, class T> requires (simd::LaneSize<T> == 8)
     static ComplexPhase<simd::Float256> GetComplexPhase(std::complex<float> pre_osc_f32,
                                                         std::complex<float> post_osc_f32) {
         ComplexPhase<simd::Float256> r;
@@ -605,7 +605,7 @@ private:
             std::complex<float> pre_osc_f32 = {std::cos(pre_osc_phase_ * twopi), std::sin(pre_osc_phase_ * twopi)};
             std::complex<float> post_osc_f32 = {std::cos(post_osc_phase_ * twopi), std::sin(post_osc_phase_ * twopi)};
 
-            auto r = GetComplexPhase<kFreqMode, SimdT{}>(pre_osc_f32, post_osc_f32);
+            auto r = GetComplexPhase<kFreqMode, SimdT>(pre_osc_f32, post_osc_f32);
             simd::SimdComplex<SimdT> pre_osc = r.pre_osc;
             simd::SimdComplex<SimdT> post_osc = r.post_osc;
             simd::SimdComplex<SimdT> pre_osc_n_val = r.pre_osc_n_val;
@@ -807,7 +807,7 @@ private:
             std::complex<float> pre_osc_f32 = {std::cos(pre_osc_phase_ * twopi), std::sin(pre_osc_phase_ * twopi)};
             std::complex<float> post_osc_f32 = {std::cos(post_osc_phase_ * twopi), std::sin(post_osc_phase_ * twopi)};
 
-            auto r = GetComplexPhase<kFreqMode, SimdT{}>(pre_osc_f32, post_osc_f32);
+            auto r = GetComplexPhase<kFreqMode, SimdT>(pre_osc_f32, post_osc_f32);
             simd::SimdComplex<SimdT> pre_osc = r.pre_osc;
             simd::SimdComplex<SimdT> post_osc = r.post_osc;
             simd::SimdComplex<SimdT> pre_osc_n_val = r.pre_osc_n_val;
