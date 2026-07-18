@@ -40,7 +40,6 @@ juce_add_plugin(${PLUGIN_NAME}
     PRODUCT_NAME "${PLUGIN_NAME}"
     BUNDLE_ID "com.ManasWolrd.${PLUGIN_NAME}"
     LV2URI "https://github.com/ManasWolrd/dev-plugins"
-    VST3_AUTO_MANIFEST ${PLUGIN_VST3_AUTO_MANIFEST}
 )
 
 # ------------------------------------------------------------

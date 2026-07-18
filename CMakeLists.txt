@@ -90,11 +90,7 @@ else()
 
         # CMake package IPP
         else()
-            if(UNIX)
-                target_link_libraries(qwqdsp INTERFACE IPP::ipps)
-            else()
-                target_link_libraries(qwqdsp INTERFACE ${IPP_LIBRARIES})
-            endif()
+            target_link_libraries(qwqdsp INTERFACE IPP::ipps)
         endif()
 
         target_compile_definitions(qwqdsp INTERFACE QWQDSP_HAVE_IPP)
