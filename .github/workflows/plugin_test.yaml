@@ -94,12 +94,12 @@ jobs:
           artifact_name: plugin-linux
         - name: macOS-x86
           os: macos-15-intel
-          macos_arch: "x86_64;arm64"
+          macos_arch: x86_64
           pluginval-binary: pluginval.app/Contents/MacOS/pluginval
           artifact_name: plugin-macos-intel
         - name: macOS-arm
           os: macos-26
-          macos_arch: "x86_64;arm64"
+          macos_arch: arm64
           pluginval-binary: pluginval.app/Contents/MacOS/pluginval
           artifact_name: plugin-macos-arm
         - name: Windows
