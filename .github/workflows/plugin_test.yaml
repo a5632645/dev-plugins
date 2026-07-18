@@ -159,19 +159,19 @@ jobs:
     - name: Build (Windows)
       if: runner.os == 'Windows'
       run: |
-        cmake -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse_commit.outputs.plugin_folder }} -S . -B ./build
+        cmake -G "Ninja" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=TRUE -DCI_PLUGIN_TARGET=${{ needs.parse_commit.outputs.plugin_folder }} -S . -B ./build
         cmake --build ./build --target ${{ needs.parse_commit.outputs.plugin_name }}_All --config Release
 
     - name: Build (MacOS)
       if: runner.os == 'macOS'
       run: |
-        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="${{ matrix.macos_arch }}" -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse_commit.outputs.plugin_folder }} -S . -B ./build
+        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCMAKE_OSX_ARCHITECTURES="${{ matrix.macos_arch }}" -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=TRUE -DCI_PLUGIN_TARGET=${{ needs.parse_commit.outputs.plugin_folder }} -S . -B ./build
         cmake --build ./build --target ${{ needs.parse_commit.outputs.plugin_name }}_All --config Release
 
     - name: Build (Linux)
       if: runner.os == 'Linux'
       run: |
-        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=1 -DCI_PLUGIN_TARGET=${{ needs.parse_commit.outputs.plugin_folder }} -S . -B ./build
+        cmake -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DBUILD_STANDALONE=OFF -DCPP_SIMD_DETECTOR_BUILD_EXAMPLES=OFF -DQWQDSP_BUILD_TESTS=OFF -DIPP_SHARED=OFF -DBUILD_IN_CI=TRUE -DCI_PLUGIN_TARGET=${{ needs.parse_commit.outputs.plugin_folder }} -S . -B ./build
         cmake --build ./build --target ${{ needs.parse_commit.outputs.plugin_name }}_All --config Release
 
     ##### test #####
