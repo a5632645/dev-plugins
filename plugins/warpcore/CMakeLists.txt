@@ -48,11 +48,9 @@ juce_add_plugin(${PLUGIN_NAME}
 # ------------------------------------------------------------
 target_sources(${PLUGIN_NAME}
     PRIVATE
-
-    # src/dsp/dsp_lane4_template.cpp
-    src/dsp/dsp_dispatch.cpp
     src/ui/plugin_ui.cpp
     src/PluginProcessor.cpp
+    src/dsp/dispatch.cpp
 )
 
 target_include_directories(${PLUGIN_NAME}
@@ -84,7 +82,6 @@ target_link_libraries(${PLUGIN_NAME}
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
     cpp_simd_detector
-    simde
 )
 
 # ------------------------------------------------------------

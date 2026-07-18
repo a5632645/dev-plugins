@@ -51,7 +51,63 @@ target_sources(${PLUGIN_NAME}
     src/ui/plugin_ui.cpp
     src/PluginEditor.cpp
     src/PluginProcessor.cpp
+    src/dsp/phaser_processor.cpp
+    src/dsp/phaser_simd_scalar.cpp
+    src/dsp/cpu_detect.cpp
+    src/dsp/phaser_simd_sse2.cpp
+    src/dsp/phaser_simd_sse41.cpp
+    src/dsp/phaser_simd_avx.cpp
+    src/dsp/phaser_simd_avx2.cpp
+    src/dsp/phaser_simd_avx2_fma.cpp
+    src/dsp/phaser_simd_neon.cpp
 )
+
+# ---- Per-file SIMD compile flags ----
+# MSVC (Windows)
+if(MSVC)
+    # SSE2 and SSE4.1: default on x64, no special flags needed
+    # AVX
+    set_source_files_properties(
+        src/dsp/phaser_simd_avx.cpp
+        PROPERTIES COMPILE_FLAGS "/arch:AVX"
+    )
+    # AVX2
+    set_source_files_properties(
+        src/dsp/phaser_simd_avx2.cpp
+        PROPERTIES COMPILE_FLAGS "/arch:AVX2"
+    )
+    # AVX2+FMA
+    set_source_files_properties(
+        src/dsp/phaser_simd_avx2_fma.cpp
+        PROPERTIES COMPILE_FLAGS "/arch:AVX2"
+    )
+    # NEON: Windows ARM64 — no special flag needed
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64")
+    # ARM — NEON file; no special flags needed
+else()
+    # GCC / Clang (Linux, macOS)
+    set_source_files_properties(
+        src/dsp/phaser_simd_sse2.cpp
+        PROPERTIES COMPILE_FLAGS "-msse2"
+    )
+    set_source_files_properties(
+        src/dsp/phaser_simd_sse41.cpp
+        PROPERTIES COMPILE_FLAGS "-msse4.1"
+    )
+    set_source_files_properties(
+        src/dsp/phaser_simd_avx.cpp
+        PROPERTIES COMPILE_FLAGS "-mavx"
+    )
+    set_source_files_properties(
+        src/dsp/phaser_simd_avx2.cpp
+        PROPERTIES COMPILE_FLAGS "-mavx2"
+    )
+    set_source_files_properties(
+        src/dsp/phaser_simd_avx2_fma.cpp
+        PROPERTIES COMPILE_FLAGS "-mavx2 -mfma"
+    )
+    # NEON: ARM Linux — no special flag needed (default for aarch64)
+endif()
 
 target_include_directories(${PLUGIN_NAME}
     PUBLIC

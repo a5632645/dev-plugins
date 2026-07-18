@@ -14,8 +14,48 @@ EmptyAudioProcessor::EmptyAudioProcessor()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
+    // Rate (Hz)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        param_ids::rate, "Rate",
+        juce::NormalisableRange<float>(param_ranges::rateMin, param_ranges::rateMax, 0.01f, 0.3f),
+        param_ranges::rateDefault));
+
+    // Depth (0-1)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        param_ids::depth, "Depth",
+        juce::NormalisableRange<float>(param_ranges::depthMin, param_ranges::depthMax, 0.01f),
+        param_ranges::depthDefault));
+
+    // Feedback (0-0.95)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        param_ids::feedback, "Feedback",
+        juce::NormalisableRange<float>(param_ranges::feedbackMin, param_ranges::feedbackMax, 0.01f),
+        param_ranges::feedbackDefault));
+
+    // Mix (0-1)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        param_ids::mix, "Mix",
+        juce::NormalisableRange<float>(param_ranges::mixMin, param_ranges::mixMax, 0.01f),
+        param_ranges::mixDefault));
+
+    // Stages
+    juce::StringArray stageChoices;
+    for (int s = param_ranges::stagesMin; s <= param_ranges::stagesMax; s += param_ranges::stagesStep)
+        stageChoices.add(juce::String(s));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        param_ids::stages, "Stages", stageChoices, 
+        (param_ranges::stagesDefault - param_ranges::stagesMin) / param_ranges::stagesStep));
+
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, kParameterValueTreeIdentify, std::move(layout));
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
+
+    // Sync initial parameters to phaser
+    phaser_.setRate(*value_tree_->getRawParameterValue(param_ids::rate));
+    phaser_.setDepth(*value_tree_->getRawParameterValue(param_ids::depth));
+    phaser_.setFeedback(*value_tree_->getRawParameterValue(param_ids::feedback));
+    phaser_.setMix(*value_tree_->getRawParameterValue(param_ids::mix));
+    phaser_.setStages(param_ranges::stagesMin + 
+        static_cast<int>(*value_tree_->getRawParameterValue(param_ids::stages)) * param_ranges::stagesStep);
 }
 
 EmptyAudioProcessor::~EmptyAudioProcessor()
@@ -92,12 +132,20 @@ void EmptyAudioProcessor::changeProgramName (int index, const juce::String& newN
 //==============================================================================
 void EmptyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
+    phaser_.prepare(sampleRate, samplesPerBlock);
+
+    // Sync parameters to phaser
+    phaser_.setRate(*value_tree_->getRawParameterValue(param_ids::rate));
+    phaser_.setDepth(*value_tree_->getRawParameterValue(param_ids::depth));
+    phaser_.setFeedback(*value_tree_->getRawParameterValue(param_ids::feedback));
+    phaser_.setMix(*value_tree_->getRawParameterValue(param_ids::mix));
+    const int stageIdx = static_cast<int>(*value_tree_->getRawParameterValue(param_ids::stages));
+    phaser_.setStages(param_ranges::stagesMin + stageIdx * param_ranges::stagesStep);
 }
 
 void EmptyAudioProcessor::releaseResources()
 {
-    // When playback stops, you can use this as an opportunity to free up any
-    // spare memory, etc.
+    phaser_.reset();
 }
 
 bool EmptyAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -128,10 +176,22 @@ void EmptyAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                               juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
+    juce::ignoreUnused (midiMessages);
 
-    size_t const num_samples = buffer.getNumSamples();
-    float* left_ptr = buffer.getWritePointer(0);
-    float* right_ptr = buffer.getWritePointer(1);
+    const int numSamples = buffer.getNumSamples();
+
+    // Sync parameters from APVTS → atomic phaser params (audio thread safe)
+    phaser_.setRate(*value_tree_->getRawParameterValue(param_ids::rate));
+    phaser_.setDepth(*value_tree_->getRawParameterValue(param_ids::depth));
+    phaser_.setFeedback(*value_tree_->getRawParameterValue(param_ids::feedback));
+    phaser_.setMix(*value_tree_->getRawParameterValue(param_ids::mix));
+    const int stageIdx = static_cast<int>(*value_tree_->getRawParameterValue(param_ids::stages));
+    phaser_.setStages(param_ranges::stagesMin + stageIdx * param_ranges::stagesStep);
+
+    // Process audio
+    float* left  = buffer.getWritePointer(0);
+    float* right = buffer.getWritePointer(1);
+    phaser_.process(left, right, numSamples);
 }
 
 //==============================================================================

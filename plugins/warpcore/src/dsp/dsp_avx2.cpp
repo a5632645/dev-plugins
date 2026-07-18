@@ -1,3 +1,13 @@
-#define DSP_EXPORT_NAME dsp_avx2
-#define DSP_INST_NAME "AVX2"
-#include "dsp_lane8_template.cpp"
+#define SIMD_USE_AVX2
+#define INST_NAME "AVX2"
+
+#include "dsp_impl.hpp"
+
+namespace warpcore {
+
+template <>
+std::unique_ptr<Idsp> CreateDspImpl<simd::Inst::AVX2>() {
+    return std::make_unique<DspImpl<simd::Inst::AVX2, simd::Float256>>();
+}
+
+} // namespace warpcore

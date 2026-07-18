@@ -1,12 +1,46 @@
 #pragma once
 #include <array>
 #include <bit>
+#include <cmath>
 #include <complex>
 #include <cstddef>
 #include <type_traits>
 
-#include <x86/avx2.h>
-#include <x86/sse4.1.h>
+// ------------------------------------------------------------
+// fuck marco
+// ------------------------------------------------------------
+
+#ifdef SIMD_USE_SSE2
+#include <emmintrin.h>
+#define SIMD_USE_FLOAT128
+#define SIMD_HAS_FLOAT128
+#endif
+
+#ifdef SIMD_USE_SSE4
+#include <emmintrin.h>
+#include <smmintrin.h>
+#define SIMD_USE_FLOAT128
+#define SIMD_HAS_FLOAT128
+#endif
+
+#if defined(SIMD_USE_FMA) || defined(SIMD_USE_AVX2) || defined(SIMD_USE_AVX)
+#include <emmintrin.h>
+#include <immintrin.h>
+#include <smmintrin.h>
+#define SIMD_USE_FLOAT256
+#define SIMD_HAS_FLOAT128
+#define SIMD_HAS_FLOAT256
+#endif
+
+#ifdef SIMD_USE_NEON
+#include <arm_neon.h>
+#define SIMD_USE_FLOAT128
+#define SIMD_HAS_FLOAT128
+#endif
+
+// ------------------------------------------------------------
+// begin
+// ------------------------------------------------------------
 
 namespace simd {
 #if defined(__clang__)
@@ -35,22 +69,11 @@ template <class T, size_t N>
 struct alignas(alignof(T)) Array : public std::array<T, N> {};
 
 template <class T>
-concept IsSimdFloat = std::is_same_v<T, Float128> || std::is_same_v<T, Float256>;
+static constexpr int LaneSize = sizeof(T) / sizeof(float);
 
-template <class T>
-static constexpr size_t LaneSize = sizeof(T) / sizeof(float);
-
-// clang-format off
-static constexpr struct ISSE2 {} iSSE2;
-static constexpr struct ISSE4 {} iSSE4;
-static constexpr struct IAVX {} iAVX;
-static constexpr struct IAVX2 {} iAVX2;
-static constexpr struct INEON {} iNEON;
-// clang-format on
-
-// ----------------------------------------
-// extension?
-// ----------------------------------------
+// ------------------------------------------------------------
+// math
+// ------------------------------------------------------------
 
 template <class T, int... Indices>
 static inline T Shuffle(T a, T b) noexcept {
@@ -63,32 +86,9 @@ static inline T Shuffle(T a, T b) noexcept {
 #endif
 }
 
-static inline simde__m128 ToSimde(Float128 x) noexcept {
-    return std::bit_cast<simde__m128>(x);
-}
-static inline simde__m256 ToSimde(Float256 x) noexcept {
-    return std::bit_cast<simde__m256>(x);
-}
-static inline simde__m128i ToSimde(Int128 x) noexcept {
-    return std::bit_cast<simde__m128i>(x);
-}
-static inline simde__m256i ToSimde(Int256 x) noexcept {
-    return std::bit_cast<simde__m256i>(x);
-}
-
-static inline Float128 FromSimde(simde__m128 x) noexcept {
-    return std::bit_cast<Float128>(x);
-}
-static inline Float256 FromSimde(simde__m256 x) noexcept {
-    return std::bit_cast<Float256>(x);
-}
-static inline Int128 FromSimde(simde__m128i x) noexcept {
-    return std::bit_cast<Int128>(x);
-}
-static inline Int256 FromSimde(simde__m256i x) noexcept {
-    return std::bit_cast<Int256>(x);
-}
-
+// ------------------------------------------------------------
+// math2
+// ------------------------------------------------------------
 static inline Int128 ToInt(Float128 x) noexcept {
     return __builtin_convertvector(x, Int128);
 }
@@ -104,20 +104,29 @@ static inline Float256 ToFloat(Int256 x) noexcept {
 }
 
 static inline Float128 Frac(Float128 x_) noexcept {
-#if defined(SIMDE_X86_SSE4_1_NATIVE) || defined(SIMDE_X86_AVX_NATIVE) || defined(SIMDE_ARM_NEON_A64V8_NATIVE)
-    auto x = ToSimde(x_);
-    return FromSimde(simde_mm_sub_ps(x, simde_mm_floor_ps(x)));
-#elif defined(SIMDE_X86_SSE2_NATIVE) || defined(SIMDE_ARM_NEON_NATIVE)
+#if defined(SIMD_USE_AVX2) || defined(SIMD_USE_AVX) || defined(SIMD_USE_FMA) || defined(SIMD_USE_SSE4)
+    __m128 x = (__m128)x_;
+    __m128 y = _mm_sub_ps(x, _mm_floor_ps(x));
+    return (Float128)y;
+#elif defined(SIMD_USE_SSE2)
+    return x_ - ToFloat(ToInt(x_));
+#elif defined(SIMD_USE_NEON) && defined(__aarch64__)
+    float32x4_t x = (float32x4_t)x_;
+    float32x4_t y = vsubq_f32(x, vrndmq_f32(x));
+    return (Float128)y;
+#elif defined(SIMD_USE_NEON)
     return x_ - ToFloat(ToInt(x_));
 #else
     return Float128{x_[0] - floorf(x_[0]), x_[1] - floorf(x_[1]), x_[2] - floorf(x_[2]), x_[3] - floorf(x_[3])};
 #endif
 }
 static inline Float256 Frac(Float256 x) noexcept {
-    auto x_ = ToSimde(x);
-    simde__m256 i = simde_mm256_floor_ps(x_);
-    auto s = simde_mm256_sub_ps(x_, i);
-    return FromSimde(s);
+#if defined(SIMD_USE_AVX2) || defined(SIMD_USE_AVX) || defined(SIMD_USE_FMA)
+    __m256 x_ = (__m256)x;
+    return (Float256)_mm256_sub_ps(x_, _mm256_floor_ps(x_));
+#else
+    return x - ToFloat(ToInt(x));
+#endif
 }
 
 static inline Float128 Loadu128(const float* ptr) noexcept {
@@ -125,6 +134,14 @@ static inline Float128 Loadu128(const float* ptr) noexcept {
 }
 static inline Float256 Loadu256(const float* ptr) noexcept {
     return Float256{ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7]};
+}
+template <Float128>
+static inline Float128 Loadu(const float* ptr) noexcept {
+    return Loadu128(ptr);
+}
+template <Float256>
+static inline Float256 Loadu(const float* ptr) noexcept {
+    return Loadu256(ptr);
 }
 
 static inline Float128 Max(Float128 a, Float128 b) noexcept {
@@ -147,15 +164,13 @@ static inline Float128 BroadcastF128(float i) noexcept {
 static inline Float256 BroadcastF256(float i) noexcept {
     return Float256{i, i, i, i, i, i, i, i};
 }
-
-static inline Float256 Combine(Float128 lo, Float128 hi) noexcept {
-    return Float256{lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3]};
+template <Float128>
+static inline Float128 Broadcast(float i) noexcept {
+    return Float128{i, i, i, i};
 }
-static inline std::array<Float128, 2> Break(Float256 x) noexcept {
-    return {
-        Float128{x[0], x[1], x[2], x[3]},
-        Float128{x[4], x[5], x[6], x[7]}
-    };
+template <Float256>
+static inline Float256 Broadcast(float i) noexcept {
+    return Float256{i, i, i, i, i, i, i, i};
 }
 
 static inline std::array<Float128, 4> Transpose(Float128 x0, Float128 x1, Float128 x2, Float128 x3) noexcept {
@@ -171,6 +186,18 @@ static inline std::array<Float128, 4> Transpose(Float128 x0, Float128 x1, Float1
 
     return {row0, row1, row2, row3};
 }
+
+static inline Float256 Combine(Float128 lo, Float128 hi) noexcept {
+    return Float256{lo[0], lo[1], lo[2], lo[3], hi[0], hi[1], hi[2], hi[3]};
+}
+
+static inline std::array<Float128, 2> Break(Float256 x) noexcept {
+    return {
+        Float128{x[0], x[1], x[2], x[3]},
+        Float128{x[4], x[5], x[6], x[7]}
+    };
+}
+
 static inline std::array<Float256, 4> Transpose256(Float128 a, Float128 b, Float128 c, Float128 d, Float128 e,
                                                    Float128 f, Float128 g, Float128 h) noexcept {
     Float256 x0 = Combine(a, e);
@@ -351,7 +378,8 @@ struct SimdComplex {
         return {simd::ReduceAdd(re), simd::ReduceAdd(im)};
     }
 };
-using Complex128 = SimdComplex<Float128>;
-using Complex256 = SimdComplex<Float256>;
+
+using Complex128 = SimdComplex<simd::Float128>;
+using Complex256 = SimdComplex<simd::Float256>;
 
 } // namespace simd

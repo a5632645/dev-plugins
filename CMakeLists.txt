@@ -25,11 +25,11 @@ add_subdirectory(libs/JUCE)
 set(CPP_SIMD_DETECTOR_BUILD_EXAMPLES OFF)
 add_subdirectory(libs/cpp_simd_detector)
 
-# ------------------------------------------------------------
-# simde
-# ------------------------------------------------------------
-add_library(simde INTERFACE)
-target_include_directories(simde INTERFACE libs/simde-no-tests)
+# # ------------------------------------------------------------
+# # simde
+# # ------------------------------------------------------------
+# add_library(simde INTERFACE)
+# target_include_directories(simde INTERFACE libs/simde-no-tests)
 
 # ------------------------------------------------------------
 # qwqdsp

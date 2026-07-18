@@ -13,7 +13,7 @@ EmptyAudioProcessor::EmptyAudioProcessor()
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
       ) {
-    dsp_processor_ = warpcore::GetProcessorDsp();
+    dsp_ = warpcore::CreateDsp();
 
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
@@ -213,17 +213,13 @@ void EmptyAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) 
     juce::ignoreUnused(samplesPerBlock);
 
     float fs = static_cast<float>(sampleRate);
-    if (dsp_processor_.IsValid()) {
-        dsp_processor_.init(dsp_state_, fs);
-        dsp_processor_.reset(dsp_state_);
-    }
+    dsp_->Init(fs);
+    dsp_->Reset();
     param_listener_.MarkAll();
 }
 
 void EmptyAudioProcessor::reset() {
-    if (dsp_processor_.IsValid()) {
-        dsp_processor_.reset(dsp_state_);
-    }
+    dsp_->Reset();
 }
 
 void EmptyAudioProcessor::releaseResources() {
@@ -256,13 +252,11 @@ bool EmptyAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) con
 void EmptyAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
     juce::ignoreUnused(midiMessages);
 
-    if (!dsp_processor_.IsValid()) return;
-
     juce::ScopedNoDenormals noDenormals;
     param_listener_.HandleDirty();
     if (param_changed_.exchange(false)) {
         use_param_ = param_;
-        dsp_processor_.update(dsp_state_, use_param_);
+        dsp_->Update(use_param_);
     }
 
     int const num_samples = buffer.getNumSamples();
@@ -272,7 +266,7 @@ void EmptyAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         right_ptr = buffer.getWritePointer(1);
     }
 
-    dsp_processor_.process(dsp_state_,left_ptr, right_ptr, num_samples);
+    dsp_->Process(left_ptr, right_ptr, num_samples);
 }
 
 //==============================================================================
