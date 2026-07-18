@@ -832,10 +832,9 @@ private:
         __m256 y = _mm256_add_ps(t1, _mm256_permute_ps(t1, _MM_SHUFFLE(1, 0, 3, 2)));
         return y;
 #else
-        __m256 sum_v = x;
-        sum_v = _mm256_add_ps(sum_v, _mm256_shuffle_ps(sum_v, sum_v, _MM_SHUFFLE(1, 0, 3, 2)));
-        sum_v = _mm256_add_ps(sum_v, _mm256_shuffle_ps(sum_v, sum_v, _MM_SHUFFLE(2, 3, 0, 1)));
-        return sum_v;
+        float s0 = x[0] + x[1] + x[2] + x[3];
+        float s1 = x[4] + x[5] + x[6] + x[7];
+        return simd::Float256{s0, s0, s0, s0, s1, s1, s1, s1};
 #endif
     }
 

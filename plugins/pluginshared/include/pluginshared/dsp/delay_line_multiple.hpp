@@ -75,7 +75,7 @@ private:
 #else
         static const int32_t s_lane_ids[4] = {0, 1, 2, 3};
         __m128i lane_ids = _mm_loadu_epi32(s_lane_ids);
-        __m128i base_vindex = _mm_add_epi32(simde_mm_slli_epi32((__m128i)(irpos), 2), lane_ids);
+        __m128i base_vindex = _mm_add_epi32(_mm_slli_epi32((__m128i)(irpos), 2), lane_ids);
 
         float const* raw = buffer_.data();
         auto yn1 = (simd::Float128)(_mm_i32gather_ps(raw, base_vindex, 4));
@@ -106,7 +106,7 @@ private:
                                simd::Loadu128(ptrs_[6] + irpos[6]), simd::Loadu128(ptrs_[7] + irpos[7]));
 #else
         static const int32_t s_lane_ids[8] = {0, 1, 2, 3, 4, 5, 6, 7};
-        __m256i lane_ids = _mm256_loadu_si256(s_lane_ids);
+        __m256i lane_ids = _mm256_loadu_si256((const __m256i_u*)s_lane_ids);
         __m256i base_vindex = _mm256_add_epi32(_mm256_slli_epi32((__m256i)(irpos), 3), lane_ids);
 
         float const* raw = buffer_.data();
