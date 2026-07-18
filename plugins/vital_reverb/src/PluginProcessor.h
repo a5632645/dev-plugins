@@ -3,7 +3,7 @@
 #include "pluginshared/preset_manager.hpp"
 #include "pluginshared/wrap_parameters.hpp"
 
-#include "dsp/dsp_state.hpp"
+#include "dsp/idsp.hpp"
 
 class EmptyAudioProcessor final : public juce::AudioProcessor {
 public:
@@ -63,9 +63,8 @@ public:
     juce::AudioParameterFloat* param_predelay_;
     juce::AudioParameterBool* param_freeze_;
 
-    dsp::ProcessorDsp dsp_processor_;
-    dsp::ProcessorState dsp_state_;
-    dsp::Param dsp_param_;
+
+    vital_reverb::DspHanle dsp_;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EmptyAudioProcessor)

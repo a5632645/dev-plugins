@@ -1,7 +1,7 @@
-#include "dsp_impl.hpp"
-#include "pluginshared/simd/simd.hpp"
+#include <simd_detector.h>
+#include "idsp.hpp"
 
-namespace warpcore {
+namespace vital_reverb {
 
 std::unique_ptr<Idsp> CreateDsp() {
     using IS = simd_detector::InstructionSet;
@@ -29,4 +29,4 @@ std::unique_ptr<Idsp> CreateDsp() {
 #endif
 }
 
-} // namespace warpcore
+} // namespace vital_reverb

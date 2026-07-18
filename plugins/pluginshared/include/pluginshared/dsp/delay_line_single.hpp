@@ -1,10 +1,11 @@
 #pragma once
 #include <vector>
-#include "../simd.hpp"
 #include "../align_allocator.hpp"
+#include "../simd/inst.hpp"
+#include "../simd/simd.hpp"
 
 namespace pluginshared::dsp {
-template <simd::IsSimdFloat SimdT>
+template <simd::Inst inst, class SimdT>
 class DelayLineSingle {
 public:
     void Init(float max_ms, float fs) {

@@ -248,8 +248,6 @@ public:
         : slider_(slider) {}
 
     void mouseDown(const juce::MouseEvent& e) override {
-        juce::ModifierKeys keys = juce::ModifierKeys::getCurrentModifiers();
-
         auto action = [ptr_component = this] {
             auto* editor = new juce::TextEditor;
             editor->setText(ptr_component->slider_.getTextFromValue(ptr_component->slider_.getValue()));
@@ -543,12 +541,12 @@ public:
             g.drawRect(getLocalBounds());
         }
 
-        int GetTextBound(int height) const {
-            return juce::TextLayout::getStringWidth(GetFont(height), title);
+        int GetTextBound(int _height) const {
+            return static_cast<int>(juce::TextLayout::getStringWidth(GetFont(_height), title));
         }
 
-        juce::Font GetFont(int height) const {
-            return juce::Font{juce::FontOptions{}.withHeight(height * 0.6f)};
+        juce::Font GetFont(int _height) const {
+            return juce::Font{juce::FontOptions{}.withHeight(static_cast<float>(_height) * 0.6f)};
         }
 
         juce::String title;
@@ -612,9 +610,9 @@ public:
     }
 
     int Get() const {
-        for (int i = 0; i < cubes_.size(); ++i) {
+        for (size_t i = 0; i < cubes_.size(); ++i) {
             if (selecting_ == cubes_[i].get()) {
-                return i;
+                return static_cast<int>(i);
             }
         }
         return -1;
@@ -664,9 +662,9 @@ public:
         off_text_ = "off";
     }
 
-    Switch(juce::StringRef text) {
-        on_text_ = text;
-        off_text_ = text;
+    Switch(juce::StringRef _text) {
+        on_text_ = _text;
+        off_text_ = _text;
     }
 
     Switch(juce::StringRef on_text, juce::StringRef off_text) {
@@ -711,8 +709,8 @@ class FlatButton : public juce::TextButton {
 public:
     FlatButton() {}
 
-    FlatButton(juce::StringRef text) {
-        setButtonText(text);
+    FlatButton(juce::StringRef _text) {
+        setButtonText(_text);
     }
 
     void paint(juce::Graphics& g) override {

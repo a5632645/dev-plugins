@@ -1,5 +1,6 @@
 #pragma once
-#include "../simd.hpp"
+#include "../simd/inst.hpp"
+#include "../simd/simd.hpp"
 
 namespace pluginshared::dsp {
 

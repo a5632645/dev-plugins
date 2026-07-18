@@ -14,6 +14,7 @@
 #include <emmintrin.h>
 #define SIMD_USE_FLOAT128
 #define SIMD_HAS_FLOAT128
+#define SIMD_HAS_SSE2
 #endif
 
 #ifdef SIMD_USE_SSE4
@@ -21,21 +22,54 @@
 #include <smmintrin.h>
 #define SIMD_USE_FLOAT128
 #define SIMD_HAS_FLOAT128
+#define SIMD_HAS_SSE2
+#define SIMD_HAS_SSE4
 #endif
 
-#if defined(SIMD_USE_FMA) || defined(SIMD_USE_AVX2) || defined(SIMD_USE_AVX)
+#ifdef SIMD_USE_AVX
 #include <emmintrin.h>
 #include <immintrin.h>
 #include <smmintrin.h>
 #define SIMD_USE_FLOAT256
 #define SIMD_HAS_FLOAT128
 #define SIMD_HAS_FLOAT256
+#define SIMD_HAS_SSE2
+#define SIMD_HAS_SSE4
+#define SIMD_HAS_AVX
+#endif
+
+#ifdef SIMD_USE_AVX2
+#include <emmintrin.h>
+#include <immintrin.h>
+#include <smmintrin.h>
+#define SIMD_USE_FLOAT256
+#define SIMD_HAS_FLOAT128
+#define SIMD_HAS_FLOAT256
+#define SIMD_HAS_SSE2
+#define SIMD_HAS_SSE4
+#define SIMD_HAS_AVX
+#define SIMD_HAS_AVX2
+#endif
+
+#ifdef SIMD_USE_FMA
+#include <emmintrin.h>
+#include <immintrin.h>
+#include <smmintrin.h>
+#define SIMD_USE_FLOAT256
+#define SIMD_HAS_FLOAT128
+#define SIMD_HAS_FLOAT256
+#define SIMD_HAS_SSE2
+#define SIMD_HAS_SSE4
+#define SIMD_HAS_AVX
+#define SIMD_HAS_AVX2
+#define SIMD_HAS_FMA
 #endif
 
 #ifdef SIMD_USE_NEON
 #include <arm_neon.h>
 #define SIMD_USE_FLOAT128
 #define SIMD_HAS_FLOAT128
+#define SIMD_HAS_NEON
 #endif
 
 // ------------------------------------------------------------
@@ -135,11 +169,13 @@ static inline Float128 Loadu128(const float* ptr) noexcept {
 static inline Float256 Loadu256(const float* ptr) noexcept {
     return Float256{ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7]};
 }
-template <class T> requires (LaneSize<T> == 4)
+template <class T>
+    requires(LaneSize<T> == 4)
 static inline Float128 Loadu(const float* ptr) noexcept {
     return Loadu128(ptr);
 }
-template <class T> requires (LaneSize<T> == 8)
+template <class T>
+    requires(LaneSize<T> == 8)
 static inline Float256 Loadu(const float* ptr) noexcept {
     return Loadu256(ptr);
 }
@@ -164,11 +200,13 @@ static inline Float128 BroadcastF128(float i) noexcept {
 static inline Float256 BroadcastF256(float i) noexcept {
     return Float256{i, i, i, i, i, i, i, i};
 }
-template <class T> requires (LaneSize<T> == 4)
+template <class T>
+    requires(LaneSize<T> == 4)
 static inline Float128 Broadcast(float i) noexcept {
     return Float128{i, i, i, i};
 }
-template <class T> requires (LaneSize<T> == 8)
+template <class T>
+    requires(LaneSize<T> == 8)
 static inline Float256 Broadcast(float i) noexcept {
     return Float256{i, i, i, i, i, i, i, i};
 }

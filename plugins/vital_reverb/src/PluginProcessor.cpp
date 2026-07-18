@@ -12,7 +12,7 @@ EmptyAudioProcessor::EmptyAudioProcessor()
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
       ) {
-    dsp_processor_ = dsp::GetProcessorDsp();
+    dsp_ = vital_reverb::CreateDsp();
 
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
@@ -205,11 +205,10 @@ void EmptyAudioProcessor::changeProgramName(int index, const juce::String& newNa
 
 //==============================================================================
 void EmptyAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
-    if (!dsp_processor_.IsValid()) return;
-
+    (void)samplesPerBlock;
     float fs = static_cast<float>(sampleRate);
-    dsp_processor_.init(dsp_state_, fs);
-    dsp_processor_.reset(dsp_state_);
+    dsp_->Init(fs);
+    dsp_->Reset();
     param_listener_.MarkAll();
 }
 
@@ -219,9 +218,7 @@ void EmptyAudioProcessor::releaseResources() {
 }
 
 void EmptyAudioProcessor::reset() {
-    if (dsp_processor_.IsValid()) {
-        dsp_processor_.panic(dsp_state_);
-    }
+    dsp_->Panic();
 }
 
 bool EmptyAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
@@ -247,8 +244,7 @@ bool EmptyAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) con
 }
 
 void EmptyAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
-    if (!dsp_processor_.IsValid()) return;
-
+    (void)midiMessages;
     juce::ScopedNoDenormals noDenormals;
     param_listener_.HandleDirty();
 
@@ -256,22 +252,23 @@ void EmptyAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     float* left_ptr = buffer.getWritePointer(0);
     float* right_ptr = buffer.getNumChannels() == 2 ? buffer.getWritePointer(1) : nullptr;
 
-    dsp_param_.chorus_amount = param_chorus_amount_->get();
-    dsp_param_.chorus_freq = param_chorus_freq_->get();
-    dsp_param_.wet = param_wet_->get();
-    dsp_param_.pre_lowpass = param_pre_lowpass_->get();
-    dsp_param_.pre_highpass = param_pre_highpass_->get();
-    dsp_param_.low_damp_pitch = param_low_damp_pitch_->get();
-    dsp_param_.high_damp_pitch = param_high_damp_pitch_->get();
-    dsp_param_.low_damp_db = param_low_damp_db_->get();
-    dsp_param_.high_damp_db = param_high_damp_db_->get();
-    dsp_param_.size = param_size_->get();
-    dsp_param_.decay_ms = param_decay_ms_->get();
-    dsp_param_.pre_delay = param_predelay_->get();
-    dsp_param_.freeze = param_freeze_->get();
-    dsp_processor_.update(dsp_state_, dsp_param_);
+    vital_reverb::Param dsp_param;
+    dsp_param.chorus_amount = param_chorus_amount_->get();
+    dsp_param.chorus_freq = param_chorus_freq_->get();
+    dsp_param.wet = param_wet_->get();
+    dsp_param.pre_lowpass = param_pre_lowpass_->get();
+    dsp_param.pre_highpass = param_pre_highpass_->get();
+    dsp_param.low_damp_pitch = param_low_damp_pitch_->get();
+    dsp_param.high_damp_pitch = param_high_damp_pitch_->get();
+    dsp_param.low_damp_db = param_low_damp_db_->get();
+    dsp_param.high_damp_db = param_high_damp_db_->get();
+    dsp_param.size = param_size_->get();
+    dsp_param.decay_ms = param_decay_ms_->get();
+    dsp_param.pre_delay = param_predelay_->get();
+    dsp_param.freeze = param_freeze_->get();
+    dsp_->Update(dsp_param);
 
-    dsp_processor_.process(dsp_state_, left_ptr, right_ptr, num_samples);
+    dsp_->Process(left_ptr, right_ptr, num_samples);
 }
 
 //==============================================================================

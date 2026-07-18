@@ -1,10 +1,11 @@
 #pragma once
 #include <vector>
 #include "../align_allocator.hpp"
-#include "../simd.hpp"
+#include "../simd/inst.hpp"
+#include "../simd/simd.hpp"
 
 namespace pluginshared::dsp {
-template <simd::IsSimdFloat SimdT>
+template <simd::Inst inst, class SimdT>
 class DelayLineMultiple {
 public:
     void Init(float max_ms, float fs) {
@@ -22,7 +23,7 @@ public:
         mask_ = static_cast<int>(a - 1);
         uint32_t each_size = a * 2;
         buffer_.resize(each_size * simd::LaneSize<SimdT>);
-#ifndef SIMDE_X86_AVX2_NATIVE
+#ifndef SIMD_HAS_AVX2
         for (size_t i = 0; i < simd::LaneSize<SimdT>; ++i) {
             ptrs_[i] = buffer_.data() + static_cast<size_t>(size_) * i * 2;
         }
@@ -36,7 +37,7 @@ public:
 
     void Push(SimdT x) noexcept {
         wpos_ = (wpos_ + 1) & mask_;
-#ifndef SIMDE_X86_AVX2_NATIVE
+#ifndef SIMD_HAS_AVX2
         for (size_t i = 0; i < simd::LaneSize<SimdT>; ++i) {
             ptrs_[i][wpos_] = x[i];
             ptrs_[i][wpos_ + size_] = x[i];
@@ -67,23 +68,20 @@ private:
         auto irpos = simd::ToInt(rpos) - 1;
         irpos &= mask_;
 
-#ifndef SIMDE_X86_AVX2_NATIVE
+#ifndef SIMD_HAS_AVX2
         alignas(32) auto [yn1, y0, y1, y2] =
             simd::Transpose(simd::Loadu128(ptrs_[0] + irpos[0]), simd::Loadu128(ptrs_[1] + irpos[1]),
                             simd::Loadu128(ptrs_[2] + irpos[2]), simd::Loadu128(ptrs_[3] + irpos[3]));
 #else
         static const int32_t s_lane_ids[4] = {0, 1, 2, 3};
-        simde__m128i lane_ids = simde_mm_loadu_epi32(s_lane_ids);
-        simde__m128i base_vindex = simde_mm_add_epi32(simde_mm_slli_epi32(simd::ToSimde(irpos), 2), lane_ids);
+        __m128i lane_ids = _mm_loadu_epi32(s_lane_ids);
+        __m128i base_vindex = _mm_add_epi32(simde_mm_slli_epi32((__m128i)(irpos), 2), lane_ids);
 
         float const* raw = buffer_.data();
-        auto yn1 = simd::FromSimde(simde_mm_i32gather_ps(raw, base_vindex, 4));
-        auto y0 =
-            simd::FromSimde(simde_mm_i32gather_ps(raw, simde_mm_add_epi32(base_vindex, simde_mm_set1_epi32(4)), 4));
-        auto y1 =
-            simd::FromSimde(simde_mm_i32gather_ps(raw, simde_mm_add_epi32(base_vindex, simde_mm_set1_epi32(8)), 4));
-        auto y2 =
-            simd::FromSimde(simde_mm_i32gather_ps(raw, simde_mm_add_epi32(base_vindex, simde_mm_set1_epi32(12)), 4));
+        auto yn1 = (simd::Float128)(_mm_i32gather_ps(raw, base_vindex, 4));
+        auto y0 = (simd::Float128)(_mm_i32gather_ps(raw, _mm_add_epi32(base_vindex, _mm_set1_epi32(4)), 4));
+        auto y1 = (simd::Float128)(_mm_i32gather_ps(raw, _mm_add_epi32(base_vindex, _mm_set1_epi32(8)), 4));
+        auto y2 = (simd::Float128)(_mm_i32gather_ps(raw, _mm_add_epi32(base_vindex, _mm_set1_epi32(12)), 4));
 #endif
 
         auto d0 = (y1 - yn1) * 0.5f;
@@ -100,7 +98,7 @@ private:
         auto irpos = simd::ToInt(rpos) - 1;
         irpos &= mask_;
 
-#ifndef SIMDE_X86_AVX2_NATIVE
+#ifndef SIMD_HAS_AVX2
         alignas(16) auto [yn1, y0, y1, y2] =
             simd::Transpose256(simd::Loadu128(ptrs_[0] + irpos[0]), simd::Loadu128(ptrs_[1] + irpos[1]),
                                simd::Loadu128(ptrs_[2] + irpos[2]), simd::Loadu128(ptrs_[3] + irpos[3]),
@@ -108,17 +106,14 @@ private:
                                simd::Loadu128(ptrs_[6] + irpos[6]), simd::Loadu128(ptrs_[7] + irpos[7]));
 #else
         static const int32_t s_lane_ids[8] = {0, 1, 2, 3, 4, 5, 6, 7};
-        simde__m256i lane_ids = simde_mm256_loadu_si256(s_lane_ids);
-        simde__m256i base_vindex = simde_mm256_add_epi32(simde_mm256_slli_epi32(simd::ToSimde(irpos), 3), lane_ids);
+        __m256i lane_ids = _mm256_loadu_si256(s_lane_ids);
+        __m256i base_vindex = _mm256_add_epi32(_mm256_slli_epi32((__m256i)(irpos), 3), lane_ids);
 
         float const* raw = buffer_.data();
-        auto yn1 = simd::FromSimde(simde_mm256_i32gather_ps(raw, base_vindex, 4));
-        auto y0 = simd::FromSimde(
-            simde_mm256_i32gather_ps(raw, simde_mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(8)), 4));
-        auto y1 = simd::FromSimde(
-            simde_mm256_i32gather_ps(raw, simde_mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(16)), 4));
-        auto y2 = simd::FromSimde(
-            simde_mm256_i32gather_ps(raw, simde_mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(24)), 4));
+        auto yn1 = (simd::Float256)(_mm256_i32gather_ps(raw, base_vindex, 4));
+        auto y0 = (simd::Float256)(_mm256_i32gather_ps(raw, _mm256_add_epi32(base_vindex, _mm256_set1_epi32(8)), 4));
+        auto y1 = (simd::Float256)(_mm256_i32gather_ps(raw, _mm256_add_epi32(base_vindex, _mm256_set1_epi32(16)), 4));
+        auto y2 = (simd::Float256)(_mm256_i32gather_ps(raw, _mm256_add_epi32(base_vindex, _mm256_set1_epi32(24)), 4));
 #endif
 
         auto d0 = (y1 - yn1) * 0.5f;
@@ -130,7 +125,9 @@ private:
     }
 
     std::vector<float, simd::AlignedAllocator<float, alignof(SimdT)>> buffer_;
+#ifndef SIMD_HAS_AVX2
     std::array<float*, simd::LaneSize<SimdT>> ptrs_;
+#endif
     int size_{};
     int wpos_{};
     int mask_{};

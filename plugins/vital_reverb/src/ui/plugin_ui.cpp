@@ -5,7 +5,7 @@
 
 PluginUi::PluginUi(EmptyAudioProcessor& p)
     : preset_(*p.preset_manager_) {
-    preset_.SetDspInstName(p.dsp_processor_.name);
+    preset_.SetDspInstName(p.dsp_->InstName().data());
     addAndMakeVisible(preset_);
 
     chorus_amount_.BindParam(p.param_chorus_amount_);
@@ -63,6 +63,7 @@ void PluginUi::resized() {
 }
 
 void PluginUi::paint(juce::Graphics& g) {
+    (void)g;
 }
 
 void PluginUi::TrySetSize(int width, int height) {

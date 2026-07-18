@@ -1,11 +1,12 @@
 #pragma once
 #include <vector>
 #include "../align_allocator.hpp"
-#include "../simd.hpp"
+#include "../simd/inst.hpp"
+#include "../simd/simd.hpp"
 
 namespace pluginshared::dsp {
 
-template <simd::IsSimdFloat SimdT>
+template <simd::Inst inst, class SimdT>
 class DelayLineSingleChannelMultiTime {
 public:
     void Init(float max_ms, float fs) {
@@ -52,20 +53,17 @@ private:
         auto irpos = simd::ToInt(rpos) - 1;
         irpos &= mask_;
 
-#ifndef SIMDE_X86_AVX2_NATIVE
+#ifndef SIMD_HAS_AVX2
         alignas(16) auto [yn1, y0, y1, y2] =
             simd::Transpose(simd::Loadu128(buffer_.data() + irpos[0]), simd::Loadu128(buffer_.data() + irpos[1]),
                             simd::Loadu128(buffer_.data() + irpos[2]), simd::Loadu128(buffer_.data() + irpos[3]));
 #else
         float const* raw = buffer_.data();
-        simde__m128i base_vindex = simd::ToSimde(irpos);
-        auto yn1 = simd::FromSimde(simde_mm_i32gather_ps(raw, base_vindex, 4));
-        auto y0 =
-            simd::FromSimde(simde_mm_i32gather_ps(raw, simde_mm_add_epi32(base_vindex, simde_mm_set1_epi32(1)), 4));
-        auto y1 =
-            simd::FromSimde(simde_mm_i32gather_ps(raw, simde_mm_add_epi32(base_vindex, simde_mm_set1_epi32(2)), 4));
-        auto y2 =
-            simd::FromSimde(simde_mm_i32gather_ps(raw, simde_mm_add_epi32(base_vindex, simde_mm_set1_epi32(3)), 4));
+        __m128i base_vindex = (__m128i)irpos;
+        auto yn1 = (simd::Float128)_mm_i32gather_ps(raw, base_vindex, 4);
+        auto y0 = (simd::Float128)_mm_i32gather_ps(raw, _mm_add_epi32(base_vindex, _mm_set1_epi32(1)), 4);
+        auto y1 = (simd::Float128)_mm_i32gather_ps(raw, _mm_add_epi32(base_vindex, _mm_set1_epi32(2)), 4);
+        auto y2 = (simd::Float128)_mm_i32gather_ps(raw, _mm_add_epi32(base_vindex, _mm_set1_epi32(3)), 4);
 #endif
 
         auto d0 = (y1 - yn1) * 0.5f;
@@ -82,7 +80,7 @@ private:
         auto irpos = simd::ToInt(rpos) - 1;
         irpos &= mask_;
 
-#ifndef SIMDE_X86_AVX2_NATIVE
+#ifndef SIMD_HAS_AVX2
         alignas(32) auto [yn1, y0, y1, y2] =
             simd::Transpose256(simd::Loadu128(buffer_.data() + irpos[0]), simd::Loadu128(buffer_.data() + irpos[1]),
                                simd::Loadu128(buffer_.data() + irpos[2]), simd::Loadu128(buffer_.data() + irpos[3]),
@@ -90,14 +88,14 @@ private:
                                simd::Loadu128(buffer_.data() + irpos[6]), simd::Loadu128(buffer_.data() + irpos[7]));
 #else
         float const* raw = buffer_.data();
-        simde__m256i base_vindex = simd::ToSimde(irpos);
-        auto yn1 = simd::FromSimde(simde_mm256_i32gather_ps(raw, base_vindex, 4));
-        auto y0 = simd::FromSimde(
-            simde_mm256_i32gather_ps(raw, simde_mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(1)), 4));
-        auto y1 = simd::FromSimde(
-            simde_mm256_i32gather_ps(raw, simde_mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(2)), 4));
-        auto y2 = simd::FromSimde(
-            simde_mm256_i32gather_ps(raw, simde_mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(3)), 4));
+        __m256i base_vindex = (__m256)irpos;
+        auto yn1 = (simd::Float256)(_mm256_i32gather_ps(raw, base_vindex, 4));
+        auto y0 =
+            (simd::Float256)(_mm256_i32gather_ps(raw, _mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(1)), 4));
+        auto y1 =
+            (simd::Float256)(_mm256_i32gather_ps(raw, _mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(2)), 4));
+        auto y2 =
+            (simd::Float256)(_mm256_i32gather_ps(raw, _mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(3)), 4));
 #endif
 
         auto d0 = (y1 - yn1) * 0.5f;

@@ -1,5 +1,6 @@
 #pragma once
-#include "../simd.hpp"
+#include "../simd/inst.hpp"
+#include "../simd/simd.hpp"
 
 namespace pluginshared::dsp {
 
@@ -43,7 +44,7 @@ public:
         return real + mulj;
     }
 private:
-    template<float alpha>
+    template <float alpha>
     struct APF {
         simd::Float128 z0_;
         simd::Float128 z1_;
@@ -56,7 +57,7 @@ private:
         /**
          * @param x => [L_re, L_im, R_re, R_im]
          * @return  => [L_re, L_im, R_re, R_im]
-        */
+         */
         simd::Float128 Tick(simd::Float128 x) noexcept {
             auto in = x + alpha * z1_;
             auto out = z1_ - alpha * in;
@@ -133,7 +134,7 @@ public:
         return real + mulj;
     }
 private:
-    template<float alpha>
+    template <float alpha>
     struct APF {
         simd::Float128 z0_{};
         simd::Float128 z1_{};
@@ -146,7 +147,7 @@ private:
         /**
          * @param x => [L_re, L_im, R_re, R_im]
          * @return  => [L_re, L_im, R_re, R_im]
-        */
+         */
         simd::Float128 Tick(simd::Float128 x) noexcept {
             auto in = x + alpha * z1_;
             auto out = z1_ - alpha * in;
@@ -175,4 +176,4 @@ private:
     simd::Float128 lag_;
 };
 
-} // namespace qwqdsp_simd_element
+} // namespace pluginshared::dsp

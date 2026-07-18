@@ -1,3 +1,13 @@
-#define DSP_EXPORT_NAME dsp_sse4
-#define DSP_INST_NAME "SSE4"
-#include "dsp_lane4_template.cpp"
+#define SIMD_USE_SSE4
+#define INST_NAME "SSE4"
+
+#include "dsp_impl.hpp"
+
+namespace vital_reverb {
+
+template <>
+std::unique_ptr<Idsp> CreateDspImpl<simd::Inst::SSE4>() {
+    return std::make_unique<DspImpl<simd::Inst::SSE4, simd::Float128>>();
+}
+
+} // namespace vital_reverb

@@ -2,12 +2,12 @@
 #include <array>
 #include <cmath>
 #include <numbers>
-#include "../simd.hpp"
-
+#include "../simd/inst.hpp"
+#include "../simd/simd.hpp"
 
 namespace pluginshared::dsp {
 
-template <simd::IsSimdFloat T>
+template <simd::Inst inst, class T>
 class OnePoleTPT {
 public:
     void Reset() noexcept {
