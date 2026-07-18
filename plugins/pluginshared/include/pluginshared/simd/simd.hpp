@@ -135,11 +135,11 @@ static inline Float128 Loadu128(const float* ptr) noexcept {
 static inline Float256 Loadu256(const float* ptr) noexcept {
     return Float256{ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7]};
 }
-template <Float128>
+template <class T> requires (LaneSize<T> == 4)
 static inline Float128 Loadu(const float* ptr) noexcept {
     return Loadu128(ptr);
 }
-template <Float256>
+template <class T> requires (LaneSize<T> == 8)
 static inline Float256 Loadu(const float* ptr) noexcept {
     return Loadu256(ptr);
 }
@@ -164,11 +164,11 @@ static inline Float128 BroadcastF128(float i) noexcept {
 static inline Float256 BroadcastF256(float i) noexcept {
     return Float256{i, i, i, i, i, i, i, i};
 }
-template <Float128>
+template <class T> requires (LaneSize<T> == 4)
 static inline Float128 Broadcast(float i) noexcept {
     return Float128{i, i, i, i};
 }
-template <Float256>
+template <class T> requires (LaneSize<T> == 8)
 static inline Float256 Broadcast(float i) noexcept {
     return Float256{i, i, i, i, i, i, i, i};
 }

@@ -11,9 +11,4 @@ enum class Inst {
     NEON
 };
 
-struct Tag128 {};
-struct Tag256 {};
-static constexpr Tag128 tag128;
-static constexpr Tag256 tag256;
-
 } // namespace simd

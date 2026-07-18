@@ -622,8 +622,8 @@ private:
             for (int j = 0; j < simd_loop_count - 1; ++j) {
                 // std::complex<float> tmp = x * pre_osc_n_val;
                 // pre_osc_n_val *= pre_osc;
-                auto tmp_l = simd::Broadcast<SimdT{}>(x_left) * pre_osc_n_val;
-                auto tmp_r = simd::Broadcast<SimdT{}>(x_right) * pre_osc_n_val;
+                auto tmp_l = simd::Broadcast<SimdT>(x_left) * pre_osc_n_val;
+                auto tmp_r = simd::Broadcast<SimdT>(x_right) * pre_osc_n_val;
                 pre_osc_n_val *= pre_osc;
 
                 for (int k = 0; k < kPoles; ++k) {
@@ -683,14 +683,14 @@ private:
                 y_r += band_out_r.re * band_gain;
                 post_osc_n_val *= post_osc;
 
-                band_gain = simd::Broadcast<SimdT{}>(2.0f);
+                band_gain = simd::Broadcast<SimdT>(2.0f);
             }
 
             // -------------------- here we have: 1/2/3/4 --------------------
             // std::complex<float> tmp = x * pre_osc_n_val;
             // pre_osc_n_val *= pre_osc;
-            auto tmp_l = simd::Broadcast<SimdT{}>(x_left) * pre_osc_n_val;
-            auto tmp_r = simd::Broadcast<SimdT{}>(x_right) * pre_osc_n_val;
+            auto tmp_l = simd::Broadcast<SimdT>(x_left) * pre_osc_n_val;
+            auto tmp_r = simd::Broadcast<SimdT>(x_right) * pre_osc_n_val;
 
             for (int k = 0; k < kPoles; ++k) {
                 const float gk = svf_g[k];
@@ -822,7 +822,7 @@ private:
             for (int j = 0; j < simd_loop_count - 1; ++j) {
                 // std::complex<float> tmp = x * pre_osc_n_val;
                 // pre_osc_n_val *= pre_osc;
-                auto tmp_l = simd::Broadcast<SimdT{}>(x_left) * pre_osc_n_val;
+                auto tmp_l = simd::Broadcast<SimdT>(x_left) * pre_osc_n_val;
                 pre_osc_n_val *= pre_osc;
 
                 for (int k = 0; k < kPoles; ++k) {
@@ -860,13 +860,13 @@ private:
                 y_l += band_out_l.re * band_gain;
                 post_osc_n_val *= post_osc;
 
-                band_gain = simd::Broadcast<SimdT{}>(2.0f);
+                band_gain = simd::Broadcast<SimdT>(2.0f);
             }
 
             // -------------------- here we have: 1/2/3/4 --------------------
             // std::complex<float> tmp = x * pre_osc_n_val;
             // pre_osc_n_val *= pre_osc;
-            auto tmp_l = simd::Broadcast<SimdT{}>(x_left) * pre_osc_n_val;
+            auto tmp_l = simd::Broadcast<SimdT>(x_left) * pre_osc_n_val;
 
             for (int k = 0; k < kPoles; ++k) {
                 const float gk = svf_g[k];
