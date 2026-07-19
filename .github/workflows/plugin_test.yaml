@@ -245,16 +245,21 @@ jobs:
         COUNT=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents" "$PLIST_PATH" | grep -E "^    [a-zA-Z]+" | wc -l | xargs)
         echo "Found $COUNT component(s) in bundle."
 
-        for (( i=0; i<$COUNT; i++ )); do
-          TYPE=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:type" "$PLIST_PATH")
-          SUBT=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:subtype" "$PLIST_PATH")
-          MANU=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:manufacturer" "$PLIST_PATH")
+        for round in 1 2 3; do
+          echo ""
+          echo "========== auval round $round/3 =========="
+          echo ""
+          for (( i=0; i<$COUNT; i++ )); do
+            TYPE=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:type" "$PLIST_PATH")
+            SUBT=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:subtype" "$PLIST_PATH")
+            MANU=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:manufacturer" "$PLIST_PATH")
 
-          echo "-----------------------------------------------"
-          echo "Validating Component $i: Type='$TYPE', Subtype='$SUBT', Manu='$MANU'"
-          echo "-----------------------------------------------"
+            echo "-----------------------------------------------"
+            echo "Validating Component $i: Type='$TYPE', Subtype='$SUBT', Manu='$MANU'"
+            echo "-----------------------------------------------"
 
-          auval -v "$TYPE" "$SUBT" "$MANU"
+            auval -v "$TYPE" "$SUBT" "$MANU"
+          done
         done
 
     ##### upload artifacts (after successful tests) #####
