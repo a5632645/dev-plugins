@@ -97,56 +97,23 @@ endif()
 # simd dispatch
 # ------------------------------------------------------------
 if(APPLE)
-    # Collect target architectures for SIMD file dispatch.
-    # CMAKE_OSX_ARCHITECTURES is one of: x86_64 / arm64 / x86_64;arm64
-    if(CMAKE_OSX_ARCHITECTURES)
-        set(_archs ${CMAKE_OSX_ARCHITECTURES})
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
-        set(_archs "arm64")
-    else()
-        set(_archs "x86_64")
-    endif()
-
-    if(_archs STREQUAL "x86_64")
-        target_sources(${PLUGIN_NAME}
-            PRIVATE
-            src/dsp/dsp_avx2.cpp
-            src/dsp/dsp_avx.cpp
-            src/dsp/dsp_sse4.cpp
-            src/dsp/dsp_sse2.cpp
-            src/dsp/dsp_avx2_fma.cpp
-        )
-        set_source_files_properties("src/dsp/dsp_sse2.cpp" PROPERTIES COMPILE_FLAGS "-msse2 -ffast-math -Wno-nan-infinity-disabled")
-        set_source_files_properties("src/dsp/dsp_sse4.cpp" PROPERTIES COMPILE_FLAGS "-msse4.1 -ffast-math -Wno-nan-infinity-disabled")
-        set_source_files_properties("src/dsp/dsp_avx.cpp" PROPERTIES COMPILE_FLAGS "-mavx -ffast-math -Wno-nan-infinity-disabled")
-        set_source_files_properties("src/dsp/dsp_avx2.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -ffast-math -Wno-nan-infinity-disabled")
-        set_source_files_properties("src/dsp/dsp_avx2_fma.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -ffast-math -Wno-nan-infinity-disabled")
-
-    elseif(_archs STREQUAL "arm64")
-        target_sources(${PLUGIN_NAME} PRIVATE src/dsp/dsp_neon.cpp)
-        set_source_files_properties("src/dsp/dsp_neon.cpp" PROPERTIES COMPILE_FLAGS "-ffast-math -Wno-nan-infinity-disabled")
-
-    else()
-        # universal binary: x86_64 + arm64
-        target_sources(${PLUGIN_NAME} PRIVATE src/dsp/dsp_neon.cpp)
-        set_source_files_properties("src/dsp/dsp_neon.cpp" PROPERTIES COMPILE_FLAGS "-arch arm64 -ffast-math -Wno-nan-infinity-disabled")
-
-        target_sources(${PLUGIN_NAME}
-            PRIVATE
-            src/dsp/dsp_avx2.cpp
-            src/dsp/dsp_avx.cpp
-            src/dsp/dsp_sse4.cpp
-            src/dsp/dsp_sse2.cpp
-            src/dsp/dsp_avx2_fma.cpp
-        )
-        set_source_files_properties("src/dsp/dsp_sse2.cpp" PROPERTIES COMPILE_FLAGS "-msse2 -ffast-math -Wno-nan-infinity-disabled")
-        set_source_files_properties("src/dsp/dsp_sse4.cpp" PROPERTIES COMPILE_FLAGS "-msse4.1 -ffast-math -Wno-nan-infinity-disabled")
-        set_source_files_properties("src/dsp/dsp_avx.cpp" PROPERTIES COMPILE_FLAGS "-mavx -ffast-math -Wno-nan-infinity-disabled")
-        set_source_files_properties("src/dsp/dsp_avx2.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -ffast-math -Wno-nan-infinity-disabled")
-        set_source_files_properties("src/dsp/dsp_avx2_fma.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -ffast-math -Wno-nan-infinity-disabled")
-    endif()
-
-    unset(_archs)
+    # Each dsp_*.cpp self-selects its architecture via __x86_64__ / __aarch64__,
+    # so all files can be unconditionally added even for universal binaries.
+    target_sources(${PLUGIN_NAME}
+        PRIVATE
+        src/dsp/dsp_neon.cpp
+        src/dsp/dsp_avx2.cpp
+        src/dsp/dsp_avx.cpp
+        src/dsp/dsp_sse4.cpp
+        src/dsp/dsp_sse2.cpp
+        src/dsp/dsp_avx2_fma.cpp
+    )
+    set_source_files_properties("src/dsp/dsp_neon.cpp" PROPERTIES COMPILE_FLAGS "-ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_sse2.cpp" PROPERTIES COMPILE_FLAGS "-msse2 -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_sse4.cpp" PROPERTIES COMPILE_FLAGS "-msse4.1 -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_avx.cpp" PROPERTIES COMPILE_FLAGS "-mavx -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_avx2.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_avx2_fma.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -ffast-math -Wno-nan-infinity-disabled")
 else()
     target_sources(${PLUGIN_NAME}
         PRIVATE

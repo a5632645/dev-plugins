@@ -1,3 +1,5 @@
+#if defined(__x86_64__) || defined(_M_X64)
+
 #define SIMD_USE_SSE4
 #define INST_NAME "SSE4"
 
@@ -11,3 +13,5 @@ std::unique_ptr<Idsp> CreateDspImpl<simd::Inst::SSE4>() {
 }
 
 } // namespace warpcore
+
+#endif

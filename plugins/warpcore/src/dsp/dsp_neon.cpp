@@ -1,3 +1,5 @@
+#if defined(__aarch64__) || defined(_M_ARM64)
+
 #define SIMD_USE_NEON
 #define INST_NAME "NEON"
 
@@ -11,3 +13,5 @@ std::unique_ptr<Idsp> CreateDspImpl<simd::Inst::NEON>() {
 }
 
 } // namespace warpcore
+
+#endif
