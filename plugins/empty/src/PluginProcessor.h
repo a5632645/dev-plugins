@@ -3,17 +3,7 @@
 #include <pluginshared/preset_manager.hpp>
 #include <pluginshared/wrap_parameters.hpp>
 
-#include "dsp/phaser_processor.hpp"
-
-//==============================================================================
-/// Parameter IDs used in the APVTS.
-namespace param_ids {
-inline constexpr auto rate     = "rate";
-inline constexpr auto depth    = "depth";
-inline constexpr auto feedback = "feedback";
-inline constexpr auto mix      = "mix";
-inline constexpr auto stages   = "stages";
-} // namespace param_ids
+#include "dsp/idsp.hpp"
 
 //==============================================================================
 class EmptyAudioProcessor final : public juce::AudioProcessor
@@ -60,8 +50,7 @@ public:
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 
-    // DSP
-    PhaserProcessor phaser_;
+    empty::DspHanle dsp_;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EmptyAudioProcessor)
