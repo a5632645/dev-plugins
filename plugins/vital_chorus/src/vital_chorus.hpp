@@ -3,17 +3,18 @@
 #include <span>
 
 #include <qwqdsp/polymath.hpp>
-#include <qwqdsp/simd_element/delay_line_multiple.hpp>
-#include <qwqdsp/simd_element/simd_pack.hpp>
+// #include <qwqdsp/simd_element/delay_line_multiple.hpp>
+// #include <qwqdsp/simd_element/simd_pack.hpp>
+#include "pluginshared/dsp/delay_line_multiple.hpp"
 
-using SimdType = qwqdsp_simd_element::PackFloat<4>;
+using SimdType = simd::Float128;
 
 class ParalleOnePoleTPT {
 public:
     void Reset() noexcept {
-        lag_.Broadcast(0);
+        lag_ = simd::Float128{};
     }
-    
+
     static float ComputeCoeff(float w) noexcept {
         constexpr float kMaxOmega = std::numbers::pi_v<float> - 1e-5f;
         [[unlikely]]
@@ -76,7 +77,7 @@ public:
     }
 
     void Process(std::span<float> left, std::span<float> right) noexcept {
-        size_t const num_pairs = num_voices_ / SimdType::kSize;
+        size_t const num_pairs = num_voices_ / simd::LaneSize<SimdType>;
         float const g = 1.0f / std::sqrt(static_cast<float>(num_pairs));
         size_t const num_samples = left.size();
         size_t offset = 0;
@@ -88,7 +89,8 @@ public:
 
         while (offset != num_samples) {
             size_t const cando = std::min(256ull, num_samples - offset);
-            float const delay_time_smooth_factor = 1.0f - std::exp(-1.0f / (fs_ / static_cast<float>(cando) * 20.0f / 1000.0f));
+            float const delay_time_smooth_factor =
+                1.0f - std::exp(-1.0f / (fs_ / static_cast<float>(cando) * 20.0f / 1000.0f));
 
             // update delay time
             // you can see visualizer here https://www.desmos.com/calculator/5ytjkkqtbb?lang=zh-CN
@@ -97,14 +99,15 @@ public:
             float const avg_delay = (delay1 + delay2) * 0.5f;
             for (size_t i = 0; i < num_pairs; ++i) {
                 SimdType static_a = SimdType{delay1, delay1, delay2, delay2};
-                SimdType static_b = SimdType::vBroadcast(avg_delay);
+                SimdType static_b = simd::Broadcast<SimdType>(avg_delay);
                 float const lerp = static_cast<float>(i) / std::max(1.0f, static_cast<float>(num_pairs) - 1.0f);
                 SimdType static_delay = static_a + lerp * (static_b - static_a);
                 SimdType offsetp = SimdType{0.0f, 0.25f, 0.5f, 0.75f};
                 SimdType sin_mod = phase_ + offsetp + (0.25f * static_cast<float>(i) / static_cast<float>(num_pairs));
-                sin_mod = qwqdsp_simd_element::PackOps::Frac(sin_mod);
+                sin_mod = simd::Frac(sin_mod);
                 for (size_t j = 0; j < 4; ++j) {
-                    sin_mod[j] = qwqdsp::polymath::SinParabola(sin_mod[j] * 2 * std::numbers::pi_v<float> - std::numbers::pi_v<float>);
+                    sin_mod[j] = qwqdsp::polymath::SinParabola(sin_mod[j] * 2 * std::numbers::pi_v<float>
+                                                               - std::numbers::pi_v<float>);
                 }
                 sin_mod = sin_mod * 0.5f + 1.0f;
                 SimdType delay_ms = (depth * kMaxModulationMs) * sin_mod + static_delay;
@@ -134,14 +137,14 @@ public:
 
             float const curr_feedback = last_feedback_;
             float const delta_feedback = (feedback - last_feedback_) * inv_processing_samples;
-            SimdType vcurr_feedback = SimdType::vBroadcast(curr_feedback);
-            SimdType vdelta_feedback = SimdType::vBroadcast(delta_feedback);
+            SimdType vcurr_feedback = simd::Broadcast<SimdType>(curr_feedback);
+            SimdType vdelta_feedback = simd::Broadcast<SimdType>(delta_feedback);
 
             float vcurr_lowpass = last_lowpass_coeff_;
             float vcurr_highpass = last_highpass_coeff_;
             float const delta_lowpass = (lowpass_coeff_ - last_lowpass_coeff_) * inv_processing_samples;
             float const delta_highpass = (highpass_coeff_ - last_highpass_coeff_) * inv_processing_samples;
-            
+
             for (size_t j = 0; j < cando; ++j) {
                 curr_delay_samples += delta_delay_samples;
                 vcurr_feedback += vdelta_feedback;
@@ -162,12 +165,12 @@ public:
                 curr_delay_samples = last_delay_samples_[i];
                 delta_delay_samples = (delay_samples_[i] - last_delay_samples_[i]) * (inv_processing_samples);
 
-                vcurr_feedback.Broadcast(curr_feedback);
-                vdelta_feedback.Broadcast(delta_feedback);
+                vcurr_feedback = simd::Broadcast<SimdType>(curr_feedback);
+                vdelta_feedback = simd::Broadcast<SimdType>(delta_feedback);
 
                 vcurr_lowpass = last_lowpass_coeff_;
                 vcurr_highpass = last_highpass_coeff_;
-                
+
                 for (size_t j = 0; j < cando; ++j) {
                     curr_delay_samples += delta_delay_samples;
                     vcurr_feedback += vdelta_feedback;
@@ -189,10 +192,10 @@ public:
             right_ptr -= cando;
             float const dry = qwqdsp::polymath::CosPi(mix * std::numbers::pi_v<float> * 0.5f);
             float const wet = g * qwqdsp::polymath::SinPi(mix * std::numbers::pi_v<float> * 0.5f);
-            SimdType curr_dry = SimdType::vBroadcast(last_dry_);
-            SimdType curr_wet = SimdType::vBroadcast(last_wet_);
-            SimdType delta_dry = SimdType::vBroadcast((dry - last_dry_) * inv_processing_samples);
-            SimdType delta_wet = SimdType::vBroadcast((wet - last_wet_) * inv_processing_samples);
+            SimdType curr_dry = simd::Broadcast<SimdType>(last_dry_);
+            SimdType curr_wet = simd::Broadcast<SimdType>(last_wet_);
+            SimdType delta_dry = simd::Broadcast<SimdType>((dry - last_dry_) * inv_processing_samples);
+            SimdType delta_wet = simd::Broadcast<SimdType>((wet - last_wet_) * inv_processing_samples);
             for (size_t j = 0; j < cando; ++j) {
                 curr_dry += delta_dry;
                 curr_wet += delta_wet;
@@ -217,12 +220,6 @@ public:
         phase_ = phase;
     }
 
-    void WarpBuffer() noexcept {
-        for (auto& d : delays_) {
-            d.WarpBuffer();
-        }
-    }
-
     // -------------------- params --------------------
     float depth{};
     float delay1{};
@@ -237,7 +234,7 @@ public:
         highpass_coeff_ = ParalleOnePoleTPT::ComputeCoeff(high_w);
     }
     void SetNumVoices(size_t num_voices) noexcept {
-        for (size_t i = num_voices_ / SimdType::kSize; i < num_voices / SimdType::kSize; ++i) {
+        for (size_t i = num_voices_ / simd::LaneSize<SimdType>; i < num_voices / simd::LaneSize<SimdType>; ++i) {
             lowpass_[i].Reset();
             highpass_[i].Reset();
             delays_[i].Reset();
@@ -246,18 +243,19 @@ public:
     }
 
     // -------------------- lookup --------------------
-    std::array<SimdType, kMaxNumChorus / SimdType::kSize> delay_ms_{};
-
+    simd::Array<SimdType, kMaxNumChorus / simd::LaneSize<SimdType>> delay_ms_{};
 private:
     float fs_{};
     float phase_{};
     float phase_inc_{};
     size_t num_voices_{};
-    std::array<SimdType, kMaxNumChorus / SimdType::kSize> delay_samples_{};
-    std::array<ParalleOnePoleTPT, kMaxNumChorus / SimdType::kSize> lowpass_;
-    std::array<ParalleOnePoleTPT, kMaxNumChorus / SimdType::kSize> highpass_;
-    std::array<SimdType, kMaxNumChorus / SimdType::kSize> last_delay_samples_{};
-    std::array<qwqdsp_simd_element::DelayLineMultiple<4, false>, kMaxNumChorus / SimdType::kSize> delays_;
+    simd::Array<SimdType, kMaxNumChorus / simd::LaneSize<SimdType>> delay_samples_{};
+    simd::Array<ParalleOnePoleTPT, kMaxNumChorus / simd::LaneSize<SimdType>> lowpass_;
+    simd::Array<ParalleOnePoleTPT, kMaxNumChorus / simd::LaneSize<SimdType>> highpass_;
+    simd::Array<SimdType, kMaxNumChorus / simd::LaneSize<SimdType>> last_delay_samples_{};
+    simd::Array<pluginshared::dsp::DelayLineMultiple<simd::Inst::SSE2, SimdType>,
+                   kMaxNumChorus / simd::LaneSize<SimdType>>
+        delays_;
     float last_feedback_{};
     float last_dry_{};
     float last_wet_{};

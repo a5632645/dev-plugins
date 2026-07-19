@@ -49,6 +49,9 @@ target_sources(${PLUGIN_NAME}
     PRIVATE
     src/PluginEditor.cpp
     src/PluginProcessor.cpp
+    src/ui/plugin_ui.cpp
+    src/ui/chorus_view.cpp
+    src/ui/filter_view.cpp
 )
 
 target_include_directories(${PLUGIN_NAME}
@@ -81,5 +84,4 @@ target_link_libraries(${PLUGIN_NAME}
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
     cpp_simd_detector
-    simde
 )
