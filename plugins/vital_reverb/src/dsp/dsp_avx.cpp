@@ -1,3 +1,5 @@
+#if defined(__x86_64__) || defined(_M_X64)
+
 #define SIMD_USE_AVX
 #define INST_NAME "AVX"
 
@@ -11,3 +13,5 @@ std::unique_ptr<Idsp> CreateDspImpl<simd::Inst::AVX>() {
 }
 
 } // namespace vital_reverb
+
+#endif

@@ -1,5 +1,5 @@
 set(PLUGIN_NAME VitalReverb)
-set(PLUGIN_VERSION 0.2.4)
+set(PLUGIN_VERSION 0.2.5)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_XCODE_GENERATE_SCHEME OFF)
@@ -88,26 +88,18 @@ target_link_libraries(${PLUGIN_NAME}
 # ------------------------------------------------------------
 # simd dispatch
 # ------------------------------------------------------------
-
 if(APPLE)
-    # Collect target architectures for SIMD file dispatch.
-    # This avoids per-file -arch flags which break with Ninja + universal builds.
-    if(CMAKE_OSX_ARCHITECTURES)
-        set(_archs ${CMAKE_OSX_ARCHITECTURES})
-    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
-        set(_archs "arm64")
-    else()
-        set(_archs "x86_64")
-    endif()
-
-    list(FIND _archs "arm64" _has_arm64)
-    if(NOT _has_arm64 EQUAL -1)
-        target_sources(${PLUGIN_NAME} PRIVATE src/dsp/dsp_neon.cpp)
+    # Each dsp_*.cpp self-selects its architecture via __x86_64__ / __aarch64__,
+    # so all files can be unconditionally added even for universal binaries.
+    if("arm64" IN_LIST CMAKE_OSX_ARCHITECTURES)
+        target_sources(${PLUGIN_NAME}
+            PRIVATE
+            src/dsp/dsp_neon.cpp
+        )
         set_source_files_properties("src/dsp/dsp_neon.cpp" PROPERTIES COMPILE_FLAGS "-ffast-math -Wno-nan-infinity-disabled")
     endif()
 
-    list(FIND _archs "x86_64" _has_x86_64)
-    if(NOT _has_x86_64 EQUAL -1)
+    if("x86_64" IN_LIST CMAKE_OSX_ARCHITECTURES)
         target_sources(${PLUGIN_NAME}
             PRIVATE
             src/dsp/dsp_avx2.cpp
@@ -122,10 +114,6 @@ if(APPLE)
         set_source_files_properties("src/dsp/dsp_avx2.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -ffast-math -Wno-nan-infinity-disabled")
         set_source_files_properties("src/dsp/dsp_avx2_fma.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -ffast-math -Wno-nan-infinity-disabled")
     endif()
-
-    unset(_archs)
-    unset(_has_arm64)
-    unset(_has_x86_64)
 else()
     target_sources(${PLUGIN_NAME}
         PRIVATE
