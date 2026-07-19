@@ -1,4 +1,4 @@
-#include "dsp_impl.hpp"
+#include "idsp.hpp"
 #include "pluginshared/simd/simd.hpp"
 
 namespace warpcore {
