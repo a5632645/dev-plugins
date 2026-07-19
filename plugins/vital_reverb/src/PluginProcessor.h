@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include "pluginshared/juce_param_listener.hpp"
 #include "pluginshared/preset_manager.hpp"
 #include "pluginshared/wrap_parameters.hpp"
@@ -64,6 +65,7 @@ public:
     juce::AudioParameterBool* param_freeze_;
 
 
+    std::atomic<bool> panic_flag_{false};
     vital_reverb::DspHanle dsp_;
 private:
     //==============================================================================

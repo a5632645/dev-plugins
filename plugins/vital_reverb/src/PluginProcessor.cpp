@@ -268,6 +268,9 @@ void EmptyAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     dsp_param.freeze = param_freeze_->get();
     dsp_->Update(dsp_param);
 
+    if (panic_flag_.exchange(false))
+        dsp_->Panic();
+
     dsp_->Process(left_ptr, right_ptr, num_samples);
 }
 

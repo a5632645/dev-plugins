@@ -1,7 +1,7 @@
 #include "plugin_ui.hpp"
 
-#include "../PluginProcessor.h"
 #include "../PluginEditor.h"
+#include "../PluginProcessor.h"
 
 PluginUi::PluginUi(EmptyAudioProcessor& p)
     : preset_(*p.preset_manager_) {
@@ -35,6 +35,9 @@ PluginUi::PluginUi(EmptyAudioProcessor& p)
     freeze_.BindParam(p.param_freeze_);
     addAndMakeVisible(freeze_);
 
+    panic_.onClick = [&p] { p.panic_flag_ = true; };
+    addAndMakeVisible(panic_);
+
     setSize(500, 230);
 }
 
@@ -44,6 +47,7 @@ void PluginUi::resized() {
 
     auto top = b.removeFromTop(30);
     freeze_.setBounds(top.removeFromLeft(80).reduced(2));
+    panic_.setBounds(top.removeFromLeft(70).reduced(2));
 
     int w = b.getWidth() / 6;
     top = b.removeFromTop(b.getHeight() / 2);

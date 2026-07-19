@@ -606,9 +606,10 @@ private:
             else {
                 input = simd::Float128{left[i], right[i], left[i], right[i]};
             }
+            input *= input_gain;
             auto pre_high_coeff_v = simd::BroadcastF128(current_high_pre_coefficient);
             auto pre_low_coeff_v = simd::BroadcastF128(current_low_pre_coefficient);
-            auto filtered_input = high_pre_filter_.TickLowpass(input * input_gain, pre_high_coeff_v);
+            auto filtered_input = high_pre_filter_.TickLowpass(input, pre_high_coeff_v);
             filtered_input = low_pre_filter_.TickLowpass(input, pre_low_coeff_v) - filtered_input;
             auto scaled_input = simd::Combine(filtered_input, filtered_input) * 0.5f;
 
