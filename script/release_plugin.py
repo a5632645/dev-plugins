@@ -110,7 +110,7 @@ def main():
 
     # 本地 Release 构建
     update_cmake_version(cmake_file, version)
-    run(["cmake", "--build", str(BUILD_DIR), "--target", f"{target}_All", "--config", "Release"])
+    run(["cmake", "--build", str(BUILD_DIR), "--target", f"{target}_All", "--config", "RelWithDebInfo"])
 
     # git commit & tag
     run(
