@@ -9,15 +9,9 @@
 #include "dsp/tilt_filter.hpp"
 #include "dsp/block_burg_lpc.hpp"
 
-#include "qwqdsp/oscillator/polyblep.hpp"
-#include "qwqdsp/oscillator/noise.hpp"
+#include "dsp/pitch_osc.hpp"
 
-#include "qwqdsp/pitch/yin.hpp"
-
-#include "qwqdsp/segement/analyze.hpp"
-#include "qwqdsp/filter/fast_set_iir_paralle.hpp"
 #include <qwqdsp/simd_element/algebraic_waveshaper.hpp>
-#include <qwqdsp/oscillator/noise.hpp>
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor
@@ -81,22 +75,8 @@ public:
     green_vocoder::dsp::BlockBurgLPC block_burg_lpc_;
     green_vocoder::dsp::STFTVocoder stft_vocoder_;
     green_vocoder::dsp::ChannelVocoder channel_vocoder_;
-    qwqdsp_oscillator::WhiteNoise noise_;
-
-    // pitch tracking
-    qwqdsp_segement::Analyze<8192> yin_segement_;
-    qwqdsp_pitch::Yin yin_;
-    std::array<float, 8192> osc_buffer_{};
-    size_t osc_wpos_{};
-    float last_osc_mix_{};
-    float last_noise_mix_{};
-    
-    // tracking oscillator
-    qwqdsp_oscillator::PolyBlep<qwqdsp_oscillator::blep_coeff::BSpline> tracking_osc_;
-    juce::AudioParameterChoice* tracking_waveform_{};
-    juce::AudioParameterFloat* tracking_noise_{};
-    float frequency_mul_{};
-    qwqdsp_filter::FastSetIirParalle<qwqdsp_filter::fastset_coeff::Order2_1e7> pitch_glide_;
+    // pitch tracking → oscillator
+    green_vocoder::dsp::PitchOsc pitch_osc_;
     bool first_init_{};
 
     int old_latency_{};
@@ -106,13 +86,6 @@ public:
     eVocoderType last_vocoder_type_{eVocoderType_LeakyBurgLPC};
 private:
     static constexpr size_t kBlockSize = 256;
-
-    void ProcessPitchTracking(
-        std::array<qwqdsp_simd_element::PackFloat<2>, kBlockSize>& dst,
-        const juce::AudioBuffer<float>& buffer,
-        int pitch_ch,
-        size_t pos,
-        size_t n);
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)

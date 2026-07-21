@@ -13,3 +13,6 @@
 [submodule "libs/json"]
 	path = libs/json
 	url = https://github.com/nlohmann/json.git
+[submodule "libs/DSPark"]
+	path = libs/DSPark
+	url = https://github.com/CristianMoresi/DSPark.git
