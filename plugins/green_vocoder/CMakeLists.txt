@@ -52,12 +52,10 @@ target_sources(${PLUGIN_NAME}
     src/ui/plugin_ui.cpp
     src/dsp/block_burg_lpc.cpp
     src/dsp/channel_vocoder.cpp
-    src/dsp/ensemble.cpp
     src/dsp/leaky_burg_lpc.cpp
     src/dsp/stft_vocoder.cpp
     src/widget/burg_lpc.cpp
     src/widget/channel_vocoder.cpp
-    src/widget/ensemble.cpp
     src/widget/pre_fx.cpp
     src/widget/stft_vocoder.cpp
     src/widget/tracking.cpp
@@ -94,5 +92,4 @@ target_link_libraries(${PLUGIN_NAME}
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
     cpp_simd_detector
-    simde
 )

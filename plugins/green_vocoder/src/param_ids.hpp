@@ -35,8 +35,8 @@ namespace id {
 // params
 // --------------------------------------------------------------------------------
 static constexpr auto kOutputgain = "output_gain";
-static constexpr auto kMainChannelConfig = "main_ch_config";
-static constexpr auto kSideChannelConfig = "side_ch_config";
+static constexpr auto kChannelSwap = "ch_swap";
+static constexpr auto kPitchChannel = "pitch_ch";
 
 static constexpr auto kVocoderType = "vocoder_type";
 
@@ -59,12 +59,6 @@ static constexpr auto kStftBlend = "stft_blend";
 static constexpr auto kStftSize = "stft_size";
 static constexpr auto kStftDetail = "stft_detail";
 static constexpr auto kStftType = "stft_type";
-
-static constexpr auto kEnsembleDetune = "ens_detune";
-static constexpr auto kEnsembleRate = "ens_rate";
-static constexpr auto kEnsembleSpread = "ens_spread";
-static constexpr auto kEnsembleMix = "ens_mix";
-static constexpr auto kEnsembleNumVoices = "ens_num_voices";
 
 static constexpr auto kChannelVocoderNBands = "cv_nbands";
 static constexpr auto kChannelVocoderFreqBegin = "cv_fbegin";

@@ -2,7 +2,6 @@
 #include <pluginshared/component.hpp>
 #include <pluginshared/preset_panel.hpp>
 
-#include "widget/ensemble.hpp"
 #include "widget/tracking.hpp"
 #include "widget/pre_fx.hpp"
 #include "widget/vocoder.hpp"
@@ -23,6 +22,5 @@ private:
 
     green_vocoder::widget::PreFx pre_fx_;
     green_vocoder::widget::Vocoder vocoder_;
-    green_vocoder::widget::Ensemble ensemble_;
     green_vocoder::widget::Tracking tracking_;
 };

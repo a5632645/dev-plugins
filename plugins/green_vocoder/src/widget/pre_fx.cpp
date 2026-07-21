@@ -9,18 +9,18 @@ PreFx::PreFx(AudioPluginAudioProcessor& p) {
     addAndMakeVisible(title_);
     tilt_.BindParam(apvts, id::kPreTilt);
     addAndMakeVisible(tilt_);
-    main_route_.BindParam(apvts, id::kMainChannelConfig);
-    addAndMakeVisible(main_route_);
-    side_route_.BindParam(apvts, id::kSideChannelConfig);
-    addAndMakeVisible(side_route_);
+    swap_.BindParam(apvts, id::kChannelSwap);
+    addAndMakeVisible(swap_);
+    pitch_ch_.BindParam(apvts, id::kPitchChannel);
+    addAndMakeVisible(pitch_ch_);
 
-    main_route_title_.setJustificationType(juce::Justification::left);
-    ui::SetLableBlack(main_route_title_);
-    addAndMakeVisible(main_route_title_);
+    swap_title_.setJustificationType(juce::Justification::left);
+    ui::SetLableBlack(swap_title_);
+    addAndMakeVisible(swap_title_);
     
-    side_route_title_.setJustificationType(juce::Justification::left);
-    ui::SetLableBlack(side_route_title_);
-    addAndMakeVisible(side_route_title_);
+    pitch_title_.setJustificationType(juce::Justification::left);
+    ui::SetLableBlack(pitch_title_);
+    addAndMakeVisible(pitch_title_);
 }
 
 void PreFx::resized() {
@@ -29,11 +29,11 @@ void PreFx::resized() {
 
     b.removeFromLeft(70);
     auto channel_bound = b.removeFromLeft(100);
-    main_route_.setBounds(channel_bound.removeFromTop(channel_bound.getHeight() / 2).reduced(2));
-    side_route_.setBounds(channel_bound.reduced(2));
+    swap_.setBounds(channel_bound.removeFromTop(channel_bound.getHeight() / 2).reduced(2));
+    pitch_ch_.setBounds(channel_bound.reduced(2));
 
-    main_route_title_.setBounds(main_route_.getBounds().translated(-70, 0));
-    side_route_title_.setBounds(side_route_.getBounds().translated(-70, 0));
+    swap_title_.setBounds(swap_.getBounds().translated(-70, 0));
+    pitch_title_.setBounds(pitch_ch_.getBounds().translated(-70, 0));
 
     tilt_.setBounds(b.removeFromLeft(50).withHeight(65));
 }

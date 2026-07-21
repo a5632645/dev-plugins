@@ -10,7 +10,7 @@
 #if BUILD_IN_CI
 #define I_AM_USING_LOOPBACK_DEBUG 0
 #else
-#define I_AM_USING_LOOPBACK_DEBUG 0
+#define I_AM_USING_LOOPBACK_DEBUG 1
 #endif
 
 //==============================================================================
@@ -33,23 +33,18 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{id::kMainChannelConfig, 1},
-                                                              id::kMainChannelConfig,
-                                                              juce::StringArray{
-                                                                  "Main Left",
-                                                                  "Main Right",
-                                                                  "Side Left",
-                                                                  "Side Right",
-                                                              },
-                                                              0);
-        main_channel_config_ = p.get();
+        auto p = std::make_unique<juce::AudioParameterBool>(juce::ParameterID{id::kChannelSwap, 1},
+                                                            id::kChannelSwap,
+                                                            false);
+        channel_swap_ = p.get();
+        paramListeners_.Add(p, [](bool) {});
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{id::kSideChannelConfig, 1},
-                                                              id::kSideChannelConfig,
-                                                              juce::StringArray{"Main", "Side", "Pitch"}, 1);
-        side_channel_config_ = p.get();
+        auto p = std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{id::kPitchChannel, 1},
+                                                              id::kPitchChannel,
+                                                              juce::StringArray{"Off", "Main L", "Main R", "Side L", "Side R"}, 0);
+        pitch_channel_ = p.get();
         layout.add(std::move(p));
     }
 
@@ -274,41 +269,6 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
 
-    // ensemble
-    {
-        auto p =
-            std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kEnsembleDetune, 1}, id::kEnsembleDetune,
-                                                        0.01f, green_vocoder::dsp::Ensemble::kMaxSemitone, 0.05f);
-        paramListeners_.Add(p, [this](float detune) { ensemble_.SetDetune(detune); });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kEnsembleMix, 1}, id::kEnsembleMix,
-                                                             0.0f, 1.0f, 0.5f);
-        paramListeners_.Add(p, [this](float mix) { ensemble_.SetMix(mix); });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kEnsembleNumVoices, 1}, id::kEnsembleNumVoices,
-            juce::NormalisableRange<float>{0, green_vocoder::dsp::Ensemble::kMaxVoices, 4.0f}, 8);
-        paramListeners_.Add(p, [this](float nvocice) { ensemble_.SetNumVoices(static_cast<int>(nvocice)); });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kEnsembleSpread, 1},
-                                                             id::kEnsembleSpread, 0.0f, 1.0f, 1.0f);
-        paramListeners_.Add(p, [this](float spread) { ensemble_.SetSperead(spread); });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kEnsembleRate, 1}, id::kEnsembleRate,
-            juce::NormalisableRange<float>(green_vocoder::dsp::Ensemble::kMinFrequency, 1.0f, 0.01f), 0.01f);
-        paramListeners_.Add(p, [this](float rate) { ensemble_.SetRate(rate); });
-        layout.add(std::move(p));
-    }
-
     // pitch tracking
     {
         auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kTrackingLow, 1}, id::kTrackingLow,
@@ -356,8 +316,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, kParameterValueTreeIdentify,
                                                                        std::move(layout));
-    preset_manager_ = std::make_unique<pluginshared::PresetManager>(
-        *value_tree_, *this);
+    preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {
@@ -428,7 +387,6 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
     burg_lpc_.Init(fs, block_size);
     stft_vocoder_.Init(fs);
     channel_vocoder_.Init(fs, block_size);
-    ensemble_.Init(fs);
     block_burg_lpc_.Init(fs);
 
     yin_segement_.SetHop(1024);
@@ -477,187 +435,95 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
 
     paramListeners_.HandleDirty();
 
-    int main_ch = main_channel_config_->getIndex();
-    int side_ch = side_channel_config_->getIndex();
+    // --- resolve channel routing ---
+    bool const has_sidechain = buffer.getNumChannels() >= 4;
 
-    if (buffer.getNumChannels() < 4) {
-        // 无侧链，侧链声道映射为主声道
-        if (main_ch >= 2) {
-            main_ch -= 2;
-        }
-        if (side_ch == 1) {
-            side_ch = 0;
-        }
-    }
-
-    float* main_buffer_left = buffer.getWritePointer(0);
-    float* main_buffer_right = buffer.getWritePointer(1);
-    float const* modu_left = buffer.getReadPointer(0);
-    [[maybe_unused]] float const* modu_right = buffer.getReadPointer(1);
-    float const* side_left = buffer.getReadPointer(0);
-    [[maybe_unused]] float const* side_right = buffer.getReadPointer(1);
-    float const* pitch_buffer = buffer.getReadPointer(main_ch);
-    size_t num_samples = static_cast<size_t>(buffer.getNumSamples());
-
-    // get buffer pointers by index
-    if (main_ch == 2 || main_ch == 3) {
-        modu_left = buffer.getReadPointer(2);
-        modu_right = buffer.getReadPointer(3);
-    }
-    if (side_ch == 1) {
-        side_left = buffer.getReadPointer(2);
-        side_right = buffer.getReadPointer(3);
-    }
-    else if (side_ch == 0) {
-        side_left = buffer.getReadPointer(0);
-        side_right = buffer.getReadPointer(1);
-    }
+    bool const swap = channel_swap_->get();
+    int pitch_ch_idx = pitch_channel_->getIndex(); // 0=Off, 1=ch0, 2=ch1, 3=ch2, 4=ch3
+    if (!has_sidechain && pitch_ch_idx >= 3) pitch_ch_idx -= 2; // ch2/3 → ch0/1
+    bool const use_pitch = pitch_ch_idx > 0;
+    int const pitch_ch = pitch_ch_idx - 1; // 0-based channel index when active
 
 #if I_AM_USING_LOOPBACK_DEBUG
-    modu_left = buffer.getReadPointer(0);
-    side_left = buffer.getReadPointer(1);
-#endif
-
-    // block process for non-static buffer DAW
-    for (size_t wpos = 0; num_samples != 0;) {
-        size_t num_process = std::min<size_t>(256, num_samples - wpos);
-        num_samples -= num_process;
-
-#if I_AM_USING_LOOPBACK_DEBUG
-        // copying main left to modulator
-        for (size_t i = 0; i < num_process; ++i) {
-            crossing_main_buffer_[i].Broadcast(modu_left[i]);
-        }
-        modu_left += num_process;
+    int const mod_ch = 0;
+    int const carry_ch = 1;
 #else
-        // copying modulator buffer
-        for (size_t i = 0; i < num_process; ++i) {
-            crossing_main_buffer_[i] = {modu_left[i], modu_right[i]};
-        }
-        modu_left += num_process;
-        modu_right += num_process;
+    int mod_ch = 0;
+    int carry_ch = has_sidechain ? 2 : 0;
+    if (swap) std::swap(mod_ch, carry_ch);
 #endif
 
-        // copying carry buffer or using pitch tracking
-        if (side_ch == 2) {
-            yin_segement_.Push({pitch_buffer, num_process});
-            pitch_buffer += num_process;
+    size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
 
-            float const noise_gain = tracking_noise_->get();
-            while (yin_segement_.CanProcess()) {
-                yin_.Process(yin_segement_.GetBlock());
-                yin_segement_.Advance();
+    // --- block processing ---
+    for (size_t pos = 0; pos < num_samples; pos += kBlockSize) {
+        size_t const n = std::min(kBlockSize, num_samples - pos);
 
-                // get pitch
-                auto pitch = yin_.GetPitch();
-                size_t const iwant = static_cast<size_t>(yin_segement_.GetHop());
-                size_t const can_write = std::min(osc_buffer_.size() - osc_wpos_, iwant);
-
-                float target_pitch = pitch.pitch_hz * frequency_mul_;
-                target_pitch = std::max(target_pitch, 0.1f);
-
-                // fill trival wave
-                float curr_trival_wave_gain = last_osc_mix_;
-                float const delta_trival_wave_gain =
-                    (1.0f - pitch.non_period_ratio - curr_trival_wave_gain) / static_cast<float>(can_write);
-                size_t osc_wpos = osc_wpos_;
-                if (tracking_waveform_->getIndex() == 0) {
-                    for (size_t i = 0; i < can_write; ++i) {
-                        curr_trival_wave_gain += delta_trival_wave_gain;
-                        tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), static_cast<float>(getSampleRate()));
-                        osc_buffer_[osc_wpos++] = tracking_osc_.Sawtooth() * curr_trival_wave_gain;
-                    }
-                }
-                else {
-                    for (size_t i = 0; i < can_write; ++i) {
-                        curr_trival_wave_gain += delta_trival_wave_gain;
-                        tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), static_cast<float>(getSampleRate()));
-                        osc_buffer_[osc_wpos++] = tracking_osc_.PWM_NoDC() * curr_trival_wave_gain;
-                    }
-                }
-                last_osc_mix_ = 1.0f - pitch.non_period_ratio;
-
-                // add noise
-                float curr_noise_gain = last_noise_mix_;
-                float target_noise_gain = pitch.non_period_ratio * noise_gain;
-                float delta_noise_gain = (target_noise_gain - curr_noise_gain) / static_cast<float>(can_write);
-                for (size_t i = 0; i < can_write; ++i) {
-                    curr_noise_gain += delta_noise_gain;
-                    osc_buffer_[osc_wpos_++] += noise_.Next() * curr_noise_gain;
-                }
-                last_noise_mix_ = target_noise_gain;
-            }
-
-            size_t const cancopy = std::min(osc_wpos_, num_process);
-            for (size_t i = 0; i < cancopy; ++i) {
-                crossing_side_buffer_[i] = {osc_buffer_[i], osc_buffer_[i]};
-            }
-            for (size_t i = cancopy; i < num_process; ++i) {
-                crossing_side_buffer_[i].Broadcast(0);
-            }
-
-            size_t const drag = osc_wpos_ - cancopy;
-            for (size_t i = 0; i < drag; ++i) {
-                osc_buffer_[i] = osc_buffer_[i + cancopy];
-            }
-            osc_wpos_ -= cancopy;
-        }
-        else {
+        // fill modulator
+        {
+            float const* ml = buffer.getReadPointer(mod_ch) + pos;
 #if I_AM_USING_LOOPBACK_DEBUG
-            for (size_t i = 0; i < num_process; ++i) {
-                crossing_side_buffer_[i].Broadcast(side_left[i]);
-            }
-            side_left += num_process;
+            for (size_t i = 0; i < n; ++i) crossing_main_buffer_[i].Broadcast(ml[i]);
 #else
-            for (size_t i = 0; i < num_process; ++i) {
-                crossing_side_buffer_[i] = {side_left[i], side_right[i]};
-            }
-            side_left += num_process;
-            side_right += num_process;
+            float const* mr = buffer.getReadPointer(mod_ch + 1) + pos;
+            for (size_t i = 0; i < n; ++i) crossing_main_buffer_[i] = {ml[i], mr[i]};
 #endif
         }
 
-        // pre tilt filter
-        for (size_t i = 0; i < num_process; ++i) {
+        // fill carrier (pitch tracking or direct channel pair)
+        if (use_pitch) {
+            ProcessPitchTracking(crossing_side_buffer_, buffer, pitch_ch, pos, n);
+        } else {
+            float const* sl = buffer.getReadPointer(carry_ch) + pos;
+#if I_AM_USING_LOOPBACK_DEBUG
+            for (size_t i = 0; i < n; ++i) crossing_side_buffer_[i].Broadcast(sl[i]);
+#else
+            float const* sr = buffer.getReadPointer(carry_ch + 1) + pos;
+            for (size_t i = 0; i < n; ++i) crossing_side_buffer_[i] = {sl[i], sr[i]};
+#endif
+        }
+
+        // pre-tilt filter
+        for (size_t i = 0; i < n; ++i) {
             crossing_main_buffer_[i] = pre_tilt_filter_.Tick(crossing_main_buffer_[i]);
         }
 
-        eVocoderType curr_vocoder_type = static_cast<eVocoderType>(vocoder_type_param_->getIndex());
-        if (last_vocoder_type_ != curr_vocoder_type) {
-            last_vocoder_type_ = curr_vocoder_type;
-        }
-
         // vocoder
-        switch (vocoder_type_param_->getIndex()) {
-            case eVocoderType_LeakyBurgLPC:
-                burg_lpc_.Process({crossing_main_buffer_.data(), num_process},
-                                  {crossing_side_buffer_.data(), num_process});
-                break;
-            case eVocoderType_STFTVocoder:
-                stft_vocoder_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_process);
-                break;
-            case eVocoderType_ChannelVocoder:
-                channel_vocoder_.ProcessBlock(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_process);
-                break;
-            case eVocoderType_BlockBurgLPC:
-                block_burg_lpc_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), num_process);
-                break;
-            default:
-                jassertfalse;
-                break;
+        {
+            eVocoderType const type = static_cast<eVocoderType>(vocoder_type_param_->getIndex());
+            if (last_vocoder_type_ != type) last_vocoder_type_ = type;
+
+            switch (type) {
+                case eVocoderType_LeakyBurgLPC:
+                    burg_lpc_.Process({crossing_main_buffer_.data(), n}, {crossing_side_buffer_.data(), n});
+                    break;
+                case eVocoderType_STFTVocoder:
+                    stft_vocoder_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), n);
+                    break;
+                case eVocoderType_ChannelVocoder:
+                    channel_vocoder_.ProcessBlock(crossing_main_buffer_.data(), crossing_side_buffer_.data(), n);
+                    break;
+                case eVocoderType_BlockBurgLPC:
+                    block_burg_lpc_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), n);
+                    break;
+                default:
+                    jassertfalse;
+                    break;
+            }
         }
 
-        ensemble_.Process(crossing_main_buffer_.data(), num_process);
-        for (size_t i = 0; i < num_process; ++i) {
-            auto const& x = crossing_main_buffer_[i];
-            main_buffer_left[i] = x[0];
-            main_buffer_right[i] = x[1];
+        // write output
+        {
+            float* out_l = buffer.getWritePointer(0) + pos;
+            float* out_r = buffer.getWritePointer(1) + pos;
+            for (size_t i = 0; i < n; ++i) {
+                out_l[i] = crossing_main_buffer_[i][0];
+                out_r[i] = crossing_main_buffer_[i][1];
+            }
         }
-        main_buffer_left += num_process;
-        main_buffer_right += num_process;
     }
 
-    // check any latency changes
+    // latency check
     if (latency_.load() != old_latency_) {
         old_latency_ = latency_.load();
         setLatencySamples(old_latency_);
@@ -720,6 +586,65 @@ void AudioPluginAudioProcessor::SetLatency() {
 
     // setLatencySamples(latency);
     latency_.store(latency);
+}
+
+void AudioPluginAudioProcessor::ProcessPitchTracking(std::array<qwqdsp_simd_element::PackFloat<2>, kBlockSize>& dst,
+                                                     const juce::AudioBuffer<float>& buffer, int pitch_ch, size_t pos,
+                                                     size_t n) {
+    float const* pitch_buffer = buffer.getReadPointer(pitch_ch) + pos;
+    yin_segement_.Push({pitch_buffer, n});
+
+    float const noise_gain = tracking_noise_->get();
+    while (yin_segement_.CanProcess()) {
+        yin_.Process(yin_segement_.GetBlock());
+        yin_segement_.Advance();
+
+        auto pitch = yin_.GetPitch();
+        size_t const iwant = static_cast<size_t>(yin_segement_.GetHop());
+        size_t const can_write = std::min(osc_buffer_.size() - osc_wpos_, iwant);
+
+        float target_pitch = pitch.pitch_hz * frequency_mul_;
+        target_pitch = std::max(target_pitch, 0.1f);
+
+        // fill trivial wave
+        float curr_trivial_wave_gain = last_osc_mix_;
+        float const delta_trivial_wave_gain =
+            (1.0f - pitch.non_period_ratio - curr_trivial_wave_gain) / static_cast<float>(can_write);
+        size_t osc_wpos = osc_wpos_;
+        if (tracking_waveform_->getIndex() == 0) {
+            for (size_t i = 0; i < can_write; ++i) {
+                curr_trivial_wave_gain += delta_trivial_wave_gain;
+                tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), static_cast<float>(getSampleRate()));
+                osc_buffer_[osc_wpos++] = tracking_osc_.Sawtooth() * curr_trivial_wave_gain;
+            }
+        }
+        else {
+            for (size_t i = 0; i < can_write; ++i) {
+                curr_trivial_wave_gain += delta_trivial_wave_gain;
+                tracking_osc_.SetFreq(pitch_glide_.Tick(target_pitch), static_cast<float>(getSampleRate()));
+                osc_buffer_[osc_wpos++] = tracking_osc_.PWM_NoDC() * curr_trivial_wave_gain;
+            }
+        }
+        last_osc_mix_ = 1.0f - pitch.non_period_ratio;
+
+        // add noise
+        float curr_noise_gain = last_noise_mix_;
+        float target_noise_gain = pitch.non_period_ratio * noise_gain;
+        float delta_noise_gain = (target_noise_gain - curr_noise_gain) / static_cast<float>(can_write);
+        for (size_t i = 0; i < can_write; ++i) {
+            curr_noise_gain += delta_noise_gain;
+            osc_buffer_[osc_wpos_++] += noise_.Next() * curr_noise_gain;
+        }
+        last_noise_mix_ = target_noise_gain;
+    }
+
+    size_t const cancopy = std::min(osc_wpos_, n);
+    for (size_t i = 0; i < cancopy; ++i) dst[i] = {osc_buffer_[i], osc_buffer_[i]};
+    for (size_t i = cancopy; i < n; ++i) dst[i].Broadcast(0);
+
+    size_t const drag = osc_wpos_ - cancopy;
+    for (size_t i = 0; i < drag; ++i) osc_buffer_[i] = osc_buffer_[i + cancopy];
+    osc_wpos_ -= cancopy;
 }
 
 //==============================================================================

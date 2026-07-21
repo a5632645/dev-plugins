@@ -5,13 +5,13 @@
 
 #include "dsp_impl.hpp"
 
-namespace warpcore {
+namespace vital_chorus {
 
 template <>
 std::unique_ptr<Idsp> CreateDspImpl<simd::Inst::NEON>() {
     return std::make_unique<DspImpl<simd::Inst::NEON, simd::Float128>>();
 }
 
-} // namespace warpcore
+} // namespace vital_chorus
 
 #endif

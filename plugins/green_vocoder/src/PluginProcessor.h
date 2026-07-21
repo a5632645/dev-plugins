@@ -7,13 +7,12 @@
 #include "dsp/stft_vocoder.hpp"
 #include "dsp/channel_vocoder.hpp"
 #include "dsp/tilt_filter.hpp"
-#include "dsp/ensemble.hpp"
 #include "dsp/block_burg_lpc.hpp"
 
 #include "qwqdsp/oscillator/polyblep.hpp"
 #include "qwqdsp/oscillator/noise.hpp"
 
-#include "qwqdsp/pitch/fast_yin.hpp"
+#include "qwqdsp/pitch/yin.hpp"
 
 #include "qwqdsp/segement/analyze.hpp"
 #include "qwqdsp/filter/fast_set_iir_paralle.hpp"
@@ -70,8 +69,8 @@ public:
 
     juce::AudioParameterFloat* lpc_pitch_;
     juce::AudioParameterFloat* lpc_detune_;
-    juce::AudioParameterChoice* main_channel_config_;
-    juce::AudioParameterChoice* side_channel_config_;
+    juce::AudioParameterBool* channel_swap_;
+    juce::AudioParameterChoice* pitch_channel_;
 
     // crossing buffer
     std::array<qwqdsp_simd_element::PackFloat<2>, 256> crossing_main_buffer_;
@@ -82,12 +81,11 @@ public:
     green_vocoder::dsp::BlockBurgLPC block_burg_lpc_;
     green_vocoder::dsp::STFTVocoder stft_vocoder_;
     green_vocoder::dsp::ChannelVocoder channel_vocoder_;
-    green_vocoder::dsp::Ensemble ensemble_;
     qwqdsp_oscillator::WhiteNoise noise_;
 
     // pitch tracking
     qwqdsp_segement::Analyze<8192> yin_segement_;
-    qwqdsp_pitch::FastYin yin_;
+    qwqdsp_pitch::Yin yin_;
     std::array<float, 8192> osc_buffer_{};
     size_t osc_wpos_{};
     float last_osc_mix_{};
@@ -107,6 +105,15 @@ public:
     juce::AudioParameterChoice* vocoder_type_param_{};
     eVocoderType last_vocoder_type_{eVocoderType_LeakyBurgLPC};
 private:
+    static constexpr size_t kBlockSize = 256;
+
+    void ProcessPitchTracking(
+        std::array<qwqdsp_simd_element::PackFloat<2>, kBlockSize>& dst,
+        const juce::AudioBuffer<float>& buffer,
+        int pitch_ch,
+        size_t pos,
+        size_t n);
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)
 };

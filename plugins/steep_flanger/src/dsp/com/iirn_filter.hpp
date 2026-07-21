@@ -1,11 +1,11 @@
 #pragma once
 #include <complex>
 #include <vector>
-#include "pluginshared/simd.hpp"
+#include "pluginshared/simd//simd.hpp"
 #include "pluginshared/align_allocator.hpp"
 
 namespace dsp::com {
-template <simd::IsSimdFloat T>
+template <class T>
 class ParallelDelayLine {
 public:
     struct State {
@@ -95,7 +95,7 @@ private:
     int mask_{};
 };
 
-template <simd::IsSimdFloat T>
+template <class T>
 class IirNFilter {
 public:
     void Init(float fs, float max_ms) {
