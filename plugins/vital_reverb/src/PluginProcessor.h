@@ -1,10 +1,9 @@
 #pragma once
 #include <atomic>
-#include "pluginshared/juce_param_listener.hpp"
 #include "pluginshared/preset_manager.hpp"
-#include "pluginshared/wrap_parameters.hpp"
 
 #include "dsp/idsp.hpp"
+#include "params.hpp"
 
 class EmptyAudioProcessor final : public juce::AudioProcessor {
 public:
@@ -46,24 +45,9 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
-    JuceParamListener param_listener_;
+    Params params_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;
-
-    juce::AudioParameterFloat* param_chorus_amount_;
-    juce::AudioParameterFloat* param_chorus_freq_;
-    juce::AudioParameterFloat* param_wet_;
-    juce::AudioParameterFloat* param_pre_lowpass_;
-    juce::AudioParameterFloat* param_pre_highpass_;
-    juce::AudioParameterFloat* param_low_damp_pitch_;
-    juce::AudioParameterFloat* param_high_damp_pitch_;
-    juce::AudioParameterFloat* param_low_damp_db_;
-    juce::AudioParameterFloat* param_high_damp_db_;
-    juce::AudioParameterFloat* param_size_;
-    juce::AudioParameterFloat* param_decay_ms_;
-    juce::AudioParameterFloat* param_predelay_;
-    juce::AudioParameterBool* param_freeze_;
-
 
     std::atomic<bool> panic_flag_{false};
     vital_reverb::DspHanle dsp_;

@@ -2,7 +2,4 @@
 
 namespace global {
 
-static constexpr auto kPluginRepoOwnerName = "ManasWolrd";
-static constexpr auto kPluginRepoName = "GreenVocoder";
-
 } // namespace global
