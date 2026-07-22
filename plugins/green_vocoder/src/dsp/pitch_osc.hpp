@@ -20,6 +20,7 @@ public:
     void Init(float fs) noexcept {
         fs_ = fs;
         yin_.Init(fs, kBlockSize);
+        yin_.SetThreshold(0.2f);
     }
 
     void Reset() noexcept {
@@ -66,23 +67,32 @@ public:
             std::copy_n(buffer, need, in_buffer_.begin() + in_pos_);
             in_pos_ += need;
 
-            if (in_pos_ == kBlockSize)
-                ProcessFrame();
+            if (in_pos_ == kBlockSize) ProcessFrame();
 
             FillAudio(buffer, need);
             num_frame -= need;
             buffer += need;
         }
     }
-
 private:
     void ProcessFrame() noexcept {
         yin_.Process(std::span<const float>{in_buffer_.data(), static_cast<size_t>(kBlockSize)});
         in_pos_ = 0;
         latest_pitch_ = yin_.GetPitch();
 
-        float target_osc = 1.0f - latest_pitch_.non_period_ratio;
-        float target_noise = latest_pitch_.non_period_ratio * noise_gain_;
+        // 当yin没有找到小于阈值将返回最小值
+        // 这个最小值很可能是unvoice导致pitch跳动
+        // 所以小于阈值时认为pitch不正确
+        // float target_osc = 1.0f - latest_pitch_.non_period_ratio;
+        // float target_noise = latest_pitch_.non_period_ratio * noise_gain_;
+        float target_osc = 1.0f;
+        float target_noise = 0.0f;
+        if (latest_pitch_.non_period_ratio >= 0.2f) {
+            target_osc = 0.0f;
+            target_noise = 1.0f;
+        }
+        target_noise *= noise_gain_;
+
         osc_delta_ = (target_osc - curr_osc_gain_) / static_cast<float>(kHopSize);
         noise_delta_ = (target_noise - curr_noise_gain_) / static_cast<float>(kHopSize);
         gain_remain_ = kHopSize;

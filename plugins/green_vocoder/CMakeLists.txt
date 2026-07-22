@@ -54,7 +54,6 @@ target_sources(${PLUGIN_NAME}
     src/dsp/channel_vocoder.cpp
     src/dsp/leaky_burg_lpc.cpp
     src/dsp/stft_vocoder.cpp
-    src/dsp/pitch_osc.cpp
     src/widget/burg_lpc.cpp
     src/widget/channel_vocoder.cpp
     src/widget/pre_fx.cpp
