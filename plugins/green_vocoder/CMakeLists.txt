@@ -52,6 +52,7 @@ target_sources(${PLUGIN_NAME}
     src/ui/plugin_ui.cpp
     src/dsp/block_burg_lpc.cpp
     src/dsp/channel_vocoder.cpp
+    src/dsp/engine.cpp
     src/dsp/leaky_burg_lpc.cpp
     src/dsp/stft_vocoder.cpp
     src/widget/burg_lpc.cpp

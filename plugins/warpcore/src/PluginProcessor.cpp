@@ -16,139 +16,18 @@ EmptyAudioProcessor::EmptyAudioProcessor()
     dsp_ = warpcore::CreateDsp();
 
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
-
-    {
-        auto p = std::make_unique<juce::AudioParameterInt>(
-            juce::ParameterID{"warp", 1},
-            "warp",
-            1, global::kMaxBands, 50
-        );
-        param_listener_.Add(p, [this](int v) {
-            param_.bands = v;
-            param_changed_ = true;
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{"f_high", 1},
-            "f_high",
-            juce::NormalisableRange<float>{4000.0f, 20010.0f, 0.4f}, 20010.0f,
-            juce::AudioParameterFloatAttributes{}.withStringFromValueFunction([](auto x, auto maxlen) -> juce::String {
-                if (x >= 20000.0f) {
-                    return "Full";
-                }
-                else {
-                    return juce::String(x, maxlen);
-                }
-            })
-        );
-        param_listener_.Add(p, [this](float v) {
-            param_.f_high = v;
-            param_changed_ = true;
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{"scale", 1},
-            "scale",
-            juce::NormalisableRange<float>{0.1f, 3.0f, 0.01f}, 1.0f
-        );
-        param_listener_.Add(p, [this](float v) {
-            param_.filter_scale = v;
-            param_changed_ = true;
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{"pitch", 1},
-            "pitch",
-            juce::NormalisableRange<float>{-24.0f, 24.0f, 0.01f}, 0.0f
-        );
-        param_listener_.Add(p, [this](float v) {
-            param_.pitch_shift = v;
-            param_changed_ = true;
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID{"pitch_affect", 1},
-            "pitch_affect",
-            true
-        );
-        param_listener_.Add(p, [this](bool v) {
-            param_.pitch_affect = v;
-            param_changed_ = true;
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterBool>(
-            juce::ParameterID{"fill_gap", 1},
-            "fill_gap",
-            false
-        );
-        param_listener_.Add(p, [this](bool v) {
-            param_.fill_gap = v;
-            param_changed_ = true;
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{"drywet", 1},
-            "drywet",
-            juce::NormalisableRange<float>{0.0f, 1.0f, 0.01f}, 1.0f
-        );
-        param_listener_.Add(p, [this](float v) {
-            param_.drywet = v;
-            param_changed_ = true;
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterInt>(
-            juce::ParameterID{"poles", 1},
-            "poles",
-            1, global::kMaxPoles, 2
-        );
-        param_listener_.Add(p, [this](int v) {
-            param_.filter_order = v;
-            param_changed_ = true;
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{"freq_mode", 1},
-            "freq_mode",
-            juce::StringArray{
-                "voice: 0 + n",
-                "voice: 1 + n",
-                "music: 0 + 2n",
-                "music: 1 + 2n",
-            },
-            2
-        );
-        param_listener_.Add(p, [this](int v) {
-            param_.freq_distribution = static_cast<warpcore::FreqDistrbution>(v);
-            param_changed_ = true;
-        });
-        layout.add(std::move(p));
-    }
+    params_.BuildLayout(layout);
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, kParameterValueTreeIdentify,
                                                                        std::move(layout));
+    params_.BeginListening();
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
     preset_manager_->AddFactoryPreset(BinaryData::PiWarpLike_xml, BinaryData::PiWarpLike_xmlSize, "PiWarp Like");
     preset_manager_->AddFactoryPreset(BinaryData::WormholeLike_xml, BinaryData::WormholeLike_xmlSize, "Wormhole Like");
 }
 
 EmptyAudioProcessor::~EmptyAudioProcessor() {
-    param_listener_.Clear();
+    params_.EndListening();
     preset_manager_ = nullptr;
     value_tree_ = nullptr;
 }
@@ -215,7 +94,8 @@ void EmptyAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) 
     float fs = static_cast<float>(sampleRate);
     dsp_->Init(fs);
     dsp_->Reset();
-    param_listener_.MarkAll();
+
+    params_.MarkChanged();
 }
 
 void EmptyAudioProcessor::reset() {
@@ -253,10 +133,8 @@ void EmptyAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     juce::ignoreUnused(midiMessages);
 
     juce::ScopedNoDenormals noDenormals;
-    param_listener_.HandleDirty();
-    if (param_changed_.exchange(false)) {
-        use_param_ = param_;
-        dsp_->Update(use_param_);
+    if (params_.IsParamChanged()) {
+        dsp_->Update(params_.ToWarpcoreParam());
     }
 
     int const num_samples = buffer.getNumSamples();

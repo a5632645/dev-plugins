@@ -138,10 +138,10 @@ void BurgLPC::paint(juce::Graphics& g) {
     size_t order = static_cast<size_t>(order_.slider.getValue());
     ;
     if (block_mode_) {
-        processor_.block_burg_lpc_.CopyLatticeCoeffient(lattice_buff, order);
+        processor_.engine_.GetBlockBurgLPC().CopyLatticeCoeffient(lattice_buff, order);
     }
     else {
-        processor_.burg_lpc_.CopyLatticeCoeffient(lattice_buff, order);
+        processor_.engine_.GetBurgLPC().CopyLatticeCoeffient(lattice_buff, order);
     }
 
     for (size_t kidx = 0; kidx < order; ++kidx) {
@@ -165,7 +165,7 @@ void BurgLPC::paint(juce::Graphics& g) {
     g.setColour(ui::line_fore);
     float mul_val = std::pow(10.0f, freq_pow / w);
     float mul_begin = 1.0f;
-    float omega_base = freq_begin * std::numbers::pi_v<float> / static_cast<float>(processor_.getSampleRate());
+    float omega_base = freq_begin * std::numbers::pi_v<float> / static_cast<float>(processor_.engine_.GetSampleRate());
     for (int x = 0; x < w; ++x) {
         float omega = omega_base * mul_begin;
         mul_begin *= mul_val;

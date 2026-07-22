@@ -1,9 +1,8 @@
 #pragma once
-#include "pluginshared/juce_param_listener.hpp"
 #include "pluginshared/preset_manager.hpp"
-#include "pluginshared/wrap_parameters.hpp"
 
 #include "dsp/idsp.hpp"
+#include "params.hpp"
 
 class EmptyAudioProcessor final : public juce::AudioProcessor {
 public:
@@ -45,14 +44,11 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
-    JuceParamListener param_listener_;
+    Params params_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 
     warpcore::DspHanle dsp_;
-    warpcore::Param use_param_;
-    warpcore::Param param_;
-    std::atomic<bool> param_changed_ = false;
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EmptyAudioProcessor)

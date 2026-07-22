@@ -111,6 +111,45 @@ private:
     bool default_value_;
 };
 
+class IntParam {
+public:
+    IntParam(juce::StringRef name, int min, int max, int default_value)
+        : name_(name)
+        , min_(min)
+        , max_(max)
+        , default_value_(default_value) {
+    }
+
+    std::unique_ptr<juce::AudioParameterInt> Build() {
+        jassert(ptr_ == nullptr);
+        auto p = std::make_unique<juce::AudioParameterInt>(
+            juce::ParameterID{name_, 1},
+            name_,
+            min_,
+            max_,
+            default_value_
+        );
+        ptr_ = p.get();
+        return p;
+    }
+
+    int Get() noexcept {
+        return ptr_->get();
+    }
+
+    juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(
+        juce::AudioProcessorValueTreeState::ParameterLayout& layout
+    ) {
+        layout.add(Build());
+        return layout;
+    }
+
+    juce::AudioParameterInt* ptr_{};
+private:
+    juce::StringRef name_;
+    int min_, max_, default_value_;
+};
+
 inline juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(juce::AudioProcessorValueTreeState::ParameterLayout& layout, FloatParam& f) {
     layout.add(f.Build());
     return layout;
@@ -120,6 +159,10 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(juce::Aud
     return layout;
 }
 inline juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(juce::AudioProcessorValueTreeState::ParameterLayout& layout, BoolParam& f) {
+    layout.add(f.Build());
+    return layout;
+}
+inline juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(juce::AudioProcessorValueTreeState::ParameterLayout& layout, IntParam& f) {
     layout.add(f.Build());
     return layout;
 }

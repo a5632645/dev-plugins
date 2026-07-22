@@ -4,7 +4,7 @@
 namespace green_vocoder::widget {
 
 ChannelVocoder::ChannelVocoder(AudioPluginAudioProcessor& p)
-    : vocoder_(p.channel_vocoder_) {
+    : vocoder_(p.engine_.GetChannelVocoder()) {
     attack_.BindParam(p.params_.cv_attack.ptr_);
     addAndMakeVisible(attack_);
     release_.BindParam(p.params_.cv_release.ptr_);

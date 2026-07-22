@@ -3,17 +3,9 @@
 #include "pluginshared/juce_param_listener.hpp"
 #include "pluginshared/preset_manager.hpp"
 
-#include "dsp/block_burg_lpc.hpp"
-#include "dsp/channel_vocoder.hpp"
-#include "dsp/leaky_burg_lpc.hpp"
-#include "dsp/stft_vocoder.hpp"
-#include "dsp/tilt_filter.hpp"
-
-#include "dsp/pitch_osc.hpp"
-
+#include "dsp/engine.hpp"
+#include "param_mailboxes.hpp"
 #include "params.hpp"
-
-#include <qwqdsp/simd_element/algebraic_waveshaper.hpp>
 
 //==============================================================================
 class AudioPluginAudioProcessor final : public juce::AudioProcessor {
@@ -57,30 +49,23 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     void Panic();
-    void SetLatency();
+
     JuceParamListener paramListeners_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 
     Params params_;
+    green_vocoder::Engine engine_;
 
-    // crossing buffer
-    std::array<qwqdsp_simd_element::PackFloat<2>, 256> crossing_main_buffer_;
-    std::array<qwqdsp_simd_element::PackFloat<2>, 256> crossing_side_buffer_;
-    // dsps
-    green_vocoder::dsp::TiltFilter pre_tilt_filter_;
-    green_vocoder::dsp::LeakyBurgLPC burg_lpc_;
-    green_vocoder::dsp::BlockBurgLPC block_burg_lpc_;
-    green_vocoder::dsp::STFTVocoder stft_vocoder_;
-    green_vocoder::dsp::ChannelVocoder channel_vocoder_;
-    // pitch tracking → oscillator
-    green_vocoder::dsp::PitchOsc pitch_osc_;
-    bool first_init_{};
+    // --- param mailboxes (message thread → audio thread) ---
+    TiltFilterMailbox tilt_mb_;
+    LeakyLpcMailbox leaky_lpc_mb_;
+    BlockLpcMailbox block_lpc_mb_;
+    STFTVocoderMailbox stft_mb_;
+    ChannelVocoderMailbox cv_mb_;
+    PitchOscMailbox pitch_osc_mb_;
 
     int old_latency_{};
-    std::atomic<int> latency_{};
-
-    eVocoderType last_vocoder_type_{eVocoderType_LeakyBurgLPC};
 private:
     static constexpr size_t kBlockSize = 256;
 

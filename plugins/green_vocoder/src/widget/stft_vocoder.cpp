@@ -94,7 +94,7 @@ void STFTVocoder::DrawStandardCepstrum(juce::Graphics& g) {
     std::vector<float> gains;
     {
         juce::ScopedLock _{processor_.getCallbackLock()};
-        gains = processor_.stft_vocoder_.gains_;
+        gains = processor_.engine_.GetSTFT().gains_;
     }
 
     constexpr float top_line_db = 10.0f;
@@ -165,7 +165,7 @@ void STFTVocoder::DrawStandardCepstrum(juce::Graphics& g) {
     g.setColour(ui::line_fore);
     float mul_val = std::pow(10.0f, freq_pow / b.getWidth());
     float mul_begin = 1.0f;
-    float omega_base = freq_begin * 2.0f / static_cast<float>(processor_.getSampleRate());
+    float omega_base = freq_begin * 2.0f / static_cast<float>(processor_.engine_.GetSampleRate());
     for (int x = 0; x < bb.getWidth(); ++x) {
         float omega = omega_base * mul_begin;
         mul_begin *= mul_val;
@@ -195,7 +195,7 @@ void STFTVocoder::DrawMfcc(juce::Graphics& g) {
     size_t nbands = static_cast<size_t>(mfcc_size_.slider.getValue());
     float width = bb.getWidth() / static_cast<float>(nbands);
     float x = bb.getX();
-    auto peaks = processor_.stft_vocoder_.mfcc_gains_;
+    auto peaks = processor_.engine_.GetSTFT().mfcc_gains_;
     for (size_t i = 0; i < nbands; ++i) {
         juce::Rectangle<float> rect{x + width * 0.25f, bb.getY(), width * 0.5f, bb.getHeight()};
         float gain = peaks[i];
