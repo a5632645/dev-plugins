@@ -1,30 +1,27 @@
 #include "tracking.hpp"
 #include "PluginProcessor.h"
-#include "param_ids.hpp"
 
 namespace green_vocoder::widget {
 Tracking::Tracking(AudioPluginAudioProcessor& p) {
-    auto& apvts = *p.value_tree_;
-
-    fmin_.BindParam(apvts, id::kTrackingLow);
+    fmin_.BindParam(p.params_.track_low.ptr_);
     addAndMakeVisible(fmin_);
 
-    fmax_.BindParam(apvts, id::kTrackingHigh);
+    fmax_.BindParam(p.params_.track_high.ptr_);
     addAndMakeVisible(fmax_);
 
-    pitch_.BindParam(apvts, id::kTrackingPitch);
+    pitch_.BindParam(p.params_.track_pitch.ptr_);
     addAndMakeVisible(pitch_);
 
-    pwm_.BindParam(apvts, id::kTrackingPwm);
+    pwm_.BindParam(p.params_.track_pwm.ptr_);
     addAndMakeVisible(pwm_);
 
-    waveform_.BindParam(apvts, id::kTrackingWaveform);
+    waveform_.BindParam(p.params_.track_waveform.ptr_);
     addAndMakeVisible(waveform_);
 
-    noise_.BindParam(apvts, id::kTrackingNoise);
+    noise_.BindParam(p.params_.track_noise.ptr_);
     addAndMakeVisible(noise_);
 
-    glide_.BindParam(apvts, id::kTrackingGlide);
+    glide_.BindParam(p.params_.track_glide.ptr_);
     addAndMakeVisible(glide_);
 
     addAndMakeVisible(title_);
@@ -41,9 +38,9 @@ void Tracking::resized() {
     auto dials = b.removeFromLeft(100).removeFromTop(65);
     pitch_.setBounds(dials.removeFromLeft(50));
     pwm_.setBounds(dials.removeFromLeft(50));
-    
+
     waveform_.setBounds(b.removeFromTop(25));
     noise_.setBounds(b.removeFromTop(25));
     glide_.setBounds(b.removeFromTop(25));
 }
-}
+} // namespace green_vocoder::widget

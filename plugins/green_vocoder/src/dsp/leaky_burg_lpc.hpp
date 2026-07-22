@@ -1,9 +1,9 @@
 #pragma once
-#include <span>
 #include <array>
 #include <qwqdsp/oscillator/noise.hpp>
-#include <qwqdsp/simd_element/simd_pack.hpp>
 #include <qwqdsp/simd_element/envelope_follower.hpp>
+#include <qwqdsp/simd_element/simd_pack.hpp>
+#include <span>
 
 namespace green_vocoder::dsp {
 class LeakyBurgLPC {
@@ -13,10 +13,7 @@ public:
     static constexpr float kNoiseGain = 1e-5f;
 
     void Init(float sample_rate, size_t block_size);
-    void Process(
-        std::span<qwqdsp_simd_element::PackFloat<2>> main,
-        std::span<qwqdsp_simd_element::PackFloat<2>> side
-    );
+    void Process(std::span<qwqdsp_simd_element::PackFloat<2>> main, std::span<qwqdsp_simd_element::PackFloat<2>> side);
 
     void SetForget(float forget);
     void SetSmooth(float smooth);
@@ -28,11 +25,9 @@ public:
 
     void CopyLatticeCoeffient(std::span<float> buffer, size_t order);
 private:
-    template<size_t kDicimate>
-    void ProcessWithDicimate(
-        std::span<qwqdsp_simd_element::PackFloat<2>> main,
-        std::span<qwqdsp_simd_element::PackFloat<2>> side
-    );
+    template <size_t kDicimate>
+    void ProcessWithDicimate(std::span<qwqdsp_simd_element::PackFloat<2>> main,
+                             std::span<qwqdsp_simd_element::PackFloat<2>> side);
 
     qwqdsp_simd_element::EnevelopeFollower<2> gain_smooth_;
     float gain_attack_{};
@@ -57,4 +52,4 @@ private:
     std::array<qwqdsp_simd_element::PackFloat<2>, kNumPoles + 1> iir_s_;
     qwqdsp_simd_element::PackFloat<2> residual_gain_{};
 };
-}
+} // namespace green_vocoder::dsp

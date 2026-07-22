@@ -1,10 +1,10 @@
 #pragma once
-#include <qwqdsp/simd_element/simd_pack.hpp>
 #include <qwqdsp/misc/smoother.hpp>
+#include <qwqdsp/simd_element/simd_pack.hpp>
 
-namespace green_vocoder::dsp{
+namespace green_vocoder::dsp {
 
-template<size_t N>
+template <size_t N>
 class ExpSmoother {
 public:
     qwqdsp_simd_element::PackFloat<N> Process(qwqdsp_simd_element::PackFloatCRef<N> in) {
@@ -27,4 +27,4 @@ private:
     qwqdsp_simd_element::PackFloat<N> smallerCoeff_{};
 };
 
-}
+} // namespace green_vocoder::dsp

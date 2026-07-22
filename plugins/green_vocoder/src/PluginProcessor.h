@@ -1,21 +1,22 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
-#include "pluginshared/preset_manager.hpp"
 #include "pluginshared/juce_param_listener.hpp"
+#include "pluginshared/preset_manager.hpp"
 
+#include "dsp/block_burg_lpc.hpp"
+#include "dsp/channel_vocoder.hpp"
 #include "dsp/leaky_burg_lpc.hpp"
 #include "dsp/stft_vocoder.hpp"
-#include "dsp/channel_vocoder.hpp"
 #include "dsp/tilt_filter.hpp"
-#include "dsp/block_burg_lpc.hpp"
 
 #include "dsp/pitch_osc.hpp"
+
+#include "params.hpp"
 
 #include <qwqdsp/simd_element/algebraic_waveshaper.hpp>
 
 //==============================================================================
-class AudioPluginAudioProcessor final : public juce::AudioProcessor
-{
+class AudioPluginAudioProcessor final : public juce::AudioProcessor {
 public:
     static constexpr auto kParameterValueTreeIdentify = "PARAMETERS";
     //==============================================================================
@@ -23,13 +24,13 @@ public:
     ~AudioPluginAudioProcessor() override;
 
     //==============================================================================
-    void prepareToPlay (double sampleRate, int samplesPerBlock) override;
+    void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
     void reset() override;
 
-    bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
+    bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
 
-    void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
     using AudioProcessor::processBlock;
 
     //==============================================================================
@@ -47,13 +48,13 @@ public:
     //==============================================================================
     int getNumPrograms() override;
     int getCurrentProgram() override;
-    void setCurrentProgram (int index) override;
-    const juce::String getProgramName (int index) override;
-    void changeProgramName (int index, const juce::String& newName) override;
+    void setCurrentProgram(int index) override;
+    const juce::String getProgramName(int index) override;
+    void changeProgramName(int index, const juce::String& newName) override;
 
     //==============================================================================
-    void getStateInformation (juce::MemoryBlock& destData) override;
-    void setStateInformation (const void* data, int sizeInBytes) override;
+    void getStateInformation(juce::MemoryBlock& destData) override;
+    void setStateInformation(const void* data, int sizeInBytes) override;
 
     void Panic();
     void SetLatency();
@@ -61,10 +62,7 @@ public:
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 
-    juce::AudioParameterFloat* lpc_pitch_;
-    juce::AudioParameterFloat* lpc_detune_;
-    juce::AudioParameterBool* channel_swap_;
-    juce::AudioParameterChoice* pitch_channel_;
+    Params params_;
 
     // crossing buffer
     std::array<qwqdsp_simd_element::PackFloat<2>, 256> crossing_main_buffer_;
@@ -82,11 +80,10 @@ public:
     int old_latency_{};
     std::atomic<int> latency_{};
 
-    juce::AudioParameterChoice* vocoder_type_param_{};
     eVocoderType last_vocoder_type_{eVocoderType_LeakyBurgLPC};
 private:
     static constexpr size_t kBlockSize = 256;
 
     //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
 };

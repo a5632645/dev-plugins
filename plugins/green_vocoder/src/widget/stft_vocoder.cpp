@@ -1,39 +1,34 @@
 #include "stft_vocoder.hpp"
 #include <vector>
 #include "PluginProcessor.h"
-#include "param_ids.hpp"
 
 namespace green_vocoder::widget {
 
 STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
     : processor_(processor) {
-    auto& apvts = *processor.value_tree_;
-
-    bandwidth_.BindParam(apvts, id::kStftWindowWidth);
+    bandwidth_.BindParam(processor.params_.stft_bandwidth.ptr_);
     addAndMakeVisible(bandwidth_);
 
-    attack_.BindParam(apvts, id::kStftAttack);
+    attack_.BindParam(processor.params_.stft_attack.ptr_);
     addAndMakeVisible(attack_);
 
-    release_.BindParam(apvts, id::kStftRelease);
+    release_.BindParam(processor.params_.stft_release.ptr_);
     addAndMakeVisible(release_);
 
-    blend_.BindParam(apvts, id::kStftBlend);
+    blend_.BindParam(processor.params_.stft_blend.ptr_);
     addAndMakeVisible(blend_);
 
-    size_.BindParam(apvts, id::kStftSize);
+    size_.BindParam(processor.params_.stft_size.ptr_);
     addAndMakeVisible(size_);
 
-    detail_.BindParam(apvts, id::kStftDetail);
+    detail_.BindParam(processor.params_.stft_detail.ptr_);
     addAndMakeVisible(detail_);
 
-    mfcc_size_.BindParam(apvts, id::kMfccNumBands);
+    mfcc_size_.BindParam(processor.params_.mfcc_nbands.ptr_);
     addAndMakeVisible(mfcc_size_);
 
-    mode_.BindParam(apvts, id::kStftType, true);
-    mode_.on_value_changed = [this](size_t index) {
-        OnModeChanged();
-    };
+    mode_.BindParam(processor.params_.stft_type.ptr_, true);
+    mode_.on_value_changed = [this](size_t index) { OnModeChanged(); };
     addAndMakeVisible(mode_);
 
     OnModeChanged();
@@ -48,7 +43,7 @@ void STFTVocoder::resized() {
     size_.setBounds(top.removeFromLeft(100).withSizeKeepingCentre(100, 30));
     attack_.setBounds(top.removeFromLeft(50));
     release_.setBounds(top.removeFromLeft(50));
-    
+
     if (mode == Standard) {
         bandwidth_.setBounds(top.removeFromLeft(50));
         blend_.setBounds(top.removeFromLeft(50));

@@ -27,4 +27,4 @@ private:
     ui::FlatCombobox block_size_;
 };
 
-}
+} // namespace green_vocoder::widget

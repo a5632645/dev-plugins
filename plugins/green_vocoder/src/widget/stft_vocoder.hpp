@@ -5,7 +5,9 @@ class AudioPluginAudioProcessor;
 
 namespace green_vocoder::widget {
 
-class STFTVocoder : public juce::Component, private juce::Timer {
+class STFTVocoder
+    : public juce::Component
+    , private juce::Timer {
 public:
     STFTVocoder(AudioPluginAudioProcessor& processor);
     void resized() override;
@@ -21,11 +23,11 @@ private:
     ui::Dial attack_{"attack"};
     ui::FlatCombobox size_;
     ui::FlatSelector mode_;
-    
+
     ui::Dial blend_{"noisy"};
     ui::Dial bandwidth_{"smear"};
     ui::Dial detail_{"detail"};
     ui::FlatSlider mfcc_size_{"bands", ui::FlatSlider::TitleLayout::Top};
 };
 
-}
+} // namespace green_vocoder::widget

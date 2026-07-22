@@ -4,7 +4,9 @@
 class AudioPluginAudioProcessor;
 
 namespace green_vocoder::widget {
-class Vocoder : public juce::Component, private juce::Timer {
+class Vocoder
+    : public juce::Component
+    , private juce::Timer {
 public:
     Vocoder(AudioPluginAudioProcessor& p);
     ~Vocoder() override;
@@ -22,4 +24,4 @@ private:
     std::unique_ptr<juce::Component> channel_;
     std::unique_ptr<juce::Component> stft_;
 };
-}
+} // namespace green_vocoder::widget

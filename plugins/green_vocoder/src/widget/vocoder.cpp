@@ -6,12 +6,10 @@
 
 namespace green_vocoder::widget {
 Vocoder::Vocoder(AudioPluginAudioProcessor& p) {
-    auto& apvts = *p.value_tree_;
-
     addAndMakeVisible(title_);
-    shift_pitch_.BindParam(apvts, id::kShiftPitch);
+    shift_pitch_.BindParam(p.params_.shift_pitch.ptr_);
     addAndMakeVisible(shift_pitch_);
-    vocoder_type_.BindParam(apvts, id::kVocoderType, true);
+    vocoder_type_.BindParam(p.params_.vocoder_type.ptr_, true);
     vocoder_type_.on_value_changed = [this](int) { OnVocoderTypeChanged(); };
     addAndMakeVisible(vocoder_type_);
 

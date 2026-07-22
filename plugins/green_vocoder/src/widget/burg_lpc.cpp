@@ -1,28 +1,26 @@
 #include "burg_lpc.hpp"
-#include "../PluginProcessor.h"
 #include <numbers>
 #include <string>
+#include "../PluginProcessor.h"
 
 namespace green_vocoder::widget {
 
 BurgLPC::BurgLPC(AudioPluginAudioProcessor& processor)
-: processor_(processor) {
-    auto& apvts = *processor.value_tree_;
-
-    forget_.BindParam(apvts, id::kForgetRate);
+    : processor_(processor) {
+    forget_.BindParam(processor.params_.lpc_forget.ptr_);
     addAndMakeVisible(forget_);
-    smear_.BindParam(apvts, id::kLPCSmooth);
+    smear_.BindParam(processor.params_.lpc_smooth.ptr_);
     addAndMakeVisible(smear_);
-    order_.BindParam(apvts, id::kLPCOrder);
+    order_.BindParam(processor.params_.lpc_order.ptr_);
     addAndMakeVisible(order_);
-    attack_.BindParam(apvts, id::kLPCGainAttack);
+    attack_.BindParam(processor.params_.lpc_gain_attack.ptr_);
     addAndMakeVisible(attack_);
-    hold_.BindParam(apvts, id::kLPCGainHold);
+    hold_.BindParam(processor.params_.lpc_gain_hold.ptr_);
     addAndMakeVisible(hold_);
-    release_.BindParam(apvts, id::kLPCGainRelease);
+    release_.BindParam(processor.params_.lpc_gain_release.ptr_);
     addAndMakeVisible(release_);
 
-    block_size_.BindParam(apvts, id::kStftSize);
+    block_size_.BindParam(processor.params_.stft_size.ptr_);
     addChildComponent(block_size_);
 
     MakeGui();
@@ -75,9 +73,11 @@ void BurgLPC::paint(juce::Graphics& g) {
     constexpr float bound_bottom_db = -25.0f;
     constexpr float freq_begin = 20.0f;
     constexpr float freq_pow = 3.0f; // 20k
-    auto convert_db_to_y = [y = bb.getY(), h = bb.getHeight()](float db) ->float {
-        if (db < bound_bottom_db) return static_cast<float>(y + h);
-        else if (db > bound_top_db) return static_cast<float>(y);
+    auto convert_db_to_y = [y = bb.getY(), h = bb.getHeight()](float db) -> float {
+        if (db < bound_bottom_db)
+            return static_cast<float>(y + h);
+        else if (db > bound_top_db)
+            return static_cast<float>(y);
         auto nor = (db - bound_bottom_db) / (bound_top_db - bound_bottom_db);
         return y + h * (1.0f - nor);
     };
@@ -90,12 +90,13 @@ void BurgLPC::paint(juce::Graphics& g) {
             auto db = last_line_db + db_span * i;
             auto y = convert_db_to_y(db);
             g.drawHorizontalLine(y, bb.getX(), bb.getRight());
-            g.drawSingleLineText(std::to_string(static_cast<int>(db)), bb.getX(), y + g.getCurrentFont().getHeight() / 2);
+            g.drawSingleLineText(std::to_string(static_cast<int>(db)), bb.getX(),
+                                 y + g.getCurrentFont().getHeight() / 2);
         }
     }
     {
         // 1~9 * base -> 0.0~1.0(<1.0)
-        static const std::array kLogJtable {
+        static const std::array kLogJtable{
             0.0f,
             std::log10(2.0f),
             std::log10(3.0f),
@@ -106,12 +107,7 @@ void BurgLPC::paint(juce::Graphics& g) {
             std::log10(8.0f),
             std::log10(9.0f),
         };
-        static const juce::StringArray kFreqStr {
-            "20",
-            "200",
-            "2k",
-            "20k"
-        };
+        static const juce::StringArray kFreqStr{"20", "200", "2k", "20k"};
         float w = bb.getWidth();
         float span_w = w / 3.0f;
         for (int i = 0; i < 3; ++i) {
@@ -139,7 +135,8 @@ void BurgLPC::paint(juce::Graphics& g) {
     std::array<float, dsp::LeakyBurgLPC::kNumPoles + 1> upgoing{1};
     std::array<float, dsp::LeakyBurgLPC::kNumPoles + 1> downgoing{1};
 
-    size_t order = static_cast<size_t>(order_.slider.getValue());;
+    size_t order = static_cast<size_t>(order_.slider.getValue());
+    ;
     if (block_mode_) {
         processor_.block_burg_lpc_.CopyLatticeCoeffient(lattice_buff, order);
     }
@@ -164,7 +161,7 @@ void BurgLPC::paint(juce::Graphics& g) {
     // draw
     int w = bb.getWidth();
     auto b = bb.toFloat();
-    juce::Point<float> line_last{ b.getX(), b.getCentreY() };
+    juce::Point<float> line_last{b.getX(), b.getCentreY()};
     g.setColour(ui::line_fore);
     float mul_val = std::pow(10.0f, freq_pow / w);
     float mul_begin = 1.0f;
@@ -186,7 +183,7 @@ void BurgLPC::paint(juce::Graphics& g) {
         float gain = std::abs(z_responce);
         float db_gain = 20.0f * std::log10(gain + 1e-10f);
         float y = convert_db_to_y(db_gain);
-        juce::Point line_end{ static_cast<float>(x + b.toFloat().getX()), y };
+        juce::Point line_end{static_cast<float>(x + b.toFloat().getX()), y};
         g.drawLine(juce::Line<float>{line_last, line_end}, 2.0f);
         line_last = line_end;
     }
@@ -195,4 +192,4 @@ void BurgLPC::paint(juce::Graphics& g) {
     // g.drawRect(bb);
 }
 
-}
+} // namespace green_vocoder::widget

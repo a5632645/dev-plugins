@@ -1,6 +1,6 @@
 #pragma once
-#include <qwqdsp/simd_element/one_pole_tpt_shelf.hpp>
 #include <qwqdsp/convert.hpp>
+#include <qwqdsp/simd_element/one_pole_tpt_shelf.hpp>
 
 namespace green_vocoder::dsp {
 class TiltFilter {
@@ -33,4 +33,4 @@ private:
     qwqdsp_simd_element::OnepoleTPTShelf<2> state3_;
     qwqdsp_simd_element::OnepoleTPTShelf<2> state4_;
 };
-}
+} // namespace green_vocoder::dsp

@@ -25,8 +25,10 @@ public:
 
     void CopyLatticeCoeffient(std::span<float> buffer, size_t order);
 private:
-    void ProcessV1(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side, size_t num_samples);
-    void ProcessV2(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side, size_t num_samples);
+    void ProcessV1(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side,
+                   size_t num_samples);
+    void ProcessV2(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side,
+                   size_t num_samples);
 
     qwqdsp_oscillator::WhiteNoise noise_;
     std::vector<float> hann_window_{};

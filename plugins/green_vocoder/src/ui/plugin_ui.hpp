@@ -2,8 +2,8 @@
 #include <pluginshared/component.hpp>
 #include <pluginshared/preset_panel.hpp>
 
-#include "widget/tracking.hpp"
 #include "widget/pre_fx.hpp"
+#include "widget/tracking.hpp"
 #include "widget/vocoder.hpp"
 
 class AudioPluginAudioProcessor;

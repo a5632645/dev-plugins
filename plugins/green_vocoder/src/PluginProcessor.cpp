@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "global.hpp"
-#include "param_ids.hpp"
+#include "params.hpp"
 
 #if BUILD_IN_CI
 #define I_AM_USING_LOOPBACK_DEBUG 0
@@ -26,45 +26,32 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
       ) {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
+    // pre fx
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kPreTilt, 1}, id::kPreTilt, 0.0f,
-                                                             20.0f, 10.0f);
+        auto p = params_.pre_tilt.Build();
         paramListeners_.Add(p, [this](float db) { pre_tilt_filter_.SetTilt(static_cast<float>(getSampleRate()), db); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterBool>(juce::ParameterID{id::kChannelSwap, 1},
-                                                            id::kChannelSwap,
-                                                            false);
-        channel_swap_ = p.get();
+        auto p = params_.channel_swap.Build();
         paramListeners_.Add(p, [](bool) {});
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{id::kPitchChannel, 1},
-                                                              id::kPitchChannel,
-                                                              juce::StringArray{"Off", "Main L", "Main R", "Side L", "Side R"}, 0);
-        pitch_channel_ = p.get();
+        auto p = params_.pitch_channel.Build();
         layout.add(std::move(p));
     }
 
     // vocoder type
     {
-        auto p = std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{id::kVocoderType, 1}, id::kVocoderType,
-                                                              kVocoderNames, 2);
-        vocoder_type_param_ = p.get();
-        paramListeners_.Add(p, [this](int i) {
-            (void)i;
-
-            SetLatency();
-        });
+        auto p = params_.vocoder_type.Build();
+        paramListeners_.Add(p, [this](int) { SetLatency(); });
         layout.add(std::move(p));
     }
 
     // pitch shifter
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kShiftPitch, 1}, id::kShiftPitch,
-                                                             -24.0f, 24.0f, 0.0f);
+        auto p = params_.shift_pitch.Build();
         paramListeners_.Add(p, [this](float l) {
             channel_vocoder_.SetFormantShift(l);
             stft_vocoder_.SetFormantShift(l);
@@ -78,94 +65,72 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 
     // channel vocoder
     {
-        auto p = std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{id::kChannelVocoderFilterBankMode, 1}, id::kChannelVocoderFilterBankMode,
-            juce::StringArray{"bandpass 12", "stack butterworth 24", "stack butterworth 36", "flat butterworth 24",
-                              "flat butterworth 36", "chebyshev 24", "chebyshev 36", "Elliptic 24", "Elliptic 36"},
-            1);
+        auto p = params_.cv_filter_bank_mode.Build();
         paramListeners_.Add(p, [this](int mode) {
             channel_vocoder_.SetFilterBankMode(static_cast<green_vocoder::dsp::ChannelVocoder::FilterBankMode>(mode));
         });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kChannelVocoderAttack, 1},
-                                                             id::kChannelVocoderAttack, 1.0f, 1000.0f, 10.0f);
+        auto p = params_.cv_attack.Build();
         paramListeners_.Add(p, [this](float v) { channel_vocoder_.SetAttack(v); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kChannelVocoderGate, 1},
-                                                             id::kChannelVocoderGate, -100.0f, 20.0f, -100.0f);
+        auto p = params_.cv_gate.Build();
         paramListeners_.Add(p, [this](float v) { channel_vocoder_.SetGate(v); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kChannelVocoderRelease, 1}, id::kChannelVocoderRelease,
-            juce::NormalisableRange<float>{10.0f, 32000.0f, 1.0f, 0.4f}, 150.0f);
+        auto p = params_.cv_release.Build();
         paramListeners_.Add(p, [this](float v) { channel_vocoder_.SetRelease(v); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kChannelVocoderFreqBegin, 1},
-                                                             id::kChannelVocoderFreqBegin, 20.0f, 2000.0f, 40.0f);
+        auto p = params_.cv_freq_begin.Build();
         paramListeners_.Add(p, [this](float v) { channel_vocoder_.SetFreqBegin(v); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kChannelVocoderFreqEnd, 1},
-                                                             id::kChannelVocoderFreqEnd, 4000.0f, 18000.0f, 12000.0f);
+        auto p = params_.cv_freq_end.Build();
         paramListeners_.Add(p, [this](float v) { channel_vocoder_.SetFreqEnd(v); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kChannelVocoderNBands, 1}, id::kChannelVocoderNBands,
-            juce::NormalisableRange<float>(green_vocoder::dsp::ChannelVocoder::kMinOrder,
-                                           green_vocoder::dsp::ChannelVocoder::kMaxOrder, 4),
-            20);
+        auto p = params_.cv_nbands.Build();
         paramListeners_.Add(p, [this](float v) { channel_vocoder_.SetNumBands(static_cast<int>(std::round(v))); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kChannelVocoderScale, 1},
-                                                             id::kChannelVocoderScale, 0.1f, 2.0f, 1.0f);
+        auto p = params_.cv_scale.Build();
         paramListeners_.Add(p, [this](float v) { channel_vocoder_.SetModulatorScale(v); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kChannelVocoderRipple, 1},
-                                                             id::kChannelVocoderRipple, 0.1f, 10.0f, 1.0f);
+        auto p = params_.cv_ripple.Build();
         paramListeners_.Add(p, [this](float v) { channel_vocoder_.SetFilterRipple(v); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kChannelVocoderCarryScale, 1},
-                                                             id::kChannelVocoderCarryScale, 0.1f, 2.0f, 1.0f);
+        auto p = params_.cv_carry_scale.Build();
         paramListeners_.Add(p, [this](float v) { channel_vocoder_.SetCarryScale(v); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{id::kChannelVocoderMap, 1},
-                                                              id::kChannelVocoderMap, kChannelVocoderMapNames,
-                                                              eChannelVocoderMap_Mel);
-        paramListeners_.Add(p, [this](int i) { channel_vocoder_.SetMap(static_cast<eChannelVocoderMap>(i)); });
+        auto p = params_.cv_map.Build();
+        paramListeners_.Add(
+            p, [this](int i) { channel_vocoder_.SetMap(static_cast<green_vocoder::dsp::eChannelVocoderMap>(i)); });
         layout.add(std::move(p));
     }
 
     // lpc
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kForgetRate, 1}, id::kForgetRate,
-                                                             juce::NormalisableRange<float>{5.0f, 200.0f, 1.0f, 0.4f},
-                                                             10.0f);
+        auto p = params_.lpc_forget.Build();
         paramListeners_.Add(p, [this](float l) { burg_lpc_.SetForget(l); });
         layout.add(std::move(p));
     }
     {
-        auto p =
-            std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kLPCSmooth, 1}, id::kLPCSmooth,
-                                                        juce::NormalisableRange<float>{0.0f, 50.0f, 0.1f, 0.4f}, 1.0f);
+        auto p = params_.lpc_smooth.Build();
         paramListeners_.Add(p, [this](float l) {
             burg_lpc_.SetSmooth(l);
             block_burg_lpc_.SetSmear(l);
@@ -173,9 +138,7 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kLPCGainAttack, 1}, id::kLPCGainAttack,
-            juce::NormalisableRange<float>{10.0f, 100.0f, 1.0f, 0.4f}, 10.0f);
+        auto p = params_.lpc_gain_attack.Build();
         paramListeners_.Add(p, [this](float l) {
             burg_lpc_.SetGainAttack(l);
             block_burg_lpc_.SetAttack(l);
@@ -183,23 +146,17 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kLPCGainHold, 1}, id::kLPCGainHold,
-                                                             juce::NormalisableRange<float>{1.0f, 100.0f, 1.0f, 0.4f},
-                                                             10.0f);
+        auto p = params_.lpc_gain_hold.Build();
         paramListeners_.Add(p, [this](float l) { burg_lpc_.SetGainHold(l); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kLPCGainRelease, 1}, id::kLPCGainRelease,
-            juce::NormalisableRange<float>{5.0f, 200.0f, 1.0f, 0.4f}, 20.0f);
+        auto p = params_.lpc_gain_release.Build();
         paramListeners_.Add(p, [this](float l) { burg_lpc_.SetGainRelease(l); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kLPCOrder, 1}, id::kLPCOrder,
-            juce::NormalisableRange<float>{4.0f, green_vocoder::dsp::LeakyBurgLPC::kNumPoles, 4.0f}, 36.0f);
+        auto p = params_.lpc_order.Build();
         paramListeners_.Add(p, [this](float order) {
             burg_lpc_.SetLPCOrder(static_cast<int>(order));
             block_burg_lpc_.SetPoles(static_cast<size_t>(order));
@@ -209,44 +166,32 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 
     // stft
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kStftWindowWidth, 1},
-                                                             id::kStftWindowWidth, 0.0f, 5.0f, 2.0f);
+        auto p = params_.stft_bandwidth.Build();
         paramListeners_.Add(p, [this](float bw) { stft_vocoder_.SetBandwidth(bw); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kMfccNumBands, 1}, id::kMfccNumBands,
-            juce::NormalisableRange<float>{green_vocoder::dsp::STFTVocoder::kMinNumMfcc,
-                                           green_vocoder::dsp::STFTVocoder::kMaxNumMfcc, 4.0f},
-            20.0f);
+        auto p = params_.mfcc_nbands.Build();
         paramListeners_.Add(p, [this](float bw) { stft_vocoder_.SetNumMfcc(static_cast<size_t>(bw)); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kStftRelease, 1}, id::kStftRelease,
-                                                             juce::NormalisableRange<float>{1.0f, 1000.0f, 1.0f, 0.4f},
-                                                             100.0f);
+        auto p = params_.stft_release.Build();
         paramListeners_.Add(p, [this](float bw) { stft_vocoder_.SetRelease(bw); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kStftAttack, 1}, id::kStftAttack,
-                                                             juce::NormalisableRange<float>{1.0f, 1000.0f, 1.0f, 0.4f},
-                                                             1.0f);
+        auto p = params_.stft_attack.Build();
         paramListeners_.Add(p, [this](float bw) { stft_vocoder_.SetAttack(bw); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kStftBlend, 1}, id::kStftBlend, 0.0f,
-                                                             0.99f, 0.2f);
+        auto p = params_.stft_blend.Build();
         paramListeners_.Add(p, [this](float omega) { stft_vocoder_.SetBlend(omega); });
         layout.add(std::move(p));
     }
     {
-        auto p =
-            std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{id::kStftSize, 1}, id::kStftSize,
-                                                         juce::StringArray{"256", "512", "1024", "2048", "4096"}, 2);
+        auto p = params_.stft_size.Build();
         paramListeners_.Add(p, [this](int idx) {
             static constexpr std::array kArray{256, 512, 1024, 2048, 4096};
             stft_vocoder_.SetFFTSize(kArray[idx]);
@@ -256,14 +201,12 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kStftDetail, 1}, id::kStftDetail,
-                                                             0.01f, 1.0f, 0.3f);
+        auto p = params_.stft_detail.Build();
         paramListeners_.Add(p, [this](float omega) { stft_vocoder_.SetDetail(omega); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{id::kStftType, 1}, id::kStftType,
-                                                              juce::StringArray{"Standard", "Cepstrum", "MFCC"}, 1);
+        auto p = params_.stft_type.Build();
         paramListeners_.Add(
             p, [this](int mode) { stft_vocoder_.SetMode(static_cast<green_vocoder::dsp::STFTVocoder::Mode>(mode)); });
         layout.add(std::move(p));
@@ -271,45 +214,37 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 
     // pitch tracking
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kTrackingLow, 1}, id::kTrackingLow,
-                                                             20.0f, 300.0f, 80.0f);
+        auto p = params_.track_low.Build();
         paramListeners_.Add(p, [this](float low) { pitch_osc_.SetMinPitch(low); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kTrackingHigh, 1}, id::kTrackingHigh,
-                                                             300.0f, 800.0f, 500.0f);
+        auto p = params_.track_high.Build();
         paramListeners_.Add(p, [this](float max) { pitch_osc_.SetMaxPitch(max); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kTrackingPitch, 1},
-                                                             id::kTrackingPitch, -36.0f, 36.0f, 0.0f);
+        auto p = params_.track_pitch.Build();
         paramListeners_.Add(p, [this](float pitch) { pitch_osc_.SetPitchShift(pitch); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kTrackingPwm, 1}, id::kTrackingPwm,
-                                                             0.01f, 0.99f, 0.5f);
+        auto p = params_.track_pwm.Build();
         paramListeners_.Add(p, [this](float pwm) { pitch_osc_.SetPWM(pwm); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(juce::ParameterID{id::kTrackingNoise, 1},
-                                                             id::kTrackingNoise, 0.0f, 1.0f, 0.5f);
+        auto p = params_.track_noise.Build();
         paramListeners_.Add(p, [this](float g) { pitch_osc_.SetNoiseGain(g); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID{id::kTrackingWaveform, 1}, id::kTrackingWaveform, juce::StringArray{"saw", "pwm"}, 0);
+        auto p = params_.track_waveform.Build();
         paramListeners_.Add(p, [this](int idx) { pitch_osc_.SetWaveform(idx); });
         layout.add(std::move(p));
     }
     {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID{id::kTrackingGlide, 1}, id::kTrackingGlide,
-            juce::NormalisableRange<float>{1.0f, 1000.0f, 1.0f, 0.4f}, 1.0f);
+        auto p = params_.track_glide.Build();
         paramListeners_.Add(p, [this](float bw) { pitch_osc_.SetGlide(bw); });
         layout.add(std::move(p));
     }
@@ -434,8 +369,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     // --- resolve channel routing ---
     bool const has_sidechain = buffer.getNumChannels() >= 4;
 
-    bool const swap = channel_swap_->get();
-    int pitch_ch_idx = pitch_channel_->getIndex(); // 0=Off, 1=ch0, 2=ch1, 3=ch2, 4=ch3
+    bool const swap = params_.channel_swap.Get();
+    int pitch_ch_idx = params_.pitch_channel.Get();             // 0=Off, 1=ch0, 2=ch1, 3=ch2, 4=ch3
     if (!has_sidechain && pitch_ch_idx >= 3) pitch_ch_idx -= 2; // ch2/3 → ch0/1
     bool const use_pitch = pitch_ch_idx > 0;
     int const pitch_ch = pitch_ch_idx - 1; // 0-based channel index when active
@@ -472,9 +407,9 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
             float const* src = buffer.getReadPointer(pitch_ch) + pos;
             std::copy_n(src, n, mono.begin());
             pitch_osc_.Process(mono.data(), static_cast<int>(n));
-            for (size_t i = 0; i < n; ++i)
-                crossing_side_buffer_[i] = {mono[i], mono[i]};
-        } else {
+            for (size_t i = 0; i < n; ++i) crossing_side_buffer_[i] = {mono[i], mono[i]};
+        }
+        else {
             float const* sl = buffer.getReadPointer(carry_ch) + pos;
 #if I_AM_USING_LOOPBACK_DEBUG
             for (size_t i = 0; i < n; ++i) crossing_side_buffer_[i].Broadcast(sl[i]);
@@ -491,7 +426,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
 
         // vocoder
         {
-            eVocoderType const type = static_cast<eVocoderType>(vocoder_type_param_->getIndex());
+            eVocoderType const type = static_cast<eVocoderType>(params_.vocoder_type.Get());
             if (last_vocoder_type_ != type) last_vocoder_type_ = type;
 
             switch (type) {
@@ -576,7 +511,7 @@ void AudioPluginAudioProcessor::Panic() {
 
 void AudioPluginAudioProcessor::SetLatency() {
     int latency = 0;
-    switch (vocoder_type_param_->getIndex()) {
+    switch (params_.vocoder_type.Get()) {
         case eVocoderType_STFTVocoder:
         case eVocoderType_BlockBurgLPC:
             latency += stft_vocoder_.GetFFTSize();

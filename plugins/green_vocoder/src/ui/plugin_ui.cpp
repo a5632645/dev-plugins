@@ -6,8 +6,7 @@ PluginUi::PluginUi(AudioPluginAudioProcessor& p)
     : preset_panel_(*p.preset_manager_)
     , pre_fx_(p)
     , vocoder_(p)
-    , tracking_(p)
-{
+    , tracking_(p) {
     addAndMakeVisible(preset_panel_);
     addAndMakeVisible(pre_fx_);
     addAndMakeVisible(vocoder_);
@@ -15,7 +14,7 @@ PluginUi::PluginUi(AudioPluginAudioProcessor& p)
     setSize(kWidth, kHeight);
 }
 
-void PluginUi::paint (juce::Graphics& g) {
+void PluginUi::paint(juce::Graphics& g) {
     g.fillAll(ui::black_bg);
     g.setColour(ui::green_bg);
     g.fillRect(preset_panel_.getBounds());
@@ -24,8 +23,7 @@ void PluginUi::paint (juce::Graphics& g) {
     g.fillRect(tracking_.getBounds());
 }
 
-void PluginUi::resized()
-{
+void PluginUi::resized() {
     auto b = getLocalBounds();
     preset_panel_.setBounds(b.removeFromTop(30));
     auto left_panel = b.removeFromLeft(260);

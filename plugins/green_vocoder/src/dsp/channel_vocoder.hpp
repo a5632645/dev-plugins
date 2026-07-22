@@ -1,25 +1,22 @@
 #pragma once
-#include "param_ids.hpp"
 #include <array>
-#include <qwqdsp/simd_element/simd_pack.hpp>
-#include <qwqdsp/filter/iir_design_extra.hpp>
 #include <qwqdsp/filter/iir_design.hpp>
+#include <qwqdsp/filter/iir_design_extra.hpp>
+#include <qwqdsp/simd_element/simd_pack.hpp>
 
 namespace green_vocoder::dsp {
 class TwoBandSVF {
 public:
     /**
-     * @brief 
-     * 
-     * @tparam kOnlyPole true意味着你是通过Q和w计算出来的带通滤波器，false为可能携带零点的传统滤波器设计方法(qwqdsp_filter::IIRDesign)
-     * @param v0_l 
-     * @param v0_r 
+     * @brief
+     *
+     * @tparam kOnlyPole
+     * true意味着你是通过Q和w计算出来的带通滤波器，false为可能携带零点的传统滤波器设计方法(qwqdsp_filter::IIRDesign)
+     * @param v0_l
+     * @param v0_r
      */
-    template<bool kOnlyPole>
-    void Tick(
-        qwqdsp_simd_element::PackFloat<4>& v0_l,
-        qwqdsp_simd_element::PackFloat<4>& v0_r
-    ) noexcept {
+    template <bool kOnlyPole>
+    void Tick(qwqdsp_simd_element::PackFloat<4>& v0_l, qwqdsp_simd_element::PackFloat<4>& v0_r) noexcept {
         if constexpr (!kOnlyPole) {
             qwqdsp_simd_element::PackFloat<4> f1_y_l;
             qwqdsp_simd_element::PackFloat<4> f1_y_r;
@@ -105,12 +102,9 @@ public:
         }
     }
 
-    void MakeBandpass(
-        qwqdsp_simd_element::PackFloatCRef<4> analog_w,
-        qwqdsp_simd_element::PackFloatCRef<4> Q,
-        qwqdsp_simd_element::PackFloatCRef<4> analog_w2,
-        qwqdsp_simd_element::PackFloatCRef<4> Q2
-    ) noexcept {
+    void MakeBandpass(qwqdsp_simd_element::PackFloatCRef<4> analog_w, qwqdsp_simd_element::PackFloatCRef<4> Q,
+                      qwqdsp_simd_element::PackFloatCRef<4> analog_w2,
+                      qwqdsp_simd_element::PackFloatCRef<4> Q2) noexcept {
         f1_.g_ = analog_w;
         f1_.r2_ = 1.0f / Q;
         f1_.d_ = 1.0f / (1.0f + f1_.r2_ * f1_.g_ + f1_.g_ * f1_.g_);
@@ -120,23 +114,15 @@ public:
         f2_.d_ = 1.0f / (1.0f + f2_.r2_ * f2_.g_ + f2_.g_ * f2_.g_);
     }
 
-    void SetAnalogPoleZero(
-        std::array<qwqdsp_filter::IIRDesign::ZPK, 4> const& zpk_buffer,
-        std::array<qwqdsp_filter::IIRDesign::ZPK, 4> const& zpk_buffer2
-    ) noexcept {
+    void SetAnalogPoleZero(std::array<qwqdsp_filter::IIRDesign::ZPK, 4> const& zpk_buffer,
+                           std::array<qwqdsp_filter::IIRDesign::ZPK, 4> const& zpk_buffer2) noexcept {
         // poles
         qwqdsp_simd_element::PackFloat<4> p_re{
-            static_cast<float>(zpk_buffer[0].p.real()),
-            static_cast<float>(zpk_buffer[1].p.real()),
-            static_cast<float>(zpk_buffer[2].p.real()),
-            static_cast<float>(zpk_buffer[3].p.real())
-        };
+            static_cast<float>(zpk_buffer[0].p.real()), static_cast<float>(zpk_buffer[1].p.real()),
+            static_cast<float>(zpk_buffer[2].p.real()), static_cast<float>(zpk_buffer[3].p.real())};
         qwqdsp_simd_element::PackFloat<4> p_im{
-            static_cast<float>(zpk_buffer[0].p.imag()),
-            static_cast<float>(zpk_buffer[1].p.imag()),
-            static_cast<float>(zpk_buffer[2].p.imag()),
-            static_cast<float>(zpk_buffer[3].p.imag())
-        };
+            static_cast<float>(zpk_buffer[0].p.imag()), static_cast<float>(zpk_buffer[1].p.imag()),
+            static_cast<float>(zpk_buffer[2].p.imag()), static_cast<float>(zpk_buffer[3].p.imag())};
         auto analog_w = qwqdsp_simd_element::PackOps::Sqrt(p_re * p_re + p_im * p_im);
         auto Q = analog_w / (-2.0f * p_re);
         Q = qwqdsp_simd_element::PackOps::Abs(Q);
@@ -144,18 +130,10 @@ public:
         f1_.r2_ = 1.0f / Q;
         f1_.d_ = 1.0f / (1.0f + f1_.r2_ * f1_.g_ + f1_.g_ * f1_.g_);
 
-        p_re = {
-            static_cast<float>(zpk_buffer2[0].p.real()),
-            static_cast<float>(zpk_buffer2[1].p.real()),
-            static_cast<float>(zpk_buffer2[2].p.real()),
-            static_cast<float>(zpk_buffer2[3].p.real())
-        };
-        p_im = {
-            static_cast<float>(zpk_buffer2[0].p.imag()),
-            static_cast<float>(zpk_buffer2[1].p.imag()),
-            static_cast<float>(zpk_buffer2[2].p.imag()),
-            static_cast<float>(zpk_buffer2[3].p.imag())
-        };
+        p_re = {static_cast<float>(zpk_buffer2[0].p.real()), static_cast<float>(zpk_buffer2[1].p.real()),
+                static_cast<float>(zpk_buffer2[2].p.real()), static_cast<float>(zpk_buffer2[3].p.real())};
+        p_im = {static_cast<float>(zpk_buffer2[0].p.imag()), static_cast<float>(zpk_buffer2[1].p.imag()),
+                static_cast<float>(zpk_buffer2[2].p.imag()), static_cast<float>(zpk_buffer2[3].p.imag())};
         analog_w = qwqdsp_simd_element::PackOps::Sqrt(p_re * p_re + p_im * p_im);
         Q = analog_w / (-2.0f * p_re);
         Q = qwqdsp_simd_element::PackOps::Abs(Q);
@@ -167,66 +145,42 @@ public:
         // other channels always match this condition
         if (zpk_buffer[0].z) {
             qwqdsp_simd_element::PackFloat<4> z_re{
-                static_cast<float>((*zpk_buffer[0].z).real()),
-                static_cast<float>((*zpk_buffer[1].z).real()),
-                static_cast<float>((*zpk_buffer[2].z).real()),
-                static_cast<float>((*zpk_buffer[3].z).real())
-            };
+                static_cast<float>((*zpk_buffer[0].z).real()), static_cast<float>((*zpk_buffer[1].z).real()),
+                static_cast<float>((*zpk_buffer[2].z).real()), static_cast<float>((*zpk_buffer[3].z).real())};
             qwqdsp_simd_element::PackFloat<4> z_im{
-                static_cast<float>((*zpk_buffer[0].z).imag()),
-                static_cast<float>((*zpk_buffer[1].z).imag()),
-                static_cast<float>((*zpk_buffer[2].z).imag()),
-                static_cast<float>((*zpk_buffer[3].z).imag())
-            };
+                static_cast<float>((*zpk_buffer[0].z).imag()), static_cast<float>((*zpk_buffer[1].z).imag()),
+                static_cast<float>((*zpk_buffer[2].z).imag()), static_cast<float>((*zpk_buffer[3].z).imag())};
             qwqdsp_simd_element::PackFloat<4> k{
-                static_cast<float>(zpk_buffer[0].k),
-                static_cast<float>(zpk_buffer[1].k),
-                static_cast<float>(zpk_buffer[2].k),
-                static_cast<float>(zpk_buffer[3].k)
-            };
+                static_cast<float>(zpk_buffer[0].k), static_cast<float>(zpk_buffer[1].k),
+                static_cast<float>(zpk_buffer[2].k), static_cast<float>(zpk_buffer[3].k)};
             f1_.lp_mix_ = k * (z_re * z_re + z_im * z_im) / (f1_.g_ * f1_.g_);
             f1_.hp_mix_ = k;
         }
         else {
             qwqdsp_simd_element::PackFloat<4> k{
-                static_cast<float>(zpk_buffer[0].k),
-                static_cast<float>(zpk_buffer[1].k),
-                static_cast<float>(zpk_buffer[2].k),
-                static_cast<float>(zpk_buffer[3].k)
-            };
+                static_cast<float>(zpk_buffer[0].k), static_cast<float>(zpk_buffer[1].k),
+                static_cast<float>(zpk_buffer[2].k), static_cast<float>(zpk_buffer[3].k)};
             f1_.lp_mix_ = k / (f1_.g_ * f1_.g_);
             f1_.hp_mix_.Broadcast(0);
         }
 
         if (zpk_buffer2[0].z) {
             qwqdsp_simd_element::PackFloat<4> z_re{
-                static_cast<float>((*zpk_buffer2[0].z).real()),
-                static_cast<float>((*zpk_buffer2[1].z).real()),
-                static_cast<float>((*zpk_buffer2[2].z).real()),
-                static_cast<float>((*zpk_buffer2[3].z).real())
-            };
+                static_cast<float>((*zpk_buffer2[0].z).real()), static_cast<float>((*zpk_buffer2[1].z).real()),
+                static_cast<float>((*zpk_buffer2[2].z).real()), static_cast<float>((*zpk_buffer2[3].z).real())};
             qwqdsp_simd_element::PackFloat<4> z_im{
-                static_cast<float>((*zpk_buffer2[0].z).imag()),
-                static_cast<float>((*zpk_buffer2[1].z).imag()),
-                static_cast<float>((*zpk_buffer2[2].z).imag()),
-                static_cast<float>((*zpk_buffer2[3].z).imag())
-            };
+                static_cast<float>((*zpk_buffer2[0].z).imag()), static_cast<float>((*zpk_buffer2[1].z).imag()),
+                static_cast<float>((*zpk_buffer2[2].z).imag()), static_cast<float>((*zpk_buffer2[3].z).imag())};
             qwqdsp_simd_element::PackFloat<4> k{
-                static_cast<float>(zpk_buffer2[0].k),
-                static_cast<float>(zpk_buffer2[1].k),
-                static_cast<float>(zpk_buffer2[2].k),
-                static_cast<float>(zpk_buffer2[3].k)
-            };
+                static_cast<float>(zpk_buffer2[0].k), static_cast<float>(zpk_buffer2[1].k),
+                static_cast<float>(zpk_buffer2[2].k), static_cast<float>(zpk_buffer2[3].k)};
             f2_.lp_mix_ = k * (z_re * z_re + z_im * z_im) / (f2_.g_ * f2_.g_);
             f2_.hp_mix_ = k;
         }
         else {
             qwqdsp_simd_element::PackFloat<4> k{
-                static_cast<float>(zpk_buffer2[0].k),
-                static_cast<float>(zpk_buffer2[1].k),
-                static_cast<float>(zpk_buffer2[2].k),
-                static_cast<float>(zpk_buffer2[3].k)
-            };
+                static_cast<float>(zpk_buffer2[0].k), static_cast<float>(zpk_buffer2[1].k),
+                static_cast<float>(zpk_buffer2[2].k), static_cast<float>(zpk_buffer2[3].k)};
             f2_.lp_mix_ = k / (f2_.g_ * f2_.g_);
             f2_.hp_mix_.Broadcast(0);
         }
@@ -259,11 +213,8 @@ private:
 };
 
 struct CascadeBPSVF {
-    template<size_t kNumFilters, bool kOnlyPole>
-    void Tick(
-        qwqdsp_simd_element::PackFloat<4>& l,
-        qwqdsp_simd_element::PackFloat<4>& r
-    ) noexcept {
+    template <size_t kNumFilters, bool kOnlyPole>
+    void Tick(qwqdsp_simd_element::PackFloat<4>& l, qwqdsp_simd_element::PackFloat<4>& r) noexcept {
         for (size_t i = 0; i < kNumFilters / 2; ++i) {
             svf_[i].Tick<kOnlyPole>(l, r);
         }
@@ -276,6 +227,13 @@ struct CascadeBPSVF {
     }
 
     std::array<TwoBandSVF, 3> svf_;
+};
+
+enum eChannelVocoderMap {
+    eChannelVocoderMap_Linear = 0,
+    eChannelVocoderMap_Mel,
+    eChannelVocoderMap_Log,
+    eChannelVocoderMap_NumEnums
 };
 
 class ChannelVocoder {
@@ -296,11 +254,8 @@ public:
     };
 
     void Init(float sample_rate, size_t block_size);
-    void ProcessBlock(
-        qwqdsp_simd_element::PackFloat<2>* main,
-        qwqdsp_simd_element::PackFloat<2>* side,
-        size_t num_samples
-    );
+    void ProcessBlock(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side,
+                      size_t num_samples);
 
     void SetNumBands(int bands);
     void SetFreqBegin(float begin);
@@ -315,7 +270,9 @@ public:
     void SetFormantShift(float shift);
     void SetFilterRipple(float ripple);
 
-    int GetNumBins() const { return num_bans_; }
+    int GetNumBins() const {
+        return num_bans_;
+    }
     qwqdsp_simd_element::PackFloat<2> GetBinPeak(size_t idx) const {
         auto v = main_peaks_[idx / 4];
         return {v[0][idx & 3], v[1][idx & 3]};
@@ -323,18 +280,15 @@ public:
 private:
     void UpdateFilters();
 
-    template<class AssignMap>
+    template <class AssignMap>
     void _UpdateFilters();
 
-    template<class AssignMap, class Designer>
+    template <class AssignMap, class Designer>
     void _UpdateFilters2();
 
-    template<size_t kFilterNumbers, bool kOnlyPole>
-    void _ProcessBlock(
-        qwqdsp_simd_element::PackFloat<2>* main,
-        qwqdsp_simd_element::PackFloat<2>* side,
-        size_t num_samples
-    );
+    template <size_t kFilterNumbers, bool kOnlyPole>
+    void _ProcessBlock(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side,
+                       size_t num_samples);
 
     float carry_w_mul_{1.0f};
     float gate_peak_{0.0f};
@@ -358,4 +312,4 @@ private:
     std::array<qwqdsp_simd_element::PackFloat<2>, 256> output_{};
 };
 
-}
+} // namespace green_vocoder::dsp

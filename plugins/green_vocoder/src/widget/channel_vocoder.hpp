@@ -27,4 +27,4 @@ private:
     ui::Dial gate_{"gate"};
 };
 
-}
+} // namespace green_vocoder::widget

@@ -19,4 +19,4 @@ private:
     ui::FlatSlider noise_{"noise"};
     ui::FlatSlider glide_{"glide"};
 };
-}
+} // namespace green_vocoder::widget

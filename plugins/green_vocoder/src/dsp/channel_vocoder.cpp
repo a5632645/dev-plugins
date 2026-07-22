@@ -3,8 +3,6 @@
 #include <cstddef>
 #include <numbers>
 #include <qwqdsp/convert.hpp>
-#include "param_ids.hpp"
-
 
 namespace green_vocoder::dsp {
 

@@ -1,11 +1,10 @@
 #pragma once
 
-#include "ui/plugin_ui.hpp"
 #include <pluginshared/plugin_editor.hpp>
+#include "ui/plugin_ui.hpp"
 
 class AudioPluginAudioProcessorEditor final
     : public pluginshared::PluginEditorBase<AudioPluginAudioProcessor, PluginUi> {
-
     using Base = pluginshared::PluginEditorBase<AudioPluginAudioProcessor, PluginUi>;
 public:
     explicit AudioPluginAudioProcessorEditor(AudioPluginAudioProcessor& p)

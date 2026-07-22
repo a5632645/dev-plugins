@@ -16,4 +16,4 @@ private:
     juce::Label swap_title_{"", "ch swap"};
     juce::Label pitch_title_{"", "pitch ch"};
 };
-}
+} // namespace green_vocoder::widget

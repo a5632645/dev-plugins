@@ -1,36 +1,33 @@
 #include "channel_vocoder.hpp"
 #include "PluginProcessor.h"
-#include "param_ids.hpp"
 
 namespace green_vocoder::widget {
 
 ChannelVocoder::ChannelVocoder(AudioPluginAudioProcessor& p)
     : vocoder_(p.channel_vocoder_) {
-    auto& apvts = *p.value_tree_;
-
-    attack_.BindParam(apvts, id::kChannelVocoderAttack);
+    attack_.BindParam(p.params_.cv_attack.ptr_);
     addAndMakeVisible(attack_);
-    release_.BindParam(apvts, id::kChannelVocoderRelease);
+    release_.BindParam(p.params_.cv_release.ptr_);
     addAndMakeVisible(release_);
-    nbands_.BindParam(apvts, id::kChannelVocoderNBands);
+    nbands_.BindParam(p.params_.cv_nbands.ptr_);
     addAndMakeVisible(nbands_);
-    freq_begin_.BindParam(apvts, id::kChannelVocoderFreqBegin);
+    freq_begin_.BindParam(p.params_.cv_freq_begin.ptr_);
     addAndMakeVisible(freq_begin_);
-    freq_end_.BindParam(apvts, id::kChannelVocoderFreqEnd);
+    freq_end_.BindParam(p.params_.cv_freq_end.ptr_);
     addAndMakeVisible(freq_end_);
-    scale_.BindParam(apvts, id::kChannelVocoderScale);
+    scale_.BindParam(p.params_.cv_scale.ptr_);
     addAndMakeVisible(scale_);
-    carry_scale_.BindParam(apvts, id::kChannelVocoderCarryScale);
+    carry_scale_.BindParam(p.params_.cv_carry_scale.ptr_);
     addAndMakeVisible(carry_scale_);
-    map_.BindParam(apvts, id::kChannelVocoderMap);
+    map_.BindParam(p.params_.cv_map.ptr_);
     addAndMakeVisible(map_);
-    filter_bank_.BindParam(apvts, id::kChannelVocoderFilterBankMode);
+    filter_bank_.BindParam(p.params_.cv_filter_bank_mode.ptr_);
     addAndMakeVisible(filter_bank_);
-    gate_.BindParam(apvts, id::kChannelVocoderGate);
+    gate_.BindParam(p.params_.cv_gate.ptr_);
     addAndMakeVisible(gate_);
     ui::SetLableBlack(label_filter_bank_);
     addAndMakeVisible(label_filter_bank_);
-    ripple_.BindParam(apvts, id::kChannelVocoderRipple);
+    ripple_.BindParam(p.params_.cv_ripple.ptr_);
     addAndMakeVisible(ripple_);
 }
 
@@ -39,7 +36,7 @@ void ChannelVocoder::resized() {
     auto top = b.removeFromTop(65);
     attack_.setBounds(top.removeFromLeft(50));
     release_.setBounds(top.removeFromLeft(50));
-    
+
     auto block = top.removeFromLeft(50);
     map_.setBounds(block.removeFromBottom(25));
     nbands_.setBounds(block);
@@ -73,7 +70,7 @@ void ChannelVocoder::paint(juce::Graphics& g) {
     float width = bb.getWidth() / nbands;
     float x = bb.getX();
     for (int i = 0; i < nbands; ++i) {
-        juce::Rectangle<float> rect{ x + width * 0.25f, bb.getY(), width * 0.5f, bb.getHeight() };
+        juce::Rectangle<float> rect{x + width * 0.25f, bb.getY(), width * 0.5f, bb.getHeight()};
         float gain = vocoder_.GetBinPeak(i)[0];
 
         float db_gain = 20.0f * std::log10(gain + 1e-10f);
@@ -88,5 +85,4 @@ void ChannelVocoder::paint(juce::Graphics& g) {
     }
 }
 
-
-}
+} // namespace green_vocoder::widget
