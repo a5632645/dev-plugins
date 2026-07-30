@@ -92,11 +92,16 @@ jobs:
           os: ubuntu-22.04
           pluginval-binary: ./pluginval
           artifact_name: plugin-linux
-        - name: macOS Universal
-          os: macos-26
-          macos_arch: "arm64;x86_64"
+        - name: macOS-x86
+          os: macos-15-intel
+          macos_arch: x86_64
           pluginval-binary: pluginval.app/Contents/MacOS/pluginval
-          artifact_name: plugin-macos-universal
+          artifact_name: plugin-macos-intel
+        - name: macOS-arm
+          os: macos-26
+          macos_arch: arm64
+          pluginval-binary: pluginval.app/Contents/MacOS/pluginval
+          artifact_name: plugin-macos-arm
         - name: Windows
           os: windows-latest
           wix_arch: x64
@@ -143,14 +148,6 @@ jobs:
     - name: Install Dependencies
       if: runner.os == 'macOS'
       run: brew install cmake ninja
-
-    - name: Ensure Rosetta 2 is available
-      if: runner.os == 'macOS'
-      shell: bash
-      run: |
-        if ! /usr/bin/arch -x86_64 /usr/bin/true; then
-          sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
-        fi
 
     ##### config and build #####
     - name: Checkout code
@@ -200,17 +197,6 @@ jobs:
         7z x pluginval_${{ runner.os }}.zip
         echo "PLUGINVAL_DISABLED=Plugin state restoration" >> $GITHUB_ENV
 
-    - name: Verify universal plugin binaries (macOS)
-      if: runner.os == 'macOS'
-      shell: bash
-      run: |
-        for BUNDLE_PATH in "${{ env.VST3_PATH }}" "${{ env.AU_PATH }}"; do
-          EXECUTABLE_NAME=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$BUNDLE_PATH/Contents/Info.plist")
-          EXECUTABLE_PATH="$BUNDLE_PATH/Contents/MacOS/$EXECUTABLE_NAME"
-          echo "Verifying universal binary: $EXECUTABLE_PATH"
-          /usr/bin/lipo -verify_arch arm64 x86_64 "$EXECUTABLE_PATH"
-        done
-
     - name: Setup Pluginval random seed
       uses: josStorer/get-current-time@v2
       id: current-time
@@ -246,7 +232,7 @@ jobs:
         killall -9 AudioComponentRegistrar || true
         sleep 2
 
-    - name: AU Validation on arm64 and x86_64 (macOS)
+    - name: AU Validation with auval (macOS)
       if: runner.os == 'macOS'
       shell: bash
       run: |
@@ -259,22 +245,20 @@ jobs:
         COUNT=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents" "$PLIST_PATH" | grep -E "^    [a-zA-Z]+" | wc -l | xargs)
         echo "Found $COUNT component(s) in bundle."
 
-        for ARCH in arm64 x86_64; do
-          for round in 1 2 3; do
-            echo ""
-            echo "========== auval $ARCH round $round/3 =========="
-            echo ""
-            for (( i=0; i<$COUNT; i++ )); do
-              TYPE=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:type" "$PLIST_PATH")
-              SUBT=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:subtype" "$PLIST_PATH")
-              MANU=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:manufacturer" "$PLIST_PATH")
+        for round in 1 2 3; do
+          echo ""
+          echo "========== auval round $round/3 =========="
+          echo ""
+          for (( i=0; i<$COUNT; i++ )); do
+            TYPE=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:type" "$PLIST_PATH")
+            SUBT=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:subtype" "$PLIST_PATH")
+            MANU=$(/usr/libexec/PlistBuddy -c "Print :AudioComponents:$i:manufacturer" "$PLIST_PATH")
 
-              echo "-----------------------------------------------"
-              echo "Validating $ARCH Component $i: Type='$TYPE', Subtype='$SUBT', Manu='$MANU'"
-              echo "-----------------------------------------------"
+            echo "-----------------------------------------------"
+            echo "Validating Component $i: Type='$TYPE', Subtype='$SUBT', Manu='$MANU'"
+            echo "-----------------------------------------------"
 
-              /usr/bin/arch "-$ARCH" /usr/bin/auval -v "$TYPE" "$SUBT" "$MANU"
-            done
+            auval -v "$TYPE" "$SUBT" "$MANU"
           done
         done
 
