@@ -12,34 +12,43 @@
 namespace warpcore {
 
 template <simd::Inst inst, class SimdT>
-struct SvfLaneN {
-    std::array<float, global::kMaxPoles> g{};
-    std::array<float, global::kMaxPoles> d{};
-
-    // flat svf filter
-    // [pole pole], [pole, pole]
-    // each [] is a parralle simd::LaneSize<SimdT> filter
-    struct SvfState {
-        SimdT s1_re_l;
-        SimdT s1_re_r;
-        SimdT s1_im_l;
-        SimdT s1_im_r;
-        SimdT s2_re_l;
-        SimdT s2_re_r;
-        SimdT s2_im_l;
-        SimdT s2_im_r;
+struct Tdf2LaneN {
+    struct Coefficients {
+        float b0;
+        float a1;
+        float a2;
     };
-    simd::Array256<SvfState, global::kMaxBands * global::kMaxPoles / simd::LaneSize<SimdT>> state{};
+    std::array<Coefficients, global::kMaxPoles> coefficients{};
+
+    // [pole pole], [pole, pole]
+    // Each [] is a parallel simd::LaneSize<SimdT> filter.
+    struct Tdf2State {
+        SimdT z1_re_l;
+        SimdT z1_re_r;
+        SimdT z1_im_l;
+        SimdT z1_im_r;
+        SimdT z2_re_l;
+        SimdT z2_re_r;
+        SimdT z2_im_l;
+        SimdT z2_im_r;
+    };
+    simd::Array256<Tdf2State, global::kMaxBands * global::kMaxPoles / simd::LaneSize<SimdT>> state{};
 
     void Reset() noexcept {
-        state.fill(SvfState{});
+        state.fill(Tdf2State{});
     }
 
     void SetPole(int pole_idx, float w, float Q, float fmul) noexcept {
-        float r2 = 1.0f / Q;
-        float g_val = std::tan(w / 2.0f) * fmul;
-        g[pole_idx] = g_val;
-        d[pole_idx] = 1.0f / (1.0f + r2 * g_val + g_val * g_val);
+        const float g = std::tan(w / 2.0f) * fmul;
+        const float inv_q = 1.0f / Q;
+        const float norm = 1.0f / (1.0f + inv_q * g + g * g);
+        const float b0 = g * g * norm;
+
+        coefficients[pole_idx] = {
+            .b0 = b0,
+            .a1 = 2.0f * (g * g - 1.0f) * norm,
+            .a2 = (1.0f - inv_q * g + g * g) * norm,
+        };
     }
 };
 
@@ -54,7 +63,7 @@ public:
     }
 
     void Reset() override {
-        svf_.Reset();
+        tdf2_.Reset();
         pre_osc_phase_ = 0.0f;
         post_osc_phase_ = 0.0f;
         StopSmooth();
@@ -123,12 +132,12 @@ public:
         poles_ = p.filter_order;
         SetFreq(filter_w, p.filter_order);
         if (stop_smooth) {
-            svf_.Reset();
+            tdf2_.Reset();
 
             // 调整极点数量立刻赋值给滤波器，跳过所有平滑过程
             StopSmooth();
             for (int i = 0; i < poles_; ++i) {
-                svf_.SetPole(i, w_[i], q_[i], analog_fmul_);
+                tdf2_.SetPole(i, w_[i], q_[i], analog_fmul_);
             }
         }
         else {
@@ -148,7 +157,7 @@ public:
                 if (smooth_samples_ == 0) {
                     StopSmooth();
                     for (int i = 0; i < poles_; ++i) {
-                        svf_.SetPole(i, w_[i], q_[i], analog_fmul_);
+                        tdf2_.SetPole(i, w_[i], q_[i], analog_fmul_);
                     }
                 }
             }
@@ -265,6 +274,22 @@ private:
         else {
             ProcessInternal_Stereo<kFreqMode, kPoles, kSmooth>(left, right, num_samples);
         }
+    }
+
+    static void ProcessTdf2(SimdT& re, SimdT& im, SimdT& z1_re, SimdT& z1_im, SimdT& z2_re, SimdT& z2_im,
+                            const typename Tdf2LaneN<inst, SimdT>::Coefficients& c) noexcept {
+        const SimdT b0_re = c.b0 * re;
+        const SimdT b0_im = c.b0 * im;
+        const SimdT y_re = b0_re + z1_re;
+        const SimdT y_im = b0_im + z1_im;
+
+        z1_re = b0_re + b0_re - c.a1 * y_re + z2_re;
+        z1_im = b0_im + b0_im - c.a1 * y_im + z2_im;
+        z2_re = b0_re - c.a2 * y_re;
+        z2_im = b0_im - c.a2 * y_im;
+
+        re = y_re;
+        im = y_im;
     }
 
     template <class SimdT2>
@@ -581,7 +606,7 @@ private:
         for (int i = 0; i < num_samples; i++) {
             if constexpr (kSmooth) {
                 for (int j = 0; j < kPoles; ++j) {
-                    svf_.SetPole(j, last_w_[j], last_q_[j], analog_fmul_);
+                    tdf2_.SetPole(j, last_w_[j], last_q_[j], analog_fmul_);
                 }
                 for (int j = 0; j < kPoles; ++j) {
                     last_w_[j] += w_inc_[j];
@@ -590,8 +615,7 @@ private:
                 last_pre_osc_phase_inc_ += pre_osc_phase_inc_inc_;
                 last_post_osc_phase_inc_ += post_osc_phase_inc_inc_;
             }
-            const auto& svf_g = svf_.g;
-            const auto& svf_d = svf_.d;
+            const auto& coefficients = tdf2_.coefficients;
 
             // -------------------- tick complex sine generators --------------------
             pre_osc_phase_ += last_pre_osc_phase_inc_;
@@ -615,7 +639,7 @@ private:
             float x_left = left[i];
             float x_right = right[i];
             // -------------------- process bands --------------------
-            auto* svf_state = svf_.state.data();
+            auto* tdf2_state = tdf2_.state.data();
             SimdT y_l{};
             SimdT y_r{};
 
@@ -627,52 +651,12 @@ private:
                 pre_osc_n_val *= pre_osc;
 
                 for (int k = 0; k < kPoles; ++k) {
-                    const float gk = svf_g[k];
-                    const float dk = svf_d[k];
-
-                    auto s1_re_l = svf_state->s1_re_l;
-                    auto s1_im_l = svf_state->s1_im_l;
-                    auto s2_re_l = svf_state->s2_re_l;
-                    auto s2_im_l = svf_state->s2_im_l;
-
-                    auto s1_re_r = svf_state->s1_re_r;
-                    auto s1_im_r = svf_state->s1_im_r;
-                    auto s2_re_r = svf_state->s2_re_r;
-                    auto s2_im_r = svf_state->s2_im_r;
-
-                    auto bp_re_l = dk * (gk * (tmp_l.re - s2_re_l) + s1_re_l);
-                    auto bp_im_l = dk * (gk * (tmp_l.im - s2_im_l) + s1_im_l);
-                    auto v1_re_l = bp_re_l - s1_re_l;
-                    auto v1_im_l = bp_im_l - s1_im_l;
-                    auto v2_re_l = gk * bp_re_l;
-                    auto v2_im_l = gk * bp_im_l;
-                    auto lp_re_l = v2_re_l + s2_re_l;
-                    auto lp_im_l = v2_im_l + s2_im_l;
-
-                    auto bp_re_r = dk * (gk * (tmp_r.re - s2_re_r) + s1_re_r);
-                    auto bp_im_r = dk * (gk * (tmp_r.im - s2_im_r) + s1_im_r);
-                    auto v1_re_r = bp_re_r - s1_re_r;
-                    auto v1_im_r = bp_im_r - s1_im_r;
-                    auto v2_re_r = gk * bp_re_r;
-                    auto v2_im_r = gk * bp_im_r;
-                    auto lp_re_r = v2_re_r + s2_re_r;
-                    auto lp_im_r = v2_im_r + s2_im_r;
-
-                    svf_state->s1_re_l = bp_re_l + v1_re_l;
-                    svf_state->s1_im_l = bp_im_l + v1_im_l;
-                    svf_state->s2_re_l = lp_re_l + v2_re_l;
-                    svf_state->s2_im_l = lp_im_l + v2_im_l;
-                    svf_state->s1_re_r = bp_re_r + v1_re_r;
-                    svf_state->s1_im_r = bp_im_r + v1_im_r;
-                    svf_state->s2_re_r = lp_re_r + v2_re_r;
-                    svf_state->s2_im_r = lp_im_r + v2_im_r;
-
-                    ++svf_state;
-
-                    tmp_l.re = lp_re_l;
-                    tmp_l.im = lp_im_l;
-                    tmp_r.re = lp_re_r;
-                    tmp_r.im = lp_im_r;
+                    const auto& c = coefficients[k];
+                    ProcessTdf2(tmp_l.re, tmp_l.im, tdf2_state->z1_re_l, tdf2_state->z1_im_l,
+                                tdf2_state->z2_re_l, tdf2_state->z2_im_l, c);
+                    ProcessTdf2(tmp_r.re, tmp_r.im, tdf2_state->z1_re_r, tdf2_state->z1_im_r,
+                                tdf2_state->z2_re_r, tdf2_state->z2_im_r, c);
+                    ++tdf2_state;
                 }
 
                 // y += (tmp * post_osc_n_val).real();
@@ -693,52 +677,12 @@ private:
             auto tmp_r = simd::Broadcast<SimdT>(x_right) * pre_osc_n_val;
 
             for (int k = 0; k < kPoles; ++k) {
-                const float gk = svf_g[k];
-                const float dk = svf_d[k];
-
-                auto s1_re_l = svf_state->s1_re_l;
-                auto s1_im_l = svf_state->s1_im_l;
-                auto s2_re_l = svf_state->s2_re_l;
-                auto s2_im_l = svf_state->s2_im_l;
-
-                auto s1_re_r = svf_state->s1_re_r;
-                auto s1_im_r = svf_state->s1_im_r;
-                auto s2_re_r = svf_state->s2_re_r;
-                auto s2_im_r = svf_state->s2_im_r;
-
-                auto bp_re_l = dk * (gk * (tmp_l.re - s2_re_l) + s1_re_l);
-                auto bp_im_l = dk * (gk * (tmp_l.im - s2_im_l) + s1_im_l);
-                auto v1_re_l = bp_re_l - s1_re_l;
-                auto v1_im_l = bp_im_l - s1_im_l;
-                auto v2_re_l = gk * bp_re_l;
-                auto v2_im_l = gk * bp_im_l;
-                auto lp_re_l = v2_re_l + s2_re_l;
-                auto lp_im_l = v2_im_l + s2_im_l;
-
-                auto bp_re_r = dk * (gk * (tmp_r.re - s2_re_r) + s1_re_r);
-                auto bp_im_r = dk * (gk * (tmp_r.im - s2_im_r) + s1_im_r);
-                auto v1_re_r = bp_re_r - s1_re_r;
-                auto v1_im_r = bp_im_r - s1_im_r;
-                auto v2_re_r = gk * bp_re_r;
-                auto v2_im_r = gk * bp_im_r;
-                auto lp_re_r = v2_re_r + s2_re_r;
-                auto lp_im_r = v2_im_r + s2_im_r;
-
-                svf_state->s1_re_l = bp_re_l + v1_re_l;
-                svf_state->s1_im_l = bp_im_l + v1_im_l;
-                svf_state->s2_re_l = lp_re_l + v2_re_l;
-                svf_state->s2_im_l = lp_im_l + v2_im_l;
-                svf_state->s1_re_r = bp_re_r + v1_re_r;
-                svf_state->s1_im_r = bp_im_r + v1_im_r;
-                svf_state->s2_re_r = lp_re_r + v2_re_r;
-                svf_state->s2_im_r = lp_im_r + v2_im_r;
-
-                ++svf_state;
-
-                tmp_l.re = lp_re_l;
-                tmp_l.im = lp_im_l;
-                tmp_r.re = lp_re_r;
-                tmp_r.im = lp_im_r;
+                const auto& c = coefficients[k];
+                ProcessTdf2(tmp_l.re, tmp_l.im, tdf2_state->z1_re_l, tdf2_state->z1_im_l, tdf2_state->z2_re_l,
+                            tdf2_state->z2_im_l, c);
+                ProcessTdf2(tmp_r.re, tmp_r.im, tdf2_state->z1_re_r, tdf2_state->z1_im_r, tdf2_state->z2_re_r,
+                            tdf2_state->z2_im_r, c);
+                ++tdf2_state;
             }
 
             // y += (tmp * post_osc_n_val).real();
@@ -783,7 +727,7 @@ private:
         for (int i = 0; i < num_samples; i++) {
             if constexpr (kSmooth) {
                 for (int j = 0; j < kPoles; ++j) {
-                    svf_.SetPole(j, last_w_[j], last_q_[j], analog_fmul_);
+                    tdf2_.SetPole(j, last_w_[j], last_q_[j], analog_fmul_);
                 }
                 for (int j = 0; j < kPoles; ++j) {
                     last_w_[j] += w_inc_[j];
@@ -792,8 +736,7 @@ private:
                 last_pre_osc_phase_inc_ += pre_osc_phase_inc_inc_;
                 last_post_osc_phase_inc_ += post_osc_phase_inc_inc_;
             }
-            const auto& svf_g = svf_.g;
-            const auto& svf_d = svf_.d;
+            const auto& coefficients = tdf2_.coefficients;
 
             // -------------------- tick complex sine generators --------------------
             pre_osc_phase_ += last_pre_osc_phase_inc_;
@@ -816,7 +759,7 @@ private:
 
             float x_left = left[i];
             // -------------------- process bands --------------------
-            auto* svf_state = svf_.state.data();
+            auto* tdf2_state = tdf2_.state.data();
             SimdT y_l{};
 
             for (int j = 0; j < simd_loop_count - 1; ++j) {
@@ -826,32 +769,10 @@ private:
                 pre_osc_n_val *= pre_osc;
 
                 for (int k = 0; k < kPoles; ++k) {
-                    const float gk = svf_g[k];
-                    const float dk = svf_d[k];
-
-                    auto s1_re_l = svf_state->s1_re_l;
-                    auto s1_im_l = svf_state->s1_im_l;
-                    auto s2_re_l = svf_state->s2_re_l;
-                    auto s2_im_l = svf_state->s2_im_l;
-
-                    auto bp_re_l = dk * (gk * (tmp_l.re - s2_re_l) + s1_re_l);
-                    auto bp_im_l = dk * (gk * (tmp_l.im - s2_im_l) + s1_im_l);
-                    auto v1_re_l = bp_re_l - s1_re_l;
-                    auto v1_im_l = bp_im_l - s1_im_l;
-                    auto v2_re_l = gk * bp_re_l;
-                    auto v2_im_l = gk * bp_im_l;
-                    auto lp_re_l = v2_re_l + s2_re_l;
-                    auto lp_im_l = v2_im_l + s2_im_l;
-
-                    svf_state->s1_re_l = bp_re_l + v1_re_l;
-                    svf_state->s1_im_l = bp_im_l + v1_im_l;
-                    svf_state->s2_re_l = lp_re_l + v2_re_l;
-                    svf_state->s2_im_l = lp_im_l + v2_im_l;
-
-                    ++svf_state;
-
-                    tmp_l.re = lp_re_l;
-                    tmp_l.im = lp_im_l;
+                    const auto& c = coefficients[k];
+                    ProcessTdf2(tmp_l.re, tmp_l.im, tdf2_state->z1_re_l, tdf2_state->z1_im_l,
+                                tdf2_state->z2_re_l, tdf2_state->z2_im_l, c);
+                    ++tdf2_state;
                 }
 
                 // y += (tmp * post_osc_n_val).real();
@@ -869,32 +790,10 @@ private:
             auto tmp_l = simd::Broadcast<SimdT>(x_left) * pre_osc_n_val;
 
             for (int k = 0; k < kPoles; ++k) {
-                const float gk = svf_g[k];
-                const float dk = svf_d[k];
-
-                auto s1_re_l = svf_state->s1_re_l;
-                auto s1_im_l = svf_state->s1_im_l;
-                auto s2_re_l = svf_state->s2_re_l;
-                auto s2_im_l = svf_state->s2_im_l;
-
-                auto bp_re_l = dk * (gk * (tmp_l.re - s2_re_l) + s1_re_l);
-                auto bp_im_l = dk * (gk * (tmp_l.im - s2_im_l) + s1_im_l);
-                auto v1_re_l = bp_re_l - s1_re_l;
-                auto v1_im_l = bp_im_l - s1_im_l;
-                auto v2_re_l = gk * bp_re_l;
-                auto v2_im_l = gk * bp_im_l;
-                auto lp_re_l = v2_re_l + s2_re_l;
-                auto lp_im_l = v2_im_l + s2_im_l;
-
-                svf_state->s1_re_l = bp_re_l + v1_re_l;
-                svf_state->s1_im_l = bp_im_l + v1_im_l;
-                svf_state->s2_re_l = lp_re_l + v2_re_l;
-                svf_state->s2_im_l = lp_im_l + v2_im_l;
-
-                ++svf_state;
-
-                tmp_l.re = lp_re_l;
-                tmp_l.im = lp_im_l;
+                const auto& c = coefficients[k];
+                ProcessTdf2(tmp_l.re, tmp_l.im, tdf2_state->z1_re_l, tdf2_state->z1_im_l, tdf2_state->z2_re_l,
+                            tdf2_state->z2_im_l, c);
+                ++tdf2_state;
             }
 
             // y += (tmp * post_osc_n_val).real();
@@ -942,7 +841,7 @@ private:
 
     // complex lowpass filter
     float analog_fmul_{};
-    SvfLaneN<inst, SimdT> svf_;
+    Tdf2LaneN<inst, SimdT> tdf2_;
 };
 
 } // namespace warpcore
