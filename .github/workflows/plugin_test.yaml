@@ -208,7 +208,7 @@ jobs:
           EXECUTABLE_NAME=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$BUNDLE_PATH/Contents/Info.plist")
           EXECUTABLE_PATH="$BUNDLE_PATH/Contents/MacOS/$EXECUTABLE_NAME"
           echo "Verifying universal binary: $EXECUTABLE_PATH"
-          /usr/bin/lipo -verify_arch arm64 x86_64 "$EXECUTABLE_PATH"
+          /usr/bin/lipo "$EXECUTABLE_PATH" -verify_arch arm64 x86_64
         done
 
     - name: Setup Pluginval random seed
