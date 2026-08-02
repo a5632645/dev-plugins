@@ -1,7 +1,6 @@
 #include "filter_view.hpp"
-
+#include <complex>
 #include <pluginshared/component.hpp>
-
 #include "../PluginProcessor.h"
 #include "qwqdsp/convert.hpp"
 
@@ -43,16 +42,17 @@ void FilterView::paint(juce::Graphics& g) {
     g.fillAll(ui::black_bg);
 
     float const freq_to_omega = std::numbers::pi_v<float> * 2 / static_cast<float>(p_.getSampleRate());
-    float const filter_radius = p_.param_spread_->get() * 8 * 12;
-    float const low_freq = qwqdsp::convert::Pitch2Freq(p_.param_cutoff_->get() + filter_radius);
-    float const high_freq = qwqdsp::convert::Pitch2Freq(p_.param_cutoff_->get() - filter_radius);
+    float const filter_radius = p_.params_.spread.Get() * 8 * 12;
+    float const low_freq = qwqdsp::convert::Pitch2Freq(p_.params_.cutoff.Get() + filter_radius);
+    float const high_freq = qwqdsp::convert::Pitch2Freq(p_.params_.cutoff.Get() - filter_radius);
 
     OnePoleBilinearResponce lp;
     lp.Lowpass(freq_to_omega * low_freq);
     OnePoleBilinearResponce hp;
     hp.Highpass(freq_to_omega * high_freq);
 
-    auto eval_y = [&lp, &hp, h = static_cast<float>(getHeight()), fs = static_cast<float>(p_.getSampleRate())](float norm_w) {
+    auto eval_y = [&lp, &hp, h = static_cast<float>(getHeight()),
+                   fs = static_cast<float>(p_.getSampleRate())](float norm_w) {
         constexpr float pitch_begin = 8;
         constexpr float pitch_end = 136;
         float const pitch = pitch_begin + norm_w * (pitch_end - pitch_begin);

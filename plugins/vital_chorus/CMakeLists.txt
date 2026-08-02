@@ -52,6 +52,7 @@ target_sources(${PLUGIN_NAME}
     src/ui/plugin_ui.cpp
     src/ui/chorus_view.cpp
     src/ui/filter_view.cpp
+    src/dsp/dispatch.cpp
 )
 
 target_include_directories(${PLUGIN_NAME}

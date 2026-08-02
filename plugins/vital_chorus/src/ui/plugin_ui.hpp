@@ -1,5 +1,6 @@
 #pragma once
 
+#include <pluginshared/bpm_sync_ui.hpp>
 #include <pluginshared/component.hpp>
 #include <pluginshared/preset_panel.hpp>
 
@@ -22,8 +23,7 @@ private:
     pluginshared::PresetPanel preset_;
     VitalChorusAudioProcessor& p_;
 
-    ui::Dial freq_{"freq"};
-    ui::Dial tempo_{"tempo"};
+    ui::BpmSyncDial lfo_dial_{"rate"};
     ui::Dial depth_{"depth"};
     ui::Dial delay1_{"delay1"};
     ui::Dial delay2_{"delay2"};
@@ -32,8 +32,6 @@ private:
     ui::Dial cutoff_{"cutoff"};
     ui::Dial spread_{"spread"};
     ui::Dial num_voices_{"voices"};
-
-    std::unique_ptr<juce::ParameterAttachment> sync_type_attach_;
 
     ChorusView chorus_view_;
     FilterView filter_view_;

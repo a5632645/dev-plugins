@@ -43,7 +43,7 @@ public:
             ptrs_[i][wpos_ + size_] = x[i];
         }
 #else
-        size_t offset = wpos_ * simd::LaneSize<SimdT>;
+        int offset = wpos_ * simd::LaneSize<SimdT>;
         float* ptr = buffer_.data() + offset;
         SimdT* store1 = reinterpret_cast<SimdT*>(ptr);
         *store1 = x;

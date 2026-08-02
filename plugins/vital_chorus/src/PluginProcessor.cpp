@@ -1,15 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include "qwqdsp/convert.hpp"
-
-static juce::StringArray const kTempoStrings {
-    "freeze", "32/1", "16/1", "8/1", "4/1", "2/1", "1/1", "1/2", "1/4", "1/8", "1/16"
-};
-static constexpr std::array const kTempoMuls {
-    0.0f, 1.0f/128.0f, 1.0f/64.0f, 1.0f/32.0f, 1.0f/16.0f, 1.0f/8.0f, 1.0f/4.0f, 1.0f/2.0f, 1.0f, 2.0f, 4.0f
-};
-
 //==============================================================================
 VitalChorusAudioProcessor::VitalChorusAudioProcessor()
      : AudioProcessor (BusesProperties()
@@ -21,125 +12,17 @@ VitalChorusAudioProcessor::VitalChorusAudioProcessor()
                      #endif
                        )
 {
+    dsp_ = vital_chorus::CreateDsp();
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
-
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "freq",
-            "freq",
-            juce::NormalisableRange<float>{1.0f / 64.0f, 8.0f},
-            0.125f
-        );
-        param_freq_ = p.get();
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "depth",
-            "depth",
-            0.0f, 1.0f,
-            0.5f
-        );
-        param_depth_ = p.get();
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "delay1",
-            "delay1",
-            0.976f, 19.99f,
-            1.953f
-        );
-        param_delay1_ = p.get();
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "delay2",
-            "delay2",
-            0.976f, 19.99f,
-            7.812f
-        );
-        param_delay2_ = p.get();
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "feedback",
-            "feedback",
-            -0.95f, 0.95f,
-            0.4f
-        );
-        param_feedback_ = p.get();
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "mix",
-            "mix",
-            0.0f, 1.0f,
-            0.5f
-        );
-        param_mix_ = p.get();
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "cutoff",
-            "cutoff",
-            8.0f, 136.0f,
-            60.0f
-        );
-        param_cutoff_ = p.get();
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "spread",
-            "spread",
-            0.0f, 1.0f,
-            1.0f
-        );
-        param_spread_ = p.get();
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterFloat>(
-            "num_voices",
-            "num_voices",
-            juce::NormalisableRange<float>{4.0f, VitalChorus::kMaxNumChorus, 4.0f},
-            16.0f
-        );
-        param_num_voices_ = p.get();
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterChoice>(
-            "tempo",
-            "tempo",
-            kTempoStrings,
-            4
-        );
-        param_tempo_idx_ = p.get();
-        layout.add(std::move(p));
-    }
-    {
-        auto p = std::make_unique<juce::AudioParameterInt>(
-            "sync_type",
-            "sync_type",
-            0, static_cast<int>(LFOTempoType::NumTypes) - 1,
-            static_cast<int>(LFOTempoType::Sync)
-        );
-        param_sync_type_ = p.get();
-        layout.add(std::move(p));
-    }
-
+    params_.BuildLayout(layout);
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, "PARAMETERS", std::move(layout));
+    params_.BeginListening();
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
 }
 
 VitalChorusAudioProcessor::~VitalChorusAudioProcessor()
 {
+    params_.EndListening();
     value_tree_ = nullptr;
 }
 
@@ -211,8 +94,10 @@ void VitalChorusAudioProcessor::changeProgramName (int index, const juce::String
 //==============================================================================
 void VitalChorusAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    dsp_.Init(static_cast<float>(sampleRate));
-    dsp_.Reset();
+    dsp_->Init(static_cast<float>(sampleRate));
+    dsp_->Reset();
+
+    params_.MarkChanged();
 }
 
 void VitalChorusAudioProcessor::releaseResources()
@@ -249,66 +134,17 @@ void VitalChorusAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 {
     juce::ScopedNoDenormals noDenormals;
 
-    float fbpm = 120.0f;
-    float fppq = 0.0f;
-    bool sync_lfo = false;
-    if (auto* head = getPlayHead(); head != nullptr) {
-        if (auto pos = head->getPosition(); pos) {
-            if (auto bpm = pos->getBpm(); bpm) {
-                fbpm = static_cast<float>(*bpm);
-            }
-            if (auto ppq = pos->getPpqPosition(); ppq) {
-                fppq = static_cast<float>(*ppq);
-                sync_lfo = true;
-            }
-            if (!pos->getIsPlaying()) {
-                sync_lfo = false;
-            }
-        }
+    if (params_.IsParamChanged()) {
+        dsp_->Update(params_.ToDspParam(static_cast<float>(getSampleRate()), getPlayHead()));
     }
 
-    LFOTempoType tempo_type = static_cast<LFOTempoType>(param_sync_type_->get());
-    if (tempo_type == LFOTempoType::Free) {
-        dsp_.SetRate(param_freq_->get());
-    }
-    else {
-        float sync_rate = kTempoMuls[static_cast<size_t>(param_tempo_idx_->getIndex())];
-        if (tempo_type == LFOTempoType::SyncDot) {
-            sync_rate *= 2.0f / 3.0f;
-        }
-        else if (tempo_type == LFOTempoType::SyncTri) {
-            sync_rate *= 3.0f / 2.0f;
-        }
-        
-        if (sync_lfo) {
-            float sync_phase = sync_rate * fppq;
-            sync_phase -= std::floor(sync_phase);
-            dsp_.SyncLFOPhase(sync_phase);
-        }
+    dsp_->SyncPhase(params_, getPlayHead());
 
-        float const lfo_freq = sync_rate * fbpm / 60.0f;
-        dsp_.SetRate(lfo_freq);
-    }
-
-    size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
+    int const num_samples = buffer.getNumSamples();
     float* left_ptr = buffer.getWritePointer(0);
     float* right_ptr = buffer.getWritePointer(1);
 
-    dsp_.delay1 = param_delay1_->get();
-    dsp_.delay2 = param_delay2_->get();
-    dsp_.depth = param_depth_->get();
-    dsp_.feedback = param_feedback_->get();
-    dsp_.mix = param_mix_->get();
-    dsp_.SetNumVoices(static_cast<size_t>(param_num_voices_->get()));
-
-    float filter_radius = param_spread_->get() * 8 * 12;
-    float low_freq = qwqdsp::convert::Pitch2Freq(param_cutoff_->get() + filter_radius);
-    float high_freq = qwqdsp::convert::Pitch2Freq(param_cutoff_->get() - filter_radius);
-    low_freq = low_freq * std::numbers::pi_v<float> * 2 / static_cast<float>(getSampleRate());
-    high_freq = high_freq * std::numbers::pi_v<float> * 2 / static_cast<float>(getSampleRate());
-    dsp_.SetFilter(low_freq, high_freq);
-
-    dsp_.Process({left_ptr, num_samples}, {right_ptr, num_samples});
+    dsp_->Process(left_ptr, right_ptr, num_samples);
 }
 
 //==============================================================================
@@ -341,6 +177,7 @@ void VitalChorusAudioProcessor::setStateInformation (const void* data, int sizeI
     if (state.isValid()) {
         value_tree_->replaceState(state);
     }
+    reset();
     suspendProcessing(false);
 }
 

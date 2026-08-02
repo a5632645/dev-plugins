@@ -2,6 +2,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <bit>
 #include <mutex>
+#include <optional>
 
 namespace pluginshared {
 class BpmSyncLFO {
@@ -144,6 +145,77 @@ public:
         return LfoInfo2{lfo_freq, lfo_phase, sync_lfo};
     }
 
+    /**
+     * @brief 仅提供频率（Hz）：自由模式返回 param 频率；同步模式返回 sync_rate * bpm / 60
+     */
+    [[nodiscard]] float GetFreqHz(juce::AudioPlayHead* head) {
+        FreqAttrubute freq_attr = GetFreqAttribute();
+        if (!freq_attr.tempo_sync) {
+            return free_freq_range_.convertFrom0to1(param_freq->get());
+        }
+
+        float fbpm = 120.0f;
+        if (head != nullptr) {
+            if (auto pos = head->getPosition(); pos) {
+                if (auto bpm = pos->getBpm(); bpm) {
+                    fbpm = static_cast<float>(*bpm);
+                }
+            }
+        }
+        return ComputeSyncRate() * fbpm / 60.0f;
+    }
+
+    /**
+     * @brief 返回应硬同步的相位 [0,1)；nullopt 表示本次不做相位同步
+     *
+     * 内部处理：
+     *  - TryResetPhase() 待处理的重置相位优先返回（重置后相位与传输无关）；
+     *  - 自由模式 / 未启用 ppq_sync / 宿主未播放 → 不硬同步（返回 nullopt）；
+     *  - 否则返回 fmod(sync_rate * ppq, 1)。
+     */
+    [[nodiscard]] std::optional<float> GetSyncPhase(juce::AudioPlayHead* head) {
+        if (should_reset_phase_.exchange(false, std::memory_order_acquire)) {
+            return reseted_phase_;
+        }
+
+        FreqAttrubute freq_attr = GetFreqAttribute();
+        if (!freq_attr.tempo_sync || !freq_attr.ppq_sync) {
+            return std::nullopt;
+        }
+
+        float fppq = 0.0f;
+        bool is_playing = false;
+        if (head != nullptr) {
+            if (auto pos = head->getPosition(); pos) {
+                if (auto ppq = pos->getPpqPosition(); ppq) {
+                    fppq = static_cast<float>(*ppq);
+                }
+                is_playing = pos->getIsPlaying();
+            }
+        }
+        if (!is_playing) {
+            return std::nullopt;
+        }
+
+        float sync_phase = ComputeSyncRate() * fppq;
+        sync_phase -= std::floor(sync_phase);
+        return sync_phase;
+    }
+
+    /** 当前是否为 tempo 同步模式（区别于自由频率模式） */
+    [[nodiscard]] bool IsTempoSync() const {
+        return GetFreqAttribute().tempo_sync;
+    }
+
+    /** 一次性把本 LFO 的两个参数（type + freq）加入布局，方便作为 Params 成员使用 */
+    juce::AudioProcessorValueTreeState::ParameterLayout& operator+=(
+        juce::AudioProcessorValueTreeState::ParameterLayout& layout) {
+        auto [ptype, pfreq] = Build();
+        layout.add(std::move(ptype));
+        layout.add(std::move(pfreq));
+        return layout;
+    }
+
     [[nodiscard]]
     std::pair<std::unique_ptr<juce::AudioParameterInt>, std::unique_ptr<juce::AudioParameterFloat>> Build() {
         FreqAttrubute attr_init{};
@@ -258,6 +330,25 @@ public:
     juce::AudioParameterFloat* param_freq{};
     juce::AudioParameterInt* param_type{};
 private:
+    // 由 param_freq + tempo 表计算 sync_rate（纯参数计算，不读 playhead）
+    [[nodiscard]] float ComputeSyncRate() const {
+        FreqAttrubute freq_attr = GetFreqAttribute();
+        if (!freq_attr.tempo_sync) {
+            return 0.0f;
+        }
+        float findex =
+            std::lerp(static_cast<float>(tempo_begin_idx_), static_cast<float>(tempo_end_idx_), param_freq->get());
+        int index = static_cast<int>(findex);
+        index = std::clamp(index, tempo_begin_idx_, tempo_end_idx_);
+        float sync_rate = kRateMulTable[static_cast<size_t>(index)];
+        if (!freq_attr.tempo_snap) {
+            int nindex = std::min(index + 1, tempo_end_idx_);
+            float next_rate = kRateMulTable[static_cast<size_t>(nindex)];
+            sync_rate = std::lerp(sync_rate, next_rate, findex - static_cast<float>(index));
+        }
+        return sync_rate;
+    }
+
     static int GetFloatNumericText(float interval) {
         float v = 1.0f;
         int num = 0;

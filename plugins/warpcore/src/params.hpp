@@ -91,9 +91,9 @@ public:
     void MarkChanged() noexcept {
         changed_.store(true, std::memory_order_release);
     }
-
-    std::atomic<bool> changed_{false};
 private:
+    std::atomic<bool> changed_{false};
+
     void parameterValueChanged(int parameterIndex, float newValue) override {
         juce::ignoreUnused(parameterIndex, newValue);
         changed_.store(true, std::memory_order_release);
