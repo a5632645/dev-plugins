@@ -21,6 +21,7 @@ public:
     PluginEditorBase(Processor& p)
         : AudioProcessorEditor(&p)
         , ui_(p) {
+        ui::ColorPresetManager::LoadColorsFromConfig();
         auto ui_bound = ui_.getLocalBounds();
         jassert(!ui_bound.isEmpty() && "you must set an editor size");
 

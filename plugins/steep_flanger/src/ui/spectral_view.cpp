@@ -20,7 +20,7 @@ void SpectralView::paint(juce::Graphics& g) {
     float const fcoeff_len = static_cast<float>(time_.p_.param_fir_coeff_len_->get());
     constexpr int kNumLines = static_cast<int>((kDbCeil - kDbFloor) / kDbStep) + 1;
     float const centerx = text_bound.getCentreX();
-    g.setColour(juce::Colours::white);
+    g.setColour(ui::white_fore);
     g.setFont(juce::Font{juce::FontOptions{}.withHeight(12)});
     for (int i = 0; i < kNumLines; ++i) {
         float const centery = text_bound.getY() + static_cast<float>(i) * static_cast<float>(text_bound.getHeight()) / (kNumLines - 1.0f);

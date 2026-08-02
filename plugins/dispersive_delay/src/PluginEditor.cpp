@@ -136,7 +136,7 @@ void DispersiveDelayAudioProcessorEditor::paintOverChildren(juce::Graphics& g)
             }
         }
 
-        g.setColour(juce::Colours::red);
+        g.setColour(ui::line_fore);
         g.strokePath(p, juce::PathStrokeType(1.0f));
     }
     {
@@ -145,7 +145,7 @@ void DispersiveDelayAudioProcessorEditor::paintOverChildren(juce::Graphics& g)
         auto end = p_.f_end_->get();
         auto x_begin = b.getX() + b.getWidth() * begin;
         auto x_end = b.getX() + b.getWidth() * end;
-        g.setColour(juce::Colours::lightblue);
+        g.setColour(ui::marker_fore);
         g.drawVerticalLine(x_begin, b.getY(), b.getBottom());
         g.drawVerticalLine(x_end, b.getY(), b.getBottom());
     }

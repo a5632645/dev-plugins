@@ -137,7 +137,7 @@ void SpectralView::paint(juce::Graphics& g) {
     float const fcoeff_len = static_cast<float>(time_.p_.coeff_len_);
     constexpr size_t kNumLines = 5;
     float const centerx = text_bound.getCentreX();
-    g.setColour(juce::Colours::white);
+    g.setColour(ui::white_fore);
     g.setFont(juce::Font{juce::FontOptions{}.withHeight(12)});
     for (size_t i = 0; i < kNumLines; ++i) {
         float const centery = text_bound.getY() + static_cast<float>(i) * static_cast<float>(text_bound.getHeight()) / (kNumLines - 1.0f);

@@ -21,7 +21,7 @@ PluginUi::PluginUi(SttrAudioProcessor& p)
 
     windowLabel_.setText("Window", juce::dontSendNotification);
     windowLabel_.setJustificationType(juce::Justification::centred);
-    windowLabel_.setColour(juce::Label::ColourIds::textColourId, juce::Colours::black);
+    windowLabel_.setColour(juce::Label::ColourIds::textColourId, ui::black_bg);
     addAndMakeVisible(windowLabel_);
 
     addAndMakeVisible(preset_);

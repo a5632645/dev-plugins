@@ -3,24 +3,9 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <span>
 
-namespace ui {
+#include "color_preset.hpp"
 
-// #99a196 live9的浅绿色，亮度90
-static juce::Colour const green_bg{153, 161, 150};
-// #c1cac2 live9的下拉框何滑块背景
-static juce::Colour const light_green_bg{193, 202, 194};
-// #161820 live9的图表黑色背景
-static juce::Colour const black_bg{22, 27, 32};
-// #d64800 live9的图表，红色
-static juce::Colour const line_fore{214, 72, 0};
-// #cc5100 live9的旋钮颜色，红色
-static juce::Colour const dial_fore{204, 81, 0};
-// #c6cd00 live9的开关背景，黄绿色
-static juce::Colour const active_bg{198, 205, 0};
-// #778592 live9开关关闭背景，灰色
-static juce::Colour const inactive_bg{119, 133, 146};
-// #f5b126 live9的滑块前景，橙色
-static juce::Colour const orange_fore{0xf5, 0xb1, 0x26};
+namespace ui {
 
 // ---------------------------------------- dial ----------------------------------------
 class CustomLookAndFeel : public juce::LookAndFeel_V4 {
@@ -69,8 +54,8 @@ public:
             g.setColour(orange_fore);
             g.fillRect(bound.removeFromLeft(static_cast<int>(sliderPos)));
             juce::Rectangle<int> bound2{x, y, width, height};
-            g.setColour(juce::Colours::black);
-            g.setColour(juce::Colours::black);
+            g.setColour(black_bg);
+            g.setColour(black_bg);
             g.drawRect(bound2);
             // g.drawText(s.getTextFromValue(s.getValue()), bound2, juce::Justification::centred);
         }
@@ -99,7 +84,7 @@ public:
                       int buttonW, int buttonH, juce::ComboBox& box) override {
         juce::ignoreUnused(width, height, isButtonDown);
         g.fillAll(box.isEnabled() ? ui::light_green_bg : ui::green_bg);
-        g.setColour(juce::Colours::black);
+        g.setColour(black_bg);
         g.drawRect(g.getClipBounds());
         juce::Rectangle<int> b{buttonX, buttonY, buttonW, buttonH};
         g.drawText(juce::String::fromUTF8("▼"), b, juce::Justification::centred);
@@ -124,10 +109,10 @@ public:
         }
         else if (isMenuOpen || isMouseOverItem) {
             g.fillAll(ui::light_green_bg);
-            g.setColour(juce::Colours::black);
+            g.setColour(black_bg);
         }
         else {
-            g.setColour(juce::Colours::black);
+            g.setColour(black_bg);
         }
 
         g.setFont(getMenuBarFont(menuBar, itemIndex, itemText));
@@ -144,12 +129,12 @@ public:
             auto r = area.reduced(4, 0);
             r.removeFromTop(juce::roundToInt(((float)r.getHeight() * 0.5f) - 0.5f));
 
-            g.setColour(juce::Colours::black);
+            g.setColour(black_bg);
             g.fillRect(r.removeFromTop(1));
         }
         else {
             auto r = area.reduced(1);
-            auto text_color = juce::Colours::black;
+            auto text_color = black_bg;
 
             if (isHighlighted && isActive) {
                 g.setColour(orange_fore);
@@ -312,7 +297,7 @@ public:
 
         label.setText(title, juce::dontSendNotification);
         label.setJustificationType(juce::Justification::centredBottom);
-        label.setColour(juce::Label::ColourIds::textColourId, juce::Colours::black);
+        label.setColour(juce::Label::ColourIds::textColourId, black_bg);
         addAndMakeVisible(label);
 
         slider_menu_.menu_.setLookAndFeel(GetLookAndFeel());
@@ -378,7 +363,7 @@ public:
 
         label.setText(title, juce::dontSendNotification);
         label.setJustificationType(juce::Justification::centredLeft);
-        label.setColour(juce::Label::ColourIds::textColourId, juce::Colours::black);
+        label.setColour(juce::Label::ColourIds::textColourId, black_bg);
         addAndMakeVisible(label);
 
         SetTitleLayout(title_place);
@@ -458,7 +443,7 @@ public:
 
         label.setText(title, juce::dontSendNotification);
         label.setJustificationType(juce::Justification::centredLeft);
-        label.setColour(juce::Label::ColourIds::textColourId, juce::Colours::black);
+        label.setColour(juce::Label::ColourIds::textColourId, black_bg);
         addAndMakeVisible(label);
 
         SetTitleLayout(title_place);
@@ -537,7 +522,7 @@ public:
             g.setColour(ui::black_bg);
             g.drawText(title, getLocalBounds(), juce::Justification::centred);
 
-            g.setColour(juce::Colours::black);
+            g.setColour(black_bg);
             g.drawRect(getLocalBounds());
         }
 
@@ -688,11 +673,11 @@ public:
     }
 
     void paint(juce::Graphics& g) override {
-        auto color = getToggleState() ? juce::Colour{198, 205, 0} : juce::Colour{119, 133, 146};
+        auto color = getToggleState() ? active_bg : inactive_bg;
         auto b = getLocalBounds();
         g.setColour(color);
         g.fillRect(b);
-        g.setColour(juce::Colours::black);
+        g.setColour(black_bg);
         g.drawRect(b);
         g.drawText(getToggleState() ? on_text_ : off_text_, b, juce::Justification::centred);
     }
@@ -727,7 +712,7 @@ public:
         else {
             g.drawRect(b);
         }
-        g.setColour(juce::Colours::black);
+        g.setColour(black_bg);
         g.drawText(getButtonText(), b, juce::Justification::centred);
     }
 };

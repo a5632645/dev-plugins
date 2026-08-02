@@ -201,7 +201,7 @@ void ModulationMatrixLayout::paintCell(juce::Graphics& g, int rowNumber, int col
     }
 
     // 一个预备位置
-    g.setColour(juce::Colours::white);
+    g.setColour(ui::white_fore);
     if (rowNumber == static_cast<int>(local_modulations_.size())) {
         if (columnId == 1) {
             g.drawText(pending_modulator_name_.isEmpty() ? "---" : pending_modulator_name_, 2, 0, width - 4, height, juce::Justification::centredLeft, true);

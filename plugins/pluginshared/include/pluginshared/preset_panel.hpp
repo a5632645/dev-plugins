@@ -127,6 +127,23 @@ public:
                 url.launchInDefaultBrowser();
             });
 
+            // ---------------- color preset ----------------
+            menu.addSeparator();
+            juce::PopupMenu color_menu;
+            for (const auto& name : ui::ColorPresetManager::GetPresetNames()) {
+                color_menu.addItem(name, [this, name] {
+                    ui::ColorPresetManager::ApplyAndSavePreset(ui::ColorPresetManager::GetPreset(name));
+                    if (auto* editor = findParentComponentOfClass<juce::AudioProcessorEditor>()) {
+                        editor->repaint();
+                    }
+                });
+            }
+            color_menu.addSeparator();
+            color_menu.addItem("Open Config Folder", [] {
+                ui::ColorPresetManager::RevealConfigFolder();
+            });
+            menu.addSubMenu("Color Preset", color_menu);
+
             if (on_menu_showup) {
                 on_menu_showup(menu);
             }
@@ -152,7 +169,7 @@ public:
         }
         else {
             options_button_.simd_inst_.setText("unsupport cpu", juce::dontSendNotification);
-            options_button_.simd_inst_.setColour(juce::Label::ColourIds::textColourId, juce::Colours::red);
+            options_button_.simd_inst_.setColour(juce::Label::ColourIds::textColourId, ui::warning_fore);
         }
     }
 

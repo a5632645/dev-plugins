@@ -1,4 +1,5 @@
 #include "common_curve_editor.h"
+#include <pluginshared/component.hpp>
 
 static constexpr auto width = 20;
 static constexpr auto height = width;
@@ -13,10 +14,10 @@ CurveXYPointComponent::CurveXYPointComponent(int idx)
 
 void CurveXYPointComponent::paint(juce::Graphics& g) {
     if (isMouseOver()) {
-        g.setColour(juce::Colours::white);
+        g.setColour(ui::white_fore);
         g.drawEllipse(getLocalBounds().toFloat(), 1.0f);
     }
-    g.setColour(juce::Colours::white);
+    g.setColour(ui::white_fore);
     g.fillEllipse(juce::Rectangle{ 0.0f,0.0f,kCompCircleSize,kCompCircleSize }.withCentre(getLocalBounds().getCentre().toFloat()));
 }
 
@@ -64,10 +65,10 @@ CurvePowerPointComponent::CurvePowerPointComponent(int idx)
 
 void CurvePowerPointComponent::paint(juce::Graphics& g) {
     if (isMouseOver()) {
-        g.setColour(juce::Colours::white);
+        g.setColour(ui::white_fore);
         g.drawEllipse(getLocalBounds().toFloat(), 1.0f);
     }
-    g.setColour(juce::Colours::white);
+    g.setColour(ui::white_fore);
     g.drawEllipse(juce::Rectangle{ 0.0f,0.0f,kCompCircleSize,kCompCircleSize }.withCentre(getLocalBounds().getCentre().toFloat()), 1.0f);
 }
 
@@ -95,20 +96,20 @@ CommonCurveEditor::~CommonCurveEditor() {
 }
 
 void CommonCurveEditor::paint(juce::Graphics& g) {
-    auto bg_color = juce::Colours::darkgrey;
+    auto bg_color = ui::curve_bg;
     g.setColour(bg_color);
     g.fillRect(GetComponentBounds());
 
     if (display_grid_) {
         if (x_grid_ > 2) {
-            g.setColour(juce::Colours::black);
+            g.setColour(ui::black_bg);
             auto width = GetComponentBounds().toFloat().getWidth() / (x_grid_ - 1.0f);
             for (int i = 1; i < x_grid_; ++i) {
                 g.drawVerticalLine(width * i + GetComponentBounds().getX(), GetComponentBounds().getY(), GetComponentBounds().getBottom());
             }
         }
         if (y_grid_ > 2) {
-            g.setColour(juce::Colours::black);
+            g.setColour(ui::black_bg);
             auto height = GetComponentBounds().toFloat().getHeight() / (y_grid_ - 1.0f);
             for (int i = 1; i < y_grid_; ++i) {
                 g.drawHorizontalLine(height * i + GetComponentBounds().getY(), GetComponentBounds().getX(), GetComponentBounds().getRight());
@@ -144,9 +145,9 @@ void CommonCurveEditor::paint(juce::Graphics& g) {
             p.lineTo(x, y);
         }
 
-        g.setColour(juce::Colours::darkgreen);
+        g.setColour(ui::curve_fore);
         g.strokePath(p, juce::PathStrokeType{ 3.0f });
-        g.setColour(juce::Colours::lightgreen);
+        g.setColour(ui::curve_fore_alt);
         g.strokePath(p, juce::PathStrokeType{ 1.0f });
     }
 

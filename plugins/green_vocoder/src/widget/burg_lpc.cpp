@@ -85,7 +85,7 @@ void BurgLPC::paint(juce::Graphics& g) {
     {
         constexpr int nlines = 5;
         constexpr float db_span = (top_line_db - last_line_db) / (nlines - 1.0f);
-        g.setColour(juce::Colours::grey);
+        g.setColour(ui::grid_fore);
         for (int i = 0; i < nlines; ++i) {
             auto db = last_line_db + db_span * i;
             auto y = convert_db_to_y(db);
