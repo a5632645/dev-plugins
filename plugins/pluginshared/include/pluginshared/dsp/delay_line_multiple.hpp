@@ -69,7 +69,7 @@ private:
         irpos &= mask_;
 
 #ifndef SIMD_HAS_AVX2
-        alignas(32) auto [yn1, y0, y1, y2] =
+        alignas(16) auto [yn1, y0, y1, y2] =
             simd::Transpose(simd::Loadu128(ptrs_[0] + irpos[0]), simd::Loadu128(ptrs_[1] + irpos[1]),
                             simd::Loadu128(ptrs_[2] + irpos[2]), simd::Loadu128(ptrs_[3] + irpos[3]));
 #else
@@ -99,7 +99,7 @@ private:
         irpos &= mask_;
 
 #ifndef SIMD_HAS_AVX2
-        alignas(16) auto [yn1, y0, y1, y2] =
+        alignas(32) auto [yn1, y0, y1, y2] =
             simd::Transpose256(simd::Loadu128(ptrs_[0] + irpos[0]), simd::Loadu128(ptrs_[1] + irpos[1]),
                                simd::Loadu128(ptrs_[2] + irpos[2]), simd::Loadu128(ptrs_[3] + irpos[3]),
                                simd::Loadu128(ptrs_[4] + irpos[4]), simd::Loadu128(ptrs_[5] + irpos[5]),
