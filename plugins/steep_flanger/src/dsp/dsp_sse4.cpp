@@ -5,13 +5,13 @@
 
 #include "dsp_impl.hpp"
 
-namespace warpcore {
+namespace steep_flanger {
 
 template <>
 std::unique_ptr<Idsp> CreateDspImpl<simd::Inst::SSE4>() {
     return std::make_unique<DspImpl<simd::Inst::SSE4, simd::Float128>>();
 }
 
-} // namespace warpcore
+} // namespace steep_flanger
 
 #endif

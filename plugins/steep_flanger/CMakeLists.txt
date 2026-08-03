@@ -52,7 +52,7 @@ target_sources(${PLUGIN_NAME}
     src/ui/plugin_ui.cpp
     src/ui/spectral_view.cpp
     src/ui/time_view.cpp
-    src/dsp/dsp_dispatch.cpp
+    src/dsp/dispatch.cpp
 )
 
 target_include_directories(${PLUGIN_NAME}
@@ -85,18 +85,7 @@ target_link_libraries(${PLUGIN_NAME}
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
     cpp_simd_detector
-    simde
 )
-
-# ------------------------------------------------------------
-# resource
-# ------------------------------------------------------------
-file(GLOB_RECURSE res "${CMAKE_CURRENT_SOURCE_DIR}/resources/*.*")
-
-if(NOT "${res}" STREQUAL "")
-    juce_add_binary_data(${PLUGIN_NAME}_res SOURCES ${res})
-    target_link_libraries(${PLUGIN_NAME} PRIVATE ${PLUGIN_NAME}_res)
-endif()
 
 # ------------------------------------------------------------
 # simd dispatch
@@ -141,4 +130,14 @@ else()
     set_source_files_properties("src/dsp/dsp_avx.cpp" PROPERTIES COMPILE_FLAGS "-mavx -ffast-math -Wno-nan-infinity-disabled")
     set_source_files_properties("src/dsp/dsp_avx2.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -ffast-math -Wno-nan-infinity-disabled")
     set_source_files_properties("src/dsp/dsp_avx2_fma.cpp" PROPERTIES COMPILE_FLAGS "-mavx2 -mfma -ffast-math -Wno-nan-infinity-disabled")
+endif()
+
+# ------------------------------------------------------------
+# resource
+# ------------------------------------------------------------
+file(GLOB_RECURSE res "${CMAKE_CURRENT_SOURCE_DIR}/resources/*.*")
+
+if(NOT "${res}" STREQUAL "")
+    juce_add_binary_data(${PLUGIN_NAME}_res SOURCES ${res})
+    target_link_libraries(${PLUGIN_NAME} PRIVATE ${PLUGIN_NAME}_res)
 endif()

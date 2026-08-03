@@ -1,9 +1,9 @@
 #include "spectral_view.hpp"
-#include "qwqdsp/oscillator/mcf_sine_osc.hpp"
-#include "time_view.hpp"
+#include <cmath>
 #include "../PluginProcessor.h"
 #include "qwqdsp/convert.hpp"
-#include <cmath>
+#include "qwqdsp/oscillator/mcf_sine_osc.hpp"
+#include "time_view.hpp"
 
 void SpectralView::paint(juce::Graphics& g) {
     g.fillAll(ui::green_bg);
@@ -15,15 +15,16 @@ void SpectralView::paint(juce::Graphics& g) {
     auto bf = b.toFloat();
     g.setColour(ui::black_bg);
     g.fillRect(b);
-    
+
     // 绘制频谱音量数字
-    float const fcoeff_len = static_cast<float>(time_.p_.param_fir_coeff_len_->get());
+    float const fcoeff_len = time_.p_.params_.fir_coeff_len.Get();
     constexpr int kNumLines = static_cast<int>((kDbCeil - kDbFloor) / kDbStep) + 1;
     float const centerx = text_bound.getCentreX();
     g.setColour(ui::white_fore);
     g.setFont(juce::Font{juce::FontOptions{}.withHeight(12)});
     for (int i = 0; i < kNumLines; ++i) {
-        float const centery = text_bound.getY() + static_cast<float>(i) * static_cast<float>(text_bound.getHeight()) / (kNumLines - 1.0f);
+        float const centery =
+            text_bound.getY() + static_cast<float>(i) * static_cast<float>(text_bound.getHeight()) / (kNumLines - 1.0f);
         juce::Rectangle<float> text{0.0, 0.0, text_bound.getWidth(), 12.0f};
         text = text.withCentre({centerx, centery});
         float const val = kDbCeil - kDbStep * static_cast<float>(i);
@@ -40,7 +41,8 @@ void SpectralView::paint(juce::Graphics& g) {
     float lasty = juce::jmap(gains_[0], bf.getBottom(), bf.getY());
     float lastx = bf.getX();
     for (int x = 0; x < b.getWidth(); ++x) {
-        size_t idx = static_cast<size_t>(static_cast<float>(static_cast<size_t>(x) * gains_.size()) / static_cast<float>(b.getWidth()));
+        size_t idx = static_cast<size_t>(static_cast<float>(static_cast<size_t>(x) * gains_.size())
+                                         / static_cast<float>(b.getWidth()));
         idx = std::min(idx, gains_.size() - 1);
         float const val = gains_[idx];
         float const y = juce::jmap(val, bf.getBottom(), bf.getY());
@@ -54,9 +56,8 @@ void SpectralView::paint(juce::Graphics& g) {
     if (time_.display_waveform_) {
         std::array<float, global::kMaxCoeffLen> custom_spectral_snapshot{};
         {
-            juce::SpinLock::ScopedLockType lock(time_.p_.dsp_state_.param.custom_coeffs_lock_);
-            std::copy_n(time_.p_.dsp_state_.param.custom_spectral_gains.begin(),
-                        global::kMaxCoeffLen,
+            juce::SpinLock::ScopedLockType lock(time_.p_.params_.control_.custom_coeffs_lock_);
+            std::copy_n(time_.p_.params_.control_.custom_spectral_gains.begin(), global::kMaxCoeffLen,
                         custom_spectral_snapshot.begin());
         }
 
@@ -64,7 +65,8 @@ void SpectralView::paint(juce::Graphics& g) {
         lasty = juce::jmap(custom_spectral_snapshot[0], bf.getBottom(), bf.getY());
         lastx = bf.getX();
         for (int x = 0; x < b.getWidth(); ++x) {
-            size_t const idx = static_cast<size_t>(static_cast<float>(static_cast<float>(x) * fcoeff_len) / static_cast<float>(b.getWidth()));
+            size_t const idx = static_cast<size_t>(static_cast<float>(static_cast<float>(x) * fcoeff_len)
+                                                   / static_cast<float>(b.getWidth()));
             float const val = custom_spectral_snapshot[idx];
             float const y = juce::jmap(val, bf.getBottom(), bf.getY());
             float const xx = static_cast<float>(x) + bf.getX();
@@ -77,7 +79,8 @@ void SpectralView::paint(juce::Graphics& g) {
 
 void SpectralView::UpdateGui() {
     std::array<float, kGainFFTSize> fft_buffer{};
-    std::copy_n(time_.coeff_buffer_.begin(), time_.p_.param_fir_coeff_len_->get(), fft_buffer.begin());
+    std::copy_n(time_.coeff_buffer_.begin(), static_cast<size_t>(time_.p_.params_.fir_coeff_len.Get()),
+                fft_buffer.begin());
     fft_.FFTGainPhase(fft_buffer, gains_);
 
     for (auto& x : gains_) {
@@ -104,7 +107,7 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
     pos.x = std::clamp(pos.x, b.getX(), b.getRight());
     pos.y = std::clamp(pos.y, b.getY(), b.getBottom());
 
-    size_t const coeff_len = time_.p_.param_fir_coeff_len_->get();
+    size_t const coeff_len = static_cast<size_t>(time_.p_.params_.fir_coeff_len.Get());
     float const fcoeff_len = static_cast<float>(coeff_len);
     size_t idx = static_cast<size_t>((static_cast<float>(pos.getX()) - bf.getX()) * fcoeff_len / bf.getWidth());
     idx = std::clamp<size_t>(idx, 0, coeff_len - 1);
@@ -113,12 +116,11 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
     if (e.mods.isRightButtonDown()) {
         val = 0;
     }
-    
+
     std::array<float, global::kMaxCoeffLen> custom_spectral_gains_snapshot{};
     {
-        juce::SpinLock::ScopedLockType lock(time_.p_.dsp_state_.param.custom_coeffs_lock_);
-        std::copy_n(time_.p_.dsp_state_.param.custom_spectral_gains.begin(),
-                    global::kMaxCoeffLen,
+        juce::SpinLock::ScopedLockType lock(time_.p_.params_.control_.custom_coeffs_lock_);
+        std::copy_n(time_.p_.params_.control_.custom_spectral_gains.begin(), global::kMaxCoeffLen,
                     custom_spectral_gains_snapshot.begin());
         custom_spectral_gains_snapshot[idx] = val;
     }
@@ -137,7 +139,7 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
             true_gains[i] = qwqdsp::convert::Db2Gain(db);
         }
     }
-    
+
     for (size_t tidx = 0; tidx < coeff_len; ++tidx) {
         float sum{};
         for (size_t fidx = 0; fidx < coeff_len; ++fidx) {
@@ -148,13 +150,10 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
     }
 
     {
-        juce::SpinLock::ScopedLockType lock(time_.p_.dsp_state_.param.custom_coeffs_lock_);
-        std::copy_n(custom_spectral_gains_snapshot.begin(),
-                    global::kMaxCoeffLen,
-                    time_.p_.dsp_state_.param.custom_spectral_gains.begin());
-        std::copy_n(custom_coeffs_snapshot.begin(),
-                    coeff_len,
-                    time_.p_.dsp_state_.param.custom_coeffs_.begin());
+        juce::SpinLock::ScopedLockType lock(time_.p_.params_.control_.custom_coeffs_lock_);
+        std::copy_n(custom_spectral_gains_snapshot.begin(), global::kMaxCoeffLen,
+                    time_.p_.params_.control_.custom_spectral_gains.begin());
+        std::copy_n(custom_coeffs_snapshot.begin(), coeff_len, time_.p_.params_.control_.custom_coeffs_.begin());
     }
 
     UpdateGui();
@@ -173,10 +172,10 @@ void SpectralView::mouseDown(const juce::MouseEvent& e) {
 }
 
 void SpectralView::DrawIir(juce::Graphics& g) {
-    int nfilter_ = p_.param_iir_filter_num_->get();
-    float w_ = p_.param_fir_cutoff_->get();
-    float ripple_ = p_.param_iir_ripple_->get();
-    bool highpass = p_.param_fir_highpass_->get();
+    int nfilter_ = p_.params_.iir_filter_num.Get();
+    float w_ = p_.params_.fir_cutoff.Get();
+    float ripple_ = p_.params_.iir_ripple.Get();
+    bool highpass = p_.params_.fir_highpass.Get();
 
     if (nfilter_ <= 0) {
         return;
@@ -215,7 +214,8 @@ void SpectralView::DrawIir(juce::Graphics& g) {
         float tn{};
         if (x <= 1.0f) {
             tn = std::cos(static_cast<float>(order) * std::acos(std::clamp(x, -1.0f, 1.0f)));
-        } else {
+        }
+        else {
             tn = std::cosh(static_cast<float>(order) * std::acosh(x));
         }
 

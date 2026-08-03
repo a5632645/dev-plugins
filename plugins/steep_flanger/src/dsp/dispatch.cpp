@@ -1,7 +1,9 @@
 #include "idsp.hpp"
 #include "pluginshared/simd/simd.hpp"
 
-namespace warpcore {
+#include <simd_detector.h>
+
+namespace steep_flanger {
 
 std::unique_ptr<Idsp> CreateDsp() {
     using IS = simd_detector::InstructionSet;
@@ -29,4 +31,4 @@ std::unique_ptr<Idsp> CreateDsp() {
 #endif
 }
 
-} // namespace warpcore
+} // namespace steep_flanger

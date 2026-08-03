@@ -91,11 +91,11 @@ private:
         __m256i base_vindex = (__m256)irpos;
         auto yn1 = (simd::Float256)(_mm256_i32gather_ps(raw, base_vindex, 4));
         auto y0 =
-            (simd::Float256)(_mm256_i32gather_ps(raw, _mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(1)), 4));
+            (simd::Float256)(_mm256_i32gather_ps(raw, _mm256_add_epi32(base_vindex, _mm256_set1_epi32(1)), 4));
         auto y1 =
-            (simd::Float256)(_mm256_i32gather_ps(raw, _mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(2)), 4));
+            (simd::Float256)(_mm256_i32gather_ps(raw, _mm256_add_epi32(base_vindex, _mm256_set1_epi32(2)), 4));
         auto y2 =
-            (simd::Float256)(_mm256_i32gather_ps(raw, _mm256_add_epi32(base_vindex, simde_mm256_set1_epi32(3)), 4));
+            (simd::Float256)(_mm256_i32gather_ps(raw, _mm256_add_epi32(base_vindex, _mm256_set1_epi32(3)), 4));
 #endif
 
         auto d0 = (y1 - yn1) * 0.5f;

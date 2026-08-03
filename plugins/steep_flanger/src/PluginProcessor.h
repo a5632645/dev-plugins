@@ -1,9 +1,9 @@
 #pragma once
-#include <pluginshared/juce_param_listener.hpp>
 #include <pluginshared/preset_manager.hpp>
 #include <pluginshared/bpm_sync_lfo.hpp>
 
-#include "dsp/dsp_state.hpp"
+#include "params.hpp"
+#include "dsp/idsp.hpp"
 
 // ---------------------------------------- juce processor ----------------------------------------
 class SteepFlangerAudioProcessor final : public juce::AudioProcessor
@@ -46,37 +46,14 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    JuceParamListener param_listener_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 
-    juce::AudioParameterFloat* param_delay_ms_{};
-    juce::AudioParameterFloat* param_delay_depth_ms_{};
-    juce::AudioParameterFloat* param_lfo_phase_{};
-    juce::AudioParameterFloat* param_fir_cutoff_{};
-    juce::AudioParameterFloat* param_fir_coeff_len_{};
-    juce::AudioParameterFloat* param_fir_side_lobe_{};
-    juce::AudioParameterBool* param_fir_min_phase_{};
-    juce::AudioParameterBool* param_fir_highpass_{};
-    juce::AudioParameterFloat* param_feedback_{};
-    juce::AudioParameterFloat* param_damp_pitch_{};
-    juce::AudioParameterFloat* param_barber_phase_{};
-    juce::AudioParameterFloat* param_barber_stereo_{};
-    juce::AudioParameterFloat* param_drywet_{};
-    juce::AudioParameterBool* param_barber_enable_{};
-    juce::AudioParameterBool* param_iir_mode_{};
-    juce::AudioParameterInt* param_iir_filter_num_{};
-    juce::AudioParameterFloat* param_iir_ripple_{};
-
-    dsp::DspState dsp_state_;
-    dsp::DspProcessor dsp_processor_;
-    std::atomic<bool> param_changed_;
+    Params params_;
+    steep_flanger::DspHanle dsp_;
 
     std::atomic<bool> has_fir_source_from_state_;
-    dsp::DspParam::FirSource fir_source_from_state_;
-
-    pluginshared::BpmSyncLFO delay_lfo_state_;
-    pluginshared::BpmSyncLFO barber_lfo_state_;
+    steep_flanger::DspParam::FirSource fir_source_from_state_;
 
     bool display_custom_{true};
 private:

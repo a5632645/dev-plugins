@@ -1,84 +1,70 @@
 #include "plugin_ui.hpp"
-#include "../PluginProcessor.h"
 #include "../PluginEditor.h"
+#include "../PluginProcessor.h"
 
 PluginUi::PluginUi(SteepFlangerAudioProcessor& p)
     : p_(p)
     , preset_panel_(*p.preset_manager_)
     , timeview_(p)
     , spectralview_(timeview_, p) {
-    auto& apvts = *p.value_tree_;
-
-    preset_panel_.SetDspInstName(p.dsp_processor_.name);
+    preset_panel_.SetDspInstName(p.dsp_->InstName().data());
     addAndMakeVisible(preset_panel_);
 
     addAndMakeVisible(lfo_title_);
-    delay_.BindParam(apvts, "delay");
+    delay_.BindParam(p.params_.delay.ptr_);
     addAndMakeVisible(delay_);
-    depth_.BindParam(apvts, "depth");
+    depth_.BindParam(p.params_.depth.ptr_);
     addAndMakeVisible(depth_);
-    speed_.BindParam(p.delay_lfo_state_);
+    speed_.BindParam(p.params_.delay_lfo);
     addAndMakeVisible(speed_);
-    phase_.BindParam(apvts, "phase");
+    phase_.BindParam(p.params_.lfo_phase.ptr_);
     addAndMakeVisible(phase_);
-    drywet_.BindParam(p.param_drywet_);
+    drywet_.BindParam(p.params_.drywet.ptr_);
     addAndMakeVisible(drywet_);
 
-    cutoff_.BindParam(apvts, "cutoff");
-    cutoff_.slider.onValueChange = [this] {
-        spectralview_.DrawIirResponce();
-    };
+    cutoff_.BindParam(p.params_.fir_cutoff.ptr_);
+    cutoff_.slider.onValueChange = [this] { spectralview_.DrawIirResponce(); };
     addAndMakeVisible(cutoff_);
-    coeff_len_.BindParam(apvts, "coeff_len");
+    coeff_len_.BindParam(p.params_.fir_coeff_len.ptr_);
     addAndMakeVisible(coeff_len_);
-    side_lobe_.BindParam(apvts, "side_lobe");
+    side_lobe_.BindParam(p.params_.fir_side_lobe.ptr_);
     addAndMakeVisible(side_lobe_);
-    minum_phase_.BindParam(apvts, "minum_phase");
+    minum_phase_.BindParam(p.params_.fir_min_phase.ptr_);
     addAndMakeVisible(minum_phase_);
     iir_mode_.onClick = [this] { SetIirMode(iir_mode_.getToggleState()); };
-    iir_mode_.BindParam(p.param_iir_mode_);
+    iir_mode_.BindParam(p.params_.iir_mode.ptr_);
     addAndMakeVisible(iir_mode_);
-    highpass_.BindParam(apvts, "highpass");
-    highpass_.onClick = [this] {
-        spectralview_.DrawIirResponce();
-    };
+    highpass_.BindParam(p.params_.fir_highpass.ptr_);
+    highpass_.onClick = [this] { spectralview_.DrawIirResponce(); };
     addAndMakeVisible(highpass_);
 
-    fb_value_.BindParam(apvts, "fb_value");
+    fb_value_.BindParam(p.params_.feedback.ptr_);
     addAndMakeVisible(fb_value_);
     panic_.setButtonText("panic");
-    panic_.onClick = [&p] {
-        p.reset();
-    };
+    panic_.onClick = [&p] { p.reset(); };
     addAndMakeVisible(panic_);
-    fb_damp_.BindParam(apvts, "fb_damp");
+    fb_damp_.BindParam(p.params_.damp_pitch.ptr_);
     addAndMakeVisible(fb_damp_);
     addAndMakeVisible(feedback_title_);
 
     addAndMakeVisible(barber_title_);
-    barber_phase_.BindParam(apvts, "barber_phase");
+    barber_phase_.BindParam(p.params_.barber_phase.ptr_);
     addAndMakeVisible(barber_phase_);
-    barber_speed_.BindParam(p.barber_lfo_state_);
+    barber_speed_.BindParam(p.params_.barber_lfo);
     addAndMakeVisible(barber_speed_);
-    barber_enable_.BindParam(apvts, "barber_enable");
+    barber_enable_.BindParam(p.params_.barber_enable.ptr_);
     addAndMakeVisible(barber_enable_);
-    barber_stereo_.BindParam(p.param_barber_stereo_);
+    barber_stereo_.BindParam(p.params_.barber_stereo.ptr_);
     addAndMakeVisible(barber_stereo_);
 
     addAndMakeVisible(timeview_);
     addAndMakeVisible(spectralview_);
 
-    clear_.onClick = [this] {
-        timeview_.ClearCustomCoeffs();
-    };
+    clear_.onClick = [this] { timeview_.ClearCustomCoeffs(); };
     addAndMakeVisible(clear_);
-    copy_.onClick = [this] {
-        timeview_.CopyCoeffesToCustom();
-    };
+    copy_.onClick = [this] { timeview_.CopyCoeffesToCustom(); };
     addAndMakeVisible(copy_);
-    reload_.onClick = [this] {
-        timeview_.SendCoeffs();
-    };
+    reload_.onClick = [this] { timeview_.SendCoeffs(); };
     addAndMakeVisible(reload_);
     display_custom_.onClick = [this] {
         bool display = display_custom_.getToggleState();
@@ -175,7 +161,7 @@ void PluginUi::resized() {
 }
 
 void PluginUi::timerCallback() {
-    if (p_.dsp_state_.have_new_coeff_.exchange(false)) {
+    if (p_.dsp_->ExchangeNewCoeff()) {
         UpdateGui();
     }
 }
@@ -186,18 +172,14 @@ void PluginUi::SetIirMode(bool is_iir) {
     fb_value_.setEnabled(!is_iir);
 
     if (is_iir) {
-        coeff_len_.BindParam(p_.param_iir_filter_num_);
-        side_lobe_.BindParam(p_.param_iir_ripple_);
-        coeff_len_.slider.onValueChange = [this] {
-            spectralview_.DrawIirResponce();
-        };
-        side_lobe_.slider.onValueChange = [this] {
-            spectralview_.DrawIirResponce();
-        };
+        coeff_len_.BindParam(p_.params_.iir_filter_num.ptr_);
+        side_lobe_.BindParam(p_.params_.iir_ripple.ptr_);
+        coeff_len_.slider.onValueChange = [this] { spectralview_.DrawIirResponce(); };
+        side_lobe_.slider.onValueChange = [this] { spectralview_.DrawIirResponce(); };
     }
     else {
-        coeff_len_.BindParam(p_.param_fir_coeff_len_);
-        side_lobe_.BindParam(p_.param_fir_side_lobe_);
+        coeff_len_.BindParam(p_.params_.fir_coeff_len.ptr_);
+        side_lobe_.BindParam(p_.params_.fir_side_lobe.ptr_);
         coeff_len_.slider.onValueChange = [] {};
         side_lobe_.slider.onValueChange = [] {};
     }
