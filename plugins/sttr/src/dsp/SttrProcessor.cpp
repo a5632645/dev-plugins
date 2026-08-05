@@ -7,12 +7,13 @@ void SttrProcessor::setParameters(Parameters const& params) {
     dryDelay_ = params.dryDelay;
     stretch_ = params.stretch;
 
-    if (params.windowType != windowType_) {
-        windowType_ = params.windowType;
-        windowFn_.setType(windowType_);
-        numGrains_ = Window::numGrains(windowType_);
-        reset();
-    }
+    windowMul_ = params.windowMul;
+    windowBeta_ = params.windowBeta;
+
+    // setParameters() is only called when a parameter actually changes, so
+    // pull the smoother targets and re-sync the grain count here.
+    pullTargets();
+    syncGrains();
 }
 
 void SttrProcessor::prepare(float sampleRate) {
@@ -56,10 +57,13 @@ void SttrProcessor::pullTargets() {
     stretchSmoother_.setTargetValue(std::clamp(stretch_, 0.7f, 1.4f));
 }
 
-void SttrProcessor::syncNumGrains() {
-    if (windowType_ != windowFn_.type()) {
-        windowFn_.setType(windowType_);
-        numGrains_ = Window::numGrains(windowType_);
+void SttrProcessor::syncGrains() {
+    if (std::abs(windowFn_.beta() - windowBeta_) > 1.0e-6f)
+        windowFn_.setBeta(windowBeta_);
+
+    int const n = grainsForMul(windowMul_);
+    if (n != numGrains_) {
+        numGrains_ = n;
         reset();
     }
 }
@@ -75,7 +79,7 @@ void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
         // linear ramp step
         float const hopSamps = hopSmoother_.getNextValue();
         float const stretch = stretchSmoother_.getNextValue();
-        float const grainLen = hopSamps * static_cast<float>(N);
+        float const grainLen = hopSamps * static_cast<float>(windowMul_);
         float const phaseInc = stretch / grainLen;
 
         // write input
@@ -124,10 +128,6 @@ template void SttrProcessor::processGrains<4>(float*, float*, int);
 
 //==============================================================================
 void SttrProcessor::processBlock(float* left, float* right, int numSamples) {
-    pullTargets();
-    windowFn_.setType(windowType_);
-    syncNumGrains();
-
     switch (numGrains_) {
         case 1:
             processGrains<1>(left, right, numSamples);

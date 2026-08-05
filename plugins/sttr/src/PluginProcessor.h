@@ -1,11 +1,10 @@
 
 #pragma once
 
-#include <pluginshared/juce_param_listener.hpp>
 #include <pluginshared/preset_manager.hpp>
-#include <pluginshared/wrap_parameters.hpp>
 
 #include "dsp/SttrProcessor.hpp"
+#include "params.hpp"
 
 class SttrAudioProcessor final : public juce::AudioProcessor {
 public:
@@ -42,37 +41,12 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
-    // --- parameters ---
-    pluginshared::FloatParam mixParam{
-        "Mix", {0.0f, 1.0f, 0.01f},
-         0.5f
-    };
-    pluginshared::FloatParam hopMsParam{
-        "HopMs", {0.0f, 500.0f, 0.01f, 0.3f},
-         4.0f
-    };
-    pluginshared::FloatParam dryDelayParam{
-        "DryDelay", {0.0f, 1.0f, 0.01f},
-         0.5f
-    };
-    pluginshared::ChoiceParam windowTypeParam{
-        "WindowType",
-        juce::StringArray{"Hann", "Hamming", "Blackman", "Blackman-Harris", "Nuttall", "Blackman-Nuttall"},
-        "Hann"
-    };
-    pluginshared::FloatParam stretchParam{
-        "Stretch", {0.7f, 1.4f, 0.01f},
-         1.0f
-    };
-
-    // --- DSP engine ---
+    // --- parameters & DSP engine ---
+    Params params_;
     SttrProcessor dsp_;
 
-    JuceParamListener param_listener_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 private:
-    void pullParameters();
-
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SttrAudioProcessor)
 };

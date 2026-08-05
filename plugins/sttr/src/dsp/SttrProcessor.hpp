@@ -2,79 +2,93 @@
 
 #include <algorithm>
 #include <cmath>
-#include <numbers>
 #include <vector>
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <qwqdsp/interpolation.hpp>
 
 //==============================================================================
-/** Window function — stores coefficients and evaluates at a normalised position.
+/** Kaiser window function — evaluates at a normalised position t in [0, 1].
 
-    Grain count is tied to the window type (see numGrains()).
+    The Kaiser window is controlled by a single beta parameter; the window
+    length is controlled separately by SttrProcessor::windowMul.
  */
 class Window {
 public:
-    enum class Type {
-        hann = 0,
-        hamming,
-        blackman,
-        blackman_harris,
-        nuttall,
-        blackman_nuttall
-    };
-
     Window() = default;
 
-    void setType(Type type) noexcept {
-        type_ = type;
-        auto const& c = kCoeffs[static_cast<int>(type)];
-        k0_ = c.k0;
-        k1_ = c.k1;
-        k2_ = c.k2;
-        k3_ = c.k3;
+    void setBeta(float beta) noexcept {
+        beta_ = beta;
+        invI0Beta_ = 1.0f / besselI0(beta_);
     }
 
-    /** Number of grains for the given window type. */
-    static int numGrains(Type type) noexcept {
-        return kNumGrains[static_cast<int>(type)];
+    float beta() const noexcept {
+        return beta_;
     }
 
-    Type type() const noexcept {
-        return type_;
-    }
-
+    /** Kaiser window value at normalised position t in [0, 1]. */
     float value(float t) const noexcept {
-        float const twopi = 2.0f * static_cast<float>(std::numbers::pi);
-        return k0_ - k1_ * std::cos(1.0f * twopi * t) + k2_ * std::cos(2.0f * twopi * t)
-             - k3_ * std::cos(3.0f * twopi * t);
+        // w(t) = I0(beta * sqrt(1 - (2t - 1)^2)) / I0(beta)
+        float const arg = 1.0f - (2.0f * t - 1.0f) * (2.0f * t - 1.0f);
+        if (arg <= 0.0f)
+            return 1.0f;
+        return besselI0(beta_ * std::sqrt(arg)) * invI0Beta_;
     }
 private:
-    struct Coeffs {
-        float k0, k1, k2, k3;
-    };
-    static constexpr Coeffs kCoeffs[] = {
-        {0.5f,       0.5f,       0.0f,       0.0f      }, // hann
-        {0.53836f,   0.46164f,   0.0f,       0.0f      }, // hamming
-        {0.42659f,   0.496562f,  0.076849f,  0.0f      }, // blackman
-        {0.35875f,   0.48829f,   0.14128f,   0.01168f  }, // blackman_harris
-        {0.355768f,  0.487396f,  0.144232f,  0.012604f }, // nuttall
-        {0.3635819f, 0.4891775f, 0.1365995f, 0.0106411f}, // blackman_nuttall
-    };
-    static constexpr int kNumGrains[] = {2, 2, 3, 4, 4, 4};
+    /** Zeroth-order modified Bessel function of the first kind.
+        Padé (8,8) rational approximation of exp(-x) * I0(x), valid for
+        x in [0, 16] (max beta = 16, and beta * sqrt(1 - (2t-1)^2) <= beta);
+        the result is multiplied by exp(x) to recover I0(x). */
+    static float besselI0(float x) noexcept {
+        // Numerator coefficients of exp(-x)*I0(x), ascending powers of x
+        static constexpr float kNum[] = {
+            1.0f,                     // x^0
+            0.105679f,                // x^1
+            0.232432f,                // x^2
+            0.022871f,                // x^3
+            0.0113535f,               // x^4
+            0.000831911f,             // x^5
+            0.000176505f,             // x^6
+            7.559388122773327e-6f,    // x^7
+            2.3196902640592364e-8f,   // x^8
+        };
+        // Denominator coefficients, ascending powers of x (constant term = 1)
+        static constexpr float kDen[] = {
+            1.0f,                      // x^0
+            1.1057f,                   // x^1
+            0.588013f,                 // x^2
+            0.198596f,                 // x^3
+            0.0468095f,                // x^4
+            0.00842545f,               // x^5
+            0.000960233f,              // x^6
+            0.000120437f,              // x^7
+            1.612947555525283e-6f,     // x^8
+        };
 
-    Type type_{Type::hann};
-    float k0_{}, k1_{}, k2_{}, k3_{};
+        // Horner evaluation of the Padé approximant of exp(-x) * I0(x)
+        float num = kNum[8];
+        float den = kDen[8];
+        for (int i = 7; i >= 0; --i) {
+            num = num * x + kNum[i];
+            den = den * x + kDen[i];
+        }
+        return std::exp(x) * (num / den);
+    }
+
+    float beta_{8.0f};
+    float invI0Beta_{1.0f / besselI0(8.0f)};
 };
 
 //==============================================================================
 /** Delay-line based granular processor (STTR algorithm).
 
     Pure-DSP implementation of the STTR (Short time time reversal)
-    effect — a granular delay with overlapping grains, dry/wet mix, and
-    window-function selection.
+    effect — a granular delay with overlapping grains, dry/wet mix, and a
+    Kaiser window.
 
-    The window type and grain count are linked — setParameters() updates both.
+    The window length (grain length = windowMul * hop) and the Kaiser beta are
+    controlled by windowMul / windowBeta; the grain count is derived from
+    windowMul.
  */
 class SttrProcessor {
 public:
@@ -84,12 +98,15 @@ public:
         float hopMs{16.0f};
         float dryDelay{0.0f};
         float stretch{1.0f};
-        Window::Type windowType{Window::Type::hann};
+        int windowMul{2};        // grain length = windowMul * hop, integer [1, 4]
+        float windowBeta{8.0f};  // Kaiser window beta
     };
 
     SttrProcessor() = default;
 
-    /** Set all parameters atomically (copies into internal state). */
+    /** Set all parameters atomically: copies into internal state, pulls
+        smoother targets and re-syncs the grain count. Only needs to be
+        called when a parameter changes. */
     void setParameters(Parameters const& params);
 
     /** Allocate stereo delay buffer and reset state. */
@@ -105,6 +122,11 @@ private:
     static constexpr int kMaxGrains = 4;
 
     // helpers
+    /** Number of active grains for the given window-length multiplier. */
+    static int grainsForMul(int mul) noexcept {
+        return std::clamp(mul, 1, kMaxGrains);
+    }
+
     static float millisecondsToSamples(float ms, float sr) {
         return ms / 1000.0f * sr;
     }
@@ -152,16 +174,17 @@ private:
 
     // internal state
     float sampleRate_{44100.0f};
-    int numGrains_{2};
+    int numGrains_{2};   // derived from windowMul_
     int delayWriter_{};  // current write position in delay line
     float masterWPos_{}; // monotonically increasing write-sample counter
-    Window windowFn_;    // current window coefficients
+    Window windowFn_;    // current Kaiser window
 
     float mix_{0.5f};
     float hopMs_{16.0f};
     float dryDelay_{0.0f};
     float stretch_{1.0f};
-    Window::Type windowType_{Window::Type::hann};
+    int windowMul_{2};        // grain length multiplier, integer [1, 4]
+    float windowBeta_{8.0f};  // Kaiser window beta
 
     juce::SmoothedValue<float> hopSmoother_;     // juce linear ramp smoother
     juce::SmoothedValue<float> stretchSmoother_; // stretch ratio smoother
@@ -177,5 +200,5 @@ private:
     int delayCap_{};                 // samples per channel
 
     void pullTargets();
-    void syncNumGrains();
+    void syncGrains();
 };

@@ -15,14 +15,12 @@ PluginUi::PluginUi(SttrAudioProcessor& p)
     addAndMakeVisible(dryDelayDial_);
     addAndMakeVisible(mixDial_);
 
-    // Window type combo
-    windowTypeCombo_.BindParam(*p.value_tree_, "WindowType");
-    addAndMakeVisible(windowTypeCombo_);
+    // Kaiser window parameters
+    mulDial_.BindParam(*p.value_tree_, "nGrains");
+    betaDial_.BindParam(*p.value_tree_, "Harmonic");
 
-    windowLabel_.setText("Window", juce::dontSendNotification);
-    windowLabel_.setJustificationType(juce::Justification::centred);
-    windowLabel_.setColour(juce::Label::ColourIds::textColourId, ui::black_bg);
-    addAndMakeVisible(windowLabel_);
+    addAndMakeVisible(mulDial_);
+    addAndMakeVisible(betaDial_);
 
     addAndMakeVisible(preset_);
     setSize(kWidth, kHeight);
@@ -43,11 +41,11 @@ void PluginUi::resized() {
     dryDelayDial_.setBounds(x_start + dial_w * 2, b.getY(), dial_w, dial_h);
     mixDial_.setBounds(x_start + dial_w * 3, b.getY(), dial_w, dial_h);
 
-    // Row 2: "Window" label + combo left-aligned
-    static constexpr int label_w = 70;
-    static constexpr int combo_w = 140;
+    // Row 2: Kaiser window dials centered
     int const row2_y = b.getY() + dial_h + 10;
+    int const row2_total = dial_w * 2;
+    int const row2_x = (kWidth - row2_total) / 2;
 
-    windowLabel_.setBounds(0, row2_y + 2, label_w, 30);
-    windowTypeCombo_.setBounds(label_w, row2_y, combo_w, 30);
+    mulDial_.setBounds(row2_x, row2_y, dial_w, dial_h);
+    betaDial_.setBounds(row2_x + dial_w, row2_y, dial_w, dial_h);
 }

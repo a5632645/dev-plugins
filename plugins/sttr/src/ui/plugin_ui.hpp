@@ -8,7 +8,7 @@ class SttrAudioProcessor;
 class PluginUi : public juce::Component {
 public:
     static constexpr int kWidth = 300;
-    static constexpr int kHeight = 150;
+    static constexpr int kHeight = 200;
 
     explicit PluginUi(SttrAudioProcessor& p);
 
@@ -21,6 +21,6 @@ private:
     ui::Dial dryDelayDial_{"Dry Delay"};
     ui::Dial mixDial_{"Mix"};
 
-    ui::FlatCombobox windowTypeCombo_;
-    juce::Label windowLabel_;
+    ui::Dial mulDial_{"nGrains"};
+    ui::Dial betaDial_{"Harmonic"};
 };

@@ -13,14 +13,11 @@ SttrAudioProcessor::SttrAudioProcessor()
 #endif
       ) {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
-    layout += mixParam;
-    layout += hopMsParam;
-    layout += dryDelayParam;
-    layout += stretchParam;
-    layout += windowTypeParam;
+    params_.BuildLayout(layout);
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, kParameterValueTreeIdentify,
                                                                        std::move(layout));
+    params_.BeginListening();
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
     preset_manager_->AddFactoryPreset(BinaryData::AlienSpeech_xml, BinaryData::AlienSpeech_xmlSize, "Alien Speech");
     preset_manager_->AddFactoryPreset(BinaryData::Echo_xml, BinaryData::Echo_xmlSize, "Echo");
@@ -29,6 +26,7 @@ SttrAudioProcessor::SttrAudioProcessor()
 }
 
 SttrAudioProcessor::~SttrAudioProcessor() {
+    params_.EndListening();
     preset_manager_ = nullptr;
     value_tree_ = nullptr;
 }
@@ -94,19 +92,10 @@ bool SttrAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) cons
 }
 
 //==============================================================================
-void SttrAudioProcessor::pullParameters() {
-    SttrProcessor::Parameters p;
-    p.mix = mixParam.Get();
-    p.hopMs = hopMsParam.Get();
-    p.dryDelay = dryDelayParam.Get();
-    p.stretch = stretchParam.Get();
-    p.windowType = static_cast<Window::Type>(windowTypeParam.Get());
-    dsp_.setParameters(p);
-}
-
 void SttrAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     juce::ignoreUnused(samplesPerBlock);
-    pullParameters();
+
+    params_.MarkChanged();
     dsp_.prepare(static_cast<float>(sampleRate));
 }
 
@@ -120,7 +109,9 @@ void SttrAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
 
-    pullParameters();
+    if (params_.IsParamChanged()) {
+        dsp_.setParameters(params_.ToSttrParam());
+    }
 
     dsp_.processBlock(buffer.getWritePointer(0), buffer.getWritePointer(1), buffer.getNumSamples());
 }
