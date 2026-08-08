@@ -174,7 +174,7 @@ private:
 
     juce::SmoothedValue<float> hopSmoother_;     // juce linear ramp smoother
     juce::SmoothedValue<float> stretchSmoother_; // stretch ratio smoother
-    float grainPhase_[kMaxGrains]{};             // per-grain phase [0, 1), all share same hop
+    float grainPhase_{0.0f};                     // shared grain phase [0, 1); grain g uses phase + g/N
 
     SlewedParam dryDelaySlw_{0.0f, 0.000167f};
     SlewedParam mixSlw_{0.5f, 0.15f};

@@ -38,12 +38,7 @@ void SttrProcessor::reset() {
     delayLine_.clear();
 
     lfoPhase_ = 0.0f;
-
-    // Initialise per-grain phases (staggered evenly)
-    int const n = numGrains_ > 0 ? numGrains_ : 2;
-    for (int g = 0; g < kMaxGrains; ++g) {
-        grainPhase_[g] = (n > 1) ? static_cast<float>(g % n) / static_cast<float>(n) : 0.0f;
-    }
+    grainPhase_ = 0.0f; // all grains are derived from this single phase
 }
 
 //==============================================================================
@@ -78,23 +73,27 @@ void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
         // write input (stereo)
         delayLine_.write(left[n], right[n]);
 
-        // wet signal (all grains share the same hop/grainLen)
+        // wet signal: all grains advance in lockstep, so derive each grain's
+        // phase from the shared grainPhase_ (staggered by g / N)
         float sumL = 0.0f;
         float sumR = 0.0f;
         for (int g = 0; g < N; ++g) {
-            float const win = windowFn_.value(grainPhase_[g]);
-            float const rphase = stretch * grainPhase_[g]; // read phase
+            float const phase = grainPhase_ + static_cast<float>(g) / static_cast<float>(N);
+            float const p = phase >= 1.0f ? phase - 1.0f : phase; // wrap into [0, 1)
+
+            float const win = windowFn_.value(p);
+            float const rphase = stretch * p; // read phase
             float const readDelay = 2.0f * rphase * grainLen; // samples behind write head
 
             float gl, gr;
             delayLine_.read(readDelay, gl, gr);
             sumL += win * gl;
             sumR += win * gr;
-
-            // advance phase (same increment for all grains)
-            grainPhase_[g] += phaseInc;
-            if (grainPhase_[g] >= 1.0f) grainPhase_[g] -= 1.0f;
         }
+
+        // advance shared phase (same increment for all grains)
+        grainPhase_ += phaseInc;
+        if (grainPhase_ >= 1.0f) grainPhase_ -= 1.0f;
 
         // mix dry signal from delay
         float const dryDelaySamps = grainLen * 1.5f * dryDelaySlw_.value;
