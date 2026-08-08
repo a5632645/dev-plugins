@@ -58,8 +58,6 @@ public:
     void Reset() override {
         delayLine_.clear();
 
-        lfoPhase_ = 0.0f;
-
         // Initialise per-grain phases (staggered evenly)
         int const n = numGrains_ > 0 ? numGrains_ : 2;
         simd::Float128 init{};
@@ -70,7 +68,7 @@ public:
 
     /** Set all parameters atomically: copies into internal state, pulls
         smoother targets and re-syncs the grain count. Only needs to be
-        called when a parameter changes. */
+        called when a parameter actually changes. */
     void SetParameters(SttrParam const& params) override {
         mix_ = params.mix;
         hopMs_ = params.hopMs;
@@ -80,10 +78,23 @@ public:
         windowMul_ = params.windowMul;
         windowBeta_ = params.windowBeta;
 
-        // SetParameters() is only called when a parameter actually changes, so
-        // pull the smoother targets and re-sync the grain count here.
-        pullTargets();
-        syncGrains();
+        // pull smoother targets — SetParameters only runs when a parameter
+        // changed, so the window is applied unconditionally.
+        mixSlw_.target = mix_;
+        hopSmoother_.setTargetValue(std::max(millisecondsToSamples(hopMs_, sampleRate_), 1.0f));
+        dryDelaySlw_.target = dryDelay_;
+        // stretch ratio = 2^(formant/12), formant in [-10, 10] st
+        stretchSmoother_.setTargetValue(std::clamp(stretch_, 0.561231f, 1.781797f));
+
+        windowFn_.setBeta(windowBeta_);
+
+        // re-sync the grain count; only a windowMul change alters it, and only
+        // then should the delay line be flushed.
+        int const n = grainsForMul(windowMul_);
+        if (n != numGrains_) {
+            numGrains_ = n;
+            Reset();
+        }
     }
 
     /** Process one stereo audio block in-place. */
@@ -145,9 +156,6 @@ private:
     template <int N>
     void processGrains(float* left, float* right, int numSamples);
 
-    void pullTargets();
-    void syncGrains();
-
     // internal state
     float sampleRate_{44100.0f};
     int numGrains_{2};   // derived from windowMul_
@@ -167,32 +175,9 @@ private:
     SlewedParam dryDelaySlw_{0.0f, 0.000167f};
     SlewedParam mixSlw_{0.5f, 0.15f};
 
-    float lfoPhase_{};
-
     // Stereo sinc delay line (owns its sinc table)
     ShortcircuitSincDelayLine<inst, SimdT> delayLine_;
 };
-
-//------------------------------------------------------------------------------
-template <simd::Inst inst, class SimdT>
-void DspImpl<inst, SimdT>::pullTargets() {
-    mixSlw_.target = mix_;
-    hopSmoother_.setTargetValue(std::max(millisecondsToSamples(hopMs_, sampleRate_), 1.0f));
-    dryDelaySlw_.target = dryDelay_;
-    // stretch ratio = 2^(formant/12), formant in [-10, 10] st
-    stretchSmoother_.setTargetValue(std::clamp(stretch_, 0.561231f, 1.781797f));
-}
-
-template <simd::Inst inst, class SimdT>
-void DspImpl<inst, SimdT>::syncGrains() {
-    if (std::abs(windowFn_.beta() - windowBeta_) > 1.0e-6f) windowFn_.setBeta(windowBeta_);
-
-    int const n = grainsForMul(windowMul_);
-    if (n != numGrains_) {
-        numGrains_ = n;
-        Reset();
-    }
-}
 
 //------------------------------------------------------------------------------
 template <simd::Inst inst, class SimdT>
