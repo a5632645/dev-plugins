@@ -52,15 +52,33 @@ public:
         wp_ = (wp_ + 1) & mask_;
     }
 
-    /** Sinc-interpolated read, `delay` samples behind the write head (stereo). */
-    inline void read(float delay, float& l, float& r) {
-        int const iDelay = static_cast<int>(delay);
-        float const frac = delay - static_cast<float>(iDelay);
-        int const sincTableOffset = static_cast<int>((1.0f - frac) * static_cast<float>(kM)) * kN;
-        int const readPtr = (wp_ - iDelay - (kN >> 1)) & mask_;
+    /** Sinc-interpolated read at N delays (one per lane), stereo.
+        Only the first N lanes are read; lanes >= N come back as zero. */
+    template <int N>
+    inline void read(simd::Float128 delay, simd::Float128& l, simd::Float128& r) {
+        // one 4-lane accumulator per input lane (lanes >= N stay zero)
+        simd::Float128 accL[4] = {};
+        simd::Float128 accR[4] = {};
 
-        l = dot16(bufferL_.data(), readPtr, table_.SincTableF32 + sincTableOffset);
-        r = dot16(bufferR_.data(), readPtr, table_.SincTableF32 + sincTableOffset);
+        // vectorised index math for all 4 lanes at once (lanes >= N hold garbage,
+        // which is fine — only the first N lanes are consumed below)
+        simd::Int128 const iDelay = simd::ToInt(delay);
+        simd::Float128 const frac = delay - simd::ToFloat(iDelay);
+        simd::Int128 const sincTableOffset =
+            simd::ToInt((simd::BroadcastF128(1.0f) - frac) * simd::BroadcastF128(static_cast<float>(kM))) * kN;
+        simd::Int128 const readPtr = (simd::Int128{wp_, wp_, wp_, wp_} - iDelay - (kN >> 1)) & mask_;
+
+        for (int i = 0; i < N; ++i) {
+            accL[i] = dot16(bufferL_.data(), readPtr[i], table_.SincTableF32 + sincTableOffset[i]);
+            accR[i] = dot16(bufferR_.data(), readPtr[i], table_.SincTableF32 + sincTableOffset[i]);
+        }
+
+        // horizontal reduce per lane: transpose so each output lane holds the four
+        // tap-chunk partial sums of one input lane, then collapse with a vertical add.
+        alignas(16) auto const tL = simd::Transpose(accL[0], accL[1], accL[2], accL[3]);
+        alignas(16) auto const tR = simd::Transpose(accR[0], accR[1], accR[2], accR[3]);
+        l = tL[0] + tL[1] + tL[2] + tL[3];
+        r = tR[0] + tR[1] + tR[2] + tR[3];
     }
 
     inline void clear() {
@@ -74,13 +92,14 @@ public:
     }
 
 private:
-    /** 16-tap windowed-sinc dot product (4 x 4-lane SIMD). */
-    static float dot16(const float* data, int readPtr, const float* table) {
+    /** 16-tap windowed-sinc dot product (4 x 4-lane SIMD).
+        Returns the four 4-tap partial sums; the caller collapses them. */
+    static simd::Float128 dot16(const float* data, int readPtr, const float* table) {
         simd::Float128 o = simd::Loadu128(data + readPtr) * simd::Loadu128(table);
         o += simd::Loadu128(data + readPtr + 4) * simd::Loadu128(table + 4);
         o += simd::Loadu128(data + readPtr + 8) * simd::Loadu128(table + 8);
         o += simd::Loadu128(data + readPtr + 12) * simd::Loadu128(table + 12);
-        return simd::ReduceAdd(o);
+        return o;
     }
 
     static size_t NextPow2(size_t v) {

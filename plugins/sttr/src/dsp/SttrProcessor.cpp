@@ -38,7 +38,12 @@ void SttrProcessor::reset() {
     delayLine_.clear();
 
     lfoPhase_ = 0.0f;
-    grainPhase_ = 0.0f; // all grains are derived from this single phase
+
+    // Initialise per-grain phases (staggered evenly)
+    int const n = numGrains_ > 0 ? numGrains_ : 2;
+    simd::Float128 init{};
+    for (int g = 0; g < kMaxGrains; ++g) init[g] = (n > 1) ? static_cast<float>(g % n) / static_cast<float>(n) : 0.0f;
+    grainPhase_ = init;
 }
 
 //==============================================================================
@@ -63,6 +68,11 @@ void SttrProcessor::syncGrains() {
 //==============================================================================
 template <int N>
 void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
+    // Grains g >= N are inactive: masked out of the wet sum and their phases stay
+    // frozen (matching the scalar per-grain advance loop).
+    simd::Float128 const laneMask =
+        simd::Float128{(N > 0) ? 1.0f : 0.0f, (N > 1) ? 1.0f : 0.0f, (N > 2) ? 1.0f : 0.0f, (N > 3) ? 1.0f : 0.0f};
+
     for (int n = 0; n < numSamples; ++n) {
         // linear ramp step
         float const hopSamps = hopSmoother_.getNextValue();
@@ -73,34 +83,33 @@ void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
         // write input (stereo)
         delayLine_.write(left[n], right[n]);
 
-        // wet signal: all grains advance in lockstep, so derive each grain's
-        // phase from the shared grainPhase_ (staggered by g / N)
-        float sumL = 0.0f;
-        float sumR = 0.0f;
-        for (int g = 0; g < N; ++g) {
-            float const phase = grainPhase_ + static_cast<float>(g) / static_cast<float>(N);
-            float const p = phase >= 1.0f ? phase - 1.0f : phase; // wrap into [0, 1)
+        // wet signal: all grains advance in lockstep with the same phaseInc, so pack
+        // the per-grain phases into one 4-lane vector and process them together.
+        simd::Float128 const phase = grainPhase_;
 
-            float const win = windowFn_.value(p);
-            float const rphase = stretch * p; // read phase
-            float const readDelay = 2.0f * rphase * grainLen; // samples behind write head
+        // Kaiser window — SIMD overload, bit-identical per lane to the scalar version
+        simd::Float128 const win = windowFn_.value(phase);
 
-            float gl, gr;
-            delayLine_.read(readDelay, gl, gr);
-            sumL += win * gl;
-            sumR += win * gr;
-        }
+        // read delay = 2 * (stretch * phase) * grainLen, samples behind the write head
+        simd::Float128 const readDelay = simd::BroadcastF128(2.0f) * (stretch * phase) * simd::BroadcastF128(grainLen);
 
-        // advance shared phase (same increment for all grains)
-        grainPhase_ += phaseInc;
-        if (grainPhase_ >= 1.0f) grainPhase_ -= 1.0f;
+        // wet reads: the templated read<N> only reads the first N lanes and leaves
+        // lanes >= N at zero, so the vector reduce below stays valid for any N.
+        simd::Float128 gl{};
+        simd::Float128 gr{};
+        delayLine_.read<N>(readDelay, gl, gr);
+        float const sumL = simd::ReduceAdd(win * gl * laneMask);
+        float const sumR = simd::ReduceAdd(win * gr * laneMask);
 
-        // mix dry signal from delay
+        // advance phases (inactive lanes stay frozen)
+        grainPhase_ = simd::Frac(phase + simd::BroadcastF128(phaseInc));
+
+        // mix dry signal from delay (single delay -> read<1>)
         float const dryDelaySamps = grainLen * 1.5f * dryDelaySlw_.value;
-        float dryL, dryR;
-        delayLine_.read(dryDelaySamps, dryL, dryR);
-        left[n] = interp(dryL, sumL, mixSlw_.value);
-        right[n] = interp(dryR, sumR, mixSlw_.value);
+        simd::Float128 dryL, dryR;
+        delayLine_.read<1>(simd::Float128{dryDelaySamps, 0.0f, 0.0f, 0.0f}, dryL, dryR);
+        left[n] = interp(dryL[0], sumL, mixSlw_.value);
+        right[n] = interp(dryR[0], sumR, mixSlw_.value);
 
         dryDelaySlw_.step();
     }
