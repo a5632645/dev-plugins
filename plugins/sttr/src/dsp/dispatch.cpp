@@ -10,21 +10,17 @@ std::unique_ptr<Idsp> CreateDsp() {
 #if defined(__aarch64__) || defined(_M_ARM64)
     return CreateDspImpl<simd::Inst::NEON>();
 #elif defined(__x86_64__) || defined(_M_X64)
-    // simd256 (AVX / AVX2 / FMA) is not wired up yet — the corresponding
-    // dsp_avx*.cpp are not compiled, so these CreateDspImpl calls stay commented
-    // out to avoid link errors.
-    //
-    // if (simd_detector::is_supported(IS::AVX2)) {
-    //     if (simd_detector::is_supported(IS::FMA3)) {
-    //         return CreateDspImpl<simd::Inst::FMA>();
-    //     }
-    //     else {
-    //         return CreateDspImpl<simd::Inst::AVX2>();
-    //     }
-    // }
-    // if (simd_detector::is_supported(IS::AVX)) {
-    //     return CreateDspImpl<simd::Inst::AVX>();
-    // }
+    if (simd_detector::is_supported(IS::AVX2)) {
+        if (simd_detector::is_supported(IS::FMA3)) {
+            return CreateDspImpl<simd::Inst::FMA>();
+        }
+        else {
+            return CreateDspImpl<simd::Inst::AVX2>();
+        }
+    }
+    if (simd_detector::is_supported(IS::AVX)) {
+        return CreateDspImpl<simd::Inst::AVX>();
+    }
     if (simd_detector::is_supported(IS::SSE4_1)) {
         return CreateDspImpl<simd::Inst::SSE4>();
     }
