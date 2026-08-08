@@ -76,6 +76,7 @@ public:
 
         windowMul_ = params.windowMul;
         windowBeta_ = params.windowBeta;
+        reverse_ = params.reverse;
 
         // pull smoother targets — SetParameters only runs when a parameter
         // changed, so the window is applied unconditionally.
@@ -98,20 +99,12 @@ public:
 
     /** Process one stereo audio block in-place. */
     void ProcessBlock(float* left, float* right, int numSamples) override {
-        switch (numGrains_) {
-            case 1:
-                processGrains<1>(left, right, numSamples);
-                break;
-            case 2:
-                processGrains<2>(left, right, numSamples);
-                break;
-            case 3:
-                processGrains<3>(left, right, numSamples);
-                break;
-            default:
-                processGrains<4>(left, right, numSamples);
-                break;
-        }
+        // direction is selected once per block, then dispatched at compile time
+        // so the per-sample loop has no direction branch.
+        if (reverse_)
+            processGrainsBlock<true>(left, right, numSamples);
+        else
+            processGrainsBlock<false>(left, right, numSamples);
     }
 
     std::string_view InstName() override {
@@ -161,10 +154,21 @@ private:
         }
     };
 
-    // template dispatch — the delay-line read<N> selects the 128-bit or 256-bit
-    // dot path internally via requires on SimdT.
-    template <int N>
+    // template dispatch — Reverse selects the grain direction at compile time,
+    // then the delay-line read<N> picks the 128/256-bit dot via requires on SimdT.
+    template <int N, bool Reverse>
     void processGrains(float* left, float* right, int numSamples);
+
+    // one runtime direction branch per block, then compile-time dispatch
+    template <bool Reverse>
+    void processGrainsBlock(float* left, float* right, int numSamples) {
+        switch (numGrains_) {
+            case 1: processGrains<1, Reverse>(left, right, numSamples); break;
+            case 2: processGrains<2, Reverse>(left, right, numSamples); break;
+            case 3: processGrains<3, Reverse>(left, right, numSamples); break;
+            default: processGrains<4, Reverse>(left, right, numSamples); break;
+        }
+    }
 
     // internal state
     float sampleRate_{44100.0f};
@@ -177,6 +181,7 @@ private:
     float stretch_{1.0f};
     int windowMul_{2};        // grain length multiplier, integer [1, 4]
     float windowBeta_{8.0f};  // Kaiser window beta
+    bool reverse_{true};      // false = forward (sequential) grain playback
 
     SlewedParam hopSlw_{0.0f, 0.0f};             // hop samples (samples), one-pole slew
     SlewedParam stretchSlw_{1.0f, 0.0f};         // stretch ratio, one-pole slew
@@ -191,7 +196,7 @@ private:
 
 //------------------------------------------------------------------------------
 template <simd::Inst inst, class SimdT>
-template <int N>
+template <int N, bool Reverse>
 void DspImpl<inst, SimdT>::processGrains(float* left, float* right, int numSamples) {
     // Grains g >= N are inactive: read<N> returns zero for their lanes, so they
     // are automatically excluded from the wet sum below.
@@ -212,8 +217,19 @@ void DspImpl<inst, SimdT>::processGrains(float* left, float* right, int numSampl
         // Kaiser window — SIMD overload, bit-identical per lane to the scalar version
         simd::Float128 const win = windowFn_.value(phase);
 
-        // read delay = 2 * (stretch * phase) * grainLen, samples behind the write head
-        simd::Float128 const readDelay = simd::BroadcastF128(2.0f) * (stretch * phase) * simd::BroadcastF128(grainLen);
+        // read delay (samples behind the write head):
+        //   reverse -> sweeps 0 -> (1+stretch)*grainLen as phase grows; the read
+        //             pointer walks backward at speed 1 - (1+stretch) = -stretch,
+        //             so pitch = stretch (formant maps to correct semitones)
+        //   forward -> fixed grainLen window, but the read sweeps so the playback
+        //             rate equals stretch: read pointer speed = 1 - d(delay)/dn =
+        //             stretch, so pitch = stretch (0.5 -> down one octave)
+        simd::Float128 readDelay;
+        if constexpr (Reverse)
+            readDelay = simd::BroadcastF128(1.0f + stretch) * phase * simd::BroadcastF128(grainLen);
+        else
+            readDelay = simd::BroadcastF128(grainLen)
+                + simd::BroadcastF128((1.0f - stretch) * grainLen) * phase;
 
         // wet reads: the templated read<N> only reads the first N lanes and leaves
         // lanes >= N at zero, so the vector reduce below stays valid for any N.

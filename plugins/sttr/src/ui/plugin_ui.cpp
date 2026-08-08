@@ -24,6 +24,10 @@ PluginUi::PluginUi(SttrAudioProcessor& p)
     addAndMakeVisible(mulDial_);
     addAndMakeVisible(betaDial_);
 
+    // grain playback direction (rev = time-reversed, fwd = forward)
+    reverseSwitch_.BindParam(*p.value_tree_, "reverse");
+    addAndMakeVisible(reverseSwitch_);
+
     addAndMakeVisible(preset_);
     setSize(kWidth, kHeight);
 }
@@ -43,10 +47,14 @@ void PluginUi::resized() {
     dryDelayDial_.setBounds(x_start + dial_w * 2, b.getY(), dial_w, dial_h);
     mixDial_.setBounds(x_start + dial_w * 3, b.getY(), dial_w, dial_h);
 
-    // Row 2: Kaiser window dials centered
+    // Row 2: playback direction switch on the left, Kaiser window dials centred
     int const row2_y = b.getY() + dial_h + 10;
     int const row2_total = dial_w * 2;
     int const row2_x = (kWidth - row2_total) / 2;
+
+    static constexpr int sw_w = 70;
+    static constexpr int sw_h = 30;
+    reverseSwitch_.setBounds(row2_x - sw_w, row2_y + (dial_h - sw_h) / 2, sw_w, sw_h);
 
     mulDial_.setBounds(row2_x, row2_y, dial_w, dial_h);
     betaDial_.setBounds(row2_x + dial_w, row2_y, dial_w, dial_h);

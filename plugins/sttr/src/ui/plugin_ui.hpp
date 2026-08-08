@@ -23,4 +23,6 @@ private:
 
     ui::Dial mulDial_{"nGrains"};
     ui::Dial betaDial_{"Harmonic"};
+
+    ui::Switch reverseSwitch_{"Reverse", "Forward"};
 };

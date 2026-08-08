@@ -14,6 +14,7 @@ struct SttrParam {
     float stretch{1.0f};   // ratio = 2^(formant/12), formant in semitones
     int windowMul{2};        // grain length = windowMul * hop, integer [1, 4]
     float windowBeta{8.0f};  // Kaiser window beta
+    bool reverse{true};      // false = forward (sequential) grain playback
 };
 
 /** SIMD-dispatched STTR engine interface. */

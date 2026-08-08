@@ -29,6 +29,7 @@ public:
         "Formant", {-global::kMaxFormantShift, global::kMaxFormantShift, 0.1f},
          0.0f
     };
+    pluginshared::BoolParam reverse{"reverse", true};
 
     void BuildLayout(juce::AudioProcessorValueTreeState::ParameterLayout& layout) {
         layout += mix;
@@ -37,6 +38,7 @@ public:
         layout += mul;
         layout += beta;
         layout += formant;
+        layout += reverse;
     }
 
     [[nodiscard]] sttr::SttrParam ToSttrParam() {
@@ -48,6 +50,7 @@ public:
         p.stretch = std::exp2f(formant.Get() / 12.0f);
         p.windowMul = mul.Get();
         p.windowBeta = beta.Get();
+        p.reverse = reverse.Get();
         return p;
     }
 
@@ -58,6 +61,7 @@ public:
         mul.ptr_->addListener(this);
         beta.ptr_->addListener(this);
         formant.ptr_->addListener(this);
+        reverse.ptr_->addListener(this);
     }
 
     void EndListening() {
@@ -67,6 +71,7 @@ public:
         mul.ptr_->removeListener(this);
         beta.ptr_->removeListener(this);
         formant.ptr_->removeListener(this);
+        reverse.ptr_->removeListener(this);
     }
 
     bool IsParamChanged() noexcept {
