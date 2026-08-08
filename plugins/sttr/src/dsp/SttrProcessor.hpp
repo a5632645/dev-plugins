@@ -97,7 +97,7 @@ public:
         float mix{0.5f};
         float hopMs{16.0f};
         float dryDelay{0.0f};
-        float stretch{1.0f};
+        float stretch{1.0f};   // ratio = 2^(formant/12), formant in semitones
         int windowMul{2};        // grain length = windowMul * hop, integer [1, 4]
         float windowBeta{8.0f};  // Kaiser window beta
     };

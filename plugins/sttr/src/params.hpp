@@ -1,5 +1,6 @@
 #pragma once
 #include <atomic>
+#include <cmath>
 
 #include "dsp/SttrProcessor.hpp"
 #include "pluginshared/wrap_parameters.hpp"
@@ -26,9 +27,9 @@ public:
         "Harmonic", {2.0f, 16.0f, 0.01f},
          8.0f
     };
-    pluginshared::FloatParam stretch{
-        "Stretch", {0.7f, 1.4f, 0.01f},
-         1.0f
+    pluginshared::FloatParam formant{
+        "Formant", {-10.0f, 10.0f, 0.1f},
+         0.0f
     };
 
     void BuildLayout(juce::AudioProcessorValueTreeState::ParameterLayout& layout) {
@@ -37,7 +38,7 @@ public:
         layout += dry_delay;
         layout += mul;
         layout += beta;
-        layout += stretch;
+        layout += formant;
     }
 
     [[nodiscard]] SttrProcessor::Parameters ToSttrParam() {
@@ -45,7 +46,8 @@ public:
         p.mix = mix.Get();
         p.hopMs = hop_ms.Get();
         p.dryDelay = dry_delay.Get();
-        p.stretch = stretch.Get();
+        // stretch ratio derived from formant (semitones)
+        p.stretch = std::exp2f(formant.Get() / 12.0f);
         p.windowMul = mul.Get();
         p.windowBeta = beta.Get();
         return p;
@@ -57,7 +59,7 @@ public:
         dry_delay.ptr_->addListener(this);
         mul.ptr_->addListener(this);
         beta.ptr_->addListener(this);
-        stretch.ptr_->addListener(this);
+        formant.ptr_->addListener(this);
     }
 
     void EndListening() {
@@ -66,7 +68,7 @@ public:
         dry_delay.ptr_->removeListener(this);
         mul.ptr_->removeListener(this);
         beta.ptr_->removeListener(this);
-        stretch.ptr_->removeListener(this);
+        formant.ptr_->removeListener(this);
     }
 
     bool IsParamChanged() noexcept {

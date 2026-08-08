@@ -54,12 +54,12 @@ void SttrProcessor::pullTargets() {
     mixSlw_.target = mix_;
     hopSmoother_.setTargetValue(std::max(millisecondsToSamples(hopMs_, sampleRate_), 1.0f));
     dryDelaySlw_.target = dryDelay_;
-    stretchSmoother_.setTargetValue(std::clamp(stretch_, 0.7f, 1.4f));
+    // stretch ratio = 2^(formant/12), formant in [-10, 10] st
+    stretchSmoother_.setTargetValue(std::clamp(stretch_, 0.561231f, 1.781797f));
 }
 
 void SttrProcessor::syncGrains() {
-    if (std::abs(windowFn_.beta() - windowBeta_) > 1.0e-6f)
-        windowFn_.setBeta(windowBeta_);
+    if (std::abs(windowFn_.beta() - windowBeta_) > 1.0e-6f) windowFn_.setBeta(windowBeta_);
 
     int const n = grainsForMul(windowMul_);
     if (n != numGrains_) {
@@ -80,7 +80,7 @@ void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
         float const hopSamps = hopSmoother_.getNextValue();
         float const stretch = stretchSmoother_.getNextValue();
         float const grainLen = hopSamps * static_cast<float>(windowMul_);
-        float const phaseInc = stretch / grainLen;
+        float const phaseInc = 1.0f / grainLen; // fixed window-envelope rate
 
         // write input
         bufL[delayWriter_] = left[n];
@@ -90,9 +90,11 @@ void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
         float sumL = 0.0f;
         float sumR = 0.0f;
         for (int g = 0; g < N; ++g) {
-            float readPos = wrap(masterWPos_ - 2.0f * grainPhase_[g] * grainLen, static_cast<float>(delayLen));
-            float win = windowFn_.value(grainPhase_[g]);
+            float const win = windowFn_.value(grainPhase_[g]);
+            float rphase = stretch * grainPhase_[g]; // read phase
 
+            // read from the delay line only while rphase <= 1, otherwise 0
+            float const readPos = wrap(masterWPos_ - 2.0f * rphase * grainLen, static_cast<float>(delayLen));
             sumL += win * interpSample(bufL, readPos, delayLen);
             sumR += win * interpSample(bufR, readPos, delayLen);
 

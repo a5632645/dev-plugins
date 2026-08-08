@@ -5,7 +5,7 @@
 PluginUi::PluginUi(SttrAudioProcessor& p)
     : preset_(*p.preset_manager_) {
     // Bind dials to parameters
-    stretchDial_.BindParam(*p.value_tree_, "Stretch");
+    stretchDial_.BindParam(*p.value_tree_, "Formant");
     grainDial_.BindParam(*p.value_tree_, "HopMs");
     dryDelayDial_.BindParam(*p.value_tree_, "DryDelay");
     mixDial_.BindParam(*p.value_tree_, "Mix");

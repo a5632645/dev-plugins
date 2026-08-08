@@ -16,7 +16,7 @@ public:
 private:
     pluginshared::PresetPanel preset_;
 
-    ui::Dial stretchDial_{"Stretch"};
+    ui::Dial stretchDial_{"Formant"};
     ui::Dial grainDial_{"Hop"};
     ui::Dial dryDelayDial_{"Dry Delay"};
     ui::Dial mixDial_{"Mix"};
