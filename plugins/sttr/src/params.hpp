@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "dsp/idsp.hpp"
+#include "global.hpp"
 #include "pluginshared/wrap_parameters.hpp"
 
 class Params : public juce::AudioProcessorParameter::Listener {
@@ -12,23 +13,20 @@ public:
          0.5f
     };
     pluginshared::FloatParam hop_ms{
-        "HopMs", {0.0f, 500.0f, 0.01f, 0.3f},
+        "HopMs", {0.0f, global::kMaxHopMs, 0.01f, 0.3f},
          4.0f
     };
     pluginshared::FloatParam dry_delay{
         "DryDelay", {0.0f, 1.0f, 0.01f},
          0.5f
     };
-    pluginshared::IntParam mul{
-        "nGrains", 1, 4,
-         2
-    };
+    pluginshared::IntParam mul{"nGrains", 1, 4, 2};
     pluginshared::FloatParam beta{
         "Harmonic", {2.0f, 16.0f, 0.01f},
          8.0f
     };
     pluginshared::FloatParam formant{
-        "Formant", {-10.0f, 10.0f, 0.1f},
+        "Formant", {-global::kMaxFormantShift, global::kMaxFormantShift, 0.1f},
          0.0f
     };
 

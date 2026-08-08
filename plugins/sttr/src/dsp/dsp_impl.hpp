@@ -5,6 +5,7 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 
+#include "global.hpp"
 #include "idsp.hpp"
 #include "pluginshared/simd/simd.hpp"
 #include "shortcircuit_sinc_delayline.hpp"
@@ -27,13 +28,6 @@ namespace sttr {
 template <simd::Inst inst, class SimdT>
 class DspImpl : public Idsp {
 public:
-    static constexpr float kMaxHopMs = 500.0f;
-    static constexpr int kMaxGrains = 4;
-
-    // Worst-case read depth: 2 * stretch_max(2^(10/12)) * hop_max * mul_max,
-    // in milliseconds. The delay line is sized dynamically in Prepare().
-    static constexpr float kMaxDelayMs = 2.0f * 1.7818f * kMaxHopMs * static_cast<float>(kMaxGrains);
-
     DspImpl() = default;
 
     /** Allocate stereo delay buffer and reset state. */
@@ -41,7 +35,7 @@ public:
         sampleRate_ = sampleRate;
 
         // Size the delay line for the worst-case read depth
-        delayLine_.Init(kMaxDelayMs, sampleRate);
+        delayLine_.Init(global::kMaxDelayMs, sampleRate);
 
         // Initial hop value and 40ms linear ramp
         float initHop = millisecondsToSamples(hopMs_, sampleRate_);
@@ -61,7 +55,7 @@ public:
         // Initialise per-grain phases (staggered evenly)
         int const n = numGrains_ > 0 ? numGrains_ : 2;
         simd::Float128 init{};
-        for (int g = 0; g < kMaxGrains; ++g)
+        for (int g = 0; g < global::kMaxGrains; ++g)
             init[g] = (n > 1) ? static_cast<float>(g % n) / static_cast<float>(n) : 0.0f;
         grainPhase_ = init;
     }
@@ -84,7 +78,7 @@ public:
         hopSmoother_.setTargetValue(std::max(millisecondsToSamples(hopMs_, sampleRate_), 1.0f));
         dryDelaySlw_.target = dryDelay_;
         // stretch ratio = 2^(formant/12), formant in [-10, 10] st
-        stretchSmoother_.setTargetValue(std::clamp(stretch_, 0.561231f, 1.781797f));
+        stretchSmoother_.setTargetValue(stretch_);
 
         windowFn_.setBeta(windowBeta_);
 
@@ -123,7 +117,7 @@ private:
     // helpers
     /** Number of active grains for the given window-length multiplier. */
     static int grainsForMul(int mul) noexcept {
-        return std::clamp(mul, 1, kMaxGrains);
+        return std::clamp(mul, 1, global::kMaxGrains);
     }
 
     static float millisecondsToSamples(float ms, float sr) {
