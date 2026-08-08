@@ -163,6 +163,24 @@ static inline Float256 Frac(Float256 x) noexcept {
 #endif
 }
 
+static inline Float128 Sqrt(Float128 x) noexcept {
+#if defined(SIMD_USE_SSE2) || defined(SIMD_USE_SSE4) || defined(SIMD_USE_AVX) || defined(SIMD_USE_AVX2) || defined(SIMD_USE_FMA)
+    return (Float128)_mm_sqrt_ps((__m128)x);
+#elif defined(SIMD_USE_NEON) && defined(__aarch64__)
+    return (Float128)vsqrtq_f32((float32x4_t)x);
+#else
+    return Float128{std::sqrt(x[0]), std::sqrt(x[1]), std::sqrt(x[2]), std::sqrt(x[3])};
+#endif
+}
+static inline Float256 Sqrt(Float256 x) noexcept {
+#if defined(SIMD_USE_AVX) || defined(SIMD_USE_AVX2) || defined(SIMD_USE_FMA)
+    return (Float256)_mm256_sqrt_ps((__m256)x);
+#else
+    return Float256{std::sqrt(x[0]), std::sqrt(x[1]), std::sqrt(x[2]), std::sqrt(x[3]),
+                    std::sqrt(x[4]), std::sqrt(x[5]), std::sqrt(x[6]), std::sqrt(x[7])};
+#endif
+}
+
 static inline Float128 Loadu128(const float* ptr) noexcept {
     return Float128{ptr[0], ptr[1], ptr[2], ptr[3]};
 }

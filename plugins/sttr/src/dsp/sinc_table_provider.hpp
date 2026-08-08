@@ -141,8 +141,10 @@ struct ShortcircuitSincTableProvider
     }
 
     // TODO Rename these when i'm all done
-    float SincTableF32[(FIRipol_M + 1) * FIRipol_N];
-    float SincOffsetF32[(FIRipol_M)*FIRipol_N];
+    // 32-byte aligned: each 16-tap row is 64 bytes (one cache line) and the read
+    // offsets are always row-aligned, so future 256-bit SIMD (AVX) can use aligned loads.
+    alignas(32) float SincTableF32[(FIRipol_M + 1) * FIRipol_N];
+    alignas(32) float SincOffsetF32[(FIRipol_M)*FIRipol_N];
 
   private:
     bool initialized{false};

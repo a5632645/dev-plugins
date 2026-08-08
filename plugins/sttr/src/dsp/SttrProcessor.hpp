@@ -44,7 +44,7 @@ public:
 
         // arg = 1 - (2t - 1)^2; clamp to >= 0 so sqrt stays finite
         simd::Float128 const arg = one - (two * t - one) * (two * t - one);
-        simd::Float128 const computed = besselI0(beta_ * sqrtF(simd::Max(arg, zero))) * simd::BroadcastF128(invI0Beta_);
+        simd::Float128 const computed = besselI0(beta_ * simd::Sqrt(simd::Max(arg, zero))) * simd::BroadcastF128(invI0Beta_);
 
         // arg <= 0 (outside [0, 1]) -> 1.0, otherwise computed
         simd::Float128 const maskf = simd::ToFloat(arg > zero); // 0.0 or -1.0 per lane
@@ -103,10 +103,6 @@ private:
 
     static simd::Float128 expF(simd::Float128 x) noexcept {
         return simd::Float128{std::exp(x[0]), std::exp(x[1]), std::exp(x[2]), std::exp(x[3])};
-    }
-
-    static simd::Float128 sqrtF(simd::Float128 x) noexcept {
-        return simd::Float128{std::sqrt(x[0]), std::sqrt(x[1]), std::sqrt(x[2]), std::sqrt(x[3])};
     }
 
     float beta_{8.0f};

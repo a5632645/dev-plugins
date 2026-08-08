@@ -69,8 +69,8 @@ public:
         simd::Int128 const readPtr = (simd::Int128{wp_, wp_, wp_, wp_} - iDelay - (kN >> 1)) & mask_;
 
         for (int i = 0; i < N; ++i) {
-            accL[i] = dot16(bufferL_.data(), readPtr[i], table_.SincTableF32 + sincTableOffset[i]);
-            accR[i] = dot16(bufferR_.data(), readPtr[i], table_.SincTableF32 + sincTableOffset[i]);
+            dot16LR(bufferL_.data(), bufferR_.data(), readPtr[i], table_.SincTableF32 + sincTableOffset[i],
+                    accL[i], accR[i]);
         }
 
         // horizontal reduce per lane: transpose so each output lane holds the four
@@ -92,14 +92,24 @@ public:
     }
 
 private:
-    /** 16-tap windowed-sinc dot product (4 x 4-lane SIMD).
-        Returns the four 4-tap partial sums; the caller collapses them. */
-    static simd::Float128 dot16(const float* data, int readPtr, const float* table) {
-        simd::Float128 o = simd::Loadu128(data + readPtr) * simd::Loadu128(table);
-        o += simd::Loadu128(data + readPtr + 4) * simd::Loadu128(table + 4);
-        o += simd::Loadu128(data + readPtr + 8) * simd::Loadu128(table + 8);
-        o += simd::Loadu128(data + readPtr + 12) * simd::Loadu128(table + 12);
-        return o;
+    /** 16-tap windowed-sinc dot products for both channels at once.
+        The sinc table row is loaded once and shared by L/R; returns the four
+        4-tap partial sums per channel, the caller collapses them. */
+    static void dot16LR(const float* dataL, const float* dataR, int readPtr, const float* table,
+                        simd::Float128& oL, simd::Float128& oR) {
+        simd::Float128 const t0 = simd::Loadu128(table);
+        simd::Float128 const t1 = simd::Loadu128(table + 4);
+        simd::Float128 const t2 = simd::Loadu128(table + 8);
+        simd::Float128 const t3 = simd::Loadu128(table + 12);
+
+        oL = simd::Loadu128(dataL + readPtr) * t0;
+        oR = simd::Loadu128(dataR + readPtr) * t0;
+        oL += simd::Loadu128(dataL + readPtr + 4) * t1;
+        oR += simd::Loadu128(dataR + readPtr + 4) * t1;
+        oL += simd::Loadu128(dataL + readPtr + 8) * t2;
+        oR += simd::Loadu128(dataR + readPtr + 8) * t2;
+        oL += simd::Loadu128(dataL + readPtr + 12) * t3;
+        oR += simd::Loadu128(dataR + readPtr + 12) * t3;
     }
 
     static size_t NextPow2(size_t v) {

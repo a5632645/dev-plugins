@@ -68,11 +68,8 @@ void SttrProcessor::syncGrains() {
 //==============================================================================
 template <int N>
 void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
-    // Grains g >= N are inactive: masked out of the wet sum and their phases stay
-    // frozen (matching the scalar per-grain advance loop).
-    simd::Float128 const laneMask =
-        simd::Float128{(N > 0) ? 1.0f : 0.0f, (N > 1) ? 1.0f : 0.0f, (N > 2) ? 1.0f : 0.0f, (N > 3) ? 1.0f : 0.0f};
-
+    // Grains g >= N are inactive: read<N> returns zero for their lanes, so they
+    // are automatically excluded from the wet sum below.
     for (int n = 0; n < numSamples; ++n) {
         // linear ramp step
         float const hopSamps = hopSmoother_.getNextValue();
@@ -98,8 +95,8 @@ void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
         simd::Float128 gl{};
         simd::Float128 gr{};
         delayLine_.read<N>(readDelay, gl, gr);
-        float const sumL = simd::ReduceAdd(win * gl * laneMask);
-        float const sumR = simd::ReduceAdd(win * gr * laneMask);
+        float const sumL = simd::ReduceAdd(win * gl);
+        float const sumR = simd::ReduceAdd(win * gr);
 
         // advance phases (inactive lanes stay frozen)
         grainPhase_ = simd::Frac(phase + simd::BroadcastF128(phaseInc));
