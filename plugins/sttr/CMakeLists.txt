@@ -56,7 +56,6 @@ target_sources(${PLUGIN_NAME}
 target_include_directories(${PLUGIN_NAME}
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    "${CMAKE_SOURCE_DIR}/sst-basic-blocks/include"
 )
 
 target_compile_definitions(${PLUGIN_NAME}

@@ -19,6 +19,9 @@ void SttrProcessor::setParameters(Parameters const& params) {
 void SttrProcessor::prepare(float sampleRate) {
     sampleRate_ = sampleRate;
 
+    // Size the delay line for the worst-case read depth
+    delayLine_.Init(kMaxDelayMs, sampleRate);
+
     // Initial hop value and 40ms linear ramp
     float initHop = millisecondsToSamples(hopMs_, sampleRate_);
     hopSmoother_.reset(sampleRate_, 0.04);
@@ -32,8 +35,7 @@ void SttrProcessor::prepare(float sampleRate) {
 
 //==============================================================================
 void SttrProcessor::reset() {
-    delayLine_[0].clear();
-    delayLine_[1].clear();
+    delayLine_.clear();
 
     lfoPhase_ = 0.0f;
 
@@ -73,9 +75,8 @@ void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
         float const grainLen = hopSamps * static_cast<float>(windowMul_);
         float const phaseInc = 1.0f / grainLen; // fixed window-envelope rate
 
-        // write input
-        delayLine_[0].write(left[n]);
-        delayLine_[1].write(right[n]);
+        // write input (stereo)
+        delayLine_.write(left[n], right[n]);
 
         // wet signal (all grains share the same hop/grainLen)
         float sumL = 0.0f;
@@ -85,8 +86,10 @@ void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
             float const rphase = stretch * grainPhase_[g]; // read phase
             float const readDelay = 2.0f * rphase * grainLen; // samples behind write head
 
-            sumL += win * delayLine_[0].read(readDelay);
-            sumR += win * delayLine_[1].read(readDelay);
+            float gl, gr;
+            delayLine_.read(readDelay, gl, gr);
+            sumL += win * gl;
+            sumR += win * gr;
 
             // advance phase (same increment for all grains)
             grainPhase_[g] += phaseInc;
@@ -95,8 +98,8 @@ void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
 
         // mix dry signal from delay
         float const dryDelaySamps = grainLen * 1.5f * dryDelaySlw_.value;
-        float const dryL = delayLine_[0].read(dryDelaySamps);
-        float const dryR = delayLine_[1].read(dryDelaySamps);
+        float dryL, dryR;
+        delayLine_.read(dryDelaySamps, dryL, dryR);
         left[n] = interp(dryL, sumL, mixSlw_.value);
         right[n] = interp(dryR, sumR, mixSlw_.value);
 

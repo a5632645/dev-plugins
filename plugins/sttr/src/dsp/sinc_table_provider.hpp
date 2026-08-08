@@ -27,6 +27,8 @@
 #ifndef INCLUDE_SST_BASIC_BLOCKS_TABLES_SINCTABLEPROVIDER_H
 #define INCLUDE_SST_BASIC_BLOCKS_TABLES_SINCTABLEPROVIDER_H
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 // sst-basic-blocks SpecialFunctions.h relies on the POSIX M_PI macro, which is
@@ -35,81 +37,71 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wfloat-equal"
-#endif
-#include "sst/basic-blocks/dsp/SpecialFunctions.h"
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
-
-// sst-basic-blocks defines these in sst::basic_blocks::dsp; expose the
-// shorthand `dsp::` used below at global scope (as in the original header,
-// which sits inside namespace sst::basic_blocks::tables).
-namespace dsp = sst::basic_blocks::dsp;
-
-/*
- * Surge and ShortCircuit use windowed sincs for many of their interpolations
- * in a variety of contexts. This class provides a unified way to generate
- * them and provides pointers to the native layouts the DSP and other code
- * coming from those programs uses.
- */
-struct SurgeSincTableProvider
+// The windowing helpers below are inlined from sst-basic-blocks'
+// dsp/SpecialFunctions.h, so this header no longer depends on that library.
+namespace dsp
 {
-    static constexpr int FIRipol_M = 256;
-    static constexpr int FIRipol_N = 12;
-    static constexpr int FIRipolI16_N = 8;
 
-    float sinctable alignas(16)[(FIRipol_M + 1) * FIRipol_N * 2];
-    float sinctable1X alignas(16)[(FIRipol_M + 1) * FIRipol_N];
-    int16_t sinctableI16 alignas(16)[(FIRipol_M + 1) * FIRipolI16_N];
+inline double sincf(double x)
+{
+    if (std::fabs(x) < 1e-30)
+        return 1.0;
+    return (std::sin(M_PI * x)) / (M_PI * x);
+}
 
-    SurgeSincTableProvider()
+inline double symmetric_blackman(double i, int n)
+{
+    i -= (n / 2.0);
+
+    return (0.42 - 0.5 * std::cos(2 * M_PI * i / (n)) + 0.08 * std::cos(4 * M_PI * i / (n)));
+}
+
+inline double BESSI0(double X)
+{
+    double Y, P1, P2, P3, P4, P5, P6, P7, Q1, Q2, Q3, Q4, Q5, Q6, Q7, Q8, Q9, AX, BX;
+    P1 = 1.0;
+    P2 = 3.5156229;
+    P3 = 3.0899424;
+    P4 = 1.2067429;
+    P5 = 0.2659732;
+    P6 = 0.360768e-1;
+    P7 = 0.45813e-2;
+    Q1 = 0.39894228;
+    Q2 = 0.1328592e-1;
+    Q3 = 0.225319e-2;
+    Q4 = -0.157565e-2;
+    Q5 = 0.916281e-2;
+    Q6 = -0.2057706e-1;
+    Q7 = 0.2635537e-1;
+    Q8 = -0.1647633e-1;
+    Q9 = 0.392377e-2;
+    if (std::fabs(X) < 3.75)
     {
-        float cutoff = 0.455f;
-        float cutoff1X = 0.85f;
-        float cutoffI16 = 1.0f;
-        int j;
-        for (j = 0; j < FIRipol_M + 1; j++)
-        {
-            for (int i = 0; i < FIRipol_N; i++)
-            {
-                double t =
-                    -double(i) + double(FIRipol_N / 2.0) + double(j) / double(FIRipol_M) - 1.0;
-                double val = (float)(dsp::symmetric_blackman(t, FIRipol_N) * cutoff *
-                                     dsp::sincf(cutoff * t));
-                double val1X = (float)(dsp::symmetric_blackman(t, FIRipol_N) * cutoff1X *
-                                       dsp::sincf(cutoff1X * t));
-                sinctable[j * FIRipol_N * 2 + i] = (float)val;
-                sinctable1X[j * FIRipol_N + i] = (float)val1X;
-            }
-        }
-        for (j = 0; j < FIRipol_M; j++)
-        {
-            for (int i = 0; i < FIRipol_N; i++)
-            {
-                sinctable[j * FIRipol_N * 2 + FIRipol_N + i] =
-                    (float)((sinctable[(j + 1) * FIRipol_N * 2 + i] -
-                             sinctable[j * FIRipol_N * 2 + i]) /
-                            65536.0);
-            }
-        }
-
-        for (j = 0; j < FIRipol_M + 1; j++)
-        {
-            for (int i = 0; i < FIRipolI16_N; i++)
-            {
-                double t =
-                    -double(i) + double(FIRipolI16_N / 2.0) + double(j) / double(FIRipol_M) - 1.0;
-                double val = (float)(dsp::symmetric_blackman(t, FIRipolI16_N) * cutoffI16 *
-                                     dsp::sincf(cutoffI16 * t));
-
-                sinctableI16[j * FIRipolI16_N + i] = (short)((float)val * 16384.f);
-            }
-        }
+        Y = (X / 3.75) * (X / 3.75);
+        return (P1 + Y * (P2 + Y * (P3 + Y * (P4 + Y * (P5 + Y * (P6 + Y * P7))))));
     }
-};
+    else
+    {
+        AX = std::fabs(X);
+        Y = 3.75 / AX;
+        BX = std::exp(AX) / std::sqrt(AX);
+        AX = Q1 +
+             Y * (Q2 + Y * (Q3 + Y * (Q4 + Y * (Q5 + Y * (Q6 + Y * (Q7 + Y * (Q8 + Y * Q9)))))));
+        return (AX * BX);
+    }
+}
+
+inline double symmetric_kaiser(double x, uint16_t nint, double Alpha)
+{
+    double N = (double)nint;
+    x += N * 0.5;
+
+    x = std::clamp(x, 0.0, N);
+    double a = (2.0 * x / N - 1.0);
+    return BESSI0(M_PI * Alpha * std::sqrt(1.0 - a * a)) / BESSI0(M_PI * Alpha);
+}
+
+} // namespace dsp
 
 struct ShortcircuitSincTableProvider
 {

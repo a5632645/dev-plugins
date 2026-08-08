@@ -5,7 +5,7 @@
 
 #include <juce_audio_basics/juce_audio_basics.h>
 
-#include "sse_sinc_delayline.hpp"
+#include "shortcircuit_sinc_delayline.hpp"
 
 //==============================================================================
 /** Kaiser window function — evaluates at a normalised position t in [0, 1].
@@ -118,12 +118,12 @@ public:
     /** Clear delay buffer and reset read/write positions. */
     void reset();
 private:
+    static constexpr float kMaxHopMs = 500.0f;
     static constexpr int kMaxGrains = 4;
 
-    // Fixed-size sinc delay line, sized to cover the worst-case read depth
-    // 2 * stretch_max(2^(10/12)) * hop_max(0.5*sr) * mul_max(4) = 7.13*sr,
-    // which at 192 kHz is ~1.37M samples < 2^21.
-    static constexpr int kCombSize = 1 << 21;
+    // Worst-case read depth: 2 * stretch_max(2^(10/12)) * hop_max * mul_max,
+    // in milliseconds. The delay line is sized dynamically in prepare().
+    static constexpr float kMaxDelayMs = 2.0f * 1.7818f * kMaxHopMs * static_cast<float>(kMaxGrains);
 
     // helpers
     /** Number of active grains for the given window-length multiplier. */
@@ -181,9 +181,9 @@ private:
 
     float lfoPhase_{};
 
-    // Per-channel sinc delay lines (shared table)
-    static inline SurgeSincTableProvider sincTable_;
-    SSESincDelayLine<kCombSize> delayLine_[2]{sincTable_, sincTable_};
+    // Stereo sinc delay line (shared table)
+    static inline ShortcircuitSincTableProvider sincTable_;
+    ShortcircuitSincDelayLine delayLine_{sincTable_};
 
     void pullTargets();
     void syncGrains();
