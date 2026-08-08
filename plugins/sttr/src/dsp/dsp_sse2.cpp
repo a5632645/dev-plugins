@@ -1,0 +1,17 @@
+#if defined(__x86_64__) || defined(_M_X64)
+
+#define SIMD_USE_SSE2
+#define INST_NAME "SSE2"
+
+#include "dsp_impl.hpp"
+
+namespace sttr {
+
+template <>
+std::unique_ptr<Idsp> CreateDspImpl<simd::Inst::SSE2>() {
+    return std::make_unique<DspImpl<simd::Inst::SSE2, simd::Float128>>();
+}
+
+} // namespace sttr
+
+#endif

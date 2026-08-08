@@ -12,6 +12,8 @@ SttrAudioProcessor::SttrAudioProcessor()
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)
 #endif
       ) {
+    dsp_ = sttr::CreateDsp();
+
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
     params_.BuildLayout(layout);
 
@@ -96,11 +98,11 @@ void SttrAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     juce::ignoreUnused(samplesPerBlock);
 
     params_.MarkChanged();
-    dsp_.prepare(static_cast<float>(sampleRate));
+    dsp_->Prepare(static_cast<float>(sampleRate));
 }
 
 void SttrAudioProcessor::reset() {
-    dsp_.reset();
+    dsp_->Reset();
 }
 
 void SttrAudioProcessor::releaseResources() {}
@@ -110,10 +112,10 @@ void SttrAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mi
     juce::ignoreUnused(midiMessages);
 
     if (params_.IsParamChanged()) {
-        dsp_.setParameters(params_.ToSttrParam());
+        dsp_->SetParameters(params_.ToSttrParam());
     }
 
-    dsp_.processBlock(buffer.getWritePointer(0), buffer.getWritePointer(1), buffer.getNumSamples());
+    dsp_->ProcessBlock(buffer.getWritePointer(0), buffer.getWritePointer(1), buffer.getNumSamples());
 }
 
 //==============================================================================

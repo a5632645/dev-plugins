@@ -4,6 +4,8 @@
 
 PluginUi::PluginUi(SttrAudioProcessor& p)
     : preset_(*p.preset_manager_) {
+    preset_.SetDspInstName(p.dsp_->InstName().data());
+        
     // Bind dials to parameters
     stretchDial_.BindParam(*p.value_tree_, "Formant");
     grainDial_.BindParam(*p.value_tree_, "HopMs");

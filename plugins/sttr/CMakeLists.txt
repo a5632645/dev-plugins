@@ -50,7 +50,7 @@ target_sources(${PLUGIN_NAME}
     src/ui/plugin_ui.cpp
     src/PluginEditor.cpp
     src/PluginProcessor.cpp
-    src/dsp/SttrProcessor.cpp
+    src/dsp/dispatch.cpp
 )
 
 target_include_directories(${PLUGIN_NAME}
@@ -78,7 +78,41 @@ target_link_libraries(${PLUGIN_NAME}
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
+    cpp_simd_detector
 )
+
+# ------------------------------------------------------------
+# simd dispatch
+# ------------------------------------------------------------
+if(APPLE)
+    # Each dsp_*.cpp self-selects its architecture via __x86_64__ / __aarch64__,
+    # so all files can be unconditionally added even for universal binaries.
+    if("arm64" IN_LIST CMAKE_OSX_ARCHITECTURES)
+        target_sources(${PLUGIN_NAME}
+            PRIVATE
+            src/dsp/dsp_neon.cpp
+        )
+        set_source_files_properties("src/dsp/dsp_neon.cpp" PROPERTIES COMPILE_FLAGS "-ffast-math -Wno-nan-infinity-disabled")
+    endif()
+
+    if("x86_64" IN_LIST CMAKE_OSX_ARCHITECTURES)
+        target_sources(${PLUGIN_NAME}
+            PRIVATE
+            src/dsp/dsp_sse4.cpp
+            src/dsp/dsp_sse2.cpp
+        )
+        set_source_files_properties("src/dsp/dsp_sse2.cpp" PROPERTIES COMPILE_FLAGS "-msse2 -ffast-math -Wno-nan-infinity-disabled")
+        set_source_files_properties("src/dsp/dsp_sse4.cpp" PROPERTIES COMPILE_FLAGS "-msse4.1 -ffast-math -Wno-nan-infinity-disabled")
+    endif()
+else()
+    target_sources(${PLUGIN_NAME}
+        PRIVATE
+        src/dsp/dsp_sse4.cpp
+        src/dsp/dsp_sse2.cpp
+    )
+    set_source_files_properties("src/dsp/dsp_sse2.cpp" PROPERTIES COMPILE_FLAGS "-msse2 -ffast-math -Wno-nan-infinity-disabled")
+    set_source_files_properties("src/dsp/dsp_sse4.cpp" PROPERTIES COMPILE_FLAGS "-msse4.1 -ffast-math -Wno-nan-infinity-disabled")
+endif()
 
 # ------------------------------------------------------------
 # resource

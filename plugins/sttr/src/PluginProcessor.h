@@ -3,7 +3,7 @@
 
 #include <pluginshared/preset_manager.hpp>
 
-#include "dsp/SttrProcessor.hpp"
+#include "dsp/idsp.hpp"
 #include "params.hpp"
 
 class SttrAudioProcessor final : public juce::AudioProcessor {
@@ -43,7 +43,7 @@ public:
 
     // --- parameters & DSP engine ---
     Params params_;
-    SttrProcessor dsp_;
+    sttr::DspHandle dsp_;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;

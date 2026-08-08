@@ -2,7 +2,7 @@
 #include <atomic>
 #include <cmath>
 
-#include "dsp/SttrProcessor.hpp"
+#include "dsp/idsp.hpp"
 #include "pluginshared/wrap_parameters.hpp"
 
 class Params : public juce::AudioProcessorParameter::Listener {
@@ -41,8 +41,8 @@ public:
         layout += formant;
     }
 
-    [[nodiscard]] SttrProcessor::Parameters ToSttrParam() {
-        SttrProcessor::Parameters p;
+    [[nodiscard]] sttr::SttrParam ToSttrParam() {
+        sttr::SttrParam p;
         p.mix = mix.Get();
         p.hopMs = hop_ms.Get();
         p.dryDelay = dry_delay.Get();
