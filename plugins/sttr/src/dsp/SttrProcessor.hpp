@@ -2,10 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
-#include <vector>
 
 #include <juce_audio_basics/juce_audio_basics.h>
-#include <qwqdsp/interpolation.hpp>
+
+#include "sse_sinc_delayline.hpp"
 
 //==============================================================================
 /** Kaiser window function — evaluates at a normalised position t in [0, 1].
@@ -118,8 +118,12 @@ public:
     /** Clear delay buffer and reset read/write positions. */
     void reset();
 private:
-    static constexpr float kMaxHopMs = 500.0f;
     static constexpr int kMaxGrains = 4;
+
+    // Fixed-size sinc delay line, sized to cover the worst-case read depth
+    // 2 * stretch_max(2^(10/12)) * hop_max(0.5*sr) * mul_max(4) = 7.13*sr,
+    // which at 192 kHz is ~1.37M samples < 2^21.
+    static constexpr int kCombSize = 1 << 21;
 
     // helpers
     /** Number of active grains for the given window-length multiplier. */
@@ -131,24 +135,8 @@ private:
         return ms / 1000.0f * sr;
     }
 
-    static float wrap(float index, float length) {
-        if (index < 0.0f) return index + length;
-        if (index >= length) return index - length;
-        return index;
-    }
-
     static float interp(float a, float b, float d) {
         return a * (1.0f - d) + b * d;
-    }
-
-    static float interpSample(float* data, float pos, unsigned int wrapLen) {
-        int i = static_cast<int>(pos);
-        float d = pos - static_cast<float>(i);
-        float y0 = data[static_cast<int>(wrap(static_cast<float>(i), static_cast<float>(wrapLen)))];
-        float y1 = data[static_cast<int>(wrap(static_cast<float>(i + 1), static_cast<float>(wrapLen)))];
-        float y2 = data[static_cast<int>(wrap(static_cast<float>(i + 2), static_cast<float>(wrapLen)))];
-        float y3 = data[static_cast<int>(wrap(static_cast<float>(i + 3), static_cast<float>(wrapLen)))];
-        return qwqdsp::Interpolation::Lagrange3rd(y0, y1, y2, y3, d);
     }
 
     // slewed parameter (for dryDelay/mix)
@@ -175,8 +163,6 @@ private:
     // internal state
     float sampleRate_{44100.0f};
     int numGrains_{2};   // derived from windowMul_
-    int delayWriter_{};  // current write position in delay line
-    float masterWPos_{}; // monotonically increasing write-sample counter
     Window windowFn_;    // current Kaiser window
 
     float mix_{0.5f};
@@ -195,9 +181,9 @@ private:
 
     float lfoPhase_{};
 
-    // Per-channel delay buffers
-    std::vector<float> delayBuf_[2]; // stereo
-    int delayCap_{};                 // samples per channel
+    // Per-channel sinc delay lines (shared table)
+    static inline SurgeSincTableProvider sincTable_;
+    SSESincDelayLine<kCombSize> delayLine_[2]{sincTable_, sincTable_};
 
     void pullTargets();
     void syncGrains();

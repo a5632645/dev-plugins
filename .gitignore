@@ -5,3 +5,4 @@ build/
 .cache/
 __cmake_systeminfo/
 script/__pycache__/
+sst-basic-blocks/

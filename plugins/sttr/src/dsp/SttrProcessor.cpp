@@ -19,10 +19,6 @@ void SttrProcessor::setParameters(Parameters const& params) {
 void SttrProcessor::prepare(float sampleRate) {
     sampleRate_ = sampleRate;
 
-    // Allocate stereo delay line (4× max hop × max grains)
-    delayCap_ = static_cast<int>(4.0f * kMaxHopMs * kMaxGrains * sampleRate_ / 1000.0f);
-    for (auto& buf : delayBuf_) buf.assign(static_cast<size_t>(delayCap_), 0.0f);
-
     // Initial hop value and 40ms linear ramp
     float initHop = millisecondsToSamples(hopMs_, sampleRate_);
     hopSmoother_.reset(sampleRate_, 0.04);
@@ -36,10 +32,9 @@ void SttrProcessor::prepare(float sampleRate) {
 
 //==============================================================================
 void SttrProcessor::reset() {
-    for (auto& buf : delayBuf_) std::fill(buf.begin(), buf.end(), 0.0f);
+    delayLine_[0].clear();
+    delayLine_[1].clear();
 
-    delayWriter_ = 0;
-    masterWPos_ = 0.0f;
     lfoPhase_ = 0.0f;
 
     // Initialise per-grain phases (staggered evenly)
@@ -71,10 +66,6 @@ void SttrProcessor::syncGrains() {
 //==============================================================================
 template <int N>
 void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
-    unsigned int const delayLen = static_cast<unsigned int>(delayCap_);
-    float* bufL = delayBuf_[0].data();
-    float* bufR = delayBuf_[1].data();
-
     for (int n = 0; n < numSamples; ++n) {
         // linear ramp step
         float const hopSamps = hopSmoother_.getNextValue();
@@ -83,20 +74,19 @@ void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
         float const phaseInc = 1.0f / grainLen; // fixed window-envelope rate
 
         // write input
-        bufL[delayWriter_] = left[n];
-        bufR[delayWriter_] = right[n];
+        delayLine_[0].write(left[n]);
+        delayLine_[1].write(right[n]);
 
         // wet signal (all grains share the same hop/grainLen)
         float sumL = 0.0f;
         float sumR = 0.0f;
         for (int g = 0; g < N; ++g) {
             float const win = windowFn_.value(grainPhase_[g]);
-            float rphase = stretch * grainPhase_[g]; // read phase
+            float const rphase = stretch * grainPhase_[g]; // read phase
+            float const readDelay = 2.0f * rphase * grainLen; // samples behind write head
 
-            // read from the delay line only while rphase <= 1, otherwise 0
-            float const readPos = wrap(masterWPos_ - 2.0f * rphase * grainLen, static_cast<float>(delayLen));
-            sumL += win * interpSample(bufL, readPos, delayLen);
-            sumR += win * interpSample(bufR, readPos, delayLen);
+            sumL += win * delayLine_[0].read(readDelay);
+            sumR += win * delayLine_[1].read(readDelay);
 
             // advance phase (same increment for all grains)
             grainPhase_[g] += phaseInc;
@@ -104,17 +94,11 @@ void SttrProcessor::processGrains(float* left, float* right, int numSamples) {
         }
 
         // mix dry signal from delay
-        float dryReader = wrap(masterWPos_ - grainLen * 1.5f * dryDelaySlw_.value, static_cast<float>(delayLen));
-        float dryL = interpSample(bufL, dryReader, delayLen);
-        float dryR = interpSample(bufR, dryReader, delayLen);
+        float const dryDelaySamps = grainLen * 1.5f * dryDelaySlw_.value;
+        float const dryL = delayLine_[0].read(dryDelaySamps);
+        float const dryR = delayLine_[1].read(dryDelaySamps);
         left[n] = interp(dryL, sumL, mixSlw_.value);
         right[n] = interp(dryR, sumR, mixSlw_.value);
-
-        // advance state
-        ++delayWriter_;
-        if (delayWriter_ >= delayCap_) delayWriter_ = 0;
-        masterWPos_ += 1.0f;
-        if (masterWPos_ >= static_cast<float>(delayCap_)) masterWPos_ -= static_cast<float>(delayCap_);
 
         dryDelaySlw_.step();
     }
