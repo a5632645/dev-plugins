@@ -181,9 +181,8 @@ private:
 
     float lfoPhase_{};
 
-    // Stereo sinc delay line (shared table)
-    static inline ShortcircuitSincTableProvider sincTable_;
-    ShortcircuitSincDelayLine delayLine_{sincTable_};
+    // Stereo sinc delay line (owns its sinc table)
+    ShortcircuitSincDelayLine delayLine_;
 
     void pullTargets();
     void syncGrains();

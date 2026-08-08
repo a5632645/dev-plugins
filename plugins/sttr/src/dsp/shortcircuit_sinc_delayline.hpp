@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 
-#include <emmintrin.h>
+#include "pluginshared/simd/simd.hpp"
 
 #include "sinc_table_provider.hpp"
 
@@ -28,18 +28,10 @@ public:
 
     ShortcircuitSincDelayLine() = default;
 
-    /** The table provider must outlive this delay line. */
-    explicit ShortcircuitSincDelayLine(ShortcircuitSincTableProvider& st) {
-        SetSincTable(st);
-    }
-
-    void SetSincTable(ShortcircuitSincTableProvider& st) {
-        st.init(); // no-op if already initialized
-        sinctable_ = st.SincTableF32;
-    }
-
     /** Size the circular buffer for max_ms milliseconds at sample rate fs. */
     void Init(float max_ms, float fs) {
+        table_.init(); // build the sinc table once (no-op afterwards)
+
         size_t const samples = static_cast<size_t>(std::ceil(max_ms * 0.001f * fs));
         comb_size_ = static_cast<int>(NextPow2(std::max(samples, size_t(kN))));
         mask_ = comb_size_ - 1;
@@ -67,8 +59,8 @@ public:
         int const sincTableOffset = static_cast<int>((1.0f - frac) * static_cast<float>(kM)) * kN;
         int const readPtr = (wp_ - iDelay - (kN >> 1)) & mask_;
 
-        l = dot16(bufferL_.data(), readPtr, sinctable_ + sincTableOffset);
-        r = dot16(bufferR_.data(), readPtr, sinctable_ + sincTableOffset);
+        l = dot16(bufferL_.data(), readPtr, table_.SincTableF32 + sincTableOffset);
+        r = dot16(bufferR_.data(), readPtr, table_.SincTableF32 + sincTableOffset);
     }
 
     inline void clear() {
@@ -82,30 +74,13 @@ public:
     }
 
 private:
-    /** 16-tap windowed-sinc dot product (4 x 4-lane SSE2). */
+    /** 16-tap windowed-sinc dot product (4 x 4-lane SIMD). */
     static float dot16(const float* data, int readPtr, const float* table) {
-        __m128 a = _mm_loadu_ps(&data[readPtr]);
-        __m128 b = _mm_loadu_ps(&table[0]);
-        __m128 o = _mm_mul_ps(a, b);
-
-        a = _mm_loadu_ps(&data[readPtr + 4]);
-        b = _mm_loadu_ps(&table[4]);
-        o = _mm_add_ps(o, _mm_mul_ps(a, b));
-
-        a = _mm_loadu_ps(&data[readPtr + 8]);
-        b = _mm_loadu_ps(&table[8]);
-        o = _mm_add_ps(o, _mm_mul_ps(a, b));
-
-        a = _mm_loadu_ps(&data[readPtr + 12]);
-        b = _mm_loadu_ps(&table[12]);
-        o = _mm_add_ps(o, _mm_mul_ps(a, b));
-
-        __m128 r = _mm_add_ps(o, _mm_movehl_ps(o, o));
-        r = _mm_add_ss(r, _mm_shuffle_ps(r, r, 1));
-
-        float res;
-        _mm_store_ss(&res, r);
-        return res;
+        simd::Float128 o = simd::Loadu128(data + readPtr) * simd::Loadu128(table);
+        o += simd::Loadu128(data + readPtr + 4) * simd::Loadu128(table + 4);
+        o += simd::Loadu128(data + readPtr + 8) * simd::Loadu128(table + 8);
+        o += simd::Loadu128(data + readPtr + 12) * simd::Loadu128(table + 12);
+        return simd::ReduceAdd(o);
     }
 
     static size_t NextPow2(size_t v) {
@@ -121,7 +96,7 @@ private:
         return v + 1;
     }
 
-    const float* sinctable_{nullptr};
+    static inline ShortcircuitSincTableProvider table_; // shared sinc table (single copy, like a DLL global)
     std::vector<float> bufferL_, bufferR_;
     int comb_size_{0};
     int mask_{0};

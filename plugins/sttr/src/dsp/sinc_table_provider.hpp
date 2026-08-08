@@ -107,7 +107,6 @@ struct ShortcircuitSincTableProvider
 {
     static constexpr uint32_t FIRipol_M = 256;
     static constexpr uint32_t FIRipol_N = 16;
-    static constexpr uint32_t FIRipolI16_N = 16;
     static constexpr uint32_t FIRoffset = 8;
 
     void init()
@@ -116,7 +115,6 @@ struct ShortcircuitSincTableProvider
             return;
 
         float cutoff = 0.95f;
-        float cutoffI16 = 0.95f;
         for (auto j = 0U; j < FIRipol_M + 1; j++)
         {
             for (auto i = 0U; i < FIRipol_N; i++)
@@ -139,35 +137,12 @@ struct ShortcircuitSincTableProvider
             }
         }
 
-        for (auto j = 0U; j < FIRipol_M + 1; j++)
-        {
-            for (auto i = 0U; i < FIRipolI16_N; i++)
-            {
-                double t =
-                    -double(i) + double(FIRipolI16_N / 2.0) + double(j) / double(FIRipol_M) - 1.0;
-                double val = (float)(dsp::symmetric_kaiser(t, FIRipol_N, 5.0) * cutoffI16 *
-                                     dsp::sincf(cutoffI16 * t));
-
-                SincTableI16[j * FIRipolI16_N + i] = static_cast<short>(val * 16384);
-            }
-        }
-        for (auto j = 0U; j < FIRipol_M; j++)
-        {
-            for (auto i = 0U; i < FIRipolI16_N; i++)
-            {
-                SincOffsetI16[j * FIRipolI16_N + i] =
-                    (SincTableI16[(j + 1) * FIRipolI16_N + i] - SincTableI16[j * FIRipolI16_N + i]);
-            }
-        }
-
         initialized = true;
     }
 
     // TODO Rename these when i'm all done
     float SincTableF32[(FIRipol_M + 1) * FIRipol_N];
     float SincOffsetF32[(FIRipol_M)*FIRipol_N];
-    short SincTableI16[(FIRipol_M + 1) * FIRipol_N];
-    short SincOffsetI16[(FIRipol_M)*FIRipol_N];
 
   private:
     bool initialized{false};
