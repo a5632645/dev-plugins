@@ -3,8 +3,6 @@
 #include <cmath>
 #include <concepts>
 
-#include <juce_audio_basics/juce_audio_basics.h>
-
 #include "global.hpp"
 #include "idsp.hpp"
 #include "pluginshared/simd/simd.hpp"
@@ -37,13 +35,20 @@ public:
         // Size the delay line for the worst-case read depth
         delayLine_.Init(global::kMaxDelayMs, sampleRate);
 
-        // Initial hop value and 40ms linear ramp
+        // Initial hop value and 40ms one-pole slew
         float initHop = millisecondsToSamples(hopMs_, sampleRate_);
-        hopSmoother_.reset(sampleRate_, 0.04);
-        hopSmoother_.setCurrentAndTargetValue(initHop);
+        hopSlw_.setSlewTime(sampleRate_, 0.04f);
+        hopSlw_.target = initHop;
+        hopSlw_.value = initHop;
 
-        stretchSmoother_.reset(sampleRate_, 0.04);
-        stretchSmoother_.setCurrentAndTargetValue(stretch_);
+        stretchSlw_.setSlewTime(sampleRate_, 0.04f);
+        stretchSlw_.target = stretch_;
+        stretchSlw_.value = stretch_;
+
+        // slew rates are per-sample coefficients — derive them from fixed time
+        // constants so the smoothing time stays constant across sample rates.
+        dryDelaySlw_.setSlewTime(sampleRate, global::kDryDelaySlewMs * 0.001f);
+        mixSlw_.setSlewTime(sampleRate, global::kMixSlewMs * 0.001f);
 
         Reset();
     }
@@ -75,10 +80,10 @@ public:
         // pull smoother targets — SetParameters only runs when a parameter
         // changed, so the window is applied unconditionally.
         mixSlw_.target = mix_;
-        hopSmoother_.setTargetValue(std::max(millisecondsToSamples(hopMs_, sampleRate_), 1.0f));
+        hopSlw_.target = std::max(millisecondsToSamples(hopMs_, sampleRate_), 1.0f);
         dryDelaySlw_.target = dryDelay_;
         // stretch ratio = 2^(formant/12), formant in [-10, 10] st
-        stretchSmoother_.setTargetValue(stretch_);
+        stretchSlw_.target = stretch_;
 
         windowFn_.setBeta(windowBeta_);
 
@@ -128,20 +133,31 @@ private:
         return a * (1.0f - d) + b * d;
     }
 
-    // slewed parameter (for dryDelay/mix)
+    // slewed parameter (for dryDelay/mix) — one-pole exponential smoother:
+    // value += slew * (target - value). The per-sample slew coefficient is
+    // derived from a time constant and the sample rate, like a smoother.
     struct SlewedParam {
         float target, value, slew;
         SlewedParam(float v, float s) noexcept
             : target(v)
             , value(v)
             , slew(s) {}
-        void step() noexcept {
+
+        /** Set the slew coefficient from a time constant in seconds. */
+        void setSlewTime(float sampleRate, float timeSeconds) noexcept {
+            // one-pole coefficient: slew = 1 - exp(-1 / (tau * fs))
+            slew = 1.0f - std::exp(-1.0f / (timeSeconds * sampleRate));
+        }
+
+        float step() noexcept {
             float diff = target - value;
             if (std::abs(diff) < 1.0e-20f) {
                 value = target;
-                return;
             }
-            value = value + diff * slew;
+            else {
+                value = value + diff * slew;
+            }
+            return value;
         }
     };
 
@@ -162,8 +178,8 @@ private:
     int windowMul_{2};        // grain length multiplier, integer [1, 4]
     float windowBeta_{8.0f};  // Kaiser window beta
 
-    juce::SmoothedValue<float> hopSmoother_;     // juce linear ramp smoother
-    juce::SmoothedValue<float> stretchSmoother_; // stretch ratio smoother
+    SlewedParam hopSlw_{0.0f, 0.0f};             // hop samples (samples), one-pole slew
+    SlewedParam stretchSlw_{1.0f, 0.0f};         // stretch ratio, one-pole slew
     simd::Float128 grainPhase_{};                // per-grain phase [0, 1), packed as 4 lanes (max 4 grains)
 
     SlewedParam dryDelaySlw_{0.0f, 0.000167f};
@@ -180,9 +196,9 @@ void DspImpl<inst, SimdT>::processGrains(float* left, float* right, int numSampl
     // Grains g >= N are inactive: read<N> returns zero for their lanes, so they
     // are automatically excluded from the wet sum below.
     for (int n = 0; n < numSamples; ++n) {
-        // linear ramp step
-        float const hopSamps = hopSmoother_.getNextValue();
-        float const stretch = stretchSmoother_.getNextValue();
+        // one-pole slew step
+        float const hopSamps = hopSlw_.step();
+        float const stretch = stretchSlw_.step();
         float const grainLen = hopSamps * static_cast<float>(windowMul_);
         float const phaseInc = 1.0f / grainLen; // fixed window-envelope rate
 

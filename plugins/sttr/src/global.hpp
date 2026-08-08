@@ -18,4 +18,8 @@ static constexpr float kMaxFormantShift = 10.0f;
 // in milliseconds. The delay line is sized dynamically in Prepare().
 static constexpr float kMaxDelayMs = 2.0f * 1.7818f * kMaxHopMs * static_cast<float>(kMaxGrains);
 
+// One-pole slew (dryDelay / mix) time constants in milliseconds.
+static constexpr float kDryDelaySlewMs = 130.0f;
+static constexpr float kMixSlewMs = 0.15f;
+
 } // namespace global
