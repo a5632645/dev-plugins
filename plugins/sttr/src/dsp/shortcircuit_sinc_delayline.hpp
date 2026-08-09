@@ -77,8 +77,8 @@ public:
         simd::Int128 const readPtr = (simd::Int128{wp_, wp_, wp_, wp_} - iDelay - (kN >> 1)) & mask_;
 
         for (int i = 0; i < N; ++i) {
-            Dot16LR(buffer_l_.data(), buffer_r_.data(), readPtr[i], table_.sinc_table_f32 + sincTableOffset[i], accL[i],
-                    accR[i]);
+            DotLR(buffer_l_.data(), buffer_r_.data(), readPtr[i], table_.sinc_table_f32 + sincTableOffset[i], accL[i],
+                  accR[i]);
         }
 
         // horizontal reduce per lane: transpose so each output lane holds the four
@@ -106,8 +106,8 @@ public:
         simd::Int128 const readPtr = (simd::Int128{wp_, wp_, wp_, wp_} - iDelay - (kN >> 1)) & mask_;
 
         for (int i = 0; i < N; ++i) {
-            Dot16LR256(buffer_l_.data(), buffer_r_.data(), readPtr[i], table_.sinc_table_f32 + sincTableOffset[i],
-                       accL[i], accR[i]);
+            DotLR256(buffer_l_.data(), buffer_r_.data(), readPtr[i], table_.sinc_table_f32 + sincTableOffset[i],
+                     accL[i], accR[i]);
         }
 
         // horizontal reduce per lane: transpose the 8x8 partial-sum matrix so each
@@ -119,6 +119,32 @@ public:
         simd::Float256 const outR = colR[0] + colR[1] + colR[2] + colR[3] + colR[4] + colR[5] + colR[6] + colR[7];
         l = simd::Float128{outL[0], outL[1], outL[2], outL[3]};
         r = simd::Float128{outR[0], outR[1], outR[2], outR[3]};
+    }
+
+    /** Sinc-interpolated read at a single delay (samples), stereo.
+        Returns {left, right} in the low two lanes; selects the 128-bit or
+        256-bit dot kernel at compile time via if constexpr. */
+    simd::Float128 ReadLR(float delay) {
+        // scalar index math
+        int const i_delay = static_cast<int>(delay);
+        float const frac = delay - static_cast<float>(i_delay);
+        int const table_offset = static_cast<int>((1.0f - frac) * static_cast<float>(kM)) * kN;
+        int const read_ptr = (wp_ - i_delay - (kN >> 1)) & mask_;
+
+        float l, r;
+        if constexpr (std::same_as<SimdT, simd::Float128>) {
+            simd::Float128 acc_l{}, acc_r{};
+            DotLR(buffer_l_.data(), buffer_r_.data(), read_ptr, table_.sinc_table_f32 + table_offset, acc_l, acc_r);
+            l = acc_l[0] + acc_l[1] + acc_l[2] + acc_l[3];
+            r = acc_r[0] + acc_r[1] + acc_r[2] + acc_r[3];
+        }
+        else {
+            simd::Float256 acc_l{}, acc_r{};
+            DotLR256(buffer_l_.data(), buffer_r_.data(), read_ptr, table_.sinc_table_f32 + table_offset, acc_l, acc_r);
+            l = acc_l[0] + acc_l[1] + acc_l[2] + acc_l[3] + acc_l[4] + acc_l[5] + acc_l[6] + acc_l[7];
+            r = acc_r[0] + acc_r[1] + acc_r[2] + acc_r[3] + acc_r[4] + acc_r[5] + acc_r[6] + acc_r[7];
+        }
+        return simd::Float128{l, r, 0.0f, 0.0f};
     }
 
     inline void Clear() {
@@ -134,8 +160,8 @@ private:
     /** 16-tap windowed-sinc dot products for both channels at once.
         The sinc table row is loaded once and shared by L/R; returns the four
         4-tap partial sums per channel, the caller collapses them. */
-    static void Dot16LR(const float* dataL, const float* dataR, int readPtr, const float* table, simd::Float128& oL,
-                        simd::Float128& oR) {
+    static void DotLR(const float* dataL, const float* dataR, int readPtr, const float* table, simd::Float128& oL,
+                      simd::Float128& oR) {
         simd::Float128 const t0 = simd::Loadu128(table);
         simd::Float128 const t1 = simd::Loadu128(table + 4);
         simd::Float128 const t2 = simd::Loadu128(table + 8);
@@ -154,8 +180,8 @@ private:
     /** 16-tap windowed-sinc dot products for both channels at once (256-bit).
         The sinc table row is loaded once and shared by L/R; returns the two
         8-tap partial sums per channel, the caller collapses them. */
-    static void Dot16LR256(const float* dataL, const float* dataR, int readPtr, const float* table, simd::Float256& oL,
-                           simd::Float256& oR) {
+    static void DotLR256(const float* dataL, const float* dataR, int readPtr, const float* table, simd::Float256& oL,
+                         simd::Float256& oR) {
         simd::Float256 const t0 = simd::Loadu256(table);
         simd::Float256 const t1 = simd::Loadu256(table + 8);
 

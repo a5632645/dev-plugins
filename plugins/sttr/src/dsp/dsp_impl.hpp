@@ -201,6 +201,7 @@ void DspImpl<inst, SimdT>::ProcessGrains(float* left, float* right, int numSampl
         float const mix = mix_slw_.Step();
         float const grain_len = hop_samps * static_cast<float>(window_mul_);
         float const phase_inc = 1.0f / grain_len; // fixed window-envelope rate
+        float const dry_delay = dry_delay_slw_.Step();
 
         delay_line_.Write(left[n], right[n]);
 
@@ -225,13 +226,10 @@ void DspImpl<inst, SimdT>::ProcessGrains(float* left, float* right, int numSampl
 
         grain_phase_ = simd::Frac(phase + simd::BroadcastF128(phase_inc));
 
-        float const dryDelaySamps = grain_len * 1.5f * dry_delay_slw_.value;
-        simd::Float128 dryL, dryR;
-        delay_line_.template Read<1>(simd::Float128{dryDelaySamps, 0.0f, 0.0f, 0.0f}, dryL, dryR);
-        left[n] = Interp(dryL[0], sumL, mix);
-        right[n] = Interp(dryR[0], sumR, mix);
-
-        dry_delay_slw_.Step();
+        float const dryDelaySamps = grain_len * 1.5f * dry_delay;
+        simd::Float128 const dry = delay_line_.ReadLR(dryDelaySamps);
+        left[n] = Interp(dry[0], sumL, mix);
+        right[n] = Interp(dry[1], sumR, mix);
     }
 }
 
