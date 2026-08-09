@@ -16,13 +16,13 @@ public:
 private:
     pluginshared::PresetPanel preset_;
 
-    ui::Dial stretchDial_{"Formant"};
-    ui::Dial grainDial_{"Hop"};
-    ui::Dial dryDelayDial_{"Dry Delay"};
-    ui::Dial mixDial_{"Mix"};
+    ui::Dial stretch_dial_{"Formant"};
+    ui::Dial grain_dial_{"Hop"};
+    ui::Dial dry_delay_dial_{"Dry Delay"};
+    ui::Dial mix_dial_{"Mix"};
 
-    ui::Dial mulDial_{"nGrains"};
-    ui::Dial betaDial_{"Harmonic"};
+    ui::Dial mul_dial_{"nGrains"};
+    ui::Dial beta_dial_{"Harmonic"};
 
-    ui::Switch reverseSwitch_{"Reverse", "Forward"};
+    ui::Switch reverse_switch_{"Reverse", "Forward"};
 };

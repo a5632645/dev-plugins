@@ -20,7 +20,7 @@ public:
         "DryDelay", {0.0f, 1.0f, 0.01f},
          0.5f
     };
-    pluginshared::IntParam mul{"nGrains", 1, 4, 2};
+    pluginshared::IntParam mul{"nGrains", 1, global::kMaxGrains, 2};
     pluginshared::FloatParam beta{
         "Harmonic", {2.0f, 16.0f, 0.01f},
          8.0f
@@ -44,12 +44,12 @@ public:
     [[nodiscard]] sttr::SttrParam ToSttrParam() {
         sttr::SttrParam p;
         p.mix = mix.Get();
-        p.hopMs = hop_ms.Get();
-        p.dryDelay = dry_delay.Get();
-        // stretch ratio derived from formant (semitones)
+        p.hop_ms = hop_ms.Get();
+        p.dry_delay = dry_delay.Get();
+        // stretch ratio = 2^(formant/12), formant in semitones
         p.stretch = std::exp2f(formant.Get() / 12.0f);
-        p.windowMul = mul.Get();
-        p.windowBeta = beta.Get();
+        p.window_mul = mul.Get();
+        p.window_beta = beta.Get();
         p.reverse = reverse.Get();
         return p;
     }

@@ -26,7 +26,7 @@ std::unique_ptr<Idsp> CreateDsp() {
     }
     return CreateDspImpl<simd::Inst::SSE2>();
 #else
-#error "unsupport platform"
+#error "unsupported platform"
 #endif
 }
 

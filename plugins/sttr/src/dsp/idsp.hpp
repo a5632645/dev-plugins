@@ -9,11 +9,11 @@ namespace sttr {
 /** All parameters in one struct — set atomically via SetParameters(). */
 struct SttrParam {
     float mix{0.5f};
-    float hopMs{16.0f};
-    float dryDelay{0.0f};
-    float stretch{1.0f};   // ratio = 2^(formant/12), formant in semitones
-    int windowMul{2};        // grain length = windowMul * hop, integer [1, 4]
-    float windowBeta{8.0f};  // Kaiser window beta
+    float hop_ms{16.0f};
+    float dry_delay{0.0f};
+    float stretch{1.0f};     // ratio = 2^(formant/12), formant in semitones
+    int window_mul{2};       // grain length = window_mul * hop, integer [1, 4]
+    float window_beta{8.0f}; // Kaiser window beta
     bool reverse{true};      // false = forward (sequential) grain playback
 };
 

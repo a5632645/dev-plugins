@@ -29,33 +29,33 @@ class ShortcircuitSincDelayLine {
 public:
     using stp = ShortcircuitSincTableProvider;
 
-    // FIRipol_M / FIRipol_N are uint32_t; keep int copies for clean arithmetic
-    static constexpr int kN = static_cast<int>(stp::FIRipol_N);
-    static constexpr int kM = static_cast<int>(stp::FIRipol_M);
+    // kFIRipolM / kFIRipolN are uint32_t; keep int copies for clean arithmetic
+    static constexpr int kN = static_cast<int>(stp::kFIRipolN);
+    static constexpr int kM = static_cast<int>(stp::kFIRipolM);
 
     ShortcircuitSincDelayLine() = default;
 
     /** Size the circular buffer for max_ms milliseconds at sample rate fs. */
     void Init(float max_ms, float fs) {
-        table_.init(); // build the sinc table once (no-op afterwards)
+        table_.Init(); // build the sinc table once (no-op afterwards)
 
         size_t const samples = static_cast<size_t>(std::ceil(max_ms * 0.001f * fs));
         comb_size_ = static_cast<int>(NextPow2(std::max(samples, size_t(kN))));
         mask_ = comb_size_ - 1;
 
-        bufferL_.assign(static_cast<size_t>(comb_size_) + kN, 0.0f);
-        bufferR_.assign(static_cast<size_t>(comb_size_) + kN, 0.0f);
+        buffer_l_.assign(static_cast<size_t>(comb_size_) + kN, 0.0f);
+        buffer_r_.assign(static_cast<size_t>(comb_size_) + kN, 0.0f);
         wp_ = 0;
     }
 
-    inline void write(float l, float r) {
+    inline void Write(float l, float r) {
         size_t const w = static_cast<size_t>(wp_);
-        bufferL_[w] = l;
-        bufferR_[w] = r;
+        buffer_l_[w] = l;
+        buffer_r_[w] = r;
         // mirror the first taps so wrapped reads near the end stay valid
         size_t const pad = (wp_ < kN) ? static_cast<size_t>(comb_size_) : 0u;
-        bufferL_[w + pad] = l;
-        bufferR_[w + pad] = r;
+        buffer_l_[w + pad] = l;
+        buffer_r_[w + pad] = r;
         wp_ = (wp_ + 1) & mask_;
     }
 
@@ -63,7 +63,7 @@ public:
         Only the first N lanes are read; lanes >= N come back as zero. */
     template <int N>
         requires std::same_as<SimdT, simd::Float128>
-    inline void read(simd::Float128 delay, simd::Float128& l, simd::Float128& r) {
+    inline void Read(simd::Float128 delay, simd::Float128& l, simd::Float128& r) {
         // one 4-lane accumulator per input lane (lanes >= N stay zero)
         simd::Float128 accL[4] = {};
         simd::Float128 accR[4] = {};
@@ -77,7 +77,7 @@ public:
         simd::Int128 const readPtr = (simd::Int128{wp_, wp_, wp_, wp_} - iDelay - (kN >> 1)) & mask_;
 
         for (int i = 0; i < N; ++i) {
-            dot16LR(bufferL_.data(), bufferR_.data(), readPtr[i], table_.SincTableF32 + sincTableOffset[i], accL[i],
+            Dot16LR(buffer_l_.data(), buffer_r_.data(), readPtr[i], table_.sinc_table_f32 + sincTableOffset[i], accL[i],
                     accR[i]);
         }
 
@@ -93,7 +93,7 @@ public:
         Same signature as the 128-bit read; selected via requires on SimdT. */
     template <int N>
         requires std::same_as<SimdT, simd::Float256>
-    inline void read(simd::Float128 delay, simd::Float128& l, simd::Float128& r) {
+    inline void Read(simd::Float128 delay, simd::Float128& l, simd::Float128& r) {
         // one 8-lane accumulator per input lane (lanes >= N stay zero)
         simd::Float256 accL[8] = {};
         simd::Float256 accR[8] = {};
@@ -106,8 +106,8 @@ public:
         simd::Int128 const readPtr = (simd::Int128{wp_, wp_, wp_, wp_} - iDelay - (kN >> 1)) & mask_;
 
         for (int i = 0; i < N; ++i) {
-            dot16LR256(bufferL_.data(), bufferR_.data(), readPtr[i], table_.SincTableF32 + sincTableOffset[i], accL[i],
-                       accR[i]);
+            Dot16LR256(buffer_l_.data(), buffer_r_.data(), readPtr[i], table_.sinc_table_f32 + sincTableOffset[i],
+                       accL[i], accR[i]);
         }
 
         // horizontal reduce per lane: transpose the 8x8 partial-sum matrix so each
@@ -121,20 +121,20 @@ public:
         r = simd::Float128{outR[0], outR[1], outR[2], outR[3]};
     }
 
-    inline void clear() {
-        std::fill(bufferL_.begin(), bufferL_.end(), 0.0f);
-        std::fill(bufferR_.begin(), bufferR_.end(), 0.0f);
+    inline void Clear() {
+        std::fill(buffer_l_.begin(), buffer_l_.end(), 0.0f);
+        std::fill(buffer_r_.begin(), buffer_r_.end(), 0.0f);
         wp_ = 0;
     }
 
-    int combSize() const noexcept {
+    int CombSize() const noexcept {
         return comb_size_;
     }
 private:
     /** 16-tap windowed-sinc dot products for both channels at once.
         The sinc table row is loaded once and shared by L/R; returns the four
         4-tap partial sums per channel, the caller collapses them. */
-    static void dot16LR(const float* dataL, const float* dataR, int readPtr, const float* table, simd::Float128& oL,
+    static void Dot16LR(const float* dataL, const float* dataR, int readPtr, const float* table, simd::Float128& oL,
                         simd::Float128& oR) {
         simd::Float128 const t0 = simd::Loadu128(table);
         simd::Float128 const t1 = simd::Loadu128(table + 4);
@@ -154,7 +154,7 @@ private:
     /** 16-tap windowed-sinc dot products for both channels at once (256-bit).
         The sinc table row is loaded once and shared by L/R; returns the two
         8-tap partial sums per channel, the caller collapses them. */
-    static void dot16LR256(const float* dataL, const float* dataR, int readPtr, const float* table, simd::Float256& oL,
+    static void Dot16LR256(const float* dataL, const float* dataR, int readPtr, const float* table, simd::Float256& oL,
                            simd::Float256& oR) {
         simd::Float256 const t0 = simd::Loadu256(table);
         simd::Float256 const t1 = simd::Loadu256(table + 8);
@@ -218,8 +218,8 @@ private:
         return v + 1;
     }
 
-    static inline ShortcircuitSincTableProvider table_; // shared sinc table (single copy, like a DLL global)
-    std::vector<float> bufferL_, bufferR_;
+    static inline ShortcircuitSincTableProvider table_; // shared sinc table (single copy)
+    std::vector<float> buffer_l_, buffer_r_;
     int comb_size_{0};
     int mask_{0};
     int wp_{0};
