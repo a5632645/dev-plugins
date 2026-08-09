@@ -29,12 +29,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-
-// sst-basic-blocks SpecialFunctions.h relies on the POSIX M_PI macro, which is
-// not defined by default on Windows/clang under strict C++; provide it here.
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+#include <numbers>
 
 // The windowing helpers below are inlined from sst-basic-blocks'
 // dsp/SpecialFunctions.h, so this header no longer depends on that library.
@@ -42,13 +37,13 @@ namespace dsp {
 
 inline double sincf(double x) {
     if (std::fabs(x) < 1e-30) return 1.0;
-    return (std::sin(M_PI * x)) / (M_PI * x);
+    return (std::sin(std::numbers::pi * x)) / (std::numbers::pi * x);
 }
 
 inline double symmetric_blackman(double i, int n) {
     i -= (n / 2.0);
 
-    return (0.42 - 0.5 * std::cos(2 * M_PI * i / (n)) + 0.08 * std::cos(4 * M_PI * i / (n)));
+    return (0.42 - 0.5 * std::cos(2 * std::numbers::pi * i / (n)) + 0.08 * std::cos(4 * std::numbers::pi * i / (n)));
 }
 
 inline double besselI0(double x) {
@@ -86,7 +81,7 @@ inline double symmetric_kaiser(double x, uint16_t nint, double alpha) {
 
     x = std::clamp(x, 0.0, n);
     double const a = (2.0 * x / n - 1.0);
-    return besselI0(M_PI * alpha * std::sqrt(1.0 - a * a)) / besselI0(M_PI * alpha);
+    return besselI0(std::numbers::pi * alpha * std::sqrt(1.0 - a * a)) / besselI0(std::numbers::pi * alpha);
 }
 
 } // namespace dsp
