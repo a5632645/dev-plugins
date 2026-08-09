@@ -3,7 +3,7 @@ plugins by manaswolrd
 
 website: https://manaswolrd.github.io/en/index.html  
 
-[中文版 / Chinese](docs/readme.zh.md)
+[中文版 / Chinese](readme.zh.md)
 
 ## AI / LLM
 
@@ -14,6 +14,8 @@ If you prefer not to use projects involving AI, this repository probably isn't f
 ---
 
 ## plugins
+
+Click the link of the plugin name to see a more detailed introduction  
 
 | name | description |
 |----------|------|
