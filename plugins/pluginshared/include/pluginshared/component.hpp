@@ -60,7 +60,6 @@ public:
             // g.drawText(s.getTextFromValue(s.getValue()), bound2, juce::Justification::centred);
         }
         else if (style == juce::Slider::SliderStyle::LinearBarVertical) {
-            
         }
         else {
             juce::LookAndFeel_V4::drawLinearSlider(g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, style,
@@ -198,27 +197,54 @@ public:
         }
     }
 
-    void drawTooltip (juce::Graphics& g, const juce::String& text, int width, int height) override {
-        juce::Rectangle<int> bounds (width, height);
-        auto cornerSize = 5.0f;
-
-        g.setColour (findColour (juce::TooltipWindow::backgroundColourId));
-        g.fillRoundedRectangle (bounds.toFloat(), cornerSize);
-
-        g.setColour (findColour (juce::TooltipWindow::outlineColourId));
-        g.drawRoundedRectangle (bounds.toFloat().reduced (0.5f, 0.5f), cornerSize, 1.0f);
-
-        const float tooltipFontSize = 13.0f;
-        const int maxToolTipWidth = 400;
+    /** Build the tooltip text layout — shared by getTooltipBounds (sizing)
+        and drawTooltip (drawing). max_width caps the line width; the text
+        wraps to fit it. */
+    juce::TextLayout LayoutTooltipText(const juce::String& text, juce::Colour colour, float max_width) const {
+        constexpr float kTooltipFontSize = 13.0f;
 
         juce::AttributedString s;
-        s.setWordWrap (juce::AttributedString::WordWrap::byChar);
-        s.setJustification (juce::Justification::left);
-        s.append (text, juce::FontOptions (tooltipFontSize, juce::Font::FontStyleFlags::plain).withMetricsKind (getDefaultMetricsKind()), findColour (juce::TooltipWindow::textColourId));
+        s.setWordWrap(juce::AttributedString::WordWrap::byChar);
+        s.setJustification(juce::Justification::left);
+        s.append(text,
+                 juce::FontOptions(kTooltipFontSize, juce::Font::FontStyleFlags::plain)
+                     .withMetricsKind(getDefaultMetricsKind()),
+                 colour);
 
         juce::TextLayout tl;
-        tl.createLayoutWithBalancedLineLengths (s, (float) maxToolTipWidth);
-        tl.draw(g, bounds.reduced(4, 2).toFloat());
+        tl.createLayoutWithBalancedLineLengths(s, max_width);
+        return tl;
+    }
+
+    juce::Rectangle<int> getTooltipBounds(const juce::String& tipText, juce::Point<int> screenPos,
+                                          juce::Rectangle<int> parentArea) override {
+        // child tooltip windows are clipped to the parent, so wrap at the
+        // parent width (capped at 400) instead of assuming a wide screen
+        auto const max_w = juce::jmax(juce::jmin(800.0f, static_cast<float>(parentArea.getWidth()) - 8.0f), 50.0f);
+        auto const tl = LayoutTooltipText(tipText, findColour(juce::TooltipWindow::textColourId), max_w);
+        auto const w = static_cast<int>(tl.getWidth()) + 14;
+        auto const h = static_cast<int>(tl.getHeight()) + 6;
+
+        return juce::Rectangle<int>(screenPos.x > parentArea.getCentreX() ? screenPos.x - (w + 12) : screenPos.x + 24,
+                                    screenPos.y > parentArea.getCentreY() ? screenPos.y - (h + 6) : screenPos.y + 6, w,
+                                    h)
+            .constrainedWithin(parentArea);
+    }
+
+    void drawTooltip(juce::Graphics& g, const juce::String& text, int width, int height) override {
+        juce::Rectangle<int> bounds(width, height);
+        auto const cornerSize = 5.0f;
+
+        g.setColour(findColour(juce::TooltipWindow::backgroundColourId));
+        g.fillRoundedRectangle(bounds.toFloat(), cornerSize);
+
+        g.setColour(findColour(juce::TooltipWindow::outlineColourId));
+        g.drawRoundedRectangle(bounds.toFloat().reduced(0.5f, 0.5f), cornerSize, 1.0f);
+
+        // lay out at the draw area width so the text always wraps and fits
+        LayoutTooltipText(text, findColour(juce::TooltipWindow::textColourId),
+                          static_cast<float>(juce::jmax(width - 8, 50)))
+            .draw(g, bounds.reduced(4, 2).toFloat());
     }
 };
 
@@ -545,7 +571,7 @@ public:
     }
 
     std::span<std::unique_ptr<Choice>> BindParam(juce::AudioProcessorValueTreeState& apvts, juce::StringRef id,
-                                               bool add_choices) {
+                                                 bool add_choices) {
         auto* param = apvts.getParameter(id);
         return BindParam(static_cast<juce::AudioParameterChoice*>(param), add_choices);
     }

@@ -11,9 +11,11 @@ public:
     static constexpr int kHeight = 200;
 
     explicit PluginUi(SttrAudioProcessor& p);
+    ~PluginUi() override;
 
     void resized() override;
 private:
+    juce::TooltipWindow tooltip_;
     pluginshared::PresetPanel preset_;
 
     ui::Dial stretch_dial_{"Formant"};

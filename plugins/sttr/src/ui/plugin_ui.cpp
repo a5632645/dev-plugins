@@ -3,33 +3,52 @@
 #include "../PluginProcessor.h"
 
 PluginUi::PluginUi(SttrAudioProcessor& p)
-    : preset_(*p.preset_manager_) {
+    : tooltip_(this, 500)
+    , preset_(*p.preset_manager_) {
     preset_.SetDspInstName(p.dsp_->InstName().data());
 
     // dials
     stretch_dial_.BindParam(*p.value_tree_, "Formant");
-    grain_dial_.BindParam(*p.value_tree_, "HopMs");
-    dry_delay_dial_.BindParam(*p.value_tree_, "DryDelay");
-    mix_dial_.BindParam(*p.value_tree_, "Mix");
-
+    stretch_dial_.slider.setTooltip(
+        "Formant shift in semitones.\nIn short HopMs sounds like formant shift.\nIn long HopMs sounds like pitch shift.");
     addAndMakeVisible(stretch_dial_);
+
+    grain_dial_.BindParam(*p.value_tree_, "HopMs");
+    grain_dial_.slider.setTooltip("Grain hop length in milliseconds.\nSmaller hop = audioable harmonics.\nBigger hop = time reverse.");
     addAndMakeVisible(grain_dial_);
+
+    dry_delay_dial_.BindParam(*p.value_tree_, "DryDelay");
+    dry_delay_dial_.slider.setTooltip("Dry signal read offset, as a fraction of the grain length");
     addAndMakeVisible(dry_delay_dial_);
+
+    mix_dial_.BindParam(*p.value_tree_, "Mix");
+    mix_dial_.slider.setTooltip("Dry/wet balance between the delayed dry signal and the granulated wet signal");
     addAndMakeVisible(mix_dial_);
 
     // Kaiser window parameters
     mul_dial_.BindParam(*p.value_tree_, "nGrains");
-    beta_dial_.BindParam(*p.value_tree_, "Harmonic");
-
+    mul_dial_.slider.setTooltip(
+        "Grain length multiplier (window length = nGrains * hop).\nAlso sets the number of active grains");
     addAndMakeVisible(mul_dial_);
+
+    beta_dial_.BindParam(*p.value_tree_, "Harmonic");
+    beta_dial_.slider.setTooltip("Kaiser window beta.\nHigher beta gives harmonics that focus on original postition.\nLower beta gives discontinuous artifact.");
     addAndMakeVisible(beta_dial_);
 
     // grain playback direction (rev = time-reversed, fwd = forward)
     reverse_switch_.BindParam(*p.value_tree_, "reverse");
+    reverse_switch_.setTooltip(
+        "Grain playback direction.\nReverse: time-reversed grains\nForward: sequential grain playback");
     addAndMakeVisible(reverse_switch_);
 
     addAndMakeVisible(preset_);
     setSize(kWidth, kHeight);
+
+    tooltip_.setLookAndFeel(ui::GetLookAndFeel());
+}
+
+PluginUi::~PluginUi() {
+    tooltip_.setLookAndFeel(nullptr);
 }
 
 void PluginUi::resized() {
