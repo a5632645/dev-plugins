@@ -84,7 +84,7 @@ void AudioPluginAudioProcessor::changeProgramName(int index, const juce::String&
 
 //==============================================================================
 void AudioPluginAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
-    engine_.Init(sampleRate, static_cast<size_t>(samplesPerBlock));
+    engine_.Init(sampleRate, samplesPerBlock);
 
     // 首次进入时将所有模块标记为需要更新
     params_.should_update_tilt_.store(true, std::memory_order_release);

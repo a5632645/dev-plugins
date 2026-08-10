@@ -6,7 +6,7 @@
 
 namespace green_vocoder::dsp {
 
-void ChannelVocoder::Init(float sample_rate, [[maybe_unused]] size_t block_size) {
+void ChannelVocoder::Init(float sample_rate, [[maybe_unused]] int block_size) {
     sample_rate_ = sample_rate;
     UpdateFilters();
 }
@@ -15,7 +15,7 @@ void ChannelVocoder::SetParam(const Params& p) {
     assert(p.num_bands % 4 == 0);
     filter_bank_mode_ = p.filter_bank_mode;
     num_bans_ = p.num_bands;
-    num_filters_ = static_cast<size_t>(p.num_bands) / 4;
+    num_filters_ = p.num_bands / 4;
     freq_begin_ = p.freq_begin;
     freq_end_ = p.freq_end;
 
@@ -187,19 +187,22 @@ struct PackingIIRDesigner {
 
         auto w1_analog = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
         auto w2_analog = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
-        for (size_t i = 0; i < 4; ++i) {
+        for (int i = 0; i < 4; ++i) {
             std::array<qwqdsp_filter::IIRDesign::ZPK, NPrototypeFilters * 2> zpk_buffer;
             std::copy(prototype.begin(), prototype.end(), zpk_buffer.begin());
-            qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, NPrototypeFilters, w1_analog[i], w2_analog[i]);
+            qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, NPrototypeFilters, w1_analog[static_cast<size_t>(i)],
+                                                         w2_analog[static_cast<size_t>(i)]);
 
-            for (size_t j = 0; j < NPrototypeFilters; ++j) {
-                states[2 * j][i] = zpk_buffer[j];
-                states[2 * j + 1][i] = zpk_buffer[j + NPrototypeFilters];
+            for (int j = 0; j < static_cast<int>(NPrototypeFilters); ++j) {
+                states[static_cast<size_t>(2 * j)][static_cast<size_t>(i)] = zpk_buffer[static_cast<size_t>(j)];
+                states[static_cast<size_t>(2 * j + 1)][static_cast<size_t>(i)] =
+                    zpk_buffer[static_cast<size_t>(j) + NPrototypeFilters];
             }
         }
 
-        for (size_t i = 0; i < NPrototypeFilters; ++i) {
-            svf.svf_[i].SetAnalogPoleZero(states[2 * i], states[2 * i + 1]);
+        for (int i = 0; i < static_cast<int>(NPrototypeFilters); ++i) {
+            svf.svf_[static_cast<size_t>(i)].SetAnalogPoleZero(states[static_cast<size_t>(2 * i)],
+                                                               states[static_cast<size_t>(2 * i + 1)]);
         }
     }
 };
@@ -317,7 +320,7 @@ void ChannelVocoder::_UpdateFilters2() {
     float pitch_interval = (pitch_end - pitch_begin) / static_cast<float>(num_bans_);
     float begin = qwqdsp::convert::Freq2W(freq_begin_, sample_rate_);
 
-    size_t filter_idx = 0;
+    int filter_idx = 0;
     auto const min_w = qwqdsp_simd_element::PackFloat<4>::vBroadcast(qwqdsp::convert::Freq2W(10.0f, sample_rate_));
     auto const max_w = qwqdsp_simd_element::PackFloat<4>::vBroadcast(
         qwqdsp::convert::Freq2W(sample_rate_ * 0.5f - 100.0f, sample_rate_));
@@ -342,8 +345,8 @@ void ChannelVocoder::_UpdateFilters2() {
         main_w2 = qwqdsp_simd_element::PackOps::Clamp(main_w2, min_w, max_w);
         side_w1 = qwqdsp_simd_element::PackOps::Clamp(side_w1, min_w, max_w);
         side_w2 = qwqdsp_simd_element::PackOps::Clamp(side_w2, min_w, max_w);
-        auto& main_filter = filters_[filter_idx].first;
-        auto& side_filter = filters_[filter_idx].second;
+        auto& main_filter = filters_[static_cast<size_t>(filter_idx)].first;
+        auto& side_filter = filters_[static_cast<size_t>(filter_idx)].second;
         Designer::Design(main_filter, main_w1, main_w2, 1.0f, filter_ripple_);
         Designer::Design(side_filter, side_w1, side_w2, carry_w_mul_, filter_ripple_);
         ++filter_idx;
@@ -351,7 +354,7 @@ void ChannelVocoder::_UpdateFilters2() {
 }
 
 void ChannelVocoder::ProcessBlock(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side,
-                                  size_t num_samples) {
+                                  int num_samples) {
     switch (filter_bank_mode_) {
         case FilterBankMode::Bandpass12:
             _ProcessBlock<2, true>(main, side, num_samples);
@@ -377,11 +380,11 @@ void ChannelVocoder::ProcessBlock(qwqdsp_simd_element::PackFloat<2>* main, qwqds
 
 template <size_t kFilterNumbers, bool kOnlyPole>
 void ChannelVocoder::_ProcessBlock(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side,
-                                   size_t num_samples) {
+                                   int num_samples) {
     std::fill_n(output_.begin(), num_samples, qwqdsp_simd_element::PackFloat<2>{});
     auto vgate_peak = qwqdsp_simd_element::PackFloat<4>::vBroadcast(gate_peak_);
-    for (size_t filter_idx = 0; filter_idx < num_filters_; ++filter_idx) {
-        for (size_t sample_idx = 0; sample_idx < num_samples; ++sample_idx) {
+    for (int filter_idx = 0; filter_idx < num_filters_; ++filter_idx) {
+        for (int sample_idx = 0; sample_idx < num_samples; ++sample_idx) {
             // filtering
             qwqdsp_simd_element::PackFloat<4> main_l;
             qwqdsp_simd_element::PackFloat<4> main_r;
@@ -395,11 +398,11 @@ void ChannelVocoder::_ProcessBlock(qwqdsp_simd_element::PackFloat<2>* main, qwqd
             main_r *= gain_;
             side_l *= gain_;
             side_r *= gain_;
-            auto& filter_bind = filters_[filter_idx];
+            auto& filter_bind = filters_[static_cast<size_t>(filter_idx)];
             filter_bind.first.Tick<kFilterNumbers, kOnlyPole>(main_l, main_r);
             filter_bind.second.Tick<kFilterNumbers, kOnlyPole>(side_l, side_r);
             // envelope follower
-            auto curr = main_peaks_[filter_idx];
+            auto curr = main_peaks_[static_cast<size_t>(filter_idx)];
             main_l = qwqdsp_simd_element::PackOps::Abs(main_l);
             main_r = qwqdsp_simd_element::PackOps::Abs(main_r);
             main_l = qwqdsp_simd_element::PackOps::Select(main_l > vgate_peak, main_l,
@@ -420,13 +423,13 @@ void ChannelVocoder::_ProcessBlock(qwqdsp_simd_element::PackFloat<2>* main, qwqd
             lag_r *= coeff_r;
             lag_l += (1.0f - coeff_l) * main_l;
             lag_r += (1.0f - coeff_r) * main_r;
-            main_peaks_[filter_idx][0] = lag_l;
-            main_peaks_[filter_idx][1] = lag_r;
+            main_peaks_[static_cast<size_t>(filter_idx)][0] = lag_l;
+            main_peaks_[static_cast<size_t>(filter_idx)][1] = lag_r;
             // output
             float l = qwqdsp_simd_element::PackOps::ReduceAdd(lag_l * side_l);
             float r = qwqdsp_simd_element::PackOps::ReduceAdd(lag_r * side_r);
-            output_[sample_idx][0] += l;
-            output_[sample_idx][1] += r;
+            output_[static_cast<size_t>(sample_idx)][0] += l;
+            output_[static_cast<size_t>(sample_idx)][1] += r;
         }
     }
     std::copy_n(output_.begin(), num_samples, main);

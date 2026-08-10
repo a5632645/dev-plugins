@@ -31,6 +31,7 @@ private:
     std::vector<float> temp_;
     std::vector<float> re1_;
     std::vector<float> phase_;
+    int fft_size_{};
     float norm_detail_{};
     float detail_{};
 };

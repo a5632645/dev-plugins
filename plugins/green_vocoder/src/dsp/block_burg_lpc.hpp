@@ -6,8 +6,8 @@
 #include <qwqdsp/oscillator/noise.hpp>
 #include <qwqdsp/simd_element/simd_pack.hpp>
 
-#include "block_ola.hpp"
 #include "../global.hpp"
+#include "block_ola.hpp"
 
 namespace green_vocoder::dsp {
 
@@ -19,25 +19,22 @@ namespace green_vocoder::dsp {
 class BlockBurgLPC {
 public:
     void Init(float fs);
-    void Process(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side, size_t num_samples);
+    void Process(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side, int num_samples);
 
     struct Params {
-        size_t block_size{1024};
-        size_t poles{36};
+        int block_size{1024};
+        int poles{36};
         float smear{1.0f};
         float attack{10.0f};
         float formant_shift{0.0f};
     };
-
     void SetParam(const Params& p);
-
-    void CopyLatticeCoeffient(std::span<float> buffer, size_t order);
+    void CopyLatticeCoeffient(std::span<float> buffer, int order);
 
     // BlockOLA 帧处理回调：处理一帧并返回待重叠相加的帧
     std::span<qwqdsp_simd_element::PackFloat<2> const> operator()(
         std::span<qwqdsp_simd_element::PackFloat<2> const> main,
         std::span<qwqdsp_simd_element::PackFloat<2> const> side);
-
 private:
     qwqdsp_oscillator::WhiteNoise noise_;
     BlockOLA<qwqdsp_simd_element::PackFloat<2>> ola_;
@@ -45,8 +42,8 @@ private:
     std::vector<qwqdsp_simd_element::PackFloat<2>> ef_;
     std::array<qwqdsp_simd_element::PackFloat<2>, global::kMaxPoles> latticek_{};
     float fir_allpass_coeff_{};
-    size_t fft_size_{};
-    size_t num_poles_{};
+    int fft_size_{};
+    int num_poles_{};
     float sample_rate_{};
     float update_rate_{};
     float smear_factor_{};

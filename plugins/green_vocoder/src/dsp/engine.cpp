@@ -8,7 +8,7 @@ namespace green_vocoder {
 // Lifecycle
 // ============================================================================
 
-void Engine::Init(double sample_rate, size_t block_size) {
+void Engine::Init(double sample_rate, int block_size) {
     sample_rate_ = sample_rate;
     float fs = static_cast<float>(sample_rate);
 
@@ -65,8 +65,8 @@ void Engine::UpdateLeakyLPC(Params& p) {
 
 void Engine::UpdateBlockLPC(Params& p) {
     block_burg_lpc_.SetParam({
-        .block_size = static_cast<size_t>(global::kStftSizes[static_cast<size_t>(p.stft_size.Get())]),
-        .poles = static_cast<size_t>(p.lpc_order.Get()),
+        .block_size = global::kStftSizes[static_cast<size_t>(p.stft_size.Get())],
+        .poles = static_cast<int>(p.lpc_order.Get()),
         .smear = p.lpc_smooth.Get(),
         .attack = p.lpc_gain_attack.Get(),
         .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
@@ -126,18 +126,18 @@ void Engine::Process(
     int pitch_ch, bool use_pitch,
     eVocoderType vocoder_type
 ) {
-    size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
+    int const num_samples = buffer.getNumSamples();
 
     // --- block processing ---
-    for (size_t pos = 0; pos < num_samples; pos += global::kBlockSize) {
-        size_t const n = std::min(global::kBlockSize, num_samples - pos);
+    for (int pos = 0; pos < num_samples; pos += global::kBlockSize) {
+        int const n = std::min(global::kBlockSize, num_samples - pos);
 
         // fill modulator
         {
             float const* ml = buffer.getReadPointer(mod_ch) + pos;
             float const* mr = buffer.getReadPointer(mod_ch + 1) + pos;
-            for (size_t i = 0; i < n; ++i)
-                crossing_main_buffer_[i] = {ml[i], mr[i]};
+            for (int i = 0; i < n; ++i)
+                crossing_main_buffer_[static_cast<size_t>(i)] = {ml[i], mr[i]};
         }
 
         // fill carrier (pitch tracking or direct channel pair)
@@ -145,19 +145,21 @@ void Engine::Process(
             std::array<float, 256> mono;
             float const* src = buffer.getReadPointer(pitch_ch) + pos;
             std::copy_n(src, n, mono.begin());
-            pitch_osc_.Process(mono.data(), static_cast<int>(n));
-            for (size_t i = 0; i < n; ++i)
-                crossing_side_buffer_[i] = {mono[i], mono[i]};
+            pitch_osc_.Process(mono.data(), n);
+            for (int i = 0; i < n; ++i)
+                crossing_side_buffer_[static_cast<size_t>(i)] = {mono[static_cast<size_t>(i)],
+                                                                 mono[static_cast<size_t>(i)]};
         } else {
             float const* sl = buffer.getReadPointer(carry_ch) + pos;
             float const* sr = buffer.getReadPointer(carry_ch + 1) + pos;
-            for (size_t i = 0; i < n; ++i)
-                crossing_side_buffer_[i] = {sl[i], sr[i]};
+            for (int i = 0; i < n; ++i)
+                crossing_side_buffer_[static_cast<size_t>(i)] = {sl[i], sr[i]};
         }
 
         // pre-tilt filter
-        for (size_t i = 0; i < n; ++i)
-            crossing_main_buffer_[i] = pre_tilt_filter_.Tick(crossing_main_buffer_[i]);
+        for (int i = 0; i < n; ++i)
+            crossing_main_buffer_[static_cast<size_t>(i)] =
+                pre_tilt_filter_.Tick(crossing_main_buffer_[static_cast<size_t>(i)]);
 
         // vocoder
         {
@@ -165,10 +167,11 @@ void Engine::Process(
 
             switch (vocoder_type) {
                 case eVocoderType_LeakyBurgLPC:
-                    burg_lpc_.Process({crossing_main_buffer_.data(), n}, {crossing_side_buffer_.data(), n});
+                    burg_lpc_.Process({crossing_main_buffer_.data(), static_cast<size_t>(n)},
+                                      {crossing_side_buffer_.data(), static_cast<size_t>(n)});
                     break;
                 case eVocoderType_STFTVocoder:
-                    stft_vocoder_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), static_cast<int>(n));
+                    stft_vocoder_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), n);
                     break;
                 case eVocoderType_ChannelVocoder:
                     channel_vocoder_.ProcessBlock(crossing_main_buffer_.data(), crossing_side_buffer_.data(), n);
@@ -187,9 +190,9 @@ void Engine::Process(
         {
             float* out_l = buffer.getWritePointer(0) + pos;
             float* out_r = buffer.getWritePointer(1) + pos;
-            for (size_t i = 0; i < n; ++i) {
-                out_l[i] = crossing_main_buffer_[i][0];
-                out_r[i] = crossing_main_buffer_[i][1];
+            for (int i = 0; i < n; ++i) {
+                out_l[i] = crossing_main_buffer_[static_cast<size_t>(i)][0];
+                out_r[i] = crossing_main_buffer_[static_cast<size_t>(i)][1];
             }
         }
     }

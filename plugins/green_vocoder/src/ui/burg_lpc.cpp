@@ -147,7 +147,7 @@ void BurgLPC::paint(juce::Graphics& g) {
     std::array<float, global::kNumPoles + 1> upgoing{1};
     std::array<float, global::kNumPoles + 1> downgoing{1};
 
-    size_t order = static_cast<size_t>(order_.slider.getValue());
+    int order = static_cast<int>(order_.slider.getValue());
     ;
     if (block_mode_) {
         processor_.engine_.GetBlockBurgLPC().CopyLatticeCoeffient(lattice_buff, order);
@@ -156,17 +156,17 @@ void BurgLPC::paint(juce::Graphics& g) {
         processor_.engine_.GetBurgLPC().CopyLatticeCoeffient(lattice_buff, order);
     }
 
-    for (size_t kidx = 0; kidx < order; ++kidx) {
-        for (size_t i = kidx + 1; i != 0; --i) {
-            downgoing[i] = downgoing[i - 1];
+    for (int kidx = 0; kidx < order; ++kidx) {
+        for (int i = kidx + 1; i != 0; --i) {
+            downgoing[static_cast<size_t>(i)] = downgoing[static_cast<size_t>(i) - 1];
         }
         downgoing[0] = 0;
 
-        for (size_t i = 0; i < kidx + 2; ++i) {
-            float up = upgoing[i] + lattice_buff[kidx] * downgoing[i];
-            float down = downgoing[i] + lattice_buff[kidx] * upgoing[i];
-            upgoing[i] = up;
-            downgoing[i] = down;
+        for (int i = 0; i < kidx + 2; ++i) {
+            float up = upgoing[static_cast<size_t>(i)] + lattice_buff[static_cast<size_t>(kidx)] * downgoing[static_cast<size_t>(i)];
+            float down = downgoing[static_cast<size_t>(i)] + lattice_buff[static_cast<size_t>(kidx)] * upgoing[static_cast<size_t>(i)];
+            upgoing[static_cast<size_t>(i)] = up;
+            downgoing[static_cast<size_t>(i)] = down;
         }
     }
 
@@ -183,9 +183,9 @@ void BurgLPC::paint(juce::Graphics& g) {
         mul_begin *= mul_val;
 
         auto z_responce = std::complex{1.0f, 0.0f};
-        for (size_t i = 0; i < order; ++i) {
+        for (int i = 0; i < order; ++i) {
             auto z = std::polar(1.0f, -omega * static_cast<float>(i + 1));
-            z_responce += upgoing[i + 1] * z;
+            z_responce += upgoing[static_cast<size_t>(i) + 1] * z;
         }
         z_responce = 1.0f / z_responce;
         if (std::isnan(z_responce.real()) || std::isnan(z_responce.imag())) {

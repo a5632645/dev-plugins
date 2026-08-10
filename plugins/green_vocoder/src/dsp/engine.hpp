@@ -17,7 +17,7 @@ namespace green_vocoder {
 
 class Engine {
 public:
-    void Init(double sample_rate, size_t block_size);
+    void Init(double sample_rate, int block_size);
     void Reset();
 
     // --- Params → DSP sync (audio thread) ---

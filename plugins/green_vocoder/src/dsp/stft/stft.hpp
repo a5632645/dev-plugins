@@ -13,6 +13,24 @@ namespace green_vocoder::dsp {
 
 using PackFloat2 = qwqdsp_simd_element::PackFloat<2>;
 
+// 参数变化检测：精确浮点相等比较（有意为之，局部抑制 -Wfloat-equal）
+inline bool ParamChanged(float a, float b) noexcept {
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wfloat-equal"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#endif
+    bool const changed = a != b;
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+    return changed;
+}
+
 // ------------------------------------------------------------
 // STFT：基础短时傅里叶变换帧处理引擎
 // ------------------------------------------------------------
@@ -40,7 +58,7 @@ public:
     // operator()(STFT&, real_in, imag_in, real_out, imag_out, channel)
     template <typename STFT_ALG>
     void Process(PackFloat2* main, PackFloat2* side, int num_samples, std::span<const float> window, STFT_ALG& alg) {
-        ola_.Process(main, side, static_cast<size_t>(num_samples),
+        ola_.Process(main, side, num_samples,
                      [this, window, &alg](std::span<PackFloat2 const> main_frame,
                                           std::span<PackFloat2 const> side_frame) {
                          return (*this)(main_frame, side_frame, window, alg);
@@ -53,9 +71,9 @@ public:
                                            std::span<PackFloat2 const> side_frame,
                                            std::span<const float> window, STFT_ALG& alg) {
         // 左声道
-        for (size_t i = 0; i < static_cast<size_t>(fft_size_); ++i) {
-            temp_main_[i] = window[i] * main_frame[i][0];
-            temp_side_[i] = side_frame[i][0];
+        for (int i = 0; i < fft_size_; ++i) {
+            temp_main_[static_cast<size_t>(i)] = window[static_cast<size_t>(i)] * main_frame[static_cast<size_t>(i)][0];
+            temp_side_[static_cast<size_t>(i)] = side_frame[static_cast<size_t>(i)][0];
         }
         fft_.FFT({temp_main_.data(), static_cast<size_t>(fft_size_)}, real_main_, imag_main_);
         fft_.FFT({temp_side_.data(), static_cast<size_t>(fft_size_)}, real_side_, imag_side_);
@@ -63,9 +81,10 @@ public:
         fft_.IFFT({temp_main_.data(), static_cast<size_t>(fft_size_)}, real_side_, imag_side_);
 
         // 右声道
-        for (size_t i = 0; i < static_cast<size_t>(fft_size_); ++i) {
-            temp_main_[static_cast<size_t>(fft_size_) + i] = window[i] * main_frame[i][1];
-            temp_side_[static_cast<size_t>(fft_size_) + i] = side_frame[i][1];
+        for (int i = 0; i < fft_size_; ++i) {
+            temp_main_[static_cast<size_t>(fft_size_ + i)] =
+                window[static_cast<size_t>(i)] * main_frame[static_cast<size_t>(i)][1];
+            temp_side_[static_cast<size_t>(fft_size_ + i)] = side_frame[static_cast<size_t>(i)][1];
         }
         fft_.FFT({temp_main_.data() + fft_size_, static_cast<size_t>(fft_size_)}, real_main_, imag_main_);
         fft_.FFT({temp_side_.data() + fft_size_, static_cast<size_t>(fft_size_)}, real_side_, imag_side_);
@@ -73,8 +92,9 @@ public:
         fft_.IFFT({temp_main_.data() + fft_size_, static_cast<size_t>(fft_size_)}, real_side_, imag_side_);
 
         // 打包输出帧
-        for (size_t i = 0; i < static_cast<size_t>(fft_size_); ++i)
-            output_frame_[i] = {temp_main_[i], temp_main_[static_cast<size_t>(fft_size_) + i]};
+        for (int i = 0; i < fft_size_; ++i)
+            output_frame_[static_cast<size_t>(i)] = {temp_main_[static_cast<size_t>(i)],
+                                                     temp_main_[static_cast<size_t>(fft_size_ + i)]};
         return std::span<PackFloat2 const>{output_frame_};
     }
 
@@ -103,6 +123,7 @@ public:
 private:
     BlockOLA<PackFloat2> ola_;
     qwqdsp_spectral::RealFftAdv fft_;
+    float bandwidth_{}; // 上次应用的 bandwidth（用于判断是否需重算 sinc*hann 窗）
     std::vector<float> temp_main_;
     std::vector<float> temp_side_;
     std::vector<float> real_main_;

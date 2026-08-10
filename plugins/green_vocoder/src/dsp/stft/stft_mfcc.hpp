@@ -24,7 +24,8 @@ struct STFTMFCC {
                     std::span<float> real_out, std::span<float> imag_out, int channel);
 
 private:
-    std::array<size_t, global::kMaxNumMfcc + 1> mfcc_indexs_{};
+    std::array<int, global::kMaxNumMfcc + 1> mfcc_indexs_{};
+    int fft_size_{};
     int num_mfcc_{};
     std::vector<float> fill_gains_{};
 };

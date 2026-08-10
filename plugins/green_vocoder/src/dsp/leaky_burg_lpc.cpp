@@ -6,33 +6,34 @@
 #include <qwqdsp/filter/rbj.hpp>
 
 namespace green_vocoder::dsp {
-void LeakyBurgLPC::Init(float sample_rate, [[maybe_unused]] size_t block_size) {
+void LeakyBurgLPC::Init(float sample_rate, [[maybe_unused]] int block_size) {
     sample_rate_ = sample_rate;
 }
 
 void LeakyBurgLPC::Process(std::span<qwqdsp_simd_element::PackFloat<2>> main,
                            std::span<qwqdsp_simd_element::PackFloat<2>> side) {
-    for (size_t i = 0; i < main.size(); ++i) {
+    for (int i = 0; i < static_cast<int>(main.size()); ++i) {
         // adding some noise to prevent ill filter coefficient
         float small_noise = noise_.Next() * global::kNoiseGain;
-        qwqdsp_simd_element::PackFloat<2> main_x = main[i];
+        qwqdsp_simd_element::PackFloat<2> main_x = main[static_cast<size_t>(i)];
         main_x += small_noise;
         // forward fir lattice
         qwqdsp_simd_element::PackFloat<2> ef = main_x;
         qwqdsp_simd_element::PackFloat<2> eb = main_x;
         for (int order = 0; order < lpc_order_; ++order) {
-            size_t order_idx = static_cast<size_t>(order);
+            int const order_idx = order;
 
-            auto y = fir_allpass_coeff_ * eb + fir_allpass_s_[order_idx];
-            fir_allpass_s_[order_idx] = eb - fir_allpass_coeff_ * y;
+            auto y = fir_allpass_coeff_ * eb + fir_allpass_s_[static_cast<size_t>(order_idx)];
+            fir_allpass_s_[static_cast<size_t>(order_idx)] = eb - fir_allpass_coeff_ * y;
 
-            efsum_[order_idx] *= forget_;
-            ebsum_[order_idx] *= forget_;
-            efsum_[order_idx] += ef * y;
-            ebsum_[order_idx] += ef * ef;
-            ebsum_[order_idx] += y * y;
-            lattice_k_[order_idx] = -2.0f * efsum_[order_idx] / (ebsum_[order_idx]);
-            auto const k = lattice_k_[order_idx];
+            efsum_[static_cast<size_t>(order_idx)] *= forget_;
+            ebsum_[static_cast<size_t>(order_idx)] *= forget_;
+            efsum_[static_cast<size_t>(order_idx)] += ef * y;
+            ebsum_[static_cast<size_t>(order_idx)] += ef * ef;
+            ebsum_[static_cast<size_t>(order_idx)] += y * y;
+            lattice_k_[static_cast<size_t>(order_idx)] =
+                -2.0f * efsum_[static_cast<size_t>(order_idx)] / (ebsum_[static_cast<size_t>(order_idx)]);
+            auto const k = lattice_k_[static_cast<size_t>(order_idx)];
             auto const upgo = ef + k * y;
             auto const downgo = y + k * ef;
             ef = upgo;
@@ -55,25 +56,25 @@ void LeakyBurgLPC::Process(std::span<qwqdsp_simd_element::PackFloat<2>> main,
         // iir lattice
         auto const& residual = ef;
         auto gain = gain_smooth_.Tick(qwqdsp_simd_element::PackOps::Abs(residual));
-        auto x0 = side[i] * gain;
-        size_t const size_lpc_order = static_cast<size_t>(lpc_order_);
-        for (size_t idx = 0; idx < size_lpc_order; idx += 2) {
-            auto x1 = x0 - iir_k_[idx] * iir_s_[idx + 1];
-            auto x2 = x1 - iir_k_[idx + 1] * iir_s_[idx + 2];
-            auto l0 = iir_s_[idx + 1] + iir_k_[idx] * x1;
-            auto l1 = iir_s_[idx + 2] + iir_k_[idx + 1] * x2;
+        auto x0 = side[static_cast<size_t>(i)] * gain;
+        int const lpc_order = lpc_order_;
+        for (int idx = 0; idx < lpc_order; idx += 2) {
+            auto x1 = x0 - iir_k_[static_cast<size_t>(idx)] * iir_s_[static_cast<size_t>(idx) + 1];
+            auto x2 = x1 - iir_k_[static_cast<size_t>(idx) + 1] * iir_s_[static_cast<size_t>(idx) + 2];
+            auto l0 = iir_s_[static_cast<size_t>(idx) + 1] + iir_k_[static_cast<size_t>(idx)] * x1;
+            auto l1 = iir_s_[static_cast<size_t>(idx) + 2] + iir_k_[static_cast<size_t>(idx) + 1] * x2;
             x0 = x2;
-            iir_s_[idx] = l0;
-            iir_s_[idx + 1] = l1;
+            iir_s_[static_cast<size_t>(idx)] = l0;
+            iir_s_[static_cast<size_t>(idx) + 1] = l1;
         }
-        iir_s_[size_lpc_order] = x0;
-        main[i] = x0 * 0.1f;
+        iir_s_[static_cast<size_t>(lpc_order)] = x0;
+        main[static_cast<size_t>(i)] = x0 * 0.1f;
     }
 }
 
 void LeakyBurgLPC::SetParam(const Params& p) {
     assert(p.order % 4 == 0);
-    size_t const order = static_cast<size_t>(p.order);
+    int const order = p.order;
     lpc_order_ = p.order;
     std::fill_n(lattice_k_.begin(), order, qwqdsp_simd_element::PackFloat<2>{});
     std::fill_n(iir_k_.begin(), order, qwqdsp_simd_element::PackFloat<2>{});
@@ -96,11 +97,11 @@ void LeakyBurgLPC::SetParam(const Params& p) {
     fir_allpass_coeff_ = std::clamp(-p.formant_shift, -0.99f, 0.99f);
 }
 
-void LeakyBurgLPC::CopyLatticeCoeffient(std::span<float> buffer, size_t order) {
+void LeakyBurgLPC::CopyLatticeCoeffient(std::span<float> buffer, int order) {
     auto const backup = iir_k_;
-    auto reverse_iir_it = backup.begin() + static_cast<int>(order);
-    for (size_t i = 0; i < order; ++i) {
-        buffer[i] = (*(--reverse_iir_it))[0];
+    auto reverse_iir_it = backup.begin() + order;
+    for (int i = 0; i < order; ++i) {
+        buffer[static_cast<size_t>(i)] = (*(--reverse_iir_it))[0];
     }
 }
 

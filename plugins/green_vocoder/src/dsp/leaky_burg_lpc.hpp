@@ -20,12 +20,10 @@ public:
         float formant_shift{0.0f};
     };
 
-    void Init(float sample_rate, size_t block_size);
+    void Init(float sample_rate, int block_size);
     void Process(std::span<qwqdsp_simd_element::PackFloat<2>> main, std::span<qwqdsp_simd_element::PackFloat<2>> side);
-
     void SetParam(const Params& p);
-
-    void CopyLatticeCoeffient(std::span<float> buffer, size_t order);
+    void CopyLatticeCoeffient(std::span<float> buffer, int order);
 private:
     template <size_t kDicimate>
     void ProcessWithDicimate(std::span<qwqdsp_simd_element::PackFloat<2>> main,

@@ -8,7 +8,7 @@
 namespace global {
 
 // engine 每块处理采样数
-static constexpr size_t kBlockSize = 256;
+static constexpr int kBlockSize = 256;
 
 // stft / block lpc 共用的 FFT 尺寸选择（choice index → 实际长度）
 static constexpr std::array<int, 5> kStftSizes{256, 512, 1024, 2048, 4096};
@@ -18,7 +18,7 @@ static constexpr int kNumPoles = 80;
 static constexpr int kMaxDownsample = 8;
 
 // block burg lpc
-static constexpr size_t kMaxPoles = 80;
+static constexpr int kMaxPoles = 80;
 
 // 防止滤波器系数病态所需的微小噪声
 static constexpr float kNoiseGain = 1e-5f;

@@ -217,8 +217,8 @@ private:
 struct CascadeBPSVF {
     template <size_t kNumFilters, bool kOnlyPole>
     void Tick(qwqdsp_simd_element::PackFloat<4>& l, qwqdsp_simd_element::PackFloat<4>& r) noexcept {
-        for (size_t i = 0; i < kNumFilters / 2; ++i) {
-            svf_[i].Tick<kOnlyPole>(l, r);
+        for (int i = 0; i < static_cast<int>(kNumFilters / 2); ++i) {
+            svf_[static_cast<size_t>(i)].Tick<kOnlyPole>(l, r);
         }
     }
 
@@ -267,18 +267,18 @@ public:
         float ripple{1.0f};
     };
 
-    void Init(float sample_rate, size_t block_size);
+    void Init(float sample_rate, int block_size);
     void ProcessBlock(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side,
-                      size_t num_samples);
+                      int num_samples);
 
     void SetParam(const Params& p);
 
     int GetNumBins() const {
         return num_bans_;
     }
-    qwqdsp_simd_element::PackFloat<2> GetBinPeak(size_t idx) const {
-        auto v = main_peaks_[idx / 4];
-        return {v[0][idx & 3], v[1][idx & 3]};
+    qwqdsp_simd_element::PackFloat<2> GetBinPeak(int idx) const {
+        auto v = main_peaks_[static_cast<size_t>(idx) / 4];
+        return {v[0][static_cast<size_t>(idx & 3)], v[1][static_cast<size_t>(idx & 3)]};
     }
 private:
     void UpdateFilters();
@@ -291,7 +291,7 @@ private:
 
     template <size_t kFilterNumbers, bool kOnlyPole>
     void _ProcessBlock(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side,
-                       size_t num_samples);
+                       int num_samples);
 
     float carry_w_mul_{1.0f};
     float gate_peak_{0.0f};
@@ -301,7 +301,7 @@ private:
     float freq_begin_{40.0f};
     float freq_end_{12000.0f};
     int num_bans_{16};
-    size_t num_filters_{4};
+    int num_filters_{4};
     float attack_{1.0f};
     float release_{150.0f};
     float scale_{1.0f};

@@ -24,22 +24,27 @@ void BlockBurgLPC::Init(float fs) {
 }
 
 void BlockBurgLPC::SetParam(const Params& p) {
-    // block size（含窗口与内部缓冲重建）
-    fft_size_ = p.block_size;
-    size_t const hop_size = p.block_size / 4;
-    eb_.resize(p.block_size);
-    ef_.resize(p.block_size);
+    // 仅当 block_size 改变时才重建窗口与内部缓冲（分配/重算开销大）
+    if (p.block_size != fft_size_) {
+        fft_size_ = p.block_size;
+        int const hop_size = p.block_size / 4;
+        eb_.resize(static_cast<size_t>(p.block_size));
+        ef_.resize(static_cast<size_t>(p.block_size));
 
-    // hann 合成窗
-    std::vector<float> hann_window(p.block_size);
-    for (size_t i = 0; i < p.block_size; ++i) {
-        hann_window[i] =
-            0.5f - 0.5f * std::cos(2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(p.block_size));
+        // hann 合成窗
+        std::vector<float> hann_window(static_cast<size_t>(p.block_size));
+        for (int i = 0; i < p.block_size; ++i) {
+            hann_window[static_cast<size_t>(i)] =
+                0.5f
+                - 0.5f
+                      * std::cos(2.0f * std::numbers::pi_v<float>
+                                 * static_cast<float>(i) / static_cast<float>(p.block_size));
+        }
+        ola_.Init(p.block_size, hop_size, hann_window);
+        ola_.SetOutputGain(0.25f);
     }
-    ola_.Init(p.block_size, hop_size, hann_window);
-    ola_.SetOutputGain(0.25f);
 
-    update_rate_ = sample_rate_ / static_cast<float>(hop_size);
+    update_rate_ = sample_rate_ / static_cast<float>(fft_size_ / 4);
 
     num_poles_ = p.poles;
 
@@ -50,9 +55,9 @@ void BlockBurgLPC::SetParam(const Params& p) {
 }
 
 void BlockBurgLPC::Process(qwqdsp_simd_element::PackFloat<2>* main_ptr, qwqdsp_simd_element::PackFloat<2>* side_ptr,
-                           size_t num_samples) {
+                           int num_samples) {
     // adding some noise
-    for (size_t i = 0; i < num_samples; ++i) {
+    for (int i = 0; i < num_samples; ++i) {
         main_ptr[i] += noise_.Next() * kNoiseGain;
     }
     ola_.Process(main_ptr, side_ptr, num_samples, *this);
@@ -64,34 +69,34 @@ std::span<PackFloat2 const> BlockBurgLPC::operator()(std::span<PackFloat2 const>
     std::copy(main.begin(), main.end(), ef_.begin());
     std::copy(main.begin(), main.end(), eb_.begin());
     std::array<PackFloat2, kMaxPoles> latticek{};
-    for (size_t kidx = 0; kidx < num_poles_; ++kidx) {
-        auto& k = latticek[kidx];
+    for (int kidx = 0; kidx < num_poles_; ++kidx) {
+        auto& k = latticek[static_cast<size_t>(kidx)];
 
         PackFloat2 up{};
         PackFloat2 down{};
         PackFloat2 s_iir{};
-        for (size_t i = 0; i < ef_.size(); ++i) {
-            auto y = fir_allpass_coeff_ * eb_[i] + s_iir;
-            s_iir = eb_[i] - fir_allpass_coeff_ * y;
-            eb_[i] = y;
-            up += ef_[i] * y;
-            down += ef_[i] * ef_[i];
+        for (int i = 0; i < static_cast<int>(ef_.size()); ++i) {
+            auto y = fir_allpass_coeff_ * eb_[static_cast<size_t>(i)] + s_iir;
+            s_iir = eb_[static_cast<size_t>(i)] - fir_allpass_coeff_ * y;
+            eb_[static_cast<size_t>(i)] = y;
+            up += ef_[static_cast<size_t>(i)] * y;
+            down += ef_[static_cast<size_t>(i)] * ef_[static_cast<size_t>(i)];
             down += y * y;
         }
         k = -2.0f * up / down;
 
-        for (size_t i = 0; i < ef_.size(); ++i) {
-            auto upgo = ef_[i] + eb_[i] * k;
-            auto downgo = eb_[i] + ef_[i] * k;
-            ef_[i] = upgo;
-            eb_[i] = downgo;
+        for (int i = 0; i < static_cast<int>(ef_.size()); ++i) {
+            auto upgo = ef_[static_cast<size_t>(i)] + eb_[static_cast<size_t>(i)] * k;
+            auto downgo = eb_[static_cast<size_t>(i)] + ef_[static_cast<size_t>(i)] * k;
+            ef_[static_cast<size_t>(i)] = upgo;
+            eb_[static_cast<size_t>(i)] = downgo;
         }
     }
     // smear
     // the FIR and IIR lattice coeffient are reversed
-    auto reverse_fir_k = latticek.begin() + static_cast<int>(num_poles_);
+    auto reverse_fir_k = latticek.begin() + num_poles_;
     auto iir_k = latticek_.begin();
-    for (size_t order = 0; order < num_poles_; order += 2) {
+    for (int order = 0; order < num_poles_; order += 2) {
         auto const& fir_1 = *(--reverse_fir_k);
         auto const& fir_2 = *(--reverse_fir_k);
         auto& iir_1 = *(iir_k++);
@@ -103,8 +108,8 @@ std::span<PackFloat2 const> BlockBurgLPC::operator()(std::span<PackFloat2 const>
     }
     // eval gain
     PackFloat2 gain{};
-    for (size_t i = 0; i < ef_.size(); ++i) {
-        gain += ef_[i] * ef_[i];
+    for (int i = 0; i < static_cast<int>(ef_.size()); ++i) {
+        gain += ef_[static_cast<size_t>(i)] * ef_[static_cast<size_t>(i)];
     }
     gain = qwqdsp_simd_element::PackOps::Sqrt(gain);
     PackFloat2 gain_side{};
@@ -115,28 +120,28 @@ std::span<PackFloat2 const> BlockBurgLPC::operator()(std::span<PackFloat2 const>
     gain_lag_ += (1.0f - attack_factor_) * atten;
     // iir lattice
     std::array<PackFloat2, kMaxPoles + 1> l_iir{};
-    for (size_t j = 0; j < ef_.size(); ++j) {
-        auto x0 = side[j] * gain_lag_;
-        for (size_t idx = 0; idx < num_poles_; idx += 2) {
-            auto x1 = x0 - latticek_[idx] * l_iir[idx + 1];
-            auto x2 = x1 - latticek_[idx + 1] * l_iir[idx + 2];
-            auto l0 = l_iir[idx + 1] + latticek_[idx] * x1;
-            auto l1 = l_iir[idx + 2] + latticek_[idx + 1] * x2;
+    for (int j = 0; j < static_cast<int>(ef_.size()); ++j) {
+        auto x0 = side[static_cast<size_t>(j)] * gain_lag_;
+        for (int idx = 0; idx < num_poles_; idx += 2) {
+            auto x1 = x0 - latticek_[static_cast<size_t>(idx)] * l_iir[static_cast<size_t>(idx) + 1];
+            auto x2 = x1 - latticek_[static_cast<size_t>(idx) + 1] * l_iir[static_cast<size_t>(idx) + 2];
+            auto l0 = l_iir[static_cast<size_t>(idx) + 1] + latticek_[static_cast<size_t>(idx)] * x1;
+            auto l1 = l_iir[static_cast<size_t>(idx) + 2] + latticek_[static_cast<size_t>(idx) + 1] * x2;
             x0 = x2;
-            l_iir[idx] = l0;
-            l_iir[idx + 1] = l1;
+            l_iir[static_cast<size_t>(idx)] = l0;
+            l_iir[static_cast<size_t>(idx) + 1] = l1;
         }
-        l_iir[num_poles_] = x0;
-        ef_[j] = x0;
+        l_iir[static_cast<size_t>(num_poles_)] = x0;
+        ef_[static_cast<size_t>(j)] = x0;
     }
     return std::span<PackFloat2 const>{ef_};
 }
 
-void BlockBurgLPC::CopyLatticeCoeffient(std::span<float> buffer, size_t order) {
+void BlockBurgLPC::CopyLatticeCoeffient(std::span<float> buffer, int order) {
     auto const backup = latticek_;
-    auto reverse_iir_it = backup.begin() + static_cast<int>(order);
-    for (size_t i = 0; i < order; ++i) {
-        buffer[i] = (*(--reverse_iir_it))[0];
+    auto reverse_iir_it = backup.begin() + order;
+    for (int i = 0; i < order; ++i) {
+        buffer[static_cast<size_t>(i)] = (*(--reverse_iir_it))[0];
     }
 }
 
