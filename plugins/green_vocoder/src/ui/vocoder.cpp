@@ -4,18 +4,21 @@
 #include "channel_vocoder.hpp"
 #include "stft_vocoder.hpp"
 
-namespace green_vocoder::widget {
+namespace green_vocoder::ui {
 Vocoder::Vocoder(AudioPluginAudioProcessor& p) {
     addAndMakeVisible(title_);
     shift_pitch_.BindParam(p.params_.shift_pitch.ptr_);
     addAndMakeVisible(shift_pitch_);
+    shift_pitch_title_.setJustificationType(juce::Justification::centredLeft);
+    ::ui::SetLableBlack(shift_pitch_title_);
+    addAndMakeVisible(shift_pitch_title_);
     vocoder_type_.BindParam(p.params_.vocoder_type.ptr_, true);
     vocoder_type_.on_value_changed = [this](int) { OnVocoderTypeChanged(); };
     addAndMakeVisible(vocoder_type_);
 
-    burg_ = std::make_unique<widget::BurgLPC>(p);
-    channel_ = std::make_unique<widget::ChannelVocoder>(p);
-    stft_ = std::make_unique<widget::STFTVocoder>(p);
+    burg_ = std::make_unique<BurgLPC>(p);
+    channel_ = std::make_unique<ChannelVocoder>(p);
+    stft_ = std::make_unique<STFTVocoder>(p);
     addChildComponent(burg_.get());
     addChildComponent(channel_.get());
     addChildComponent(stft_.get());
@@ -36,7 +39,12 @@ void Vocoder::resized() {
     title_.setBounds(b.removeFromTop(20));
 
     auto top = b.removeFromTop(30);
-    shift_pitch_.setBounds(top.removeFromLeft(150).reduced(2));
+    {
+        auto shift_pitch_bound = top.removeFromLeft(150).reduced(2);
+        auto shift_pitch_width = static_cast<int>(1.2f * juce::TextLayout::getStringWidth(shift_pitch_title_.getFont(), shift_pitch_title_.getText()));
+        shift_pitch_title_.setBounds(shift_pitch_bound.removeFromLeft(shift_pitch_width));
+        shift_pitch_.setBounds(shift_pitch_bound);
+    }
     top.removeFromLeft(8);
     vocoder_type_.setBounds(top);
     {
@@ -62,7 +70,7 @@ void Vocoder::OnVocoderTypeChanged() {
         case eVocoderType_LeakyBurgLPC:
         case eVocoderType_BlockBurgLPC:
             current_vocoder_widget_ = burg_.get();
-            static_cast<widget::BurgLPC*>(current_vocoder_widget_)->SetBlockMode(type == eVocoderType_BlockBurgLPC);
+            static_cast<BurgLPC*>(current_vocoder_widget_)->SetBlockMode(type == eVocoderType_BlockBurgLPC);
             break;
         case eVocoderType_STFTVocoder:
             current_vocoder_widget_ = stft_.get();
@@ -85,4 +93,4 @@ void Vocoder::timerCallback() {
         current_vocoder_widget_->repaint();
     }
 }
-} // namespace green_vocoder::widget
+} // namespace green_vocoder::ui

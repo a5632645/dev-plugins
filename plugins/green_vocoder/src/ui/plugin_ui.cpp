@@ -2,6 +2,8 @@
 
 #include "PluginProcessor.h"
 
+namespace green_vocoder::ui {
+
 PluginUi::PluginUi(AudioPluginAudioProcessor& p)
     : preset_panel_(*p.preset_manager_)
     , pre_fx_(p)
@@ -11,12 +13,12 @@ PluginUi::PluginUi(AudioPluginAudioProcessor& p)
     addAndMakeVisible(pre_fx_);
     addAndMakeVisible(vocoder_);
     addAndMakeVisible(tracking_);
-    setSize(kWidth, kHeight);
+    setSize(global::kUiWidth, global::kUiHeight);
 }
 
 void PluginUi::paint(juce::Graphics& g) {
-    g.fillAll(ui::black_bg);
-    g.setColour(ui::green_bg);
+    g.fillAll(::ui::black_bg);
+    g.setColour(::ui::green_bg);
     g.fillRect(preset_panel_.getBounds());
     g.fillRect(pre_fx_.getBounds());
     g.fillRect(vocoder_.getBounds());
@@ -32,3 +34,5 @@ void PluginUi::resized() {
     auto right_panel = b;
     vocoder_.setBounds(right_panel.reduced(1));
 }
+
+} // namespace green_vocoder::ui

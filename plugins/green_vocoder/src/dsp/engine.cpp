@@ -1,5 +1,7 @@
 #include "engine.hpp"
 
+#include <cmath>
+
 namespace green_vocoder {
 
 // ============================================================================
@@ -19,6 +21,7 @@ void Engine::Init(double sample_rate, size_t block_size) {
     pitch_osc_.Reset();
     first_init_ = true;
 
+    pre_tilt_filter_.Init(fs);
     pre_tilt_filter_.Reset();
 }
 
@@ -26,69 +29,93 @@ void Engine::Reset() {
 }
 
 // ============================================================================
-// Mailbox → DSP sync
+// Params → DSP sync
 // ============================================================================
 
-void Engine::UpdateTiltFilter(const TiltFilterMailbox& mb) {
-    pre_tilt_filter_.SetTilt(static_cast<float>(sample_rate_), mb.pre_tilt_db);
+void Engine::Update(Params& p) {
+    if (p.should_update_tilt_.exchange(false, std::memory_order_acq_rel))
+        UpdateTiltFilter(p);
+    if (p.should_update_leaky_lpc_.exchange(false, std::memory_order_acq_rel))
+        UpdateLeakyLPC(p);
+    if (p.should_update_block_lpc_.exchange(false, std::memory_order_acq_rel))
+        UpdateBlockLPC(p);
+    if (p.should_update_stft_.exchange(false, std::memory_order_acq_rel))
+        UpdateSTFT(p);
+    if (p.should_update_channel_vocoder_.exchange(false, std::memory_order_acq_rel))
+        UpdateChannelVocoder(p);
+    if (p.should_update_pitch_osc_.exchange(false, std::memory_order_acq_rel))
+        UpdatePitchOsc(p);
 }
 
-void Engine::UpdateLeakyLPC(const LeakyLpcMailbox& mb) {
-    burg_lpc_.SetForget(mb.forget_rate);
-    burg_lpc_.SetSmooth(mb.smooth);
-    burg_lpc_.SetGainAttack(mb.gain_attack);
-    burg_lpc_.SetGainHold(mb.gain_hold);
-    burg_lpc_.SetGainRelease(mb.gain_release);
-    burg_lpc_.SetLPCOrder(static_cast<int>(mb.order));
-    float scaled = mb.formant_shift * (16.0f / 24.0f) / 24.0f;
-    burg_lpc_.SetFormantShift(scaled);
+void Engine::UpdateTiltFilter(Params& p) {
+    pre_tilt_filter_.SetParam({.db = p.pre_tilt.Get()});
 }
 
-void Engine::UpdateBlockLPC(const BlockLpcMailbox& mb) {
-    block_burg_lpc_.SetSmear(mb.smear);
-    block_burg_lpc_.SetAttack(mb.attack);
-    block_burg_lpc_.SetPoles(static_cast<size_t>(mb.poles));
-    block_burg_lpc_.SetBlockSize(mb.block_size);
-    float scaled = mb.formant_shift * (16.0f / 24.0f) / 24.0f;
-    block_burg_lpc_.SetFormantShift(scaled);
+void Engine::UpdateLeakyLPC(Params& p) {
+    burg_lpc_.SetParam({
+        .forget = p.lpc_forget.Get(),
+        .smooth = p.lpc_smooth.Get(),
+        .order = static_cast<int>(p.lpc_order.Get()),
+        .gain_attack = p.lpc_gain_attack.Get(),
+        .gain_release = p.lpc_gain_release.Get(),
+        .gain_hold = p.lpc_gain_hold.Get(),
+        .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
+    });
 }
 
-void Engine::UpdateSTFT(const STFTVocoderMailbox& mb) {
-    stft_vocoder_.SetBandwidth(mb.bandwidth);
-    stft_vocoder_.SetNumMfcc(static_cast<size_t>(mb.num_mfcc));
-    stft_vocoder_.SetAttack(mb.attack);
-    stft_vocoder_.SetRelease(mb.release);
-    stft_vocoder_.SetBlend(mb.blend);
-    stft_vocoder_.SetDetail(mb.detail);
-    stft_vocoder_.SetFFTSize(mb.fft_size);
-    stft_vocoder_.SetMode(static_cast<dsp::STFTVocoder::Mode>(mb.mode));
-    stft_vocoder_.SetFormantShift(mb.formant_shift);
+void Engine::UpdateBlockLPC(Params& p) {
+    block_burg_lpc_.SetParam({
+        .block_size = static_cast<size_t>(global::kStftSizes[p.stft_size.Get()]),
+        .poles = static_cast<size_t>(p.lpc_order.Get()),
+        .smear = p.lpc_smooth.Get(),
+        .attack = p.lpc_gain_attack.Get(),
+        .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
+        .use_v2 = false, // 未接线，保持默认（V2 未启用）
+        .forget = 10.0f,
+    });
 }
 
-void Engine::UpdateChannelVocoder(const ChannelVocoderMailbox& mb) {
-    channel_vocoder_.SetFilterBankMode(
-        static_cast<dsp::ChannelVocoder::FilterBankMode>(mb.filter_bank_mode));
-    channel_vocoder_.SetAttack(mb.attack);
-    channel_vocoder_.SetGate(mb.gate);
-    channel_vocoder_.SetRelease(mb.release);
-    channel_vocoder_.SetFreqBegin(mb.freq_begin);
-    channel_vocoder_.SetFreqEnd(mb.freq_end);
-    channel_vocoder_.SetNumBands(mb.nbands);
-    channel_vocoder_.SetModulatorScale(mb.scale);
-    channel_vocoder_.SetFilterRipple(mb.ripple);
-    channel_vocoder_.SetCarryScale(mb.carry_scale);
-    channel_vocoder_.SetMap(static_cast<dsp::eChannelVocoderMap>(mb.map));
-    channel_vocoder_.SetFormantShift(mb.formant_shift);
+void Engine::UpdateSTFT(Params& p) {
+    stft_vocoder_.SetParam({
+        .attack = p.stft_attack.Get(),
+        .release = p.stft_release.Get(),
+        .fft_size = global::kStftSizes[p.stft_size.Get()],
+        .blend = p.stft_blend.Get(),
+        .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
+        .mode = static_cast<dsp::STFTVocoder::Mode>(p.stft_type.Get()),
+        .bandwidth = p.stft_bandwidth.Get(),
+        .detail = p.stft_detail.Get(),
+        .num_mfcc = static_cast<int>(p.mfcc_nbands.Get()),
+    });
 }
 
-void Engine::UpdatePitchOsc(const PitchOscMailbox& mb) {
-    pitch_osc_.SetMinPitch(mb.min_pitch);
-    pitch_osc_.SetMaxPitch(mb.max_pitch);
-    pitch_osc_.SetPitchShift(mb.pitch_shift);
-    pitch_osc_.SetPWM(mb.pwm);
-    pitch_osc_.SetNoiseGain(mb.noise_gain);
-    pitch_osc_.SetWaveform(mb.waveform);
-    pitch_osc_.SetGlide(mb.glide);
+void Engine::UpdateChannelVocoder(Params& p) {
+    channel_vocoder_.SetParam({
+        .num_bands = static_cast<int>(std::round(p.cv_nbands.Get())),
+        .freq_begin = p.cv_freq_begin.Get(),
+        .freq_end = p.cv_freq_end.Get(),
+        .attack = p.cv_attack.Get(),
+        .release = p.cv_release.Get(),
+        .modulator_scale = p.cv_scale.Get(),
+        .carry_scale = p.cv_carry_scale.Get(),
+        .map = static_cast<dsp::eChannelVocoderMap>(p.cv_map.Get()),
+        .filter_bank_mode = static_cast<dsp::ChannelVocoder::FilterBankMode>(p.cv_filter_bank_mode.Get()),
+        .gate = p.cv_gate.Get(),
+        .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
+        .ripple = p.cv_ripple.Get(),
+    });
+}
+
+void Engine::UpdatePitchOsc(Params& p) {
+    pitch_osc_.SetParam({
+        .min_pitch = p.track_low.Get(),
+        .max_pitch = p.track_high.Get(),
+        .pitch_shift = p.track_pitch.Get(),
+        .pwm = p.track_pwm.Get(),
+        .noise_gain = p.track_noise.Get(),
+        .waveform = p.track_waveform.Get(),
+        .glide = p.track_glide.Get(),
+    });
 }
 
 // ============================================================================
@@ -104,8 +131,8 @@ void Engine::Process(
     size_t const num_samples = static_cast<size_t>(buffer.getNumSamples());
 
     // --- block processing ---
-    for (size_t pos = 0; pos < num_samples; pos += kBlockSize) {
-        size_t const n = std::min(kBlockSize, num_samples - pos);
+    for (size_t pos = 0; pos < num_samples; pos += global::kBlockSize) {
+        size_t const n = std::min(global::kBlockSize, num_samples - pos);
 
         // fill modulator
         {

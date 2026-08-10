@@ -19,7 +19,8 @@ private:
     ui::Dial width_{"width"};
     juce::Label label_shape_{"","shape"};
     ui::FlatCombobox shape_;
-    ui::FlatSlider n_{"partial"};
+    ui::FlatSlider n_;
+    juce::Label n_title_{"", "partial"};
     ui::Switch use_max_n_{"max_n"};
 };
 }

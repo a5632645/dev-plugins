@@ -6,14 +6,12 @@
 #include <qwqdsp/spectral/complex_fft_adv.hpp>
 #include <qwqdsp/spectral/real_fft_adv.hpp>
 
+#include "../global.hpp"
+
 namespace green_vocoder::dsp {
 
 class STFTVocoder {
 public:
-    static constexpr int kExtraGainSize = 1;
-    static constexpr int kMaxNumMfcc = 80;
-    static constexpr int kMinNumMfcc = 8;
-
     enum class Mode {
         Standard,
         Cepstrum,
@@ -24,31 +22,30 @@ public:
     void Reset();
     void Process(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side, int num_samples);
 
-    void SetAttack(float ms);
-    void SetRelease(float ms);
-    void SetBlend(float blend);
-    void SetFFTSize(int size);
-    void SetFormantShift(float formant_shift);
-    void SetMode(Mode mode);
+    struct Params {
+        float attack{1.0f};
+        float release{100.0f};
+        int fft_size{1024};
+        float blend{0.2f};
+        float formant_shift{0.0f};
+        Mode mode{Mode::Cepstrum};
+        float bandwidth{2.0f};
+        float detail{0.3f};
+        int num_mfcc{20};
+    };
+
+    void SetParam(const Params& p);
 
     int GetFFTSize() const {
         return fft_size_;
     }
 
-    // standard
-    void SetBandwidth(float bw);
-
-    // cepstrum
-    void SetDetail(float detail);
-
-    // mfcc
-    void SetNumMfcc(int num_mfcc);
-
+    // GUI 读取（保持公开）
     std::vector<float> gains_{};
     std::vector<float> gains2_{};
 
-    std::array<float, kMaxNumMfcc> mfcc_gains_{};
-    std::array<float, kMaxNumMfcc> mfcc_gains2_{};
+    std::array<float, global::kMaxNumMfcc> mfcc_gains_{};
+    std::array<float, global::kMaxNumMfcc> mfcc_gains2_{};
 private:
     float Blend(float x);
     void SpectralProcess_Standard(std::vector<float>& real_in, std::vector<float>& imag_in,
@@ -58,7 +55,7 @@ private:
                                   std::vector<float>& real_out, std::vector<float>& imag_out,
                                   std::vector<float>& gains);
     void SpectralProcess_MFCC(std::vector<float>& real_in, std::vector<float>& imag_in, std::vector<float>& real_out,
-                              std::vector<float>& imag_out, std::array<float, kMaxNumMfcc>& gains);
+                              std::vector<float>& imag_out, std::array<float, global::kMaxNumMfcc>& gains);
 
     // common fft
     qwqdsp_spectral::RealFftAdv fft_;
@@ -102,7 +99,7 @@ private:
     std::vector<float> cep_window_fft_{};
 
     // mfcc
-    std::array<size_t, kMaxNumMfcc + 1> mfcc_indexs_{};
+    std::array<size_t, global::kMaxNumMfcc + 1> mfcc_indexs_{};
     int num_mfcc_{};
     std::vector<float> fill_gains_{};
 };

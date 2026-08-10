@@ -1,9 +1,10 @@
 #include "burg_lpc.hpp"
 #include <numbers>
 #include <string>
+#include "../global.hpp"
 #include "../PluginProcessor.h"
 
-namespace green_vocoder::widget {
+namespace green_vocoder::ui {
 
 BurgLPC::BurgLPC(AudioPluginAudioProcessor& processor)
     : processor_(processor) {
@@ -13,6 +14,9 @@ BurgLPC::BurgLPC(AudioPluginAudioProcessor& processor)
     addAndMakeVisible(smear_);
     order_.BindParam(processor.params_.lpc_order.ptr_);
     addAndMakeVisible(order_);
+    order_title_.setJustificationType(juce::Justification::centredLeft);
+    ::ui::SetLableBlack(order_title_);
+    addAndMakeVisible(order_title_);
     attack_.BindParam(processor.params_.lpc_gain_attack.ptr_);
     addAndMakeVisible(attack_);
     hold_.BindParam(processor.params_.lpc_gain_hold.ptr_);
@@ -33,14 +37,18 @@ void BurgLPC::resized() {
         forget_.setBounds(top.removeFromLeft(50));
         smear_.setBounds(top.removeFromLeft(50));
         auto block = top.removeFromLeft(60);
-        order_.setBounds(block.withHeight(40));
+        auto order_bound = block.withHeight(40);
+        order_title_.setBounds(order_bound.removeFromTop(static_cast<int>(order_title_.getFont().getHeight())));
+        order_.setBounds(order_bound);
         attack_.setBounds(top.removeFromLeft(50));
         hold_.setBounds(top.removeFromLeft(50));
         release_.setBounds(top.removeFromLeft(50));
     }
     else {
         block_size_.setBounds(b.removeFromLeft(80).withHeight(65).withSizeKeepingCentre(80, 35).reduced(2));
-        order_.setBounds(b.removeFromLeft(80).withHeight(40).reduced(2));
+        auto order_bound = b.removeFromLeft(80).withHeight(40).reduced(2);
+        order_title_.setBounds(order_bound.removeFromTop(static_cast<int>(order_title_.getFont().getHeight())));
+        order_.setBounds(order_bound);
         auto block = b.removeFromTop(65);
         smear_.setBounds(block.removeFromLeft(50));
         attack_.setBounds(block.removeFromLeft(50));
@@ -63,7 +71,7 @@ void BurgLPC::MakeGui() {
 void BurgLPC::paint(juce::Graphics& g) {
     auto bb = getLocalBounds();
     bb.removeFromTop(65);
-    g.setColour(ui::black_bg);
+    g.setColour(::ui::black_bg);
     g.fillRect(bb);
     auto current_font = g.getCurrentFont();
 
@@ -85,7 +93,7 @@ void BurgLPC::paint(juce::Graphics& g) {
     {
         constexpr int nlines = 5;
         constexpr float db_span = (top_line_db - last_line_db) / (nlines - 1.0f);
-        g.setColour(ui::grid_fore);
+        g.setColour(::ui::grid_fore);
         for (int i = 0; i < nlines; ++i) {
             auto db = last_line_db + db_span * i;
             auto y = convert_db_to_y(db);
@@ -131,9 +139,9 @@ void BurgLPC::paint(juce::Graphics& g) {
     }
 
     // lattice to tf
-    std::array<float, dsp::LeakyBurgLPC::kNumPoles> lattice_buff;
-    std::array<float, dsp::LeakyBurgLPC::kNumPoles + 1> upgoing{1};
-    std::array<float, dsp::LeakyBurgLPC::kNumPoles + 1> downgoing{1};
+    std::array<float, global::kNumPoles> lattice_buff;
+    std::array<float, global::kNumPoles + 1> upgoing{1};
+    std::array<float, global::kNumPoles + 1> downgoing{1};
 
     size_t order = static_cast<size_t>(order_.slider.getValue());
     ;
@@ -162,7 +170,7 @@ void BurgLPC::paint(juce::Graphics& g) {
     int w = bb.getWidth();
     auto b = bb.toFloat();
     juce::Point<float> line_last{b.getX(), b.getCentreY()};
-    g.setColour(ui::line_fore);
+    g.setColour(::ui::line_fore);
     float mul_val = std::pow(10.0f, freq_pow / w);
     float mul_begin = 1.0f;
     float omega_base = freq_begin * std::numbers::pi_v<float> / static_cast<float>(processor_.engine_.GetSampleRate());
@@ -192,4 +200,4 @@ void BurgLPC::paint(juce::Graphics& g) {
     // g.drawRect(bb);
 }
 
-} // namespace green_vocoder::widget
+} // namespace green_vocoder::ui

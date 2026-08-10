@@ -11,84 +11,31 @@ void ChannelVocoder::Init(float sample_rate, size_t block_size) {
     UpdateFilters();
 }
 
-void ChannelVocoder::SetNumBands(int bands) {
-    assert(bands % 4 == 0);
-    num_bans_ = bands;
-    num_filters_ = static_cast<size_t>(bands) / 4;
-    UpdateFilters();
+void ChannelVocoder::SetParam(const Params& p) {
+    assert(p.num_bands % 4 == 0);
+    filter_bank_mode_ = p.filter_bank_mode;
+    num_bans_ = p.num_bands;
+    num_filters_ = static_cast<size_t>(p.num_bands) / 4;
+    freq_begin_ = p.freq_begin;
+    freq_end_ = p.freq_end;
 
-    if (filter_bank_mode_ == FilterBankMode::Elliptic24 || filter_bank_mode_ == FilterBankMode::Elliptic36) {
-        for (auto& f : filters_) {
-            f.first.Reset();
-            f.second.Reset();
-        }
-    }
-}
+    attack_ms_ = p.attack;
+    attack_ = qwqdsp::convert::Ms2DecayDb(p.attack, sample_rate_, -60.0f);
+    release_ms_ = p.release;
+    release_ = qwqdsp::convert::Ms2DecayDb(p.release + p.attack, sample_rate_, -60.0f);
 
-void ChannelVocoder::SetFreqBegin(float begin) {
-    freq_begin_ = begin;
-    UpdateFilters();
-}
+    scale_ = p.modulator_scale;
+    carry_scale_ = p.carry_scale;
+    map_ = p.map;
+    gate_peak_ = qwqdsp::convert::Db2Gain(p.gate);
+    carry_w_mul_ = std::exp2(p.formant_shift / 12.0f);
+    filter_ripple_ = p.ripple;
 
-void ChannelVocoder::SetFreqEnd(float end) {
-    freq_end_ = end;
-    UpdateFilters();
-}
-
-void ChannelVocoder::SetAttack(float attack) {
-    attack_ms_ = attack;
-    attack_ = qwqdsp::convert::Ms2DecayDb(attack, sample_rate_, -60.0f);
-    release_ = qwqdsp::convert::Ms2DecayDb(release_ms_ + attack, sample_rate_, -60.0f);
-}
-
-void ChannelVocoder::SetRelease(float release) {
-    release_ms_ = release;
-    release_ = qwqdsp::convert::Ms2DecayDb(release + attack_ms_, sample_rate_, -60.0f);
-}
-
-void ChannelVocoder::SetModulatorScale(float scale) {
-    scale_ = scale;
-    UpdateFilters();
-}
-
-void ChannelVocoder::SetCarryScale(float scale) {
-    carry_scale_ = scale;
-    UpdateFilters();
-}
-
-void ChannelVocoder::SetMap(eChannelVocoderMap map) {
-    map_ = map;
-    UpdateFilters();
-
-    if (filter_bank_mode_ == FilterBankMode::Elliptic24 || filter_bank_mode_ == FilterBankMode::Elliptic36) {
-        for (auto& f : filters_) {
-            f.first.Reset();
-            f.second.Reset();
-        }
-    }
-}
-
-void ChannelVocoder::SetFilterBankMode(ChannelVocoder::FilterBankMode mode) {
-    filter_bank_mode_ = mode;
     UpdateFilters();
     for (auto& f : filters_) {
         f.first.Reset();
         f.second.Reset();
     }
-}
-
-void ChannelVocoder::SetGate(float db) {
-    gate_peak_ = qwqdsp::convert::Db2Gain(db);
-}
-
-void ChannelVocoder::SetFormantShift(float shift) {
-    carry_w_mul_ = std::exp2(shift / 12.0f);
-    UpdateFilters();
-}
-
-void ChannelVocoder::SetFilterRipple(float ripple) {
-    filter_ripple_ = ripple;
-    UpdateFilters();
 }
 
 // -------------------- frequency maps --------------------

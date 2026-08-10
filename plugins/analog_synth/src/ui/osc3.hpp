@@ -16,11 +16,15 @@ private:
     ui::Dial volume_{"volume"};
     ui::Dial pwm_{"pwm"};
     ui::CubeSelector waveform_;
-    ui::FlatSlider unison_{"unison"};
-    ui::FlatSlider unison_detune_{"detune"};
+    ui::FlatSlider unison_;
+    juce::Label unison_title_{"", "unison"};
+    ui::FlatSlider unison_detune_;
+    juce::Label unison_detune_title_{"", "detune"};
     ui::FlatCombobox unison_type_;
     ui::Switch retrigger_{"retrigger"};
-    ui::FlatSlider phase_{"phase"};
-    ui::FlatSlider random_{"random"};
+    ui::FlatSlider phase_;
+    juce::Label phase_title_{"", "phase"};
+    ui::FlatSlider random_;
+    juce::Label random_title_{"", "random"};
 };
 }

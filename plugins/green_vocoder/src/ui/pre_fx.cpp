@@ -1,7 +1,7 @@
 #include "pre_fx.hpp"
 #include "PluginProcessor.h"
 
-namespace green_vocoder::widget {
+namespace green_vocoder::ui {
 PreFx::PreFx(AudioPluginAudioProcessor& p) {
     addAndMakeVisible(title_);
     tilt_.BindParam(p.params_.pre_tilt.ptr_);
@@ -12,11 +12,11 @@ PreFx::PreFx(AudioPluginAudioProcessor& p) {
     addAndMakeVisible(pitch_ch_);
 
     swap_title_.setJustificationType(juce::Justification::left);
-    ui::SetLableBlack(swap_title_);
+    ::ui::SetLableBlack(swap_title_);
     addAndMakeVisible(swap_title_);
 
     pitch_title_.setJustificationType(juce::Justification::left);
-    ui::SetLableBlack(pitch_title_);
+    ::ui::SetLableBlack(pitch_title_);
     addAndMakeVisible(pitch_title_);
 }
 
@@ -34,4 +34,4 @@ void PreFx::resized() {
 
     tilt_.setBounds(b.removeFromLeft(50).withHeight(65));
 }
-} // namespace green_vocoder::widget
+} // namespace green_vocoder::ui

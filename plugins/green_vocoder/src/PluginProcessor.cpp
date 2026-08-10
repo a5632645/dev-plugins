@@ -1,10 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-#include <array>
 #include <memory>
-
-#include "global.hpp"
 
 //==============================================================================
 AudioPluginAudioProcessor::AudioPluginAudioProcessor()
@@ -18,324 +15,16 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
 #endif
       ) {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
-
-    // --- pre fx ---
-    {
-        auto p = params_.pre_tilt.Build();
-        paramListeners_.Add(p, [this](float db) {
-            tilt_mb_.pre_tilt_db = db;
-            tilt_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.channel_swap.Build();
-        paramListeners_.Add(p, [](bool) {});
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.pitch_channel.Build();
-        layout.add(std::move(p));
-    }
-
-    // --- pitch shifter (formant shift → multiple DSP modules) ---
-    {
-        auto p = params_.shift_pitch.Build();
-        paramListeners_.Add(p, [this](float l) {
-            cv_mb_.formant_shift = l;
-            cv_mb_.dirty.store(true, std::memory_order_release);
-            stft_mb_.formant_shift = l;
-            stft_mb_.dirty.store(true, std::memory_order_release);
-            leaky_lpc_mb_.formant_shift = l;
-            leaky_lpc_mb_.dirty.store(true, std::memory_order_release);
-            block_lpc_mb_.formant_shift = l;
-            block_lpc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-
-    // --- channel vocoder ---
-    {
-        auto p = params_.cv_filter_bank_mode.Build();
-        paramListeners_.Add(p, [this](int mode) {
-            cv_mb_.filter_bank_mode = mode;
-            cv_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.cv_attack.Build();
-        paramListeners_.Add(p, [this](float v) {
-            cv_mb_.attack = v;
-            cv_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.cv_gate.Build();
-        paramListeners_.Add(p, [this](float v) {
-            cv_mb_.gate = v;
-            cv_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.cv_release.Build();
-        paramListeners_.Add(p, [this](float v) {
-            cv_mb_.release = v;
-            cv_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.cv_freq_begin.Build();
-        paramListeners_.Add(p, [this](float v) {
-            cv_mb_.freq_begin = v;
-            cv_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.cv_freq_end.Build();
-        paramListeners_.Add(p, [this](float v) {
-            cv_mb_.freq_end = v;
-            cv_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.cv_nbands.Build();
-        paramListeners_.Add(p, [this](float v) {
-            cv_mb_.nbands = static_cast<int>(std::round(v));
-            cv_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.cv_scale.Build();
-        paramListeners_.Add(p, [this](float v) {
-            cv_mb_.scale = v;
-            cv_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.cv_ripple.Build();
-        paramListeners_.Add(p, [this](float v) {
-            cv_mb_.ripple = v;
-            cv_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.cv_carry_scale.Build();
-        paramListeners_.Add(p, [this](float v) {
-            cv_mb_.carry_scale = v;
-            cv_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.cv_map.Build();
-        paramListeners_.Add(p, [this](int i) {
-            cv_mb_.map = i;
-            cv_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-
-    // --- lpc ---
-    {
-        auto p = params_.lpc_forget.Build();
-        paramListeners_.Add(p, [this](float l) {
-            leaky_lpc_mb_.forget_rate = l;
-            leaky_lpc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.lpc_smooth.Build();
-        paramListeners_.Add(p, [this](float l) {
-            leaky_lpc_mb_.smooth = l;
-            leaky_lpc_mb_.dirty.store(true, std::memory_order_release);
-            block_lpc_mb_.smear = l;
-            block_lpc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.lpc_gain_attack.Build();
-        paramListeners_.Add(p, [this](float l) {
-            leaky_lpc_mb_.gain_attack = l;
-            leaky_lpc_mb_.dirty.store(true, std::memory_order_release);
-            block_lpc_mb_.attack = l;
-            block_lpc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.lpc_gain_hold.Build();
-        paramListeners_.Add(p, [this](float l) {
-            leaky_lpc_mb_.gain_hold = l;
-            leaky_lpc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.lpc_gain_release.Build();
-        paramListeners_.Add(p, [this](float l) {
-            leaky_lpc_mb_.gain_release = l;
-            leaky_lpc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.lpc_order.Build();
-        paramListeners_.Add(p, [this](float order) {
-            int o = static_cast<int>(order);
-            leaky_lpc_mb_.order = static_cast<float>(o);
-            leaky_lpc_mb_.dirty.store(true, std::memory_order_release);
-            block_lpc_mb_.poles = static_cast<float>(o);
-            block_lpc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-
-    // --- stft ---
-    {
-        auto p = params_.stft_bandwidth.Build();
-        paramListeners_.Add(p, [this](float bw) {
-            stft_mb_.bandwidth = bw;
-            stft_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.mfcc_nbands.Build();
-        paramListeners_.Add(p, [this](float bw) {
-            stft_mb_.num_mfcc = static_cast<int>(bw);
-            stft_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.stft_release.Build();
-        paramListeners_.Add(p, [this](float bw) {
-            stft_mb_.release = bw;
-            stft_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.stft_attack.Build();
-        paramListeners_.Add(p, [this](float bw) {
-            stft_mb_.attack = bw;
-            stft_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.stft_blend.Build();
-        paramListeners_.Add(p, [this](float omega) {
-            stft_mb_.blend = omega;
-            stft_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.stft_size.Build();
-        paramListeners_.Add(p, [this](int idx) {
-            static constexpr std::array kArray{256, 512, 1024, 2048, 4096};
-            int size = kArray[idx];
-            stft_mb_.fft_size = size;
-            stft_mb_.dirty.store(true, std::memory_order_release);
-            block_lpc_mb_.block_size = size;
-            block_lpc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.stft_detail.Build();
-        paramListeners_.Add(p, [this](float omega) {
-            stft_mb_.detail = omega;
-            stft_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.stft_type.Build();
-        paramListeners_.Add(p, [this](int mode) {
-            stft_mb_.mode = mode;
-            stft_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-
-    // --- pitch tracking ---
-    {
-        auto p = params_.track_low.Build();
-        paramListeners_.Add(p, [this](float low) {
-            pitch_osc_mb_.min_pitch = low;
-            pitch_osc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.track_high.Build();
-        paramListeners_.Add(p, [this](float max) {
-            pitch_osc_mb_.max_pitch = max;
-            pitch_osc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.track_pitch.Build();
-        paramListeners_.Add(p, [this](float pitch) {
-            pitch_osc_mb_.pitch_shift = pitch;
-            pitch_osc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.track_pwm.Build();
-        paramListeners_.Add(p, [this](float pwm) {
-            pitch_osc_mb_.pwm = pwm;
-            pitch_osc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.track_noise.Build();
-        paramListeners_.Add(p, [this](float g) {
-            pitch_osc_mb_.noise_gain = g;
-            pitch_osc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.track_waveform.Build();
-        paramListeners_.Add(p, [this](int idx) {
-            pitch_osc_mb_.waveform = idx;
-            pitch_osc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
-    {
-        auto p = params_.track_glide.Build();
-        paramListeners_.Add(p, [this](float bw) {
-            pitch_osc_mb_.glide = bw;
-            pitch_osc_mb_.dirty.store(true, std::memory_order_release);
-        });
-        layout.add(std::move(p));
-    }
+    params_.BuildLayout(layout);
 
     value_tree_ = std::make_unique<juce::AudioProcessorValueTreeState>(*this, nullptr, kParameterValueTreeIdentify,
                                                                        std::move(layout));
+    params_.BeginListening();
     preset_manager_ = std::make_unique<pluginshared::PresetManager>(*value_tree_, *this);
 }
 
 AudioPluginAudioProcessor::~AudioPluginAudioProcessor() {
-    paramListeners_.Clear();
+    params_.EndListening();
     value_tree_ = nullptr;
 }
 
@@ -396,7 +85,14 @@ void AudioPluginAudioProcessor::changeProgramName(int index, const juce::String&
 //==============================================================================
 void AudioPluginAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     engine_.Init(sampleRate, static_cast<size_t>(samplesPerBlock));
-    paramListeners_.MarkAll();
+
+    // 首次进入时将所有模块标记为需要更新
+    params_.should_update_tilt_.store(true, std::memory_order_release);
+    params_.should_update_leaky_lpc_.store(true, std::memory_order_release);
+    params_.should_update_block_lpc_.store(true, std::memory_order_release);
+    params_.should_update_stft_.store(true, std::memory_order_release);
+    params_.should_update_channel_vocoder_.store(true, std::memory_order_release);
+    params_.should_update_pitch_osc_.store(true, std::memory_order_release);
 }
 
 void AudioPluginAudioProcessor::reset() {}
@@ -421,21 +117,8 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     std::ignore = midiMessages;
     juce::ScopedNoDenormals noDenormals;
 
-    paramListeners_.HandleDirty();
-
-    // --- sync dirty mailboxes → Engine ---
-    if (tilt_mb_.dirty.exchange(false, std::memory_order_acq_rel))
-        engine_.UpdateTiltFilter(tilt_mb_);
-    if (leaky_lpc_mb_.dirty.exchange(false, std::memory_order_acq_rel))
-        engine_.UpdateLeakyLPC(leaky_lpc_mb_);
-    if (block_lpc_mb_.dirty.exchange(false, std::memory_order_acq_rel))
-        engine_.UpdateBlockLPC(block_lpc_mb_);
-    if (stft_mb_.dirty.exchange(false, std::memory_order_acq_rel))
-        engine_.UpdateSTFT(stft_mb_);
-    if (cv_mb_.dirty.exchange(false, std::memory_order_acq_rel))
-        engine_.UpdateChannelVocoder(cv_mb_);
-    if (pitch_osc_mb_.dirty.exchange(false, std::memory_order_acq_rel))
-        engine_.UpdatePitchOsc(pitch_osc_mb_);
+    // --- sync dirty params → Engine（内部按 atomic 标志更新各模块） ---
+    engine_.Update(params_);
 
     // --- resolve channel routing ---
     bool const has_sidechain = buffer.getNumChannels() >= 4;
@@ -450,7 +133,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     int carry_ch = has_sidechain ? 2 : 0;
     if (swap) std::swap(mod_ch, carry_ch);
 
-    eVocoderType const vocoder_type = static_cast<eVocoderType>(params_.vocoder_type.Get());
+    green_vocoder::eVocoderType const vocoder_type = static_cast<green_vocoder::eVocoderType>(params_.vocoder_type.Get());
 
     // --- delegate to engine ---
     engine_.Process(buffer, mod_ch, carry_ch, pitch_ch, use_pitch, vocoder_type);

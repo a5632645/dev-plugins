@@ -4,6 +4,8 @@
 #include <qwqdsp/filter/iir_design_extra.hpp>
 #include <qwqdsp/simd_element/simd_pack.hpp>
 
+#include "../global.hpp"
+
 namespace green_vocoder::dsp {
 class TwoBandSVF {
 public:
@@ -238,9 +240,6 @@ enum eChannelVocoderMap {
 
 class ChannelVocoder {
 public:
-    static constexpr int kMaxOrder = 100;
-    static constexpr int kMinOrder = 4;
-
     enum class FilterBankMode {
         Bandpass12,
         StackButterworth24,
@@ -253,22 +252,26 @@ public:
         Elliptic36,
     };
 
+    struct Params {
+        int num_bands{20};
+        float freq_begin{40.0f};
+        float freq_end{12000.0f};
+        float attack{10.0f};
+        float release{150.0f};
+        float modulator_scale{1.0f};
+        float carry_scale{1.0f};
+        eChannelVocoderMap map{eChannelVocoderMap_Mel};
+        FilterBankMode filter_bank_mode{FilterBankMode::StackButterworth24};
+        float gate{-100.0f};
+        float formant_shift{0.0f};
+        float ripple{1.0f};
+    };
+
     void Init(float sample_rate, size_t block_size);
     void ProcessBlock(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side,
                       size_t num_samples);
 
-    void SetNumBands(int bands);
-    void SetFreqBegin(float begin);
-    void SetFreqEnd(float end);
-    void SetAttack(float attack);
-    void SetRelease(float release);
-    void SetModulatorScale(float scale);
-    void SetCarryScale(float scale);
-    void SetMap(eChannelVocoderMap map);
-    void SetFilterBankMode(FilterBankMode mode);
-    void SetGate(float db);
-    void SetFormantShift(float shift);
-    void SetFilterRipple(float ripple);
+    void SetParam(const Params& p);
 
     int GetNumBins() const {
         return num_bans_;
@@ -307,8 +310,8 @@ private:
     float release_ms_{};
     float filter_ripple_{1.0f};
     eChannelVocoderMap map_{};
-    std::array<std::pair<CascadeBPSVF, CascadeBPSVF>, kMaxOrder> filters_;
-    std::array<qwqdsp_simd_element::PackFloat<4>[2], kMaxOrder> main_peaks_{};
+    std::array<std::pair<CascadeBPSVF, CascadeBPSVF>, global::kMaxOrder> filters_;
+    std::array<qwqdsp_simd_element::PackFloat<4>[2], global::kMaxOrder> main_peaks_{};
     std::array<qwqdsp_simd_element::PackFloat<2>, 256> output_{};
 };
 

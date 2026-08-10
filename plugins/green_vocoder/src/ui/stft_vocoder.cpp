@@ -2,7 +2,7 @@
 #include <vector>
 #include "PluginProcessor.h"
 
-namespace green_vocoder::widget {
+namespace green_vocoder::ui {
 
 STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
     : processor_(processor) {
@@ -26,6 +26,9 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
 
     mfcc_size_.BindParam(processor.params_.mfcc_nbands.ptr_);
     addAndMakeVisible(mfcc_size_);
+    mfcc_size_title_.setJustificationType(juce::Justification::centredLeft);
+    ::ui::SetLableBlack(mfcc_size_title_);
+    addAndMakeVisible(mfcc_size_title_);
 
     mode_.BindParam(processor.params_.stft_type.ptr_, true);
     mode_.on_value_changed = [this](size_t index) { OnModeChanged(); };
@@ -53,7 +56,9 @@ void STFTVocoder::resized() {
         blend_.setBounds(top.removeFromLeft(50));
     }
     if (mode == MFCC) {
-        mfcc_size_.setBounds(top.removeFromLeft(80).withSizeKeepingCentre(80, 40));
+        auto mfcc_size_bound = top.removeFromLeft(80).withSizeKeepingCentre(80, 40);
+        mfcc_size_title_.setBounds(mfcc_size_bound.removeFromTop(static_cast<int>(mfcc_size_title_.getFont().getHeight())));
+        mfcc_size_.setBounds(mfcc_size_bound);
     }
 
     mode_.setBounds(top.withHeight(30));
@@ -88,7 +93,7 @@ void STFTVocoder::timerCallback() {
 void STFTVocoder::DrawStandardCepstrum(juce::Graphics& g) {
     auto bb = getLocalBounds();
     bb.removeFromTop(attack_.getBottom());
-    g.setColour(ui::black_bg);
+    g.setColour(::ui::black_bg);
     g.fillRect(bb);
     auto current_font = g.getCurrentFont();
     std::vector<float> gains;
@@ -115,7 +120,7 @@ void STFTVocoder::DrawStandardCepstrum(juce::Graphics& g) {
     {
         constexpr int nlines = 8;
         constexpr float db_span = (top_line_db - last_line_db) / (nlines - 1.0f);
-        g.setColour(ui::grid_fore);
+        g.setColour(::ui::grid_fore);
         for (int i = 0; i < nlines; ++i) {
             auto db = last_line_db + db_span * i;
             auto y = convert_db_to_y(db);
@@ -162,7 +167,7 @@ void STFTVocoder::DrawStandardCepstrum(juce::Graphics& g) {
 
     auto b = bb.toFloat();
     juce::Point<float> line_last{b.getX(), b.getCentreY()};
-    g.setColour(ui::line_fore);
+    g.setColour(::ui::line_fore);
     float mul_val = std::pow(10.0f, freq_pow / b.getWidth());
     float mul_begin = 1.0f;
     float omega_base = freq_begin * 2.0f / static_cast<float>(processor_.engine_.GetSampleRate());
@@ -186,7 +191,7 @@ void STFTVocoder::DrawMfcc(juce::Graphics& g) {
     b.removeFromTop(attack_.getBottom());
     auto bb = b.toFloat();
 
-    g.setColour(ui::black_bg);
+    g.setColour(::ui::black_bg);
     g.fillRect(bb);
 
     constexpr float up = 0.0f;
@@ -205,7 +210,7 @@ void STFTVocoder::DrawMfcc(juce::Graphics& g) {
         float y_nor = (db_gain - (down)) / (up - (down));
 
         auto bin = rect.removeFromBottom(y_nor * rect.getHeight());
-        g.setColour(ui::line_fore);
+        g.setColour(::ui::line_fore);
         g.fillRect(bin);
 
         x += width;
@@ -224,4 +229,4 @@ void STFTVocoder::OnModeChanged() {
     }
 }
 
-} // namespace green_vocoder::widget
+} // namespace green_vocoder::ui

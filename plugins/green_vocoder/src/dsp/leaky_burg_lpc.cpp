@@ -14,7 +14,7 @@ void LeakyBurgLPC::Process(std::span<qwqdsp_simd_element::PackFloat<2>> main,
                            std::span<qwqdsp_simd_element::PackFloat<2>> side) {
     for (size_t i = 0; i < main.size(); ++i) {
         // adding some noise to prevent ill filter coefficient
-        float small_noise = noise_.Next() * kNoiseGain;
+        float small_noise = noise_.Next() * global::kNoiseGain;
         qwqdsp_simd_element::PackFloat<2> main_x = main[i];
         main_x += small_noise;
         // forward fir lattice
@@ -71,39 +71,29 @@ void LeakyBurgLPC::Process(std::span<qwqdsp_simd_element::PackFloat<2>> main,
     }
 }
 
-void LeakyBurgLPC::SetSmooth(float smooth) {
-    smooth_ms_ = smooth;
-    smooth_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(smooth, sample_rate_);
-}
-
-void LeakyBurgLPC::SetForget(float forget_ms) {
-    forget_ms_ = forget_ms;
-    forget_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(forget_ms, sample_rate_);
-}
-
-void LeakyBurgLPC::SetLPCOrder(int order) {
-    assert(order % 4 == 0);
-    lpc_order_ = order;
+void LeakyBurgLPC::SetParam(const Params& p) {
+    assert(p.order % 4 == 0);
+    size_t const order = static_cast<size_t>(p.order);
+    lpc_order_ = p.order;
     std::fill_n(lattice_k_.begin(), order, qwqdsp_simd_element::PackFloat<2>{});
     std::fill_n(iir_k_.begin(), order, qwqdsp_simd_element::PackFloat<2>{});
     std::fill_n(ebsum_.begin(), order, qwqdsp_simd_element::PackFloat<2>{});
     std::fill_n(efsum_.begin(), order, qwqdsp_simd_element::PackFloat<2>{});
     iir_s_.fill({});
-}
 
-void LeakyBurgLPC::SetGainAttack(float ms) {
-    gain_attack_ = ms;
-    gain_smooth_.SetAttackTime(ms, sample_rate_);
-    gain_smooth_.SetReleaseTime((ms + gain_attack_), sample_rate_);
-}
+    forget_ms_ = p.forget;
+    forget_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(p.forget, sample_rate_);
 
-void LeakyBurgLPC::SetGainRelease(float ms) {
-    gain_release_ = ms;
-    gain_smooth_.SetReleaseTime((ms + gain_attack_), sample_rate_);
-}
+    smooth_ms_ = p.smooth;
+    smooth_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(p.smooth, sample_rate_);
 
-void LeakyBurgLPC::SetGainHold(float ms) {
-    gain_smooth_.SetHoldTime(ms, sample_rate_);
+    gain_attack_ = p.gain_attack;
+    gain_release_ = p.gain_release;
+    gain_smooth_.SetAttackTime(p.gain_attack, sample_rate_);
+    gain_smooth_.SetReleaseTime(p.gain_release + p.gain_attack, sample_rate_);
+    gain_smooth_.SetHoldTime(p.gain_hold, sample_rate_);
+
+    fir_allpass_coeff_ = std::clamp(-p.formant_shift, -0.99f, 0.99f);
 }
 
 void LeakyBurgLPC::CopyLatticeCoeffient(std::span<float> buffer, size_t order) {
@@ -112,10 +102,6 @@ void LeakyBurgLPC::CopyLatticeCoeffient(std::span<float> buffer, size_t order) {
     for (size_t i = 0; i < order; ++i) {
         buffer[i] = (*(--reverse_iir_it))[0];
     }
-}
-
-void LeakyBurgLPC::SetFormantShift(float shift) {
-    fir_allpass_coeff_ = std::clamp(-shift, -0.99f, 0.99f);
 }
 
 } // namespace green_vocoder::dsp

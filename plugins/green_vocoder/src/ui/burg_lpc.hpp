@@ -4,7 +4,7 @@
 
 class AudioPluginAudioProcessor;
 
-namespace green_vocoder::widget {
+namespace green_vocoder::ui {
 
 class BurgLPC : public juce::Component {
 public:
@@ -18,13 +18,14 @@ private:
 
     AudioPluginAudioProcessor& processor_;
     bool block_mode_{false};
-    ui::Dial forget_{"forget"};
-    ui::Dial smear_{"smear"};
-    ui::FlatSlider order_{"order", ui::FlatSlider::TitleLayout::Top};
-    ui::Dial attack_{"attack"};
-    ui::Dial hold_{"hold"};
-    ui::Dial release_{"release"};
-    ui::FlatCombobox block_size_;
+    ::ui::Dial forget_{"forget"};
+    ::ui::Dial smear_{"smear"};
+    ::ui::FlatSlider order_;
+    juce::Label order_title_{"", "order"};
+    ::ui::Dial attack_{"attack"};
+    ::ui::Dial hold_{"hold"};
+    ::ui::Dial release_{"release"};
+    ::ui::FlatCombobox block_size_;
 };
 
-} // namespace green_vocoder::widget
+} // namespace green_vocoder::ui

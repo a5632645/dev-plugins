@@ -13,52 +13,39 @@
 
 namespace green_vocoder::dsp {
 
+using global::kMaxPoles;
+using global::kNoiseGain;
+
 void BlockBurgLPC::Init(float fs) {
     sample_rate_ = fs;
-    update_rate_ = fs;
-    SetBlockSize(1024);
+    SetParam(Params{.block_size = 1024});
 }
 
-void BlockBurgLPC::SetBlockSize(size_t size) {
-    fft_size_ = size;
-    hann_window_.resize(size);
-    eb_.resize(size);
-    ef_.resize(size);
-    hop_size_ = size / 4;
-    for (size_t i = 0; i < size; ++i) {
+void BlockBurgLPC::SetParam(const Params& p) {
+    // block size（含窗口与内部缓冲重建）
+    fft_size_ = p.block_size;
+    hann_window_.resize(p.block_size);
+    eb_.resize(p.block_size);
+    ef_.resize(p.block_size);
+    hop_size_ = p.block_size / 4;
+    for (size_t i = 0; i < p.block_size; ++i) {
         hann_window_[i] =
-            0.5f - 0.5f * std::cos(2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(size));
+            0.5f - 0.5f * std::cos(2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(p.block_size));
     }
     update_rate_ = sample_rate_ / static_cast<float>(hop_size_);
-    SetAttack(attack_ms_);
-    SetSmear(smear_ms_);
-}
 
-void BlockBurgLPC::SetPoles(size_t num_poles) {
-    num_poles_ = num_poles;
-}
+    num_poles_ = p.poles;
 
-void BlockBurgLPC::SetSmear(float ms) {
-    ms = std::max(ms, 10.0f);
-    smear_ms_ = ms;
-    smear_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(ms, update_rate_);
-}
+    smear_ms_ = std::max(p.smear, 10.0f);
+    smear_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(smear_ms_, update_rate_);
 
-void BlockBurgLPC::SetAttack(float ms) {
-    attack_ms_ = ms;
-    attack_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(ms, update_rate_);
-}
+    attack_ms_ = p.attack;
+    attack_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(p.attack, update_rate_);
 
-void BlockBurgLPC::SetFormantShift(float shift) {
-    fir_allpass_coeff_ = std::clamp(-shift, -0.99f, 0.99f);
-}
+    fir_allpass_coeff_ = std::clamp(-p.formant_shift, -0.99f, 0.99f);
 
-void BlockBurgLPC::SetUseV2(bool use) {
-    use_v2_ = use;
-}
-
-void BlockBurgLPC::SetForget(float ms) {
-    forget_factor_ = std::exp(-1.0f / ((sample_rate_)*ms / 1000.0f));
+    use_v2_ = p.use_v2;
+    forget_factor_ = std::exp(-1.0f / (sample_rate_ * p.forget / 1000.0f));
 }
 
 void BlockBurgLPC::Process(qwqdsp_simd_element::PackFloat<2>* main_ptr, qwqdsp_simd_element::PackFloat<2>* side_ptr,

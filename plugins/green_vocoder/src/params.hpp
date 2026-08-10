@@ -1,5 +1,9 @@
 #pragma once
-#include <pluginshared/wrap_parameters.hpp>
+#include <atomic>
+#include <juce_audio_processors/juce_audio_processors.h>
+#include "pluginshared/wrap_parameters.hpp"
+
+namespace green_vocoder {
 
 // --------------------------------------------------------------------------------
 // enums
@@ -22,7 +26,112 @@ static const juce::StringArray kVocoderNames{
 static const juce::StringArray kChannelVocoderMapNames{"linear", "mel", "log"};
 
 // --------------------------------------------------------------------------------
-// params class — all plugin parameters defined here
+// 参数变化监听：每个模块一个 Listener，把参数变化标记到 Params 对应的 atomic bool
+// --------------------------------------------------------------------------------
+class TiltFlagListener : public juce::AudioProcessorParameter::Listener {
+public:
+    explicit TiltFlagListener(std::atomic<bool>& flag)
+        : flag_(flag) {}
+    void parameterValueChanged(int parameterIndex, float newValue) override {
+        juce::ignoreUnused(parameterIndex, newValue);
+        flag_.store(true, std::memory_order_release);
+    }
+    void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override {
+        juce::ignoreUnused(parameterIndex, gestureIsStarting);
+    }
+private:
+    std::atomic<bool>& flag_;
+};
+
+class LeakyLpcFlagListener : public juce::AudioProcessorParameter::Listener {
+public:
+    explicit LeakyLpcFlagListener(std::atomic<bool>& leaky, std::atomic<bool>* block = nullptr)
+        : leaky_(leaky), block_(block) {}
+    void parameterValueChanged(int parameterIndex, float newValue) override {
+        juce::ignoreUnused(parameterIndex, newValue);
+        leaky_.store(true, std::memory_order_release);
+        if (block_ != nullptr) block_->store(true, std::memory_order_release);
+    }
+    void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override {
+        juce::ignoreUnused(parameterIndex, gestureIsStarting);
+    }
+private:
+    std::atomic<bool>& leaky_;
+    std::atomic<bool>* block_;
+};
+
+class StftFlagListener : public juce::AudioProcessorParameter::Listener {
+public:
+    explicit StftFlagListener(std::atomic<bool>& stft, std::atomic<bool>* block = nullptr)
+        : stft_(stft), block_(block) {}
+    void parameterValueChanged(int parameterIndex, float newValue) override {
+        juce::ignoreUnused(parameterIndex, newValue);
+        stft_.store(true, std::memory_order_release);
+        if (block_ != nullptr) block_->store(true, std::memory_order_release);
+    }
+    void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override {
+        juce::ignoreUnused(parameterIndex, gestureIsStarting);
+    }
+private:
+    std::atomic<bool>& stft_;
+    std::atomic<bool>* block_;
+};
+
+class ChannelVocoderFlagListener : public juce::AudioProcessorParameter::Listener {
+public:
+    explicit ChannelVocoderFlagListener(std::atomic<bool>& flag)
+        : flag_(flag) {}
+    void parameterValueChanged(int parameterIndex, float newValue) override {
+        juce::ignoreUnused(parameterIndex, newValue);
+        flag_.store(true, std::memory_order_release);
+    }
+    void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override {
+        juce::ignoreUnused(parameterIndex, gestureIsStarting);
+    }
+private:
+    std::atomic<bool>& flag_;
+};
+
+class PitchOscFlagListener : public juce::AudioProcessorParameter::Listener {
+public:
+    explicit PitchOscFlagListener(std::atomic<bool>& flag)
+        : flag_(flag) {}
+    void parameterValueChanged(int parameterIndex, float newValue) override {
+        juce::ignoreUnused(parameterIndex, newValue);
+        flag_.store(true, std::memory_order_release);
+    }
+    void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override {
+        juce::ignoreUnused(parameterIndex, gestureIsStarting);
+    }
+private:
+    std::atomic<bool>& flag_;
+};
+
+class FormantShiftFlagListener : public juce::AudioProcessorParameter::Listener {
+public:
+    FormantShiftFlagListener(std::atomic<bool>& leaky, std::atomic<bool>& block,
+                             std::atomic<bool>& stft, std::atomic<bool>& cv)
+        : leaky_(leaky), block_(block), stft_(stft), cv_(cv) {}
+    void parameterValueChanged(int parameterIndex, float newValue) override {
+        juce::ignoreUnused(parameterIndex, newValue);
+        // formant shift 同时作用于所有 vocoder 模块
+        leaky_.store(true, std::memory_order_release);
+        block_.store(true, std::memory_order_release);
+        stft_.store(true, std::memory_order_release);
+        cv_.store(true, std::memory_order_release);
+    }
+    void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override {
+        juce::ignoreUnused(parameterIndex, gestureIsStarting);
+    }
+private:
+    std::atomic<bool>& leaky_;
+    std::atomic<bool>& block_;
+    std::atomic<bool>& stft_;
+    std::atomic<bool>& cv_;
+};
+
+// --------------------------------------------------------------------------------
+// params class — all plugin parameters + shared DSP control flags
 // --------------------------------------------------------------------------------
 class Params {
 public:
@@ -180,4 +289,140 @@ public:
         "track_glide", {1.0f, 1000.0f, 1.0f, 0.4f},
          1.0f
     };
+
+    // 共享 DSP 控制状态（UI 线程写入，音频线程在 Engine::Update* 中读取/清除）
+    std::atomic<bool> should_update_tilt_{};
+    std::atomic<bool> should_update_leaky_lpc_{};
+    std::atomic<bool> should_update_block_lpc_{};
+    std::atomic<bool> should_update_stft_{};
+    std::atomic<bool> should_update_channel_vocoder_{};
+    std::atomic<bool> should_update_pitch_osc_{};
+
+    void BuildLayout(juce::AudioProcessorValueTreeState::ParameterLayout& layout) {
+        layout += pre_tilt;
+        layout += channel_swap;
+        layout += pitch_channel;
+        layout += vocoder_type;
+        layout += shift_pitch;
+        layout += cv_filter_bank_mode;
+        layout += cv_attack;
+        layout += cv_gate;
+        layout += cv_release;
+        layout += cv_freq_begin;
+        layout += cv_freq_end;
+        layout += cv_nbands;
+        layout += cv_scale;
+        layout += cv_ripple;
+        layout += cv_carry_scale;
+        layout += cv_map;
+        layout += lpc_forget;
+        layout += lpc_smooth;
+        layout += lpc_gain_attack;
+        layout += lpc_gain_hold;
+        layout += lpc_gain_release;
+        layout += lpc_order;
+        layout += stft_bandwidth;
+        layout += mfcc_nbands;
+        layout += stft_release;
+        layout += stft_attack;
+        layout += stft_blend;
+        layout += stft_size;
+        layout += stft_detail;
+        layout += stft_type;
+        layout += track_low;
+        layout += track_high;
+        layout += track_pitch;
+        layout += track_pwm;
+        layout += track_noise;
+        layout += track_waveform;
+        layout += track_glide;
+    }
+
+    void BeginListening() {
+        pre_tilt.ptr_->addListener(&tilt_listener_);
+        shift_pitch.ptr_->addListener(&formant_shift_listener_);
+        cv_filter_bank_mode.ptr_->addListener(&channel_vocoder_listener_);
+        cv_attack.ptr_->addListener(&channel_vocoder_listener_);
+        cv_gate.ptr_->addListener(&channel_vocoder_listener_);
+        cv_release.ptr_->addListener(&channel_vocoder_listener_);
+        cv_freq_begin.ptr_->addListener(&channel_vocoder_listener_);
+        cv_freq_end.ptr_->addListener(&channel_vocoder_listener_);
+        cv_nbands.ptr_->addListener(&channel_vocoder_listener_);
+        cv_scale.ptr_->addListener(&channel_vocoder_listener_);
+        cv_ripple.ptr_->addListener(&channel_vocoder_listener_);
+        cv_carry_scale.ptr_->addListener(&channel_vocoder_listener_);
+        cv_map.ptr_->addListener(&channel_vocoder_listener_);
+        lpc_forget.ptr_->addListener(&leaky_lpc_listener_);
+        lpc_gain_hold.ptr_->addListener(&leaky_lpc_listener_);
+        lpc_gain_release.ptr_->addListener(&leaky_lpc_listener_);
+        lpc_smooth.ptr_->addListener(&leaky_lpc_block_listener_);
+        lpc_gain_attack.ptr_->addListener(&leaky_lpc_block_listener_);
+        lpc_order.ptr_->addListener(&leaky_lpc_block_listener_);
+        stft_bandwidth.ptr_->addListener(&stft_listener_);
+        mfcc_nbands.ptr_->addListener(&stft_listener_);
+        stft_release.ptr_->addListener(&stft_listener_);
+        stft_attack.ptr_->addListener(&stft_listener_);
+        stft_blend.ptr_->addListener(&stft_listener_);
+        stft_detail.ptr_->addListener(&stft_listener_);
+        stft_type.ptr_->addListener(&stft_listener_);
+        stft_size.ptr_->addListener(&stft_block_listener_);
+        track_low.ptr_->addListener(&pitch_osc_listener_);
+        track_high.ptr_->addListener(&pitch_osc_listener_);
+        track_pitch.ptr_->addListener(&pitch_osc_listener_);
+        track_pwm.ptr_->addListener(&pitch_osc_listener_);
+        track_noise.ptr_->addListener(&pitch_osc_listener_);
+        track_waveform.ptr_->addListener(&pitch_osc_listener_);
+        track_glide.ptr_->addListener(&pitch_osc_listener_);
+    }
+
+    void EndListening() {
+        pre_tilt.ptr_->removeListener(&tilt_listener_);
+        shift_pitch.ptr_->removeListener(&formant_shift_listener_);
+        cv_filter_bank_mode.ptr_->removeListener(&channel_vocoder_listener_);
+        cv_attack.ptr_->removeListener(&channel_vocoder_listener_);
+        cv_gate.ptr_->removeListener(&channel_vocoder_listener_);
+        cv_release.ptr_->removeListener(&channel_vocoder_listener_);
+        cv_freq_begin.ptr_->removeListener(&channel_vocoder_listener_);
+        cv_freq_end.ptr_->removeListener(&channel_vocoder_listener_);
+        cv_nbands.ptr_->removeListener(&channel_vocoder_listener_);
+        cv_scale.ptr_->removeListener(&channel_vocoder_listener_);
+        cv_ripple.ptr_->removeListener(&channel_vocoder_listener_);
+        cv_carry_scale.ptr_->removeListener(&channel_vocoder_listener_);
+        cv_map.ptr_->removeListener(&channel_vocoder_listener_);
+        lpc_forget.ptr_->removeListener(&leaky_lpc_listener_);
+        lpc_gain_hold.ptr_->removeListener(&leaky_lpc_listener_);
+        lpc_gain_release.ptr_->removeListener(&leaky_lpc_listener_);
+        lpc_smooth.ptr_->removeListener(&leaky_lpc_block_listener_);
+        lpc_gain_attack.ptr_->removeListener(&leaky_lpc_block_listener_);
+        lpc_order.ptr_->removeListener(&leaky_lpc_block_listener_);
+        stft_bandwidth.ptr_->removeListener(&stft_listener_);
+        mfcc_nbands.ptr_->removeListener(&stft_listener_);
+        stft_release.ptr_->removeListener(&stft_listener_);
+        stft_attack.ptr_->removeListener(&stft_listener_);
+        stft_blend.ptr_->removeListener(&stft_listener_);
+        stft_detail.ptr_->removeListener(&stft_listener_);
+        stft_type.ptr_->removeListener(&stft_listener_);
+        stft_size.ptr_->removeListener(&stft_block_listener_);
+        track_low.ptr_->removeListener(&pitch_osc_listener_);
+        track_high.ptr_->removeListener(&pitch_osc_listener_);
+        track_pitch.ptr_->removeListener(&pitch_osc_listener_);
+        track_pwm.ptr_->removeListener(&pitch_osc_listener_);
+        track_noise.ptr_->removeListener(&pitch_osc_listener_);
+        track_waveform.ptr_->removeListener(&pitch_osc_listener_);
+        track_glide.ptr_->removeListener(&pitch_osc_listener_);
+    }
+
+private:
+    // 各模块参数变化监听（引用上面的共享 atomic bool）
+    TiltFlagListener tilt_listener_{should_update_tilt_};
+    LeakyLpcFlagListener leaky_lpc_listener_{should_update_leaky_lpc_};
+    LeakyLpcFlagListener leaky_lpc_block_listener_{should_update_leaky_lpc_, &should_update_block_lpc_};
+    StftFlagListener stft_listener_{should_update_stft_};
+    StftFlagListener stft_block_listener_{should_update_stft_, &should_update_block_lpc_};
+    ChannelVocoderFlagListener channel_vocoder_listener_{should_update_channel_vocoder_};
+    PitchOscFlagListener pitch_osc_listener_{should_update_pitch_osc_};
+    FormantShiftFlagListener formant_shift_listener_{should_update_leaky_lpc_, should_update_block_lpc_,
+                                                     should_update_stft_, should_update_channel_vocoder_};
 };
+
+} // namespace green_vocoder

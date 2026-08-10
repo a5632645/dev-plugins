@@ -22,8 +22,10 @@ Osc4Gui::Osc4Gui(Synth& synth) {
     shape_.BindParam(synth.param_osc4_shape.ptr_);
     addAndMakeVisible(shape_);
     n_.BindParam(synth.param_osc4_n.ptr_);
-    n_.SetTitleLayout(ui::FlatSlider::TitleLayout::Left);
     addAndMakeVisible(n_);
+    n_title_.setJustificationType(juce::Justification::centredLeft);
+    ui::SetLableBlack(n_title_);
+    addAndMakeVisible(n_title_);
     use_max_n_.BindParam(synth.param_osc4_use_max_n.ptr_);
     addAndMakeVisible(use_max_n_);
 }
@@ -57,6 +59,11 @@ void Osc4Gui::resized() {
 
     line1 = content_bound;
     use_max_n_.setBounds(line1.removeFromRight(70).reduced(2));
-    n_.setBounds(line1.reduced(2,1));
+    {
+        auto n_bound = line1.reduced(2, 1);
+        auto n_width = static_cast<int>(1.2f * juce::TextLayout::getStringWidth(n_title_.getFont(), n_title_.getText()));
+        n_title_.setBounds(n_bound.removeFromLeft(n_width));
+        n_.setBounds(n_bound);
+    }
 }
 }

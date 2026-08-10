@@ -2,17 +2,18 @@
 #include <pluginshared/component.hpp>
 #include <pluginshared/preset_panel.hpp>
 
-#include "widget/pre_fx.hpp"
-#include "widget/tracking.hpp"
-#include "widget/vocoder.hpp"
+#include "../global.hpp"
+
+#include "pre_fx.hpp"
+#include "tracking.hpp"
+#include "vocoder.hpp"
 
 class AudioPluginAudioProcessor;
 
+namespace green_vocoder::ui {
+
 class PluginUi : public juce::Component {
 public:
-    static constexpr int kWidth = 750;
-    static constexpr int kHeight = 350;
-
     explicit PluginUi(AudioPluginAudioProcessor& p);
 
     void paint(juce::Graphics& g) override;
@@ -20,7 +21,9 @@ public:
 private:
     pluginshared::PresetPanel preset_panel_;
 
-    green_vocoder::widget::PreFx pre_fx_;
-    green_vocoder::widget::Vocoder vocoder_;
-    green_vocoder::widget::Tracking tracking_;
+    PreFx pre_fx_;
+    Vocoder vocoder_;
+    Tracking tracking_;
 };
+
+} // namespace green_vocoder::ui

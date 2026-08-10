@@ -1,10 +1,8 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
-#include "pluginshared/juce_param_listener.hpp"
 #include "pluginshared/preset_manager.hpp"
 
 #include "dsp/engine.hpp"
-#include "param_mailboxes.hpp"
 #include "params.hpp"
 
 //==============================================================================
@@ -50,25 +48,14 @@ public:
 
     void Panic();
 
-    JuceParamListener paramListeners_;
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 
-    Params params_;
+    green_vocoder::Params params_;
     green_vocoder::Engine engine_;
-
-    // --- param mailboxes (message thread → audio thread) ---
-    TiltFilterMailbox tilt_mb_;
-    LeakyLpcMailbox leaky_lpc_mb_;
-    BlockLpcMailbox block_lpc_mb_;
-    STFTVocoderMailbox stft_mb_;
-    ChannelVocoderMailbox cv_mb_;
-    PitchOscMailbox pitch_osc_mb_;
 
     int old_latency_{};
 private:
-    static constexpr size_t kBlockSize = 256;
-
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
 };

@@ -4,8 +4,8 @@
 #include "ui/plugin_ui.hpp"
 
 class AudioPluginAudioProcessorEditor final
-    : public pluginshared::PluginEditorBase<AudioPluginAudioProcessor, PluginUi> {
-    using Base = pluginshared::PluginEditorBase<AudioPluginAudioProcessor, PluginUi>;
+    : public pluginshared::PluginEditorBase<AudioPluginAudioProcessor, green_vocoder::ui::PluginUi> {
+    using Base = pluginshared::PluginEditorBase<AudioPluginAudioProcessor, green_vocoder::ui::PluginUi>;
 public:
     explicit AudioPluginAudioProcessorEditor(AudioPluginAudioProcessor& p)
         : Base(p) {}

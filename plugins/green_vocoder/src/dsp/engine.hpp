@@ -10,7 +10,7 @@
 #include "stft_vocoder.hpp"
 #include "tilt_filter.hpp"
 
-#include "../param_mailboxes.hpp"
+#include "../global.hpp"
 #include "../params.hpp"
 
 namespace green_vocoder {
@@ -20,13 +20,9 @@ public:
     void Init(double sample_rate, size_t block_size);
     void Reset();
 
-    // --- mailbox → DSP sync (audio thread) ---
-    void UpdateTiltFilter(const TiltFilterMailbox& mb);
-    void UpdateLeakyLPC(const LeakyLpcMailbox& mb);
-    void UpdateBlockLPC(const BlockLpcMailbox& mb);
-    void UpdateSTFT(const STFTVocoderMailbox& mb);
-    void UpdateChannelVocoder(const ChannelVocoderMailbox& mb);
-    void UpdatePitchOsc(const PitchOscMailbox& mb);
+    // --- Params → DSP sync (audio thread) ---
+    // 单入口：内部根据 Params 中的 atomic bool 标志更新对应模块
+    void Update(Params& p);
 
     // --- main processing ---
     // mod_ch / carry_ch / pitch_ch / use_pitch are pre-resolved by PluginProcessor
@@ -48,6 +44,14 @@ public:
     double GetSampleRate() const { return sample_rate_; }
 
 private:
+    // --- per-module 更新（由 Update 内部按标志调用） ---
+    void UpdateTiltFilter(Params& p);
+    void UpdateLeakyLPC(Params& p);
+    void UpdateBlockLPC(Params& p);
+    void UpdateSTFT(Params& p);
+    void UpdateChannelVocoder(Params& p);
+    void UpdatePitchOsc(Params& p);
+
     double sample_rate_{};
     dsp::TiltFilter pre_tilt_filter_;
     dsp::PitchOsc pitch_osc_;
@@ -56,14 +60,12 @@ private:
     dsp::LeakyBurgLPC burg_lpc_;
     dsp::BlockBurgLPC block_burg_lpc_;
 
-    std::array<qwqdsp_simd_element::PackFloat<2>, 256> crossing_main_buffer_;
-    std::array<qwqdsp_simd_element::PackFloat<2>, 256> crossing_side_buffer_;
+    std::array<qwqdsp_simd_element::PackFloat<2>, global::kBlockSize> crossing_main_buffer_;
+    std::array<qwqdsp_simd_element::PackFloat<2>, global::kBlockSize> crossing_side_buffer_;
 
     bool first_init_{};
     int latency_{};
     eVocoderType last_vocoder_type_{eVocoderType_LeakyBurgLPC};
-
-    static constexpr size_t kBlockSize = 256;
 };
 
 } // namespace green_vocoder

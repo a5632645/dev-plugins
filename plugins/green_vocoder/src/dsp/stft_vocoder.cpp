@@ -38,7 +38,7 @@ static float GetFixGain(size_t fft_size) noexcept {
 
 void STFTVocoder::Init(float fs) {
     sample_rate_ = fs;
-    SetFFTSize(1024);
+    SetParam(Params{.fft_size = 1024});
 }
 
 void STFTVocoder::Reset() {
@@ -183,39 +183,29 @@ void STFTVocoder::Process(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_e
     }
 }
 
-// -------------------- commmon setter --------------------
+// -------------------- SetParam --------------------
 
-void STFTVocoder::SetRelease(float ms) {
-    release_ms_ = ms;
-    decay_ = qwqdsp::convert::Ms2DecayDb((ms + attack_ms_), sample_rate_ / static_cast<float>(hop_size_), -60.0f);
-}
-
-void STFTVocoder::SetAttack(float ms) {
-    attack_ms_ = ms;
-    attck_ = qwqdsp::convert::Ms2DecayDb(ms, sample_rate_, -60.0f);
-    decay_ = qwqdsp::convert::Ms2DecayDb((ms + attack_ms_), sample_rate_ / static_cast<float>(hop_size_), -60.0f);
-}
-
-void STFTVocoder::SetFFTSize(int size) {
-    fft_size_ = size;
-    fft_.Init(static_cast<size_t>(size));
-    cep_fft_.Init(size);
+void STFTVocoder::SetParam(const Params& p) {
+    // fft size（内部缓冲重建）
+    fft_size_ = p.fft_size;
+    fft_.Init(static_cast<size_t>(p.fft_size));
+    cep_fft_.Init(p.fft_size);
     main_inputBuffer_.resize(fft_size_);
     side_inputBuffer_.resize(fft_size_);
     main_outputBuffer_.resize(fft_size_ * 4);
-    hann_window_.resize(size);
-    window_.resize(size);
-    temp_main_.resize(size * 2);
-    temp_side_.resize(size * 2);
-    hop_size_ = size / 4;
-    for (int i = 0; i < size; ++i) {
+    hann_window_.resize(p.fft_size);
+    window_.resize(p.fft_size);
+    temp_main_.resize(p.fft_size * 2);
+    temp_side_.resize(p.fft_size * 2);
+    hop_size_ = p.fft_size / 4;
+    for (int i = 0; i < p.fft_size; ++i) {
         hann_window_[i] =
-            0.5f - 0.5f * std::cos(2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(size));
+            0.5f - 0.5f * std::cos(2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(p.fft_size));
     }
-    int num_bins = size / 2 + 1;
-    gains_.resize(num_bins + kExtraGainSize);
-    gains2_.resize(num_bins + kExtraGainSize);
-    fill_gains_.resize(num_bins + kExtraGainSize);
+    int num_bins = p.fft_size / 2 + 1;
+    gains_.resize(num_bins + global::kExtraGainSize);
+    gains2_.resize(num_bins + global::kExtraGainSize);
+    fill_gains_.resize(num_bins + global::kExtraGainSize);
     real_main_.resize(num_bins);
     imag_main_.resize(num_bins);
     real_side_.resize(num_bins);
@@ -225,54 +215,39 @@ void STFTVocoder::SetFFTSize(int size) {
     temp_.resize(fft_size_ + 1);
     re1_.resize(fft_size_);
     phase_.resize(fft_size_);
-    SetRelease(release_ms_);
-    SetBandwidth(bandwidth_);
-    SetDetail(norm_detail_);
-    SetNumMfcc(num_mfcc_);
-}
 
-void STFTVocoder::SetBlend(float blend) {
-    blend_ = blend;
-}
+    // attack / release（依赖 hop_size_）
+    attack_ms_ = p.attack;
+    attck_ = qwqdsp::convert::Ms2DecayDb(p.attack, sample_rate_, -60.0f);
+    release_ms_ = p.release;
+    decay_ = qwqdsp::convert::Ms2DecayDb(p.release + p.attack, sample_rate_ / static_cast<float>(hop_size_), -60.0f);
 
-void STFTVocoder::SetFormantShift(float formant_shift) {
-    formant_mul_ = std::exp2(-formant_shift / 12.0f);
-}
+    // blend / formant / mode
+    blend_ = p.blend;
+    formant_mul_ = std::exp2(-p.formant_shift / 12.0f);
+    mode_ = p.mode;
 
-void STFTVocoder::SetMode(Mode mode) {
-    mode_ = mode;
-}
-
-// -------------------- standard setter --------------------
-
-void STFTVocoder::SetBandwidth(float bw) {
-    bandwidth_ = bw;
-    // generate sinc window
+    // bandwidth（sinc window）
+    bandwidth_ = p.bandwidth;
     float f0 = bandwidth_ * static_cast<float>(fft_size_) / 1024.0f;
-    for (size_t i = 0; i < fft_size_; i++) {
+    for (size_t i = 0; i < static_cast<size_t>(fft_size_); i++) {
         float x = (2 * std::numbers::pi_v<float> * f0 * (static_cast<float>(i) - static_cast<float>(fft_size_) / 2.0f))
                 / static_cast<float>(fft_size_);
         float sinc = std::abs(x) < 1e-6 ? 1.0f : std::sin(x) / x;
         window_[i] = sinc * hann_window_[i];
     }
     window_gain_ = 2.0f / std::accumulate(window_.begin(), window_.end(), 0.0f);
-}
 
-// -------------------- cepstrum setter --------------------
-
-void STFTVocoder::SetDetail(float detail) {
-    norm_detail_ = detail;
+    // detail（cepstrum window）
+    norm_detail_ = p.detail;
     detail_ = norm_detail_ * 1024.0f / fft_size_;
     detail_ = std::min(detail_, 1.0f);
-    qwqdsp_filter::WindowFIR::Lowpass(cep_window_, detail * std::numbers::pi_v<float> * 0.5f);
+    qwqdsp_filter::WindowFIR::Lowpass(cep_window_, p.detail * std::numbers::pi_v<float> * 0.5f);
     qwqdsp_window::Hann::ApplyWindow(cep_window_, false);
     cep_fft_.FFTGainPhase(cep_window_, cep_window_fft_);
-}
 
-// -------------------- mfcc setter --------------------
-
-void STFTVocoder::SetNumMfcc(int num_mfcc) {
-    num_mfcc_ = std::clamp(num_mfcc, kMinNumMfcc, kMaxNumMfcc);
+    // mfcc
+    num_mfcc_ = std::clamp(p.num_mfcc, global::kMinNumMfcc, global::kMaxNumMfcc);
     float begin_mel = qwqdsp::convert::Freq2Mel(0);
     float end_mel = qwqdsp::convert::Freq2Mel(sample_rate_ / 2);
     float interval_mel = (end_mel - begin_mel) / static_cast<float>(num_mfcc_);
@@ -389,7 +364,7 @@ void STFTVocoder::SpectralProcess_Cepstrum(std::vector<float>& real_in, std::vec
 
 void STFTVocoder::SpectralProcess_MFCC(std::vector<float>& real_in, std::vector<float>& imag_in,
                                        std::vector<float>& real_out, std::vector<float>& imag_out,
-                                       std::array<float, kMaxNumMfcc>& gains) {
+                                       std::array<float, global::kMaxNumMfcc>& gains) {
     for (size_t mcff_idx = 0; mcff_idx < num_mfcc_; ++mcff_idx) {
         size_t begin = mfcc_indexs_[mcff_idx];
         size_t end = mfcc_indexs_[mcff_idx + 1];

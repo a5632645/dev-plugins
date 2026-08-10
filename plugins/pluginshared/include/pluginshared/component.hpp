@@ -368,17 +368,27 @@ private:
 };
 
 // ----------------------------------------
+// 仅左键可更改数值的 Slider
+// 右键/中键拖动不会改动数值；双击恢复默认值（沿用 JUCE 默认行为）
+// ----------------------------------------
+class LeftDragOnlySlider : public juce::Slider {
+public:
+    using juce::Slider::Slider;
+
+    void mouseDown(const juce::MouseEvent& e) override {
+        // 仅纯粹的左键才允许拖动/更改数值
+        if (!e.mods.isLeftButtonDown())
+            return;
+        juce::Slider::mouseDown(e);
+    }
+};
+
+// ----------------------------------------
 // flat slider
 // ----------------------------------------
 class FlatSlider : public juce::Component {
 public:
-    enum class TitleLayout {
-        None,
-        Left,
-        Top
-    };
-
-    FlatSlider(juce::StringRef title = "unname", TitleLayout title_place = TitleLayout::Left)
+    FlatSlider()
         : slider_menu_(slider) {
         slider.setSliderStyle(juce::Slider::SliderStyle::LinearBar);
         slider.setLookAndFeel(GetLookAndFeel());
@@ -386,13 +396,6 @@ public:
         slider.setTextBoxIsEditable(false);
         addAndMakeVisible(slider);
         slider_menu_.menu_.setLookAndFeel(GetLookAndFeel());
-
-        label.setText(title, juce::dontSendNotification);
-        label.setJustificationType(juce::Justification::centredLeft);
-        label.setColour(juce::Label::ColourIds::textColourId, black_bg);
-        addAndMakeVisible(label);
-
-        SetTitleLayout(title_place);
     }
 
     ~FlatSlider() override {
@@ -402,21 +405,7 @@ public:
     }
 
     void resized() override {
-        if (title_layout == TitleLayout::None) {
-            slider.setBounds(getLocalBounds());
-        }
-        else if (title_layout == TitleLayout::Top) {
-            auto b = getLocalBounds();
-            label.setBounds(b.removeFromTop(static_cast<int>(label.getFont().getHeight())));
-            slider.setBounds(b);
-        }
-        else {
-            auto font = label.getFont();
-            auto width = 1.2f * juce::TextLayout::getStringWidth(font, label.getText());
-            auto b = getLocalBounds();
-            label.setBounds(b.removeFromLeft(static_cast<int>(width)));
-            slider.setBounds(b);
-        }
+        slider.setBounds(getLocalBounds());
     }
 
     void BindParam(juce::AudioProcessorValueTreeState& apvts, juce::StringRef id) {
@@ -433,17 +422,8 @@ public:
         return slider_menu_.on_menu_showup;
     }
 
-    void SetTitleLayout(TitleLayout layout) {
-        if (title_layout == layout) return;
-        title_layout = layout;
-        label.setVisible(layout != TitleLayout::None);
-        resized();
-    }
-
-    juce::Slider slider;
-    juce::Label label;
+    LeftDragOnlySlider slider;
 private:
-    TitleLayout title_layout{TitleLayout::Top};
     std::unique_ptr<juce::SliderParameterAttachment> attach_;
     SliderMenu slider_menu_;
 };
@@ -453,26 +433,13 @@ private:
 // ----------------------------------------
 class FlatNumericBox : public juce::Component {
 public:
-    enum class TitleLayout {
-        None,
-        Left,
-        Top
-    };
-
-    FlatNumericBox(juce::StringRef title = "unname", TitleLayout title_place = TitleLayout::Left)
+    FlatNumericBox()
         : slider_menu_(slider) {
         slider.setSliderStyle(juce::Slider::SliderStyle::LinearBarVertical);
         slider.setLookAndFeel(GetLookAndFeel());
         slider.addMouseListener(&slider_menu_, true);
         addAndMakeVisible(slider);
         slider_menu_.menu_.setLookAndFeel(GetLookAndFeel());
-
-        label.setText(title, juce::dontSendNotification);
-        label.setJustificationType(juce::Justification::centredLeft);
-        label.setColour(juce::Label::ColourIds::textColourId, black_bg);
-        addAndMakeVisible(label);
-
-        SetTitleLayout(title_place);
     }
 
     ~FlatNumericBox() override {
@@ -482,21 +449,7 @@ public:
     }
 
     void resized() override {
-        if (title_layout == TitleLayout::None) {
-            slider.setBounds(getLocalBounds());
-        }
-        else if (title_layout == TitleLayout::Top) {
-            auto b = getLocalBounds();
-            label.setBounds(b.removeFromTop(static_cast<int>(label.getFont().getHeight())));
-            slider.setBounds(b);
-        }
-        else {
-            auto font = label.getFont();
-            auto width = 1.2f * juce::TextLayout::getStringWidth(font, label.getText());
-            auto b = getLocalBounds();
-            label.setBounds(b.removeFromLeft(static_cast<int>(width)));
-            slider.setBounds(b);
-        }
+        slider.setBounds(getLocalBounds());
     }
 
     void BindParam(juce::AudioProcessorValueTreeState& apvts, juce::StringRef id) {
@@ -513,17 +466,8 @@ public:
         return slider_menu_.on_menu_showup;
     }
 
-    void SetTitleLayout(TitleLayout layout) {
-        if (title_layout == layout) return;
-        title_layout = layout;
-        label.setVisible(layout != TitleLayout::None);
-        resized();
-    }
-
-    juce::Slider slider;
-    juce::Label label;
+    LeftDragOnlySlider slider;
 private:
-    TitleLayout title_layout{TitleLayout::Top};
     std::unique_ptr<juce::SliderParameterAttachment> attach_;
     SliderMenu slider_menu_;
 };

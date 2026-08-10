@@ -10,16 +10,15 @@
 #include <qwqdsp/pitch/pitch.hpp>
 #include <qwqdsp/pitch/yin.hpp>
 
+#include "../global.hpp"
+
 namespace green_vocoder::dsp {
 
 class PitchOsc {
 public:
-    static constexpr int kBlockSize = 1024;
-    static constexpr int kHopSize = 1024;
-
     void Init(float fs) noexcept {
         fs_ = fs;
-        yin_.Init(fs, kBlockSize);
+        yin_.Init(fs, global::kPitchBlockSize);
         yin_.SetThreshold(0.2f);
     }
 
@@ -31,43 +30,35 @@ public:
         curr_noise_gain_ = 0.0f;
     }
 
-    void SetGlide(float ms) noexcept {
-        glide_a_ = 1.0f - std::exp(-1.0f / (ms * 0.001f * fs_));
-    }
+    struct Params {
+        float min_pitch{80.0f};
+        float max_pitch{500.0f};
+        float pitch_shift{0.0f};
+        float pwm{0.5f};
+        float noise_gain{0.5f};
+        int waveform{0};
+        float glide{1.0f};
+    };
 
-    void SetPitchShift(float semitones) noexcept {
-        frequency_mul_ = std::exp2(semitones / 12.0f);
-    }
-
-    void SetWaveform(int idx) noexcept {
-        waveform_ = idx;
-    }
-
-    void SetNoiseGain(float gain) noexcept {
-        noise_gain_ = gain;
-    }
-
-    void SetPWM(float width) noexcept {
-        osc_.SetPWM(width);
-    }
-
-    void SetMinPitch(float hz) noexcept {
-        yin_.SetMinPitch(hz);
-    }
-
-    void SetMaxPitch(float hz) noexcept {
-        yin_.SetMaxPitch(hz);
+    void SetParam(const Params& p) noexcept {
+        glide_a_ = 1.0f - std::exp(-1.0f / (p.glide * 0.001f * fs_));
+        frequency_mul_ = std::exp2(p.pitch_shift / 12.0f);
+        waveform_ = p.waveform;
+        noise_gain_ = p.noise_gain;
+        osc_.SetPWM(p.pwm);
+        yin_.SetMinPitch(p.min_pitch);
+        yin_.SetMaxPitch(p.max_pitch);
     }
 
     /// Read pitch from `buffer` (mono), write oscillator output to `buffer`.
     void Process(float* buffer, int num_frame) noexcept {
         while (num_frame != 0) {
-            int need = kBlockSize - in_pos_;
+            int need = global::kPitchBlockSize - in_pos_;
             need = std::min(need, num_frame);
             std::copy_n(buffer, need, in_buffer_.begin() + in_pos_);
             in_pos_ += need;
 
-            if (in_pos_ == kBlockSize) ProcessFrame();
+            if (in_pos_ == global::kPitchBlockSize) ProcessFrame();
 
             FillAudio(buffer, need);
             num_frame -= need;
@@ -76,7 +67,7 @@ public:
     }
 private:
     void ProcessFrame() noexcept {
-        yin_.Process(std::span<const float>{in_buffer_.data(), static_cast<size_t>(kBlockSize)});
+        yin_.Process(std::span<const float>{in_buffer_.data(), static_cast<size_t>(global::kPitchBlockSize)});
         in_pos_ = 0;
         latest_pitch_ = yin_.GetPitch();
 
@@ -93,9 +84,9 @@ private:
         }
         target_noise *= noise_gain_;
 
-        osc_delta_ = (target_osc - curr_osc_gain_) / static_cast<float>(kHopSize);
-        noise_delta_ = (target_noise - curr_noise_gain_) / static_cast<float>(kHopSize);
-        gain_remain_ = kHopSize;
+        osc_delta_ = (target_osc - curr_osc_gain_) / static_cast<float>(global::kPitchHopSize);
+        noise_delta_ = (target_noise - curr_noise_gain_) / static_cast<float>(global::kPitchHopSize);
+        gain_remain_ = global::kPitchHopSize;
     }
 
     void FillAudio(float* buffer, int need) noexcept {
@@ -116,7 +107,7 @@ private:
     }
 
     // -- input --
-    std::array<float, kBlockSize> in_buffer_{};
+    std::array<float, global::kPitchBlockSize> in_buffer_{};
     int in_pos_{};
 
     // -- latest pitch from yin --

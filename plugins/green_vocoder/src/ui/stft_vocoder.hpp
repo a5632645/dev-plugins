@@ -3,7 +3,7 @@
 
 class AudioPluginAudioProcessor;
 
-namespace green_vocoder::widget {
+namespace green_vocoder::ui {
 
 class STFTVocoder
     : public juce::Component
@@ -19,15 +19,16 @@ private:
     void OnModeChanged();
 
     AudioPluginAudioProcessor& processor_;
-    ui::Dial release_{"release"};
-    ui::Dial attack_{"attack"};
-    ui::FlatCombobox size_;
-    ui::FlatSelector mode_;
+    ::ui::Dial release_{"release"};
+    ::ui::Dial attack_{"attack"};
+    ::ui::FlatCombobox size_;
+    ::ui::FlatSelector mode_;
 
-    ui::Dial blend_{"noisy"};
-    ui::Dial bandwidth_{"smear"};
-    ui::Dial detail_{"detail"};
-    ui::FlatSlider mfcc_size_{"bands", ui::FlatSlider::TitleLayout::Top};
+    ::ui::Dial blend_{"noisy"};
+    ::ui::Dial bandwidth_{"smear"};
+    ::ui::Dial detail_{"detail"};
+    ::ui::FlatSlider mfcc_size_;
+    juce::Label mfcc_size_title_{"", "bands"};
 };
 
-} // namespace green_vocoder::widget
+} // namespace green_vocoder::ui

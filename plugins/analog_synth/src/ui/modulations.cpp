@@ -17,7 +17,6 @@ public:
             config_->amount = static_cast<float>(amount_.slider.getValue());
             UpdateLabelText();
         };
-        amount_.SetTitleLayout(ui::FlatSlider::TitleLayout::None);
         addAndMakeVisible(amount_);
 
         begin_value_.setJustificationType(juce::Justification::centredLeft);

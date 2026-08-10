@@ -55,12 +55,12 @@ target_sources(${PLUGIN_NAME}
     src/dsp/engine.cpp
     src/dsp/leaky_burg_lpc.cpp
     src/dsp/stft_vocoder.cpp
-    src/widget/burg_lpc.cpp
-    src/widget/channel_vocoder.cpp
-    src/widget/pre_fx.cpp
-    src/widget/stft_vocoder.cpp
-    src/widget/tracking.cpp
-    src/widget/vocoder.cpp
+    src/ui/burg_lpc.cpp
+    src/ui/channel_vocoder.cpp
+    src/ui/pre_fx.cpp
+    src/ui/stft_vocoder.cpp
+    src/ui/tracking.cpp
+    src/ui/vocoder.cpp
 )
 
 target_include_directories(${PLUGIN_NAME}

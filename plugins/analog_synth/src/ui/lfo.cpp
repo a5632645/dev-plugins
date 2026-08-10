@@ -35,6 +35,9 @@ LfoGui::LfoGui(Synth& synth, size_t idx) {
     addAndMakeVisible(shape_);
     addAndMakeVisible(retrigger_);
     addAndMakeVisible(phase_);
+    phase_title_.setJustificationType(juce::Justification::centredLeft);
+    ui::SetLableBlack(phase_title_);
+    addAndMakeVisible(phase_title_);
 }
 
 void LfoGui::paint(juce::Graphics& g) {
@@ -55,6 +58,9 @@ void LfoGui::resized() {
     shape_.setBounds(b.removeFromLeft(w));
     auto phase_bound = b;
     retrigger_.setBounds(phase_bound.removeFromTop(20));
-    phase_.setBounds(phase_bound.removeFromTop(35));
+    auto phase_slider_bound = phase_bound.removeFromTop(35);
+    auto phase_width = static_cast<int>(1.2f * juce::TextLayout::getStringWidth(phase_title_.getFont(), phase_title_.getText()));
+    phase_title_.setBounds(phase_slider_bound.removeFromLeft(phase_width));
+    phase_.setBounds(phase_slider_bound);
 }
 }

@@ -14,6 +14,7 @@ private:
     juce::Label title_{"", "Voices"};
     ui::Switch legato_{"legato"};
     ui::Dial time_{"time"};
-    ui::FlatSlider voice_{"voice"};
+    ui::FlatSlider voice_;
+    juce::Label voice_title_{"", "voice"};
 };
 }

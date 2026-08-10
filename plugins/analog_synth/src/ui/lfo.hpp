@@ -16,6 +16,7 @@ private:
     BpmSyncDial freq_{"freq", "tempo"};
     ui::Dial shape_{"shape"};
     ui::Switch retrigger_{"retrigger"};
-    ui::FlatSlider phase_{"phase"};
+    ui::FlatSlider phase_;
+    juce::Label phase_title_{"", "phase"};
 };
 }
