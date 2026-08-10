@@ -65,13 +65,11 @@ void Engine::UpdateLeakyLPC(Params& p) {
 
 void Engine::UpdateBlockLPC(Params& p) {
     block_burg_lpc_.SetParam({
-        .block_size = static_cast<size_t>(global::kStftSizes[p.stft_size.Get()]),
+        .block_size = static_cast<size_t>(global::kStftSizes[static_cast<size_t>(p.stft_size.Get())]),
         .poles = static_cast<size_t>(p.lpc_order.Get()),
         .smear = p.lpc_smooth.Get(),
         .attack = p.lpc_gain_attack.Get(),
         .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
-        .use_v2 = false, // 未接线，保持默认（V2 未启用）
-        .forget = 10.0f,
     });
 }
 
@@ -79,7 +77,7 @@ void Engine::UpdateSTFT(Params& p) {
     stft_vocoder_.SetParam({
         .attack = p.stft_attack.Get(),
         .release = p.stft_release.Get(),
-        .fft_size = global::kStftSizes[p.stft_size.Get()],
+        .fft_size = global::kStftSizes[static_cast<size_t>(p.stft_size.Get())],
         .blend = p.stft_blend.Get(),
         .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
         .mode = static_cast<dsp::STFTVocoder::Mode>(p.stft_type.Get()),
@@ -170,7 +168,7 @@ void Engine::Process(
                     burg_lpc_.Process({crossing_main_buffer_.data(), n}, {crossing_side_buffer_.data(), n});
                     break;
                 case eVocoderType_STFTVocoder:
-                    stft_vocoder_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), n);
+                    stft_vocoder_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), static_cast<int>(n));
                     break;
                 case eVocoderType_ChannelVocoder:
                     channel_vocoder_.ProcessBlock(crossing_main_buffer_.data(), crossing_side_buffer_.data(), n);
@@ -178,6 +176,7 @@ void Engine::Process(
                 case eVocoderType_BlockBurgLPC:
                     block_burg_lpc_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), n);
                     break;
+                case eVocoderType_NumVocoderTypes:
                 default:
                     jassertfalse;
                     break;

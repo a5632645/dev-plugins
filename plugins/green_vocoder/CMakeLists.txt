@@ -54,6 +54,10 @@ target_sources(${PLUGIN_NAME}
     src/dsp/channel_vocoder.cpp
     src/dsp/engine.cpp
     src/dsp/leaky_burg_lpc.cpp
+    src/dsp/stft/stft.cpp
+    src/dsp/stft/stft_cepstrum.cpp
+    src/dsp/stft/stft_mfcc.cpp
+    src/dsp/stft/stft_standard.cpp
     src/dsp/stft_vocoder.cpp
     src/ui/burg_lpc.cpp
     src/ui/channel_vocoder.cpp

@@ -87,7 +87,7 @@ void BurgLPC::paint(juce::Graphics& g) {
         else if (db > bound_top_db)
             return static_cast<float>(y);
         auto nor = (db - bound_bottom_db) / (bound_top_db - bound_bottom_db);
-        return y + h * (1.0f - nor);
+        return static_cast<float>(y) + static_cast<float>(h) * (1.0f - nor);
     };
     // draw lines
     {
@@ -95,11 +95,11 @@ void BurgLPC::paint(juce::Graphics& g) {
         constexpr float db_span = (top_line_db - last_line_db) / (nlines - 1.0f);
         g.setColour(::ui::grid_fore);
         for (int i = 0; i < nlines; ++i) {
-            auto db = last_line_db + db_span * i;
+            auto db = last_line_db + db_span * static_cast<float>(i);
             auto y = convert_db_to_y(db);
-            g.drawHorizontalLine(y, bb.getX(), bb.getRight());
+            g.drawHorizontalLine(static_cast<int>(y), static_cast<float>(bb.getX()), static_cast<float>(bb.getRight()));
             g.drawSingleLineText(std::to_string(static_cast<int>(db)), bb.getX(),
-                                 y + g.getCurrentFont().getHeight() / 2);
+                                 static_cast<int>(y + g.getCurrentFont().getHeight() / 2));
         }
     }
     {
@@ -116,26 +116,30 @@ void BurgLPC::paint(juce::Graphics& g) {
             std::log10(9.0f),
         };
         static const juce::StringArray kFreqStr{"20", "200", "2k", "20k"};
-        float w = bb.getWidth();
+        float w = static_cast<float>(bb.getWidth());
         float span_w = w / 3.0f;
         for (int i = 0; i < 3; ++i) {
-            float span_x = span_w * i + bb.getX();
+            float span_x = span_w * static_cast<float>(i) + static_cast<float>(bb.getX());
             for (int j = 0; j < 9; ++j) {
-                float log_nor = kLogJtable[j];
+                float log_nor = kLogJtable[static_cast<size_t>(j)];
                 float x = span_x + span_w * log_nor;
-                g.drawVerticalLine(x, bb.getY(), bb.getBottom());
+                g.drawVerticalLine(static_cast<int>(x), static_cast<float>(bb.getY()),
+                                   static_cast<float>(bb.getBottom()));
             }
             if (i == 0) {
-                g.drawSingleLineText(kFreqStr[i], span_x, bb.getBottom() - current_font.getHeight() / 2);
+                g.drawSingleLineText(kFreqStr[i], static_cast<int>(span_x),
+                                     static_cast<int>(bb.getBottom()) - static_cast<int>(current_font.getHeight() / 2));
             }
             else {
                 auto str_w = juce::TextLayout::getStringWidth(current_font, kFreqStr[i]);
-                g.drawSingleLineText(kFreqStr[i], span_x - str_w / 2, bb.getBottom() - current_font.getHeight() / 2);
+                g.drawSingleLineText(kFreqStr[i], static_cast<int>(span_x - str_w / 2),
+                                     static_cast<int>(bb.getBottom()) - static_cast<int>(current_font.getHeight() / 2));
             }
         }
         // 绘制最后的频率
         auto last_w = juce::TextLayout::getStringWidth(current_font, kFreqStr[3]);
-        g.drawSingleLineText(kFreqStr[3], bb.getRight() - last_w, bb.getBottom() - current_font.getHeight() / 2);
+        g.drawSingleLineText(kFreqStr[3], static_cast<int>(bb.getRight()) - static_cast<int>(last_w),
+                             static_cast<int>(bb.getBottom()) - static_cast<int>(current_font.getHeight() / 2));
     }
 
     // lattice to tf
@@ -171,7 +175,7 @@ void BurgLPC::paint(juce::Graphics& g) {
     auto b = bb.toFloat();
     juce::Point<float> line_last{b.getX(), b.getCentreY()};
     g.setColour(::ui::line_fore);
-    float mul_val = std::pow(10.0f, freq_pow / w);
+    float mul_val = std::pow(10.0f, freq_pow / static_cast<float>(w));
     float mul_begin = 1.0f;
     float omega_base = freq_begin * std::numbers::pi_v<float> / static_cast<float>(processor_.engine_.GetSampleRate());
     for (int x = 0; x < w; ++x) {
@@ -180,7 +184,7 @@ void BurgLPC::paint(juce::Graphics& g) {
 
         auto z_responce = std::complex{1.0f, 0.0f};
         for (size_t i = 0; i < order; ++i) {
-            auto z = std::polar(1.0f, -omega * (i + 1));
+            auto z = std::polar(1.0f, -omega * static_cast<float>(i + 1));
             z_responce += upgoing[i + 1] * z;
         }
         z_responce = 1.0f / z_responce;
@@ -191,7 +195,7 @@ void BurgLPC::paint(juce::Graphics& g) {
         float gain = std::abs(z_responce);
         float db_gain = 20.0f * std::log10(gain + 1e-10f);
         float y = convert_db_to_y(db_gain);
-        juce::Point line_end{static_cast<float>(x + b.toFloat().getX()), y};
+        juce::Point line_end{static_cast<float>(x) + b.toFloat().getX(), y};
         g.drawLine(juce::Line<float>{line_last, line_end}, 2.0f);
         line_last = line_end;
     }

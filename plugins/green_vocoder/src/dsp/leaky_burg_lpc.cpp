@@ -6,7 +6,7 @@
 #include <qwqdsp/filter/rbj.hpp>
 
 namespace green_vocoder::dsp {
-void LeakyBurgLPC::Init(float sample_rate, size_t block_size) {
+void LeakyBurgLPC::Init(float sample_rate, [[maybe_unused]] size_t block_size) {
     sample_rate_ = sample_rate;
 }
 

@@ -78,6 +78,7 @@ void Vocoder::OnVocoderTypeChanged() {
         case eVocoderType_ChannelVocoder:
             current_vocoder_widget_ = channel_.get();
             break;
+        case eVocoderType_NumVocoderTypes:
         default:
             jassertfalse;
             break;

@@ -16,6 +16,8 @@ namespace green_vocoder::dsp {
 using global::kMaxPoles;
 using global::kNoiseGain;
 
+using PackFloat2 = qwqdsp_simd_element::PackFloat<2>;
+
 void BlockBurgLPC::Init(float fs) {
     sample_rate_ = fs;
     SetParam(Params{.block_size = 1024});
@@ -24,288 +26,110 @@ void BlockBurgLPC::Init(float fs) {
 void BlockBurgLPC::SetParam(const Params& p) {
     // block size（含窗口与内部缓冲重建）
     fft_size_ = p.block_size;
-    hann_window_.resize(p.block_size);
+    size_t const hop_size = p.block_size / 4;
     eb_.resize(p.block_size);
     ef_.resize(p.block_size);
-    hop_size_ = p.block_size / 4;
+
+    // hann 合成窗
+    std::vector<float> hann_window(p.block_size);
     for (size_t i = 0; i < p.block_size; ++i) {
-        hann_window_[i] =
+        hann_window[i] =
             0.5f - 0.5f * std::cos(2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(p.block_size));
     }
-    update_rate_ = sample_rate_ / static_cast<float>(hop_size_);
+    ola_.Init(p.block_size, hop_size, hann_window);
+    ola_.SetOutputGain(0.25f);
+
+    update_rate_ = sample_rate_ / static_cast<float>(hop_size);
 
     num_poles_ = p.poles;
 
-    smear_ms_ = std::max(p.smear, 10.0f);
-    smear_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(smear_ms_, update_rate_);
-
-    attack_ms_ = p.attack;
+    smear_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(std::max(p.smear, 10.0f), update_rate_);
     attack_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(p.attack, update_rate_);
 
     fir_allpass_coeff_ = std::clamp(-p.formant_shift, -0.99f, 0.99f);
-
-    use_v2_ = p.use_v2;
-    forget_factor_ = std::exp(-1.0f / (sample_rate_ * p.forget / 1000.0f));
 }
 
 void BlockBurgLPC::Process(qwqdsp_simd_element::PackFloat<2>* main_ptr, qwqdsp_simd_element::PackFloat<2>* side_ptr,
                            size_t num_samples) {
-    if (use_v2_) {
-        ProcessV2(main_ptr, side_ptr, num_samples);
-    }
-    else {
-        ProcessV1(main_ptr, side_ptr, num_samples);
-    }
-}
-
-void BlockBurgLPC::ProcessV1(qwqdsp_simd_element::PackFloat<2>* main_ptr, qwqdsp_simd_element::PackFloat<2>* side_ptr,
-                             size_t num_samples) {
     // adding some noise
     for (size_t i = 0; i < num_samples; ++i) {
         main_ptr[i] += noise_.Next() * kNoiseGain;
     }
-    // -------------------- copy buffer --------------------
-    std::copy_n(main_ptr, num_samples, main_inputBuffer_.begin() + static_cast<int>(numInput_));
-    std::copy_n(side_ptr, num_samples, side_inputBuffer_.begin() + static_cast<int>(numInput_));
-    numInput_ += num_samples;
-    while (numInput_ >= fft_size_) {
-        // get the block
-        std::span<qwqdsp_simd_element::PackFloat<2> const> main{main_inputBuffer_.data(), fft_size_};
-        std::span<qwqdsp_simd_element::PackFloat<2> const> side{side_inputBuffer_.data(), fft_size_};
-        // -------------------- lpc --------------------
-        // forward fir lattice
-        std::copy(main.begin(), main.end(), ef_.begin());
-        std::copy(main.begin(), main.end(), eb_.begin());
-        std::array<qwqdsp_simd_element::PackFloat<2>, kMaxPoles> latticek{};
-        for (size_t kidx = 0; kidx < num_poles_; ++kidx) {
-            auto& k = latticek[kidx];
-
-            qwqdsp_simd_element::PackFloat<2> up{};
-            qwqdsp_simd_element::PackFloat<2> down{};
-            qwqdsp_simd_element::PackFloat<2> s_iir{};
-            for (size_t i = 0; i < ef_.size(); ++i) {
-                auto y = fir_allpass_coeff_ * eb_[i] + s_iir;
-                s_iir = eb_[i] - fir_allpass_coeff_ * y;
-                eb_[i] = y;
-                up += ef_[i] * y;
-                down += ef_[i] * ef_[i];
-                down += y * y;
-            }
-            k = -2.0f * up / down;
-
-            for (size_t i = 0; i < ef_.size(); ++i) {
-                auto upgo = ef_[i] + eb_[i] * k;
-                auto downgo = eb_[i] + ef_[i] * k;
-                ef_[i] = upgo;
-                eb_[i] = downgo;
-            }
-        }
-        // smear
-        // the FIR and IIR lattice coeffient are reversed
-        auto reverse_fir_k = latticek.begin() + static_cast<int>(num_poles_);
-        auto iir_k = latticek_.begin();
-        for (size_t order = 0; order < num_poles_; order += 2) {
-            auto const& fir_1 = *(--reverse_fir_k);
-            auto const& fir_2 = *(--reverse_fir_k);
-            auto& iir_1 = *(iir_k++);
-            auto& iir_2 = *(iir_k++);
-            iir_1 *= smear_factor_;
-            iir_2 *= smear_factor_;
-            iir_1 += fir_1 * (1.0f - smear_factor_);
-            iir_2 += fir_2 * (1.0f - smear_factor_);
-        }
-        // eval gain
-        qwqdsp_simd_element::PackFloat<2> gain{};
-        for (size_t i = 0; i < ef_.size(); ++i) {
-            gain += ef_[i] * ef_[i];
-        }
-        gain = qwqdsp_simd_element::PackOps::Sqrt(gain);
-        qwqdsp_simd_element::PackFloat<2> gain_side{};
-        gain_side.Broadcast(std::sqrt(static_cast<float>(fft_size_)));
-        auto atten = gain / (gain_side);
-        // atten smooth
-        gain_lag_ *= attack_factor_;
-        gain_lag_ += (1.0f - attack_factor_) * atten;
-        // iir lattice
-        std::array<qwqdsp_simd_element::PackFloat<2>, kMaxPoles + 1> l_iir{};
-        for (size_t j = 0; j < ef_.size(); ++j) {
-            auto x0 = side[j] * gain_lag_;
-            for (size_t idx = 0; idx < num_poles_; idx += 2) {
-                auto x1 = x0 - latticek_[idx] * l_iir[idx + 1];
-                auto x2 = x1 - latticek_[idx + 1] * l_iir[idx + 2];
-                auto l0 = l_iir[idx + 1] + latticek_[idx] * x1;
-                auto l1 = l_iir[idx + 2] + latticek_[idx + 1] * x2;
-                x0 = x2;
-                l_iir[idx] = l0;
-                l_iir[idx + 1] = l1;
-            }
-            l_iir[num_poles_] = x0;
-            ef_[j] = x0;
-        }
-        // pull input buffer a hop size
-        numInput_ -= hop_size_;
-        for (size_t i = 0; i < numInput_; i++) {
-            main_inputBuffer_[i] = main_inputBuffer_[i + hop_size_];
-        }
-        for (size_t i = 0; i < numInput_; i++) {
-            side_inputBuffer_[i] = side_inputBuffer_[i + hop_size_];
-        }
-        // overlay add
-        for (size_t i = 0; i < fft_size_; i++) {
-            main_outputBuffer_[i + writeAddBegin_] += ef_[i] * hann_window_[i];
-        }
-        writeEnd_ = writeAddBegin_ + fft_size_;
-        writeAddBegin_ += hop_size_;
-    }
-    // -------------------- output --------------------
-    if (writeAddBegin_ >= num_samples) {
-        // extract output
-        size_t extractSize = num_samples;
-        for (size_t i = 0; i < extractSize; ++i) {
-            main_ptr[i] = main_outputBuffer_[i] * 0.25f;
-        }
-        // shift output buffer
-        size_t shiftSize = writeEnd_ - extractSize;
-        for (size_t i = 0; i < shiftSize; i++) {
-            main_outputBuffer_[i] = main_outputBuffer_[i + extractSize];
-        }
-        writeAddBegin_ -= extractSize;
-        size_t newWriteEnd = writeEnd_ - extractSize;
-        // zero shifed buffer
-        for (size_t i = newWriteEnd; i < writeEnd_; ++i) {
-            main_outputBuffer_[i].Broadcast(0);
-        }
-        writeEnd_ = newWriteEnd;
-    }
-    else {
-        // zero buffer
-        std::fill_n(main_ptr, num_samples, qwqdsp_simd_element::PackFloat<2>{});
-    }
+    ola_.Process(main_ptr, side_ptr, num_samples, *this);
 }
 
-void BlockBurgLPC::ProcessV2(qwqdsp_simd_element::PackFloat<2>* main_ptr, qwqdsp_simd_element::PackFloat<2>* side_ptr,
-                             size_t num_samples) {
-    // adding some noise
-    for (size_t i = 0; i < num_samples; ++i) {
-        main_ptr[i] += noise_.Next() * kNoiseGain;
-    }
-    // -------------------- copy buffer --------------------
-    std::copy_n(main_ptr, num_samples, main_inputBuffer_.begin() + static_cast<int>(numInput_));
-    std::copy_n(side_ptr, num_samples, side_inputBuffer_.begin() + static_cast<int>(numInput_));
-    numInput_ += num_samples;
-    while (numInput_ >= fft_size_) {
-        // get the block
-        std::span<qwqdsp_simd_element::PackFloat<2> const> main{main_inputBuffer_.data(), fft_size_};
-        std::span<qwqdsp_simd_element::PackFloat<2> const> side{side_inputBuffer_.data(), fft_size_};
-        // -------------------- lpc --------------------
-        // forward fir lattice
-        std::copy(main.begin(), main.end(), ef_.begin());
-        std::copy(main.begin(), main.end(), eb_.begin());
-        std::array<qwqdsp_simd_element::PackFloat<2>, kMaxPoles> latticek{};
-        for (size_t kidx = 0; kidx < num_poles_; ++kidx) {
-            auto& k = latticek[kidx];
+std::span<PackFloat2 const> BlockBurgLPC::operator()(std::span<PackFloat2 const> main,
+                                                     std::span<PackFloat2 const> side) {
+    // forward fir lattice
+    std::copy(main.begin(), main.end(), ef_.begin());
+    std::copy(main.begin(), main.end(), eb_.begin());
+    std::array<PackFloat2, kMaxPoles> latticek{};
+    for (size_t kidx = 0; kidx < num_poles_; ++kidx) {
+        auto& k = latticek[kidx];
 
-            qwqdsp_simd_element::PackFloat<2> up{};
-            qwqdsp_simd_element::PackFloat<2> down{};
-            qwqdsp_simd_element::PackFloat<2> s_iir{};
-            for (size_t i = 0; i < ef_.size(); ++i) {
-                auto y = fir_allpass_coeff_ * eb_[i] + s_iir;
-                s_iir = eb_[i] - fir_allpass_coeff_ * y;
-                eb_[i] = y;
-                up += ef_[i] * y;
-                down += ef_[i] * ef_[i];
-                down += y * y;
-            }
-            k = -2.0f * up / down;
-
-            for (size_t i = 0; i < ef_.size(); ++i) {
-                auto upgo = ef_[i] + eb_[i] * k;
-                auto downgo = eb_[i] + ef_[i] * k;
-                ef_[i] = upgo;
-                eb_[i] = downgo;
-            }
-        }
-        // smear
-        // the FIR and IIR lattice coeffient are reversed
-        auto reverse_fir_k = latticek.begin() + static_cast<int>(num_poles_);
-        auto iir_k = latticek_.begin();
-        for (size_t order = 0; order < num_poles_; order += 2) {
-            auto const& fir_1 = *(--reverse_fir_k);
-            auto const& fir_2 = *(--reverse_fir_k);
-            auto& iir_1 = *(iir_k++);
-            auto& iir_2 = *(iir_k++);
-            iir_1 *= smear_factor_;
-            iir_2 *= smear_factor_;
-            iir_1 += fir_1 * (1.0f - smear_factor_);
-            iir_2 += fir_2 * (1.0f - smear_factor_);
-        }
-        // eval gain
-        qwqdsp_simd_element::PackFloat<2> gain{};
+        PackFloat2 up{};
+        PackFloat2 down{};
+        PackFloat2 s_iir{};
         for (size_t i = 0; i < ef_.size(); ++i) {
-            gain += ef_[i] * ef_[i];
+            auto y = fir_allpass_coeff_ * eb_[i] + s_iir;
+            s_iir = eb_[i] - fir_allpass_coeff_ * y;
+            eb_[i] = y;
+            up += ef_[i] * y;
+            down += ef_[i] * ef_[i];
+            down += y * y;
         }
-        gain = qwqdsp_simd_element::PackOps::Sqrt(gain);
-        qwqdsp_simd_element::PackFloat<2> gain_side{};
-        gain_side.Broadcast(std::sqrt(static_cast<float>(fft_size_)));
-        auto atten = gain / (gain_side);
-        // atten smooth
-        gain_lag_ *= attack_factor_;
-        gain_lag_ += (1.0f - attack_factor_) * atten;
-        // iir lattice
-        std::array<qwqdsp_simd_element::PackFloat<2>, kMaxPoles + 1> l_iir{};
-        for (size_t j = 0; j < ef_.size(); ++j) {
-            auto x0 = side[j] * gain_lag_;
-            for (size_t idx = 0; idx < num_poles_; idx += 2) {
-                auto x1 = x0 - latticek_[idx] * l_iir[idx + 1];
-                auto x2 = x1 - latticek_[idx + 1] * l_iir[idx + 2];
-                auto l0 = l_iir[idx + 1] + latticek_[idx] * x1;
-                auto l1 = l_iir[idx + 2] + latticek_[idx + 1] * x2;
-                x0 = x2;
-                l_iir[idx] = l0;
-                l_iir[idx + 1] = l1;
-            }
-            l_iir[num_poles_] = x0;
-            ef_[j] = x0;
+        k = -2.0f * up / down;
+
+        for (size_t i = 0; i < ef_.size(); ++i) {
+            auto upgo = ef_[i] + eb_[i] * k;
+            auto downgo = eb_[i] + ef_[i] * k;
+            ef_[i] = upgo;
+            eb_[i] = downgo;
         }
-        // pull input buffer a hop size
-        numInput_ -= hop_size_;
-        for (size_t i = 0; i < numInput_; i++) {
-            main_inputBuffer_[i] = main_inputBuffer_[i + hop_size_];
-        }
-        for (size_t i = 0; i < numInput_; i++) {
-            side_inputBuffer_[i] = side_inputBuffer_[i + hop_size_];
-        }
-        // overlay add
-        for (size_t i = 0; i < fft_size_; i++) {
-            main_outputBuffer_[i + writeAddBegin_] += ef_[i] * hann_window_[i];
-        }
-        writeEnd_ = writeAddBegin_ + fft_size_;
-        writeAddBegin_ += hop_size_;
     }
-    // -------------------- output --------------------
-    if (writeAddBegin_ >= num_samples) {
-        // extract output
-        size_t extractSize = num_samples;
-        for (size_t i = 0; i < extractSize; ++i) {
-            main_ptr[i] = main_outputBuffer_[i] * 0.25f;
-        }
-        // shift output buffer
-        size_t shiftSize = writeEnd_ - extractSize;
-        for (size_t i = 0; i < shiftSize; i++) {
-            main_outputBuffer_[i] = main_outputBuffer_[i + extractSize];
-        }
-        writeAddBegin_ -= extractSize;
-        size_t newWriteEnd = writeEnd_ - extractSize;
-        // zero shifed buffer
-        for (size_t i = newWriteEnd; i < writeEnd_; ++i) {
-            main_outputBuffer_[i].Broadcast(0);
-        }
-        writeEnd_ = newWriteEnd;
+    // smear
+    // the FIR and IIR lattice coeffient are reversed
+    auto reverse_fir_k = latticek.begin() + static_cast<int>(num_poles_);
+    auto iir_k = latticek_.begin();
+    for (size_t order = 0; order < num_poles_; order += 2) {
+        auto const& fir_1 = *(--reverse_fir_k);
+        auto const& fir_2 = *(--reverse_fir_k);
+        auto& iir_1 = *(iir_k++);
+        auto& iir_2 = *(iir_k++);
+        iir_1 *= smear_factor_;
+        iir_2 *= smear_factor_;
+        iir_1 += fir_1 * (1.0f - smear_factor_);
+        iir_2 += fir_2 * (1.0f - smear_factor_);
     }
-    else {
-        // zero buffer
-        std::fill_n(main_ptr, num_samples, qwqdsp_simd_element::PackFloat<2>{});
+    // eval gain
+    PackFloat2 gain{};
+    for (size_t i = 0; i < ef_.size(); ++i) {
+        gain += ef_[i] * ef_[i];
     }
+    gain = qwqdsp_simd_element::PackOps::Sqrt(gain);
+    PackFloat2 gain_side{};
+    gain_side.Broadcast(std::sqrt(static_cast<float>(fft_size_)));
+    auto atten = gain / (gain_side);
+    // atten smooth
+    gain_lag_ *= attack_factor_;
+    gain_lag_ += (1.0f - attack_factor_) * atten;
+    // iir lattice
+    std::array<PackFloat2, kMaxPoles + 1> l_iir{};
+    for (size_t j = 0; j < ef_.size(); ++j) {
+        auto x0 = side[j] * gain_lag_;
+        for (size_t idx = 0; idx < num_poles_; idx += 2) {
+            auto x1 = x0 - latticek_[idx] * l_iir[idx + 1];
+            auto x2 = x1 - latticek_[idx + 1] * l_iir[idx + 2];
+            auto l0 = l_iir[idx + 1] + latticek_[idx] * x1;
+            auto l1 = l_iir[idx + 2] + latticek_[idx + 1] * x2;
+            x0 = x2;
+            l_iir[idx] = l0;
+            l_iir[idx + 1] = l1;
+        }
+        l_iir[num_poles_] = x0;
+        ef_[j] = x0;
+    }
+    return std::span<PackFloat2 const>{ef_};
 }
 
 void BlockBurgLPC::CopyLatticeCoeffient(std::span<float> buffer, size_t order) {

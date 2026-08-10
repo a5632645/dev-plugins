@@ -90,11 +90,11 @@ void ChannelVocoder::paint(juce::Graphics& g) {
     constexpr float down = -60.0f;
 
     int nbands = vocoder_.GetNumBins();
-    float width = bb.getWidth() / nbands;
+    float width = static_cast<float>(bb.getWidth()) / static_cast<float>(nbands);
     float x = bb.getX();
     for (int i = 0; i < nbands; ++i) {
         juce::Rectangle<float> rect{x + width * 0.25f, bb.getY(), width * 0.5f, bb.getHeight()};
-        float gain = vocoder_.GetBinPeak(i)[0];
+        float gain = vocoder_.GetBinPeak(static_cast<size_t>(i))[0];
 
         float db_gain = 20.0f * std::log10(gain + 1e-10f);
         db_gain = std::clamp(db_gain, down, up);

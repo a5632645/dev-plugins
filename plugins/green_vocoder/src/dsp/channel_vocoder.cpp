@@ -6,7 +6,7 @@
 
 namespace green_vocoder::dsp {
 
-void ChannelVocoder::Init(float sample_rate, size_t block_size) {
+void ChannelVocoder::Init(float sample_rate, [[maybe_unused]] size_t block_size) {
     sample_rate_ = sample_rate;
     UpdateFilters();
 }
@@ -114,7 +114,8 @@ void ChannelVocoder::UpdateFilters() {
 // -------------------- filter designs --------------------
 struct Bandpass12 {
     static void Design(CascadeBPSVF& svf, qwqdsp_simd_element::PackFloatCRef<4> w1,
-                       qwqdsp_simd_element::PackFloatCRef<4> w2, float analog_w_mul, float ripple) noexcept {
+                       qwqdsp_simd_element::PackFloatCRef<4> w2, float analog_w_mul,
+                       [[maybe_unused]] float ripple) noexcept {
         auto f1 = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
         auto f2 = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
         auto f0 = qwqdsp_simd_element::PackOps::Sqrt(f1 * f2);
@@ -132,7 +133,8 @@ struct Bandpass12 {
 
 struct StackButterworth24 {
     static void Design(CascadeBPSVF& svf, qwqdsp_simd_element::PackFloatCRef<4> w1,
-                       qwqdsp_simd_element::PackFloatCRef<4> w2, float analog_w_mul, float ripple) noexcept {
+                       qwqdsp_simd_element::PackFloatCRef<4> w2, float analog_w_mul,
+                       [[maybe_unused]] float ripple) noexcept {
         auto f1 = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
         auto f2 = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
         auto f0 = qwqdsp_simd_element::PackOps::Sqrt(f1 * f2);
@@ -159,7 +161,8 @@ struct StackButterworth24 {
 
 struct StackButterworth36 {
     static void Design(CascadeBPSVF& svf, qwqdsp_simd_element::PackFloatCRef<4> w1,
-                       qwqdsp_simd_element::PackFloatCRef<4> w2, float analog_w_mul, float ripple) noexcept {
+                       qwqdsp_simd_element::PackFloatCRef<4> w2, float analog_w_mul,
+                       [[maybe_unused]] float ripple) noexcept {
         auto f1 = qwqdsp_simd_element::PackOps::Tan(w1 * 0.5f) * analog_w_mul;
         auto f2 = qwqdsp_simd_element::PackOps::Tan(w2 * 0.5f) * analog_w_mul;
         auto f0 = qwqdsp_simd_element::PackOps::Sqrt(f1 * f2);
@@ -203,7 +206,8 @@ struct PackingIIRDesigner {
 
 struct FlatButterworth24 {
     static void Design(CascadeBPSVF& svf, qwqdsp_simd_element::PackFloatCRef<4> w1,
-                       qwqdsp_simd_element::PackFloatCRef<4> w2, float analog_w_mul, float ripple) noexcept {
+                       qwqdsp_simd_element::PackFloatCRef<4> w2, float analog_w_mul,
+                       [[maybe_unused]] float ripple) noexcept {
         // prototype is a 4pole butterworth
         static auto const prototype = [] {
             std::array<qwqdsp_filter::IIRDesign::ZPK, 2> zpk_buffer;
@@ -216,7 +220,8 @@ struct FlatButterworth24 {
 
 struct FlatButterworth36 {
     static void Design(CascadeBPSVF& svf, qwqdsp_simd_element::PackFloatCRef<4> w1,
-                       qwqdsp_simd_element::PackFloatCRef<4> w2, float analog_w_mul, float ripple) noexcept {
+                       qwqdsp_simd_element::PackFloatCRef<4> w2, float analog_w_mul,
+                       [[maybe_unused]] float ripple) noexcept {
         // prototype is a 4pole butterworth
         static auto const prototype = [] {
             std::array<qwqdsp_filter::IIRDesign::ZPK, 3> zpk_buffer;
