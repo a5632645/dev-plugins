@@ -49,11 +49,8 @@ public:
     std::unique_ptr<juce::AudioProcessorValueTreeState> value_tree_;
     std::unique_ptr<pluginshared::PresetManager> preset_manager_;
 
-    Params params_;
+    steep_flanger::Params params_;
     steep_flanger::DspHanle dsp_;
-
-    std::atomic<bool> has_fir_source_from_state_;
-    steep_flanger::DspParam::FirSource fir_source_from_state_;
 
     bool display_custom_{true};
 private:

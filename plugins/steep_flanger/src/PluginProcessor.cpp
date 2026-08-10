@@ -2,8 +2,6 @@
 #include "PluginEditor.h"
 #include "BinaryData.h"
 
-#include <numbers>
-
 //==============================================================================
 SteepFlangerAudioProcessor::SteepFlangerAudioProcessor()
      : AudioProcessor (BusesProperties()
@@ -114,8 +112,8 @@ void SteepFlangerAudioProcessor::prepareToPlay (double sampleRate, int samplesPe
     dsp_->Reset();
 
     // 首次进入时重建系数
-    params_.control_.should_update_fir_ = true;
-    params_.control_.should_update_iir_ = true;
+    params_.should_update_fir_.store(true, std::memory_order_release);
+    params_.should_update_iir_.store(true, std::memory_order_release);
 }
 
 void SteepFlangerAudioProcessor::releaseResources()
@@ -156,25 +154,7 @@ void SteepFlangerAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 {
     juce::ScopedNoDenormals noDenormals;
 
-    if (has_fir_source_from_state_.exchange(false)) {
-        params_.control_.fir_source = fir_source_from_state_;
-    }
-
-    auto lfo_info = params_.delay_lfo.SyncBpm2(getPlayHead());
-    if (lfo_info.sync_lfo) {
-        dsp_->SyncPhase(lfo_info.lfo_phase);
-    }
-    auto barber_lfo_info = params_.barber_lfo.SyncBpm2(getPlayHead());
-    if (barber_lfo_info.sync_lfo) {
-        dsp_->SyncBarberPhase(barber_lfo_info.lfo_phase * std::numbers::pi_v<float> * 2);
-    }
-
-    // bpm 同步 LFO 频率（非 UI 参数，每 block 更新）
-    auto p = params_.ToDspParam();
-    p.lfo_freq = lfo_info.lfo_freq;
-    p.barber_speed = barber_lfo_info.lfo_freq;
-
-    dsp_->Update(p, &params_.control_);
+    dsp_->Update(params_, getPlayHead());
 
     int num_samples = buffer.getNumSamples();
     auto* left_ptr = buffer.getWritePointer(0);
@@ -199,19 +179,27 @@ void SteepFlangerAudioProcessor::getStateInformation (juce::MemoryBlock& destDat
 {
     suspendProcessing(true);
 
-    const juce::SpinLock::ScopedLockType lock(params_.control_.custom_coeffs_lock_);
+    // 锁内仅复制数组，ValueTree 构建在锁外进行
+    std::array<float, global::kMaxCoeffLen> custom_coeffs_snapshot{};
+    std::array<float, global::kMaxCoeffLen> custom_spectral_snapshot{};
+    {
+        const juce::SpinLock::ScopedLockType lock(params_.custom_coeffs_lock_);
+        std::copy_n(params_.custom_coeffs_.begin(), global::kMaxCoeffLen, custom_coeffs_snapshot.begin());
+        std::copy_n(params_.custom_spectral_gains.begin(), global::kMaxCoeffLen, custom_spectral_snapshot.begin());
+    }
+
     juce::ValueTree data{"DATA"};
     for (size_t i = 0; i < global::kMaxCoeffLen; ++i) {
         data.appendChild({
             "ITEM",
             {
-                {"TIME", params_.control_.custom_coeffs_[i]},
-                {"SPECTRAL", params_.control_.custom_spectral_gains[i]},
+                {"TIME", custom_coeffs_snapshot[i]},
+                {"SPECTRAL", custom_spectral_snapshot[i]},
             }
         }, nullptr);
     }
     juce::ValueTree custom_coeffs{"CUSTOM_COEFFS"};
-    custom_coeffs.setProperty("FIR_SOURCE", static_cast<int>(params_.control_.fir_source.load()), nullptr);
+    custom_coeffs.setProperty("FIR_SOURCE", static_cast<int>(params_.fir_source.load(std::memory_order_acquire)), nullptr);
     custom_coeffs.appendChild(data, nullptr);
 
     juce::ValueTree plugin_state{"PLUGIN_STATE"};
@@ -242,21 +230,20 @@ void SteepFlangerAudioProcessor::setStateInformation (const void* data, int size
         if (custom_coeffs.isValid()) {
             auto data_sections = custom_coeffs.getChildWithName("DATA");
             if (data_sections.isValid()) {
-                const juce::SpinLock::ScopedLockType lock(params_.control_.custom_coeffs_lock_);
-                std::fill_n(params_.control_.custom_coeffs_.begin(), global::kMaxCoeffLen, 0.0f);
-                std::fill_n(params_.control_.custom_spectral_gains.begin(), global::kMaxCoeffLen, 0.0f);
+                const juce::SpinLock::ScopedLockType lock(params_.custom_coeffs_lock_);
+                std::fill_n(params_.custom_coeffs_.begin(), global::kMaxCoeffLen, 0.0f);
+                std::fill_n(params_.custom_spectral_gains.begin(), global::kMaxCoeffLen, 0.0f);
                 for (size_t i = 0; auto item : data_sections) {
-                    params_.control_.custom_coeffs_[i] = static_cast<float>(item.getProperty("TIME", 0.0));
-                    params_.control_.custom_spectral_gains[i] = static_cast<float>(item.getProperty("SPECTRAL", 0.0));
+                    params_.custom_coeffs_[i] = static_cast<float>(item.getProperty("TIME", 0.0));
+                    params_.custom_spectral_gains[i] = static_cast<float>(item.getProperty("SPECTRAL", 0.0));
                     ++i;
                 }
-                params_.control_.should_update_fir_ = true;
+                params_.should_update_fir_.store(true, std::memory_order_release);
             }
 
-            int tmp = custom_coeffs.getProperty("FIR_SOURCE",
-                                                static_cast<int>(steep_flanger::DspParam::FirSource::kWindowSinc));
-            fir_source_from_state_ = static_cast<steep_flanger::DspParam::FirSource>(tmp);
-            has_fir_source_from_state_ = true;
+            int tmp = custom_coeffs.getProperty("FIR_SOURCE", static_cast<int>(steep_flanger::Params::kWindowSinc));
+            params_.fir_source_from_state_ = static_cast<steep_flanger::Params::FirSource>(tmp);
+            params_.has_fir_source_from_state_.store(true, std::memory_order_release);
         }
     }
 

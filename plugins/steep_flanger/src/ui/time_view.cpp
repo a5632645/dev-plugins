@@ -38,15 +38,21 @@ void TimeView::paint(juce::Graphics& g) {
     }
 
     if (display_waveform_) {
-        const juce::SpinLock::ScopedLockType lock(p_.params_.control_.custom_coeffs_lock_);
+        // 锁内仅复制数组，绘制在锁外进行
+        std::array<float, global::kMaxCoeffLen> custom_snapshot{};
+        {
+            const juce::SpinLock::ScopedLockType lock(p_.params_.custom_coeffs_lock_);
+            std::copy_n(p_.params_.custom_coeffs_.begin(), global::kMaxCoeffLen, custom_snapshot.begin());
+        }
+
         // 绘制自定义波形
         g.setColour(ui::active_bg);
-        lasty = juce::jmap(p_.params_.control_.custom_coeffs_[0], -1.0f, 1.0f, bf.getBottom(), bf.getY());
+        lasty = juce::jmap(custom_snapshot[0], -1.0f, 1.0f, bf.getBottom(), bf.getY());
         lastx = bf.getX();
         for (int x = 0; x < b.getWidth(); ++x) {
             size_t const idx =
                 static_cast<size_t>(static_cast<float>(x) * fcoeff_len / static_cast<float>(b.getWidth()));
-            float const val = p_.params_.control_.custom_coeffs_[idx];
+            float const val = custom_snapshot[idx];
             float const y = juce::jmap(val, -1.0f, 1.0f, bf.getBottom(), bf.getY());
             float const xx = static_cast<float>(x) + bf.getX();
             g.drawLine(lastx, lasty, xx, y);
@@ -80,8 +86,8 @@ void TimeView::mouseDrag(const juce::MouseEvent& e) {
 
     coeff_buffer_[idx] = val;
     {
-        const juce::SpinLock::ScopedLockType lock(p_.params_.control_.custom_coeffs_lock_);
-        p_.params_.control_.custom_coeffs_[idx] = val;
+        const juce::SpinLock::ScopedLockType lock(p_.params_.custom_coeffs_lock_);
+        p_.params_.custom_coeffs_[idx] = val;
     }
 
     repaint();
@@ -105,21 +111,25 @@ void TimeView::mouseUp(const juce::MouseEvent& e) {
 }
 
 void TimeView::SendCoeffs() {
-    p_.params_.control_.fir_source = steep_flanger::DspParam::FirSource::kTimeCoeff;
-    p_.params_.control_.should_update_fir_ = true;
+    p_.params_.fir_source.store(steep_flanger::Params::kTimeCoeff, std::memory_order_release);
+    p_.params_.should_update_fir_.store(true, std::memory_order_release);
 }
 
 void TimeView::CopyCoeffesToCustom() {
     std::array<float, global::kMaxCoeffLen> snapshot{};
     p_.dsp_->GetCoeffs(snapshot.data(), static_cast<int>(snapshot.size()));
-    const juce::SpinLock::ScopedLockType custom_lock(p_.params_.control_.custom_coeffs_lock_);
-    std::ranges::copy(snapshot, p_.params_.control_.custom_coeffs_.begin());
+    {
+        const juce::SpinLock::ScopedLockType custom_lock(p_.params_.custom_coeffs_lock_);
+        std::ranges::copy(snapshot, p_.params_.custom_coeffs_.begin());
+    }
     std::ranges::copy(snapshot, coeff_buffer_.begin());
     repaint();
 }
 
 void TimeView::ClearCustomCoeffs() {
-    const juce::SpinLock::ScopedLockType lock(p_.params_.control_.custom_coeffs_lock_);
-    std::ranges::fill(p_.params_.control_.custom_coeffs_, float{});
+    {
+        const juce::SpinLock::ScopedLockType lock(p_.params_.custom_coeffs_lock_);
+        std::ranges::fill(p_.params_.custom_coeffs_, float{});
+    }
     repaint();
 }

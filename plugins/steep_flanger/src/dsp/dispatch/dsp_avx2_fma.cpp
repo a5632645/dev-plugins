@@ -3,7 +3,7 @@
 #define SIMD_USE_FMA
 #define INST_NAME "FMA"
 
-#include "dsp_impl.hpp"
+#include "../dsp_impl.hpp"
 
 namespace steep_flanger {
 

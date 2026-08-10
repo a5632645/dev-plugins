@@ -56,8 +56,8 @@ void SpectralView::paint(juce::Graphics& g) {
     if (time_.display_waveform_) {
         std::array<float, global::kMaxCoeffLen> custom_spectral_snapshot{};
         {
-            juce::SpinLock::ScopedLockType lock(time_.p_.params_.control_.custom_coeffs_lock_);
-            std::copy_n(time_.p_.params_.control_.custom_spectral_gains.begin(), global::kMaxCoeffLen,
+            juce::SpinLock::ScopedLockType lock(time_.p_.params_.custom_coeffs_lock_);
+            std::copy_n(time_.p_.params_.custom_spectral_gains.begin(), global::kMaxCoeffLen,
                         custom_spectral_snapshot.begin());
         }
 
@@ -119,8 +119,8 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
 
     std::array<float, global::kMaxCoeffLen> custom_spectral_gains_snapshot{};
     {
-        juce::SpinLock::ScopedLockType lock(time_.p_.params_.control_.custom_coeffs_lock_);
-        std::copy_n(time_.p_.params_.control_.custom_spectral_gains.begin(), global::kMaxCoeffLen,
+        juce::SpinLock::ScopedLockType lock(time_.p_.params_.custom_coeffs_lock_);
+        std::copy_n(time_.p_.params_.custom_spectral_gains.begin(), global::kMaxCoeffLen,
                     custom_spectral_gains_snapshot.begin());
         custom_spectral_gains_snapshot[idx] = val;
     }
@@ -150,10 +150,10 @@ void SpectralView::mouseDrag(const juce::MouseEvent& e) {
     }
 
     {
-        juce::SpinLock::ScopedLockType lock(time_.p_.params_.control_.custom_coeffs_lock_);
+        juce::SpinLock::ScopedLockType lock(time_.p_.params_.custom_coeffs_lock_);
         std::copy_n(custom_spectral_gains_snapshot.begin(), global::kMaxCoeffLen,
-                    time_.p_.params_.control_.custom_spectral_gains.begin());
-        std::copy_n(custom_coeffs_snapshot.begin(), coeff_len, time_.p_.params_.control_.custom_coeffs_.begin());
+                    time_.p_.params_.custom_spectral_gains.begin());
+        std::copy_n(custom_coeffs_snapshot.begin(), coeff_len, time_.p_.params_.custom_coeffs_.begin());
     }
 
     UpdateGui();

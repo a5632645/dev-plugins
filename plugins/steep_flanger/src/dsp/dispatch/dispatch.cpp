@@ -1,4 +1,4 @@
-#include "idsp.hpp"
+#include "../idsp.hpp"
 #include "pluginshared/simd/simd.hpp"
 
 #include <simd_detector.h>

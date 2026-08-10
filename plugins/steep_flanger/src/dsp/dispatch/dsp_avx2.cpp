@@ -3,7 +3,7 @@
 #define SIMD_USE_AVX2
 #define INST_NAME "AVX2"
 
-#include "dsp_impl.hpp"
+#include "../dsp_impl.hpp"
 
 namespace steep_flanger {
 

@@ -3,7 +3,7 @@
 #define SIMD_USE_NEON
 #define INST_NAME "NEON"
 
-#include "dsp_impl.hpp"
+#include "../dsp_impl.hpp"
 
 namespace steep_flanger {
 

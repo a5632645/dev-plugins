@@ -3,7 +3,7 @@
 #define SIMD_USE_SSE4
 #define INST_NAME "SSE4"
 
-#include "dsp_impl.hpp"
+#include "../dsp_impl.hpp"
 
 namespace steep_flanger {
 

@@ -2,7 +2,7 @@
 #include <cmath>
 #include <vector>
 
-namespace dsp::com {
+namespace steep_flanger {
 class XIirDelayLine {
 public:
     void Init(float max_ms, float fs) {
@@ -87,4 +87,4 @@ private:
     int wpos_{};
     int mask_{};
 };
-} // namespace dsp::com
+} // namespace steep_flanger

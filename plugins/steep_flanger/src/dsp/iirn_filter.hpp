@@ -1,10 +1,10 @@
 #pragma once
 #include <complex>
 #include <vector>
-#include "pluginshared/simd//simd.hpp"
 #include "pluginshared/align_allocator.hpp"
+#include "pluginshared/simd//simd.hpp"
 
-namespace dsp::com {
+namespace steep_flanger {
 template <class T>
 class ParallelDelayLine {
 public:
@@ -153,4 +153,4 @@ private:
     simd::SimdComplex<T> pole_;
     simd::SimdComplex<T> residual_;
 };
-} // namespace dsp::com
+} // namespace steep_flanger
