@@ -1,8 +1,10 @@
 #include "burg_lpc.hpp"
-#include <numbers>
-#include <string>
-#include "../global.hpp"
 #include "../PluginProcessor.h"
+#include "../global.hpp"
+#include "db_curve.hpp"
+#include <complex>
+#include <limits>
+#include <numbers>
 
 namespace green_vocoder::ui {
 
@@ -71,9 +73,8 @@ void BurgLPC::MakeGui() {
 void BurgLPC::paint(juce::Graphics& g) {
     auto bb = getLocalBounds();
     bb.removeFromTop(65);
-    g.setColour(::ui::black_bg);
-    g.fillRect(bb);
-    auto current_font = g.getCurrentFont();
+    auto const plot = bb.toFloat();
+    FillPlotBackground(g, plot);
 
     constexpr float top_line_db = 80.0f;
     constexpr float last_line_db = -20.0f;
@@ -81,66 +82,9 @@ void BurgLPC::paint(juce::Graphics& g) {
     constexpr float bound_bottom_db = -25.0f;
     constexpr float freq_begin = 20.0f;
     constexpr float freq_pow = 3.0f; // 20k
-    auto convert_db_to_y = [y = bb.getY(), h = bb.getHeight()](float db) -> float {
-        if (db < bound_bottom_db)
-            return static_cast<float>(y + h);
-        else if (db > bound_top_db)
-            return static_cast<float>(y);
-        auto nor = (db - bound_bottom_db) / (bound_top_db - bound_bottom_db);
-        return static_cast<float>(y) + static_cast<float>(h) * (1.0f - nor);
-    };
-    // draw lines
-    {
-        constexpr int nlines = 5;
-        constexpr float db_span = (top_line_db - last_line_db) / (nlines - 1.0f);
-        g.setColour(::ui::grid_fore);
-        for (int i = 0; i < nlines; ++i) {
-            auto db = last_line_db + db_span * static_cast<float>(i);
-            auto y = convert_db_to_y(db);
-            g.drawHorizontalLine(static_cast<int>(y), static_cast<float>(bb.getX()), static_cast<float>(bb.getRight()));
-            g.drawSingleLineText(std::to_string(static_cast<int>(db)), bb.getX(),
-                                 static_cast<int>(y + g.getCurrentFont().getHeight() / 2));
-        }
-    }
-    {
-        // 1~9 * base -> 0.0~1.0(<1.0)
-        static const std::array kLogJtable{
-            0.0f,
-            std::log10(2.0f),
-            std::log10(3.0f),
-            std::log10(4.0f),
-            std::log10(5.0f),
-            std::log10(6.0f),
-            std::log10(7.0f),
-            std::log10(8.0f),
-            std::log10(9.0f),
-        };
-        static const juce::StringArray kFreqStr{"20", "200", "2k", "20k"};
-        float w = static_cast<float>(bb.getWidth());
-        float span_w = w / 3.0f;
-        for (int i = 0; i < 3; ++i) {
-            float span_x = span_w * static_cast<float>(i) + static_cast<float>(bb.getX());
-            for (int j = 0; j < 9; ++j) {
-                float log_nor = kLogJtable[static_cast<size_t>(j)];
-                float x = span_x + span_w * log_nor;
-                g.drawVerticalLine(static_cast<int>(x), static_cast<float>(bb.getY()),
-                                   static_cast<float>(bb.getBottom()));
-            }
-            if (i == 0) {
-                g.drawSingleLineText(kFreqStr[i], static_cast<int>(span_x),
-                                     static_cast<int>(bb.getBottom()) - static_cast<int>(current_font.getHeight() / 2));
-            }
-            else {
-                auto str_w = juce::TextLayout::getStringWidth(current_font, kFreqStr[i]);
-                g.drawSingleLineText(kFreqStr[i], static_cast<int>(span_x - str_w / 2),
-                                     static_cast<int>(bb.getBottom()) - static_cast<int>(current_font.getHeight() / 2));
-            }
-        }
-        // 绘制最后的频率
-        auto last_w = juce::TextLayout::getStringWidth(current_font, kFreqStr[3]);
-        g.drawSingleLineText(kFreqStr[3], static_cast<int>(bb.getRight()) - static_cast<int>(last_w),
-                             static_cast<int>(bb.getBottom()) - static_cast<int>(current_font.getHeight() / 2));
-    }
+
+    DrawDbGrid(g, plot, 5, top_line_db, last_line_db, bound_top_db, bound_bottom_db);
+    DrawFreqGrid(g, plot);
 
     // lattice to tf
     std::array<float, global::kNumPoles> lattice_buff;
@@ -148,7 +92,6 @@ void BurgLPC::paint(juce::Graphics& g) {
     std::array<float, global::kNumPoles + 1> downgoing{1};
 
     int order = static_cast<int>(order_.slider.getValue());
-    ;
     if (block_mode_) {
         processor_.engine_.GetBlockBurgLPC().CopyLatticeCoeffient(lattice_buff, order);
     }
@@ -163,42 +106,31 @@ void BurgLPC::paint(juce::Graphics& g) {
         downgoing[0] = 0;
 
         for (int i = 0; i < kidx + 2; ++i) {
-            float up = upgoing[static_cast<size_t>(i)] + lattice_buff[static_cast<size_t>(kidx)] * downgoing[static_cast<size_t>(i)];
-            float down = downgoing[static_cast<size_t>(i)] + lattice_buff[static_cast<size_t>(kidx)] * upgoing[static_cast<size_t>(i)];
+            float up = upgoing[static_cast<size_t>(i)]
+                     + lattice_buff[static_cast<size_t>(kidx)] * downgoing[static_cast<size_t>(i)];
+            float down = downgoing[static_cast<size_t>(i)]
+                       + lattice_buff[static_cast<size_t>(kidx)] * upgoing[static_cast<size_t>(i)];
             upgoing[static_cast<size_t>(i)] = up;
             downgoing[static_cast<size_t>(i)] = down;
         }
     }
 
     // draw
-    int w = bb.getWidth();
-    auto b = bb.toFloat();
-    juce::Point<float> line_last{b.getX(), b.getCentreY()};
-    g.setColour(::ui::line_fore);
-    float mul_val = std::pow(10.0f, freq_pow / static_cast<float>(w));
-    float mul_begin = 1.0f;
-    float omega_base = freq_begin * std::numbers::pi_v<float> / static_cast<float>(processor_.engine_.GetSampleRate());
-    for (int x = 0; x < w; ++x) {
-        float omega = omega_base * mul_begin;
-        mul_begin *= mul_val;
-
+    float const omega_base =
+        freq_begin * std::numbers::pi_v<float> / static_cast<float>(processor_.engine_.GetSampleRate());
+    DrawDbCurve(g, plot, omega_base, bound_top_db, bound_bottom_db, freq_pow, [&upgoing, order](float omega) -> float {
         auto z_responce = std::complex{1.0f, 0.0f};
+        auto z_pow = std::complex{1.0f, 0.0f};
+        auto const z_step = std::polar(1.0f, -omega);
         for (int i = 0; i < order; ++i) {
-            auto z = std::polar(1.0f, -omega * static_cast<float>(i + 1));
-            z_responce += upgoing[static_cast<size_t>(i) + 1] * z;
+            z_pow *= z_step; // 增量幂：z^(i+1)，避免逐阶 polar(sin/cos)
+            z_responce += upgoing[static_cast<size_t>(i) + 1] * z_pow;
         }
         z_responce = 1.0f / z_responce;
-        if (std::isnan(z_responce.real()) || std::isnan(z_responce.imag())) {
-            continue;
-        }
-
-        float gain = std::abs(z_responce);
-        float db_gain = 20.0f * std::log10(gain + 1e-10f);
-        float y = convert_db_to_y(db_gain);
-        juce::Point line_end{static_cast<float>(x) + b.toFloat().getX(), y};
-        g.drawLine(juce::Line<float>{line_last, line_end}, 2.0f);
-        line_last = line_end;
-    }
+        if (std::isnan(z_responce.real()) || std::isnan(z_responce.imag()))
+            return std::numeric_limits<float>::quiet_NaN();
+        return 20.0f * std::log10(std::abs(z_responce) + 1e-10f);
+    });
 
     // g.setColour(juce::Colours::white);
     // g.drawRect(bb);

@@ -1,6 +1,7 @@
 #include "stft_vocoder.hpp"
 #include <vector>
 #include "PluginProcessor.h"
+#include "db_curve.hpp"
 
 namespace green_vocoder::ui {
 
@@ -93,9 +94,9 @@ void STFTVocoder::timerCallback() {
 void STFTVocoder::DrawStandardCepstrum(juce::Graphics& g) {
     auto bb = getLocalBounds();
     bb.removeFromTop(attack_.getBottom());
-    g.setColour(::ui::black_bg);
-    g.fillRect(bb);
-    auto current_font = g.getCurrentFont();
+    auto const plot = bb.toFloat();
+    FillPlotBackground(g, plot);
+
     std::vector<float> gains;
     {
         juce::ScopedLock _{processor_.getCallbackLock()};
@@ -108,86 +109,17 @@ void STFTVocoder::DrawStandardCepstrum(juce::Graphics& g) {
     constexpr float bound_bottom_db = -75.0f;
     constexpr float freq_begin = 20.0f;
     constexpr float freq_pow = 3.0f; // 20k
-    auto convert_db_to_y = [y = bb.getY(), h = bb.getHeight()](float db) -> float {
-        if (db < bound_bottom_db)
-            return static_cast<float>(y + h);
-        else if (db > bound_top_db)
-            return static_cast<float>(y);
-        auto nor = (db - bound_bottom_db) / (bound_top_db - bound_bottom_db);
-        return static_cast<float>(y) + static_cast<float>(h) * (1.0f - nor);
-    };
-    // draw lines
-    {
-        constexpr int nlines = 8;
-        constexpr float db_span = (top_line_db - last_line_db) / (nlines - 1.0f);
-        g.setColour(::ui::grid_fore);
-        for (int i = 0; i < nlines; ++i) {
-            auto db = last_line_db + db_span * static_cast<float>(i);
-            auto y = convert_db_to_y(db);
-            g.drawHorizontalLine(static_cast<int>(y), static_cast<float>(bb.getX()), static_cast<float>(bb.getRight()));
-            g.drawSingleLineText(std::to_string(static_cast<int>(db)), bb.getX(),
-                                 static_cast<int>(y + g.getCurrentFont().getHeight() / 2));
-        }
-    }
-    {
-        // 1~9 * base -> 0.0~1.0(<1.0)
-        static const std::array kLogJtable{
-            0.0f,
-            std::log10(2.0f),
-            std::log10(3.0f),
-            std::log10(4.0f),
-            std::log10(5.0f),
-            std::log10(6.0f),
-            std::log10(7.0f),
-            std::log10(8.0f),
-            std::log10(9.0f),
-        };
-        static const juce::StringArray kFreqStr{"20", "200", "2k", "20k"};
-        float w = static_cast<float>(bb.getWidth());
-        float span_w = w / 3.0f;
-        for (int i = 0; i < 3; ++i) {
-            float span_x = span_w * static_cast<float>(i);
-            for (int j = 0; j < 9; ++j) {
-                float log_nor = kLogJtable[static_cast<size_t>(j)];
-                float x = span_x + span_w * log_nor;
-                g.drawVerticalLine(static_cast<int>(x), static_cast<float>(bb.getY()),
-                                   static_cast<float>(bb.getBottom()));
-            }
-            if (i == 0) {
-                g.drawSingleLineText(kFreqStr[i], static_cast<int>(span_x),
-                                     static_cast<int>(bb.getBottom()) - static_cast<int>(current_font.getHeight() / 2));
-            }
-            else {
-                auto str_w = juce::TextLayout::getStringWidth(current_font, kFreqStr[i]);
-                g.drawSingleLineText(kFreqStr[i], static_cast<int>(span_x - str_w / 2),
-                                     static_cast<int>(bb.getBottom()) - static_cast<int>(current_font.getHeight() / 2));
-            }
-        }
-        // 绘制最后的频率
-        auto last_w = juce::TextLayout::getStringWidth(current_font, kFreqStr[3]);
-        g.drawSingleLineText(kFreqStr[3], static_cast<int>(bb.getRight()) - static_cast<int>(last_w),
-                             static_cast<int>(bb.getBottom()) - static_cast<int>(current_font.getHeight() / 2));
-    }
 
-    auto b = bb.toFloat();
-    juce::Point<float> line_last{b.getX(), b.getCentreY()};
-    g.setColour(::ui::line_fore);
-    float mul_val = std::pow(10.0f, freq_pow / b.getWidth());
-    float mul_begin = 1.0f;
-    float omega_base = freq_begin * 2.0f / static_cast<float>(processor_.engine_.GetSampleRate());
-    for (int x = 0; x < bb.getWidth(); ++x) {
-        float omega = omega_base * mul_begin;
-        mul_begin *= mul_val;
+    DrawDbGrid(g, plot, 8, top_line_db, last_line_db, bound_top_db, bound_bottom_db);
+    DrawFreqGrid(g, plot);
 
+    // draw
+    float const omega_base = freq_begin * 2.0f / static_cast<float>(processor_.engine_.GetSampleRate());
+    DrawDbCurve(g, plot, omega_base, bound_top_db, bound_bottom_db, freq_pow, [&gains](float omega) -> float {
         int idx = static_cast<int>(omega * static_cast<float>(gains.size()));
         idx = std::min<int>(idx, static_cast<int>(gains.size()) - 1);
-        float gain = gains[static_cast<size_t>(idx)];
-        float db_gain = 20.0f * std::log10(gain + 1e-10f);
-        float y = convert_db_to_y(db_gain);
-        juce::Point line_end{static_cast<float>(x) + b.toFloat().getX(), y};
-        g.drawLine(juce::Line<float>{line_last, line_end}, 2.0f);
-        line_last = line_end;
-    }
+        return 20.0f * std::log10(gains[static_cast<size_t>(idx)] + 1e-10f);
+    });
 }
 
 void STFTVocoder::DrawMfcc(juce::Graphics& g) {
@@ -228,6 +160,7 @@ void STFTVocoder::OnModeChanged() {
     bandwidth_.setVisible(mode == Standard);
     detail_.setVisible(mode == Cepstrum);
     mfcc_size_.setVisible(mode == MFCC);
+    mfcc_size_title_.setVisible(mode == MFCC);
     if (!getBounds().isEmpty()) {
         resized();
     }
