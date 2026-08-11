@@ -86,7 +86,8 @@ inline void DrawFreqGrid(juce::Graphics& g, juce::Rectangle<float> bb) {
 
 // 遍历每个像素构建 db 曲线 Path 后一次性描边（避免逐像素 drawLine）；
 // value_at(omega) 返回该点 db 值。起始点取自第一个有效点（不再固定）；
-// 低于 floor 或 NaN 时断开曲线（新子路径）不绘制。
+// 低于 floor 时落到绘图区底边下方（由 JUCE 自动裁剪成竖直落边线，保持连续，
+// 避免曲线中间出现空白）；NaN 时断开曲线（新子路径）不绘制。
 template <typename ValueFn>
 void DrawDbCurve(juce::Graphics& g, juce::Rectangle<float> bb, float omega_base, float bound_top_db,
                  float bound_bottom_db, float freq_pow, ValueFn&& value_at) {
@@ -105,8 +106,9 @@ void DrawDbCurve(juce::Graphics& g, juce::Rectangle<float> bb, float omega_base,
         }
         float y;
         if (!DbToY(db, bound_top_db, bound_bottom_db, bb, y)) {
-            have_last = false; // 低于 floor：不绘制并断开曲线
-            continue;
+            // 低于 floor：不断开曲线，添加到底边下方一点，JUCE 自动裁剪成
+            // 竖直落到底边的线，避免连续曲线中间出现空白
+            y = bb.getBottom() + 1.0f;
         }
         juce::Point<float> const p{x0 + static_cast<float>(x), y};
         if (have_last)

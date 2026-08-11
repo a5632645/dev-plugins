@@ -46,7 +46,7 @@ void STFTMFCC::operator()(STFT& self, std::span<const float> real_in, std::span<
         int const begin = mfcc_indexs_[static_cast<size_t>(mcff_idx)];
         int const end = mfcc_indexs_[static_cast<size_t>(mcff_idx) + 1];
 
-        // 频带 RMS 作为声码器带增益
+        // 频带 RMS 作为声码器带增益（同 Smooth 系：乘 mod 增益补偿）
         float sum = 0.0f;
         for (int i = begin; i < end; ++i) {
             sum += real_in[static_cast<size_t>(i)] * real_in[static_cast<size_t>(i)]
@@ -55,7 +55,8 @@ void STFTMFCC::operator()(STFT& self, std::span<const float> real_in, std::span<
         sum /= static_cast<float>(end - begin + 1);
         sum = std::sqrt(sum);
 
-        float gain = sum * self.hann_window_gain_;
+        float gain = sum * self.hann_window_gain_ * global::kStftModMakeup;
+        gain = self.Blend(gain);
         if (gain > gains[static_cast<size_t>(mcff_idx)]) {
             gains[static_cast<size_t>(mcff_idx)] =
                 self.attack_factor_ * gains[static_cast<size_t>(mcff_idx)] + (1.0f - self.attack_factor_) * gain;

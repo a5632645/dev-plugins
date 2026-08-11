@@ -1,6 +1,5 @@
 #pragma once
 #include <array>
-#include <cstddef>
 
 namespace global {
 
@@ -30,6 +29,9 @@ static constexpr int kMinOrder = 4;
 static constexpr int kExtraGainSize = 1;
 static constexpr int kMaxNumMfcc = 80;
 static constexpr int kMinNumMfcc = 8;
+// 非 Morph STFT 模式的 mod 增益补偿（乘在 Blend 之前）：默认 blend 下提升输出电平，
+// 但 blend（noisy）增大时增益仍按 Blend 曲线饱和逼近 1，行为不变
+static constexpr float kStftModMakeup = 10.0f;
 
 // pitch osc
 static constexpr int kPitchBlockSize = 1024;

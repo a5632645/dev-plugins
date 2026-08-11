@@ -6,12 +6,10 @@
 
 namespace {
 
-// 精细结构比（ra）上限：A 的包络比最多放大 4 倍（12 dB），防稀疏谱/深谷处爆炸
-constexpr float kMaxRa = 4.0f;
+// 精细结构比（ra）上限：A 的包络比最多放大 2 倍（6 dB），防稀疏谱/深谷处爆炸
+constexpr float kMaxRa = 2.0f;
 // A 包络相对本帧 |A|max 的下界，低于此按无精细结构处理（ra=1）
 constexpr float kEaFloorRel = 1e-6f;
-// 输出软限幅阈值 = 本帧输入最大幅度 × 该倍数（tanh 软膝，渐进逼近阈值）
-constexpr float kSoftLimitMult = 4.0f;
 
 } // namespace
 
@@ -122,7 +120,6 @@ void STFTMorph::operator()(STFT& self, std::span<const float> real_in, std::span
         max_ma = std::max(max_ma, mag_a_[static_cast<size_t>(k)]);
         max_mb = std::max(max_mb, mag_b_[static_cast<size_t>(k)]);
     }
-    float const soft_limit = kSoftLimitMult * std::max(max_ma, max_mb) + 1e-6f;
 
     for (int k = 0; k < num_bins; ++k) {
         float const ma = mag_a_[static_cast<size_t>(k)];
@@ -150,15 +147,6 @@ void STFTMorph::operator()(STFT& self, std::span<const float> real_in, std::span
         float const i_b = im_b[static_cast<size_t>(k)];
         out_re_[static_cast<size_t>(k)] = w_cross * cross_re + b11 * r_a + a11 * r_b;
         out_im_[static_cast<size_t>(k)] = w_cross * cross_im + b11 * i_a + a11 * i_b;
-    }
-
-    // 最终输出软限幅（tanh 软膝，阈值 = 本帧输入最大幅度 × kSoftLimitMult），防病态放大削波
-    for (int k = 0; k < num_bins; ++k) {
-        float const out_mag = std::hypot(out_re_[static_cast<size_t>(k)], out_im_[static_cast<size_t>(k)]);
-        float const lim = soft_limit * std::tanh(out_mag / soft_limit);
-        float const scale = out_mag > 1e-12f ? lim / out_mag : 1.0f;
-        out_re_[static_cast<size_t>(k)] *= scale;
-        out_im_[static_cast<size_t>(k)] *= scale;
     }
 
     // 写回输出（替换载波频谱）并更新 GUI 显示（取软限幅后幅度）

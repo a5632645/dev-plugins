@@ -96,7 +96,7 @@ void STFTCepstrum::operator()(STFT& self, std::span<const float> real_in, std::s
     cep_fft_.FFT(re1_, {temp_.data(), static_cast<size_t>(fft_size)}, phase_);
 
     for (int i = 0; i < num_bins; ++i) {
-        float gain = std::exp(temp_[static_cast<size_t>(i)]);
+        float gain = std::exp(temp_[static_cast<size_t>(i)]) * global::kStftModMakeup;
         gain = self.Blend(gain);
 
         if (gain > gains[static_cast<size_t>(i)]) {

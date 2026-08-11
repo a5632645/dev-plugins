@@ -110,6 +110,7 @@ void STFTVocoder::resized() {
         }
         else if (mode == MFCC) {
             place_dial(mfcc_size_);
+            place_dial(blend_);
         }
         else if (mode == Smooth) {
             place_switch(smooth_type_);
@@ -159,14 +160,17 @@ void STFTVocoder::DrawStandardCepstrum(juce::Graphics& g) {
         gains = processor_.engine_.GetSTFT().GetGains();
     }
 
-    constexpr float top_line_db = 10.0f;
+    // Morph 输出幅度（软限幅后）可高于 20 dB，抬高绘图上限与顶部网格线避免曲线被顶部截断
+    const bool is_morph =
+        static_cast<green_vocoder::dsp::STFTMode>(mode_.getSelectedItemIndex()) == green_vocoder::dsp::STFTMode::Morph;
+    const float bound_top_db = is_morph ? 45.0f : 15.0f;
+    const float top_line_db = is_morph ? 40.0f : 10.0f;
     constexpr float last_line_db = -60.0f;
-    constexpr float bound_top_db = 20.0f;
-    constexpr float bound_bottom_db = -75.0f;
+    constexpr float bound_bottom_db = -65.0f;
     constexpr float freq_begin = 20.0f;
     constexpr float freq_pow = 3.0f; // 20k
 
-    DrawDbGrid(g, plot, 8, top_line_db, last_line_db, bound_top_db, bound_bottom_db);
+    DrawDbGrid(g, plot, 5, top_line_db, last_line_db, bound_top_db, bound_bottom_db);
     DrawFreqGrid(g, plot);
 
     // draw
@@ -186,7 +190,7 @@ void STFTVocoder::DrawMfcc(juce::Graphics& g) {
     g.setColour(::ui::black_bg);
     g.fillRect(bb);
 
-    constexpr float up = 0.0f;
+    constexpr float up = 10.0f;
     constexpr float down = -60.0f;
 
     size_t nbands = static_cast<size_t>(mfcc_size_.slider.getValue());
@@ -207,6 +211,9 @@ void STFTVocoder::DrawMfcc(juce::Graphics& g) {
 
         x += width;
     }
+
+    // 水平 dB 网格（0 ~ -60 dB，每 10 dB 一条，带刻度）
+    DrawDbGrid(g, bb, 7, up, down, up + 5.0f, down - 5.0f);
 }
 
 void STFTVocoder::OnModeChanged() {
@@ -214,7 +221,7 @@ void STFTVocoder::OnModeChanged() {
     auto mode = static_cast<green_vocoder::dsp::STFTMode>(mode_.getSelectedItemIndex());
     attack_.setVisible(mode != Morph && mode != Wiener);
     release_.setVisible(mode != Morph && mode != Wiener);
-    blend_.setVisible(mode != MFCC && mode != Morph && mode != Wiener);
+    blend_.setVisible(mode != Morph && mode != Wiener);
     bandwidth_.setVisible(mode == Standard);
     welch_.setVisible(mode == Welch);
     floor_.setVisible(mode == Welch);
