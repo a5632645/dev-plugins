@@ -13,9 +13,11 @@ namespace green_vocoder::dsp {
 // STFTMorph：Prosoniq 风格频谱变形声码器算法
 // ------------------------------------------------------------
 // hann 分析窗。对调制器(A)与载波(B)复频谱做 cepstral 包络分离后，
-// 按 morph∈[0,1] 做"包络交叉"变形（无 attack/release 时域平滑、无交叉淡化）：
+// 按 morph∈[0,1] 做"包络交叉"变形（无交叉淡化）：
 //   result = wa*wb*(A 精细结构 × B 包络) + b11*A + a11*B
 //   a11 = morph^11，b11 = (1-morph)^11，wa = 1-b11，wb = 1-a11
+// 精细结构比 ra=ma/ea 带相对下界 + 上限 4（12 dB）保护，防稀疏谱/深谷处的
+// 病态放大；最终输出做 tanh 软限幅防削波。
 // 开关 direction 控制 A→B 还是 B→A（交换 A/B 角色）。
 struct STFTMorph {
     struct Params {

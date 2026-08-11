@@ -67,7 +67,9 @@ void STFTCepstrum::operator()(STFT& self, std::span<const float> real_in, std::s
                               std::span<float> real_out, std::span<float> imag_out, int channel) {
     auto& gains = channel == 0 ? self.gains_ : self.gains2_;
     int const fft_size = self.fft_size_;
-    float window_gain = GetFixGain(fft_size) * 2.0f / static_cast<float>(fft_size);
+    // 分析窗已归一化（Σ=2，峰值幅度可直接读出），原 2/N 修正由窗承担，
+    // 此处仅保留倒谱 lifter 的补偿系数（GetFixGain 查表）
+    float window_gain = GetFixGain(fft_size) * 0.5f;
     int const num_bins = fft_size / 2 + 1;
     for (int i = 0; i < fft_size / 2; ++i) {
         float re = real_in[static_cast<size_t>(i)];

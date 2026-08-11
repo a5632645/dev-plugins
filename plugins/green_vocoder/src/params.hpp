@@ -245,7 +245,7 @@ public:
     };
     pluginshared::FloatParam stft_blend{
         "stft_blend", {0.0f, 0.99f, 0.01f},
-         0.6f
+         0.2f
     };
     pluginshared::ChoiceParam stft_size{
         "stft_size", juce::StringArray{"256", "512", "1024", "2048", "4096"},

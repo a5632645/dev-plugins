@@ -81,6 +81,7 @@ private:
     dsp::LeakyBurgLPC burg_lpc_;
     std::vector<float> ola_window_;
     int ola_block_size_{};
+    float stft_wola_gain_{}; // STFT 纯 WOLA 重建增益（1/Σ_k w_a·w_s，随 fft_size 变，=N/6）
     dsp::STFTMode stft_mode_{dsp::STFTMode::Cepstrum};
 
     std::array<PackFloat2, global::kBlockSize> crossing_main_buffer_;

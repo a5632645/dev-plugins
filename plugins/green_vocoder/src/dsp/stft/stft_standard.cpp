@@ -13,7 +13,7 @@ void STFTStandard::operator()(STFT& self, std::span<const float> real_in, std::s
     for (int i = 0; i < num_bins; ++i) {
         float power = std::abs(real_in[static_cast<size_t>(i)] * real_in[static_cast<size_t>(i)]
                                + imag_in[static_cast<size_t>(i)] * imag_in[static_cast<size_t>(i)]);
-        float gain = std::sqrt(power) * self.window_gain_;
+        float gain = std::sqrt(power);
         gain = self.Blend(gain);
 
         if (gain > gains[static_cast<size_t>(i)]) {

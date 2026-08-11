@@ -12,22 +12,17 @@ void STFTSmooth::Init(STFT& self) {
 
 void STFTSmooth::SetParam(const Params& p, STFT& self) {
     int const fft_size = self.fft_size_;
+    bool const size_changed = fft_size != fft_size_;
     // 仅当 fft_size 改变时才重建功率谱缓冲与平滑器（分配开销大）
-    if (fft_size != fft_size_) {
+    if (size_changed) {
         fft_size_ = fft_size;
         int const num_bins = fft_size / 2 + 1;
         power_.resize(static_cast<size_t>(num_bins));
         smoother_.prepare(static_cast<size_t>(fft_size));
-
-        // hann 分析窗重建增益（2 / sum(hann) ≈ 4 / N）
-        double sum = 0.0;
-        for (float const w : self.hann_window_)
-            sum += static_cast<double>(w);
-        window_gain_ = 2.0f / static_cast<float>(sum);
     }
 
-    // 平滑类型/量变化时重算平滑器索引（O(nbins)，开销小）
-    if (p.type != type_ || ParamChanged(p.amount, amount_)) {
+    // 平滑类型/量变化，或尺寸变化（prepare 已清零索引表，需随新尺寸重建）时重算平滑器索引
+    if (size_changed || p.type != type_ || ParamChanged(p.amount, amount_)) {
         type_ = p.type;
         amount_ = p.amount;
         if (type_ == SmoothType::ERB)
@@ -50,7 +45,7 @@ void STFTSmooth::operator()(STFT& self, std::span<const float> real_in, std::spa
     smoother_.smooth(power_);
 
     for (int i = 0; i < num_bins; ++i) {
-        float gain = std::sqrt(power_[static_cast<size_t>(i)]) * window_gain_;
+        float gain = std::sqrt(power_[static_cast<size_t>(i)]);
         gain = self.Blend(gain);
 
         if (gain > gains[static_cast<size_t>(i)]) {

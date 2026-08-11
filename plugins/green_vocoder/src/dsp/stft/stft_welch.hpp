@@ -32,7 +32,6 @@ private:
     std::array<std::vector<float>, 2> log_gains_; // log 域平滑增益状态
     int num_bins_{};
     int welch_frames_{1};
-    float window_gain_{}; // hann 分析窗重建增益（≈ 4 / fft_size）
     float floor_db_{-80.0f};
 };
 

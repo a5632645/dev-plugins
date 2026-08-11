@@ -11,9 +11,11 @@
 
 namespace {
 
-// OLA 输出重建增益（4 倍重叠 hann 窗：块 Burg 0.25 / STFT 4.0）
+// OLA 输出重建增益（块 Burg）：无分析窗，仅 hann 合成窗重叠相加（hop=N/4），
+// COLA 常数=Σhann=2。
+// STFT 的纯 WOLA 重建增益（=1/Σ_k w_a·w_s，随 fft_size 变）在 InitOla 里由实际窗
+// 计算存于 stft_wola_gain_：分析窗归一化后 Σ=2，hann² 的 COLA=1.5 → 增益=N/6。
 constexpr float kBlockBurgGain = 0.25f;
-constexpr float kStftGain = 4.0f;
 
 } // namespace
 
@@ -56,6 +58,17 @@ void Engine::InitOla(int block_size) {
                   * std::cos(2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(block_size));
     }
     ola_.Init(block_size, block_size / 4, ola_window_);
+
+    // 纯 WOLA 重建增益 = 1/Σ_k(w_a·w_s)：由归一化分析窗 × 普通 hann 合成窗计算
+    // （hop=block/4，稳态任一点被 4 帧覆盖；hann² 的 COLA=1.5 → 增益=block_size/6）
+    if (stft_.hann_window_.size() == static_cast<size_t>(block_size)) {
+        int const hop = block_size / 4;
+        double cola = 0.0;
+        for (int k = 0; k < 4; ++k)
+            cola += static_cast<double>(stft_.hann_window_[static_cast<size_t>(k * hop)]
+                                        * ola_window_[static_cast<size_t>(k * hop)]);
+        stft_wola_gain_ = static_cast<float>(1.0 / cola);
+    }
 }
 
 void Engine::Update(Params& p) {
@@ -231,42 +244,42 @@ void Engine::Process(juce::AudioBuffer<float>& buffer, int mod_ch, int carry_ch,
                     switch (stft_mode_) {
                         case dsp::STFTMode::Standard:
                             ola_.Process(
-                                main, side, n, kStftGain,
+                                main, side, n, stft_wola_gain_,
                                 [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
                                     return stft_.Process(mf, sf, stft_.window_, standard_stft_);
                                 });
                             break;
                         case dsp::STFTMode::Cepstrum:
                             ola_.Process(
-                                main, side, n, kStftGain,
+                                main, side, n, stft_wola_gain_,
                                 [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
                                     return stft_.Process(mf, sf, stft_.hann_window_, cepstrum_stft_);
                                 });
                             break;
                         case dsp::STFTMode::MFCC:
                             ola_.Process(
-                                main, side, n, kStftGain,
+                                main, side, n, stft_wola_gain_,
                                 [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
                                     return stft_.Process(mf, sf, stft_.hann_window_, mfcc_stft_);
                                 });
                             break;
                         case dsp::STFTMode::Smooth:
                             ola_.Process(
-                                main, side, n, kStftGain,
+                                main, side, n, stft_wola_gain_,
                                 [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
                                     return stft_.Process(mf, sf, stft_.hann_window_, smooth_stft_);
                                 });
                             break;
                         case dsp::STFTMode::Welch:
                             ola_.Process(
-                                main, side, n, kStftGain,
+                                main, side, n, stft_wola_gain_,
                                 [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
                                     return stft_.Process(mf, sf, stft_.hann_window_, welch_stft_);
                                 });
                             break;
                         case dsp::STFTMode::Morph:
                             ola_.Process(
-                                main, side, n, kStftGain,
+                                main, side, n, stft_wola_gain_,
                                 [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
                                     return stft_.Process(mf, sf, stft_.hann_window_, morph_stft_);
                                 });

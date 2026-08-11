@@ -35,7 +35,6 @@ private:
     zldsp::analyzer::SpectrumSmoother smoother_;
     std::vector<float> power_{};
     int fft_size_{};
-    float window_gain_{}; // hann 分析窗重建增益（≈ 4 / fft_size）
     SmoothType type_{SmoothType::ERB};
     float amount_{};
 };

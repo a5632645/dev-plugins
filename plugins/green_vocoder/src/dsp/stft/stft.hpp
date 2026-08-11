@@ -55,7 +55,7 @@ public:
         int fft_size{1024};
         float blend{0.2f};
         float formant_shift{0.0f};
-        float bandwidth{2.0f}; // Standard 的 sinc 分析窗带宽，同时决定 window_gain_
+        float bandwidth{2.0f}; // Standard 的 sinc 分析窗带宽
     };
 
     void Init(float fs);
@@ -105,7 +105,6 @@ public:
     float decay_{};         // 频谱增益释放因子
     float formant_mul_{};   // 共振峰搬移倍率
     float blend_{};
-    float window_gain_{}; // 分析窗重建增益
 
     // 窗（hann 分析与合成共用；window_ 仅 Standard 用作分析窗）
     std::vector<float> hann_window_{};

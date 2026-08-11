@@ -4,6 +4,17 @@
 #include <cmath>
 #include <numbers>
 
+namespace {
+
+// 精细结构比（ra）上限：A 的包络比最多放大 4 倍（12 dB），防稀疏谱/深谷处爆炸
+constexpr float kMaxRa = 4.0f;
+// A 包络相对本帧 |A|max 的下界，低于此按无精细结构处理（ra=1）
+constexpr float kEaFloorRel = 1e-6f;
+// 输出软限幅阈值 = 本帧输入最大幅度 × 该倍数（tanh 软膝，渐进逼近阈值）
+constexpr float kSoftLimitMult = 4.0f;
+
+} // namespace
+
 namespace green_vocoder::dsp {
 
 void STFTMorph::Init(STFT& self) {
@@ -104,13 +115,25 @@ void STFTMorph::operator()(STFT& self, std::span<const float> real_in, std::span
     float const b11 = std::pow(1.0f - morph_, 11.0f);
     float const w_cross = (1.0f - b11) * (1.0f - a11);
 
+    // 本帧输入最大幅度：软限幅阈值与包络相对下界的参考
+    float max_ma = 0.0f;
+    float max_mb = 0.0f;
+    for (int k = 0; k < num_bins; ++k) {
+        max_ma = std::max(max_ma, mag_a_[static_cast<size_t>(k)]);
+        max_mb = std::max(max_mb, mag_b_[static_cast<size_t>(k)]);
+    }
+    float const soft_limit = kSoftLimitMult * std::max(max_ma, max_mb) + 1e-6f;
+
     for (int k = 0; k < num_bins; ++k) {
         float const ma = mag_a_[static_cast<size_t>(k)];
         float const ea = envelope_a_[static_cast<size_t>(k)];
         float const eb = envelope_b_[static_cast<size_t>(k)];
 
-        // 精细结构/残差（包络比，限幅防爆）；y=0 无交叉淡化，只需 ra
-        float const ra = ea > 0.0f ? std::min(ma / ea, 1000.0f) : 1.0f;
+        // 精细结构/残差（包络比）：包络低于相对下界按无精细结构（ra=1），
+        // 上限 4（12 dB）防稀疏谱/深谷处病态放大；NaN/INF 防护
+        float ra = 1.0f;
+        if (std::isfinite(ma) && std::isfinite(ea) && ea > kEaFloorRel * max_ma)
+            ra = std::min(ma / ea, kMaxRa);
 
         // A 的单位相位（|A|=0 时取 0）
         float const ca_re = ma > 0.0f ? re_a[static_cast<size_t>(k)] / ma : 0.0f;
@@ -129,12 +152,20 @@ void STFTMorph::operator()(STFT& self, std::span<const float> real_in, std::span
         out_im_[static_cast<size_t>(k)] = w_cross * cross_im + b11 * i_a + a11 * i_b;
     }
 
-    // 写回输出（替换载波频谱）并更新 GUI 显示（无 attack/release，直接取幅度）
+    // 最终输出软限幅（tanh 软膝，阈值 = 本帧输入最大幅度 × kSoftLimitMult），防病态放大削波
+    for (int k = 0; k < num_bins; ++k) {
+        float const out_mag = std::hypot(out_re_[static_cast<size_t>(k)], out_im_[static_cast<size_t>(k)]);
+        float const lim = soft_limit * std::tanh(out_mag / soft_limit);
+        float const scale = out_mag > 1e-12f ? lim / out_mag : 1.0f;
+        out_re_[static_cast<size_t>(k)] *= scale;
+        out_im_[static_cast<size_t>(k)] *= scale;
+    }
+
+    // 写回输出（替换载波频谱）并更新 GUI 显示（取软限幅后幅度）
     for (int k = 0; k < num_bins; ++k) {
         real_out[static_cast<size_t>(k)] = out_re_[static_cast<size_t>(k)];
         imag_out[static_cast<size_t>(k)] = out_im_[static_cast<size_t>(k)];
-        gains[static_cast<size_t>(k)] = std::hypot(out_re_[static_cast<size_t>(k)], out_im_[static_cast<size_t>(k)])
-                                        * self.window_gain_;
+        gains[static_cast<size_t>(k)] = std::hypot(out_re_[static_cast<size_t>(k)], out_im_[static_cast<size_t>(k)]);
     }
     gains[static_cast<size_t>(num_bins)] = gains[0];
 }

@@ -29,12 +29,6 @@ void STFTWelch::SetParam(const Params& p, STFT& self) {
         num_bins_ = num_bins;
         for (auto& lg : log_gains_)
             lg.assign(static_cast<size_t>(num_bins_) + 1, p.floor_db);
-
-        // hann 分析窗重建增益（2 / sum(hann) ≈ 4 / N）
-        double sum = 0.0;
-        for (float const w : self.hann_window_)
-            sum += static_cast<double>(w);
-        window_gain_ = 2.0f / static_cast<float>(sum);
     }
 
     // Welch 帧数或尺寸变化时重建环缓冲（分配开销大）
@@ -78,7 +72,7 @@ void STFTWelch::operator()(STFT& self, std::span<const float> real_in, std::span
     // log 域攻击/释放平滑 + 谱下限（含 NaN/INF 防护）
     for (int i = 0; i < num_bins; ++i) {
         float const p_avg = sum[static_cast<size_t>(i)] * inv;
-        float gain = std::sqrt(std::max(p_avg, 0.0f)) * window_gain_;
+        float gain = std::sqrt(std::max(p_avg, 0.0f));
         gain = self.Blend(gain);
 
         // 非法值（NaN/INF/非正）一律按谱下限处理，防止污染平滑状态
