@@ -258,7 +258,7 @@ void Engine::Process(juce::AudioBuffer<float>& buffer, int mod_ch, int carry_ch,
                             ola_.Process(
                                 main, side, n, stft_wola_gain_,
                                 [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
-                                    return stft_.Process(mf, sf, stft_.window_, standard_stft_);
+                                    return stft_.Process(mf, sf, stft_.hann_sinc_window_, standard_stft_);
                                 });
                             break;
                         case dsp::STFTMode::Cepstrum:

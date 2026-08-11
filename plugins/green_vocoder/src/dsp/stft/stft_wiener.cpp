@@ -38,8 +38,8 @@ void STFTWiener::operator()(STFT& self, std::span<const float> real_in, std::spa
     std::span<const float> im_b = direction_ab_ ? imag_out : imag_in;
 
     // a/b 的窗增益：a 取 mod 或 carry（按 direction），b 取相反
-    float const ga = direction_ab_ ? self.mod_window_gain_ : self.carry_window_gain_;
-    float const gb = direction_ab_ ? self.carry_window_gain_ : self.mod_window_gain_;
+    float const ga = direction_ab_ ? self.hann_window_gain_ : self.hann_window_gain_;
+    float const gb = direction_ab_ ? self.hann_window_gain_ : self.hann_window_gain_;
     float const ga2 = ga * ga;
     float const gb2 = gb * gb;
 

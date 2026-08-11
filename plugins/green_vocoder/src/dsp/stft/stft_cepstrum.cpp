@@ -66,6 +66,7 @@ void STFTCepstrum::SetParam(const Params& p, STFT& self) {
 void STFTCepstrum::operator()(STFT& self, std::span<const float> real_in, std::span<const float> imag_in,
                               std::span<float> real_out, std::span<float> imag_out, int channel) {
     auto& gains = channel == 0 ? self.gains_ : self.gains2_;
+
     int const fft_size = self.fft_size_;
     // 分析窗不归一化（普通 hann），此处保留 2/N 修正 + 倒谱 lifter 补偿系数（GetFixGain 查表）
     float window_gain = GetFixGain(fft_size) * 2.0f / static_cast<float>(fft_size);
@@ -103,7 +104,8 @@ void STFTCepstrum::operator()(STFT& self, std::span<const float> real_in, std::s
                 self.attack_factor_ * gains[static_cast<size_t>(i)] + (1.0f - self.attack_factor_) * gain;
         }
         else {
-            gains[static_cast<size_t>(i)] = self.decay_ * gains[static_cast<size_t>(i)] + (1.0f - self.decay_) * gain;
+            gains[static_cast<size_t>(i)] =
+                self.decay_factor_ * gains[static_cast<size_t>(i)] + (1.0f - self.decay_factor_) * gain;
         }
     }
     gains[static_cast<size_t>(num_bins)] = gains[0];

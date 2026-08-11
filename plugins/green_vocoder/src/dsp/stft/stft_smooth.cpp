@@ -45,7 +45,7 @@ void STFTSmooth::operator()(STFT& self, std::span<const float> real_in, std::spa
     smoother_.smooth(power_);
 
     for (int i = 0; i < num_bins; ++i) {
-        float gain = std::sqrt(power_[static_cast<size_t>(i)]) * self.mod_window_gain_;
+        float gain = std::sqrt(power_[static_cast<size_t>(i)]) * self.hann_window_gain_;
         gain = self.Blend(gain);
 
         if (gain > gains[static_cast<size_t>(i)]) {
@@ -53,7 +53,7 @@ void STFTSmooth::operator()(STFT& self, std::span<const float> real_in, std::spa
                 self.attack_factor_ * gains[static_cast<size_t>(i)] + (1.0f - self.attack_factor_) * gain;
         }
         else {
-            gains[static_cast<size_t>(i)] = self.decay_ * gains[static_cast<size_t>(i)] + (1.0f - self.decay_) * gain;
+            gains[static_cast<size_t>(i)] = self.decay_factor_ * gains[static_cast<size_t>(i)] + (1.0f - self.decay_factor_) * gain;
         }
     }
     gains[static_cast<size_t>(num_bins)] = gains[0];

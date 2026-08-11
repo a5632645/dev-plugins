@@ -106,16 +106,15 @@ public:
     int fft_size_{};
     float sample_rate_{};
     float attack_factor_{}; // 频谱增益攻击因子
-    float decay_{};         // 频谱增益释放因子
+    float decay_factor_{};  // 频谱增益释放因子
     float formant_mul_{};   // 共振峰搬移倍率
     float blend_{};
-    float mod_window_gain_{};   // mod 分析窗重建增益（hann 系模式 2/sum(hann) ≈ 4/fft_size）
-    float carry_window_gain_{}; // carry 分析窗重建增益（恒 hann，2/sum(hann) ≈ 4/fft_size）
-    float window_gain_{};       // Standard 的 sinc*hann 分析窗重建增益（2/sum(sinc*hann)）
+    float hann_window_gain_{};
+    float hann_sinc_window_gain_{};
 
     // 窗（hann 分析与合成共用；window_ 仅 Standard 用作分析窗）
     std::vector<float> hann_window_{};
-    std::vector<float> window_{};
+    std::vector<float> hann_sinc_window_{};
 
     // GUI 读取
     std::vector<float> gains_{};

@@ -72,7 +72,7 @@ void STFTWelch::operator()(STFT& self, std::span<const float> real_in, std::span
     // log 域攻击/释放平滑 + 谱下限（含 NaN/INF 防护）
     for (int i = 0; i < num_bins; ++i) {
         float const p_avg = sum[static_cast<size_t>(i)] * inv;
-        float gain = std::sqrt(std::max(p_avg, 0.0f)) * self.mod_window_gain_;
+        float gain = std::sqrt(std::max(p_avg, 0.0f)) * self.hann_window_gain_;
         gain = self.Blend(gain);
 
         // 非法值（NaN/INF/非正）一律按谱下限处理，防止污染平滑状态
@@ -85,7 +85,7 @@ void STFTWelch::operator()(STFT& self, std::span<const float> real_in, std::span
                 self.attack_factor_ * log_gains[static_cast<size_t>(i)] + (1.0f - self.attack_factor_) * target_db;
         else
             log_gains[static_cast<size_t>(i)] =
-                self.decay_ * log_gains[static_cast<size_t>(i)] + (1.0f - self.decay_) * target_db;
+                self.decay_factor_ * log_gains[static_cast<size_t>(i)] + (1.0f - self.decay_factor_) * target_db;
 
         gains[static_cast<size_t>(i)] = qwqdsp::convert::Db2Gain(log_gains[static_cast<size_t>(i)]);
     }

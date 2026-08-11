@@ -22,7 +22,7 @@ public:
         main_input_buffer_.resize(static_cast<size_t>(block_size_));
         side_input_buffer_.resize(static_cast<size_t>(block_size_));
         output_buffer_.resize(static_cast<size_t>(block_size_) * 4);
-        window_.assign(synthesis_window.begin(), synthesis_window.end());
+        hann_sinc_window_.assign(synthesis_window.begin(), synthesis_window.end());
         Reset();
     }
 
@@ -73,7 +73,7 @@ public:
                 // 合成加窗 + 重叠相加
                 for (int i = 0; i < block_size_; ++i) {
                     output_buffer_[static_cast<size_t>(i + write_add_begin_)] +=
-                        out_frame[static_cast<size_t>(i)] * window_[static_cast<size_t>(i)];
+                        out_frame[static_cast<size_t>(i)] * hann_sinc_window_[static_cast<size_t>(i)];
                 }
                 write_end_ = write_add_begin_ + block_size_;
                 write_add_begin_ += hop_size_;
@@ -107,7 +107,7 @@ private:
     std::vector<Sample> main_input_buffer_{};
     std::vector<Sample> side_input_buffer_{};
     std::vector<Sample> output_buffer_{};
-    std::vector<float> window_{};
+    std::vector<float> hann_sinc_window_{};
     int block_size_{};
     int hop_size_{};
     int num_input_{};

@@ -5,6 +5,8 @@
 #include <numbers>
 
 #include <qwqdsp/convert.hpp>
+#include <qwqdsp/window/hann.hpp>
+#include <qwqdsp/window/helper.hpp>
 
 namespace green_vocoder::dsp {
 
@@ -35,20 +37,10 @@ void STFT::SetParam(const Params& p) {
 
         // hann 窗（分析与合成共用，不归一化）
         hann_window_.resize(static_cast<size_t>(p.fft_size));
-        for (int i = 0; i < p.fft_size; ++i) {
-            hann_window_[static_cast<size_t>(i)] =
-                0.5f
-                - 0.5f
-                      * std::cos(2.0f * std::numbers::pi_v<float>
-                                 * static_cast<float>(i) / static_cast<float>(p.fft_size));
-        }
+        qwqdsp_window::Hann::Window(hann_window_, true);
 
         // mod / carry 分析窗重建增益（2 / sum(hann) = 4 / fft_size）
-        double hann_sum = 0.0;
-        for (float const w : hann_window_)
-            hann_sum += static_cast<double>(w);
-        mod_window_gain_ = 2.0f / static_cast<float>(hann_sum);
-        carry_window_gain_ = 2.0f / static_cast<float>(hann_sum);
+        hann_window_gain_ = qwqdsp_window::Helper::NormalizeGain(hann_window_);
 
         // 缓冲
         int const num_bins = p.fft_size / 2 + 1;
@@ -61,7 +53,7 @@ void STFT::SetParam(const Params& p) {
         output_frame_.resize(static_cast<size_t>(p.fft_size));
         gains_.resize(static_cast<size_t>(num_bins) + global::kExtraGainSize);
         gains2_.resize(static_cast<size_t>(num_bins) + global::kExtraGainSize);
-        window_.resize(static_cast<size_t>(p.fft_size));
+        hann_sinc_window_.resize(static_cast<size_t>(p.fft_size));
     }
 
     // sinc*hann（bandwidth）窗（基于普通 hann，不归一化，仅 Standard 分析用）
@@ -73,20 +65,17 @@ void STFT::SetParam(const Params& p) {
                              * f0 * (static_cast<float>(i) - static_cast<float>(p.fft_size) / 2.0f))
                           / static_cast<float>(p.fft_size);
             float const sinc = std::abs(x) < 1e-6f ? 1.0f : std::sin(x) / x;
-            window_[static_cast<size_t>(i)] = sinc * hann_window_[static_cast<size_t>(i)];
+            hann_sinc_window_[static_cast<size_t>(i)] = sinc * hann_window_[static_cast<size_t>(i)];
         }
 
         // Standard 的 mod 分析窗重建增益（2 / sum(sinc*hann)）
-        double wsum = 0.0;
-        for (float const w : window_)
-            wsum += static_cast<double>(w);
-        window_gain_ = 2.0f / static_cast<float>(wsum);
+        hann_sinc_window_gain_ = qwqdsp_window::Helper::NormalizeGain(hann_sinc_window_);
     }
 
     // attack / release（依赖 hop_size_）
     attack_factor_ = qwqdsp::convert::Ms2DecayDb(p.attack, sample_rate_, -60.0f);
-    decay_ = qwqdsp::convert::Ms2DecayDb(p.release + p.attack, sample_rate_ / (static_cast<float>(fft_size_) / 4.0f),
-                                         -60.0f);
+    decay_factor_ = qwqdsp::convert::Ms2DecayDb(p.release + p.attack,
+                                                sample_rate_ / (static_cast<float>(fft_size_) / 4.0f), -60.0f);
 
     blend_ = p.blend;
     formant_mul_ = std::exp2(-p.formant_shift / 12.0f);

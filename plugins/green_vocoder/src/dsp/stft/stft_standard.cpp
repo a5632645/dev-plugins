@@ -9,11 +9,12 @@ namespace green_vocoder::dsp {
 void STFTStandard::operator()(STFT& self, std::span<const float> real_in, std::span<const float> imag_in,
                               std::span<float> real_out, std::span<float> imag_out, int channel) {
     auto& gains = channel == 0 ? self.gains_ : self.gains2_;
+
     int const num_bins = self.fft_size_ / 2 + 1;
     for (int i = 0; i < num_bins; ++i) {
-        float power = std::abs(real_in[static_cast<size_t>(i)] * real_in[static_cast<size_t>(i)]
-                               + imag_in[static_cast<size_t>(i)] * imag_in[static_cast<size_t>(i)]);
-        float gain = std::sqrt(power) * self.window_gain_;
+        float power = real_in[static_cast<size_t>(i)] * real_in[static_cast<size_t>(i)]
+                    + imag_in[static_cast<size_t>(i)] * imag_in[static_cast<size_t>(i)];
+        float gain = std::sqrt(power) * self.hann_sinc_window_gain_;
         gain = self.Blend(gain);
 
         if (gain > gains[static_cast<size_t>(i)]) {
@@ -21,10 +22,12 @@ void STFTStandard::operator()(STFT& self, std::span<const float> real_in, std::s
                 self.attack_factor_ * gains[static_cast<size_t>(i)] + (1.0f - self.attack_factor_) * gain;
         }
         else {
-            gains[static_cast<size_t>(i)] = self.decay_ * gains[static_cast<size_t>(i)] + (1.0f - self.decay_) * gain;
+            gains[static_cast<size_t>(i)] =
+                self.decay_factor_ * gains[static_cast<size_t>(i)] + (1.0f - self.decay_factor_) * gain;
         }
     }
     gains[static_cast<size_t>(num_bins)] = gains[0];
+
     // 共振峰搬移
     for (int i = 0; i < num_bins; ++i) {
         float idx = static_cast<float>(i) * self.formant_mul_;
