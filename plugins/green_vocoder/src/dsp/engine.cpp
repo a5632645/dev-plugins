@@ -4,6 +4,11 @@
 #include <numbers>
 #include <span>
 
+// 立体声调试开关：启用后左声道（ch0）作为 mod、右声道（ch1）作为 carry，
+// 两者均以单声道复制到 L/R，绕过 pitch 跟踪与 sidechain 路由。
+// 需要时取消下行注释开启（默认关闭）。
+#define I_AM_USING_STEREO_DEBUG
+
 namespace {
 
 // OLA 输出重建增益（4 倍重叠 hann 窗：块 Burg 0.25 / STFT 4.0）
@@ -25,6 +30,7 @@ void Engine::Init(double sample_rate, int block_size) {
     block_burg_.Init(fs);
     cepstrum_stft_.Init(stft_);
     mfcc_stft_.Init(stft_);
+    smooth_stft_.Init(stft_);
     stft_mode_ = dsp::STFTMode::Cepstrum;
 
     pitch_osc_.Init(fs);
@@ -112,6 +118,11 @@ void Engine::Update(Params& p) {
 
                 cepstrum_stft_.SetParam({.detail = p.stft_detail.Get()}, stft_);
                 mfcc_stft_.SetParam({.num_mfcc = static_cast<int>(p.mfcc_nbands.Get())}, stft_);
+                smooth_stft_.SetParam(
+                    {.type = p.stft_smooth_erb.Get() ? dsp::STFTSmooth::SmoothType::ERB
+                                                     : dsp::STFTSmooth::SmoothType::OCT,
+                     .amount = p.stft_smooth.Get()},
+                    stft_);
 
                 stft_mode_ = static_cast<dsp::STFTMode>(p.stft_type.Get());
 
@@ -147,10 +158,27 @@ void Engine::Update(Params& p) {
 void Engine::Process(juce::AudioBuffer<float>& buffer, int mod_ch, int carry_ch, int pitch_ch, bool use_pitch) {
     int const num_samples = buffer.getNumSamples();
 
+#ifdef I_AM_USING_STEREO_DEBUG
+    juce::ignoreUnused(mod_ch, carry_ch, pitch_ch, use_pitch);
+#endif
+
     // --- block processing ---
     for (int pos = 0; pos < num_samples; pos += global::kBlockSize) {
         int const n = std::min(global::kBlockSize, num_samples - pos);
 
+#ifdef I_AM_USING_STEREO_DEBUG
+        // 调试：左声道（ch0）作为 mod，右声道（ch1）作为 carry（单声道复制到 L/R）
+        {
+            float const* m = buffer.getReadPointer(0) + pos;
+            for (int i = 0; i < n; ++i)
+                crossing_main_buffer_[static_cast<size_t>(i)] = {m[i], m[i]};
+        }
+        {
+            float const* c = buffer.getReadPointer(1) + pos;
+            for (int i = 0; i < n; ++i)
+                crossing_side_buffer_[static_cast<size_t>(i)] = {c[i], c[i]};
+        }
+#else
         // fill modulator
         {
             float const* ml = buffer.getReadPointer(mod_ch) + pos;
@@ -175,6 +203,7 @@ void Engine::Process(juce::AudioBuffer<float>& buffer, int mod_ch, int carry_ch,
             for (int i = 0; i < n; ++i)
                 crossing_side_buffer_[static_cast<size_t>(i)] = {sl[i], sr[i]};
         }
+#endif
 
         // pre-tilt filter
         for (int i = 0; i < n; ++i)
@@ -211,6 +240,13 @@ void Engine::Process(juce::AudioBuffer<float>& buffer, int mod_ch, int carry_ch,
                                 main, side, n, kStftGain,
                                 [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
                                     return stft_.Process(mf, sf, stft_.hann_window_, mfcc_stft_);
+                                });
+                            break;
+                        case dsp::STFTMode::Smooth:
+                            ola_.Process(
+                                main, side, n, kStftGain,
+                                [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
+                                    return stft_.Process(mf, sf, stft_.hann_window_, smooth_stft_);
                                 });
                             break;
                     }

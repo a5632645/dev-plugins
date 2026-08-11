@@ -1,0 +1,82 @@
+#include "stft_smooth.hpp"
+
+#include <cmath>
+
+#include "qwqdsp/interpolation.hpp"
+
+namespace green_vocoder::dsp {
+
+void STFTSmooth::Init(STFT& self) {
+    SetParam(Params{}, self);
+}
+
+void STFTSmooth::SetParam(const Params& p, STFT& self) {
+    int const fft_size = self.fft_size_;
+    // 仅当 fft_size 改变时才重建功率谱缓冲与平滑器（分配开销大）
+    if (fft_size != fft_size_) {
+        fft_size_ = fft_size;
+        int const num_bins = fft_size / 2 + 1;
+        power_.resize(static_cast<size_t>(num_bins));
+        smoother_.prepare(static_cast<size_t>(fft_size));
+
+        // hann 分析窗重建增益（2 / sum(hann) ≈ 4 / N）
+        double sum = 0.0;
+        for (float const w : self.hann_window_)
+            sum += static_cast<double>(w);
+        window_gain_ = 2.0f / static_cast<float>(sum);
+    }
+
+    // 平滑类型/量变化时重算平滑器索引（O(nbins)，开销小）
+    if (p.type != type_ || ParamChanged(p.amount, amount_)) {
+        type_ = p.type;
+        amount_ = p.amount;
+        if (type_ == SmoothType::ERB)
+            smoother_.setSmoothERB(self.sample_rate_, amount_);
+        else
+            smoother_.setSmoothOCT(amount_);
+    }
+}
+
+void STFTSmooth::operator()(STFT& self, std::span<const float> real_in, std::span<const float> imag_in,
+                            std::span<float> real_out, std::span<float> imag_out, int channel) {
+    auto& gains = channel == 0 ? self.gains_ : self.gains2_;
+    int const num_bins = self.fft_size_ / 2 + 1;
+
+    // 调制器功率谱 → OCT/ERB 平滑包络（就地平滑）
+    for (int i = 0; i < num_bins; ++i) {
+        power_[static_cast<size_t>(i)] = real_in[static_cast<size_t>(i)] * real_in[static_cast<size_t>(i)]
+                                       + imag_in[static_cast<size_t>(i)] * imag_in[static_cast<size_t>(i)];
+    }
+    smoother_.smooth(power_);
+
+    for (int i = 0; i < num_bins; ++i) {
+        float gain = std::sqrt(power_[static_cast<size_t>(i)]) * window_gain_;
+        gain = self.Blend(gain);
+
+        if (gain > gains[static_cast<size_t>(i)]) {
+            gains[static_cast<size_t>(i)] =
+                self.attack_factor_ * gains[static_cast<size_t>(i)] + (1.0f - self.attack_factor_) * gain;
+        }
+        else {
+            gains[static_cast<size_t>(i)] = self.decay_ * gains[static_cast<size_t>(i)] + (1.0f - self.decay_) * gain;
+        }
+    }
+    gains[static_cast<size_t>(num_bins)] = gains[0];
+    // 共振峰搬移
+    for (int i = 0; i < num_bins; ++i) {
+        float idx = static_cast<float>(i) * self.formant_mul_;
+        float frac = idx - std::floor(idx);
+        int iidx = static_cast<int>(idx);
+
+        float g = 0;
+        if (iidx < num_bins) {
+            g = qwqdsp::Interpolation::Linear(gains[static_cast<size_t>(iidx)], gains[static_cast<size_t>(iidx) + 1],
+                                              frac);
+        }
+
+        real_out[static_cast<size_t>(i)] *= g;
+        imag_out[static_cast<size_t>(i)] *= g;
+    }
+}
+
+} // namespace green_vocoder::dsp

@@ -17,6 +17,7 @@ enum class STFTMode {
     Standard,
     Cepstrum,
     MFCC,
+    Smooth,
 };
 
 // 参数变化检测：精确浮点相等比较（有意为之，局部抑制 -Wfloat-equal）

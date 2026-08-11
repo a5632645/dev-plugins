@@ -25,14 +25,20 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
     detail_.BindParam(processor.params_.stft_detail.ptr_);
     addAndMakeVisible(detail_);
 
+    smooth_type_.BindParam(processor.params_.stft_smooth_erb.ptr_);
+    addAndMakeVisible(smooth_type_);
+
+    smooth_.BindParam(processor.params_.stft_smooth.ptr_);
+    addAndMakeVisible(smooth_);
+
     mfcc_size_.BindParam(processor.params_.mfcc_nbands.ptr_);
     addAndMakeVisible(mfcc_size_);
     mfcc_size_title_.setJustificationType(juce::Justification::centredLeft);
     ::ui::SetLableBlack(mfcc_size_title_);
     addAndMakeVisible(mfcc_size_title_);
 
-    mode_.BindParam(processor.params_.stft_type.ptr_, true);
-    mode_.on_value_changed = [this](size_t) { OnModeChanged(); };
+    mode_.BindParam(processor.params_.stft_type.ptr_);
+    mode_.onChange = [this] { OnModeChanged(); };
     addAndMakeVisible(mode_);
 
     OnModeChanged();
@@ -40,13 +46,14 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
 
 void STFTVocoder::resized() {
     using enum green_vocoder::dsp::STFTMode;
-    auto mode = static_cast<green_vocoder::dsp::STFTMode>(mode_.Get());
+    auto mode = static_cast<green_vocoder::dsp::STFTMode>(mode_.getSelectedItemIndex());
 
     auto b = getLocalBounds();
     auto top = b.removeFromTop(65);
     size_.setBounds(top.removeFromLeft(100).withSizeKeepingCentre(100, 30));
     attack_.setBounds(top.removeFromLeft(50));
     release_.setBounds(top.removeFromLeft(50));
+    mode_.setBounds(top.removeFromLeft(100).withSizeKeepingCentre(100, 30));
 
     if (mode == Standard) {
         bandwidth_.setBounds(top.removeFromLeft(50));
@@ -61,22 +68,19 @@ void STFTVocoder::resized() {
         mfcc_size_title_.setBounds(mfcc_size_bound.removeFromTop(static_cast<int>(mfcc_size_title_.getFont().getHeight())));
         mfcc_size_.setBounds(mfcc_size_bound);
     }
-
-    mode_.setBounds(top.withHeight(30));
-    {
-        auto& choices = mode_.GetAllCubes();
-        auto bound = mode_.getLocalBounds();
-        for (auto& cube : choices) {
-            cube->setBounds(bound.removeFromLeft(cube->GetTextBound(bound.getHeight())).reduced(2));
-        }
+    if (mode == Smooth) {
+        smooth_type_.setBounds(top.removeFromLeft(60).withSizeKeepingCentre(60, 30));
+        smooth_.setBounds(top.removeFromLeft(50));
+        blend_.setBounds(top.removeFromLeft(50));
     }
 }
 
 void STFTVocoder::paint(juce::Graphics& g) {
     using enum green_vocoder::dsp::STFTMode;
-    switch (static_cast<green_vocoder::dsp::STFTMode>(mode_.Get())) {
+    switch (static_cast<green_vocoder::dsp::STFTMode>(mode_.getSelectedItemIndex())) {
         case Standard:
         case Cepstrum:
+        case Smooth:
             DrawStandardCepstrum(g);
             break;
         case MFCC:
@@ -155,10 +159,12 @@ void STFTVocoder::DrawMfcc(juce::Graphics& g) {
 
 void STFTVocoder::OnModeChanged() {
     using enum green_vocoder::dsp::STFTMode;
-    auto mode = static_cast<green_vocoder::dsp::STFTMode>(mode_.Get());
+    auto mode = static_cast<green_vocoder::dsp::STFTMode>(mode_.getSelectedItemIndex());
     blend_.setVisible(mode != MFCC);
     bandwidth_.setVisible(mode == Standard);
     detail_.setVisible(mode == Cepstrum);
+    smooth_type_.setVisible(mode == Smooth);
+    smooth_.setVisible(mode == Smooth);
     mfcc_size_.setVisible(mode == MFCC);
     mfcc_size_title_.setVisible(mode == MFCC);
     if (!getBounds().isEmpty()) {

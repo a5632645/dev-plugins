@@ -22,11 +22,13 @@ private:
     ::ui::Dial release_{"release"};
     ::ui::Dial attack_{"attack"};
     ::ui::FlatCombobox size_;
-    ::ui::FlatSelector mode_;
+    ::ui::FlatCombobox mode_;
 
     ::ui::Dial blend_{"noisy"};
     ::ui::Dial bandwidth_{"smear"};
     ::ui::Dial detail_{"detail"};
+    ::ui::Switch smooth_type_{"ERB", "OCT"};
+    ::ui::Dial smooth_{"smooth"};
     ::ui::FlatSlider mfcc_size_;
     juce::Label mfcc_size_title_{"", "bands"};
 };

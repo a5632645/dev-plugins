@@ -57,6 +57,7 @@ target_sources(${PLUGIN_NAME}
     src/dsp/stft/stft.cpp
     src/dsp/stft/stft_cepstrum.cpp
     src/dsp/stft/stft_mfcc.cpp
+    src/dsp/stft/stft_smooth.cpp
     src/dsp/stft/stft_standard.cpp
     src/ui/burg_lpc.cpp
     src/ui/channel_vocoder.cpp
