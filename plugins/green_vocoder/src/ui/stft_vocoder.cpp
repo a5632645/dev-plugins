@@ -1,9 +1,12 @@
 #include "stft_vocoder.hpp"
-#include <vector>
 #include "PluginProcessor.h"
 #include "db_curve.hpp"
+#include <vector>
 
 namespace green_vocoder::ui {
+
+// 顶部控件区高度（左侧两个下拉框 1 列 2 行 + 右侧 dial 行）
+constexpr int kTopHeight = 65;
 
 STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
     : processor_(processor) {
@@ -37,11 +40,14 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
     floor_.BindParam(processor.params_.stft_floor.ptr_);
     addAndMakeVisible(floor_);
 
+    morph_.BindParam(processor.params_.stft_morph.ptr_);
+    addAndMakeVisible(morph_);
+
+    direction_.BindParam(processor.params_.stft_morph_ab.ptr_);
+    addAndMakeVisible(direction_);
+
     mfcc_size_.BindParam(processor.params_.mfcc_nbands.ptr_);
     addAndMakeVisible(mfcc_size_);
-    mfcc_size_title_.setJustificationType(juce::Justification::centredLeft);
-    ::ui::SetLableBlack(mfcc_size_title_);
-    addAndMakeVisible(mfcc_size_title_);
 
     mode_.BindParam(processor.params_.stft_type.ptr_);
     mode_.onChange = [this] { OnModeChanged(); };
@@ -55,34 +61,51 @@ void STFTVocoder::resized() {
     auto mode = static_cast<green_vocoder::dsp::STFTMode>(mode_.getSelectedItemIndex());
 
     auto b = getLocalBounds();
-    auto top = b.removeFromTop(65);
-    size_.setBounds(top.removeFromLeft(100).withSizeKeepingCentre(100, 30));
-    attack_.setBounds(top.removeFromLeft(50));
-    release_.setBounds(top.removeFromLeft(50));
-    mode_.setBounds(top.removeFromLeft(100).withSizeKeepingCentre(100, 30));
+    auto top = b.removeFromTop(kTopHeight);
 
-    if (mode == Standard) {
-        bandwidth_.setBounds(top.removeFromLeft(50));
-        blend_.setBounds(top.removeFromLeft(50));
+    // 左侧 1 列 2 行：块大小 / 算法两个下拉框
+    auto left = top.removeFromLeft(100);
+    size_.setBounds(left.removeFromTop(30).withSizeKeepingCentre(100, 30));
+    mode_.setBounds(left.withHeight(30).withSizeKeepingCentre(100, 30));
+
+    // 右侧：逐一放置可见控件（隐藏控件不占空间）
+    // dial 统一 50×65；switch 按内容排版
+    auto place = [&top](juce::Component& c, int width, int height) {
+        if (c.isVisible())
+            c.setBounds(top.removeFromLeft(width).withSizeKeepingCentre(width, height));
+    };
+    auto place_dial = [&place](juce::Component& c) { place(c, 50, 65); };
+    auto place_switch = [&place](juce::Component& c) { place(c, 70, 30); };
+
+    if (mode == Morph) {
+        // Morph 无 attack/release
+        place_dial(morph_);
+        place_switch(direction_);
     }
-    if (mode == Welch) {
-        welch_.setBounds(top.removeFromLeft(50));
-        floor_.setBounds(top.removeFromLeft(50));
-        blend_.setBounds(top.removeFromLeft(50));
-    }
-    if (mode == Cepstrum) {
-        detail_.setBounds(top.removeFromLeft(50).withSizeKeepingCentre(50, 65));
-        blend_.setBounds(top.removeFromLeft(50));
-    }
-    if (mode == MFCC) {
-        auto mfcc_size_bound = top.removeFromLeft(80).withSizeKeepingCentre(80, 40);
-        mfcc_size_title_.setBounds(mfcc_size_bound.removeFromTop(static_cast<int>(mfcc_size_title_.getFont().getHeight())));
-        mfcc_size_.setBounds(mfcc_size_bound);
-    }
-    if (mode == Smooth) {
-        smooth_type_.setBounds(top.removeFromLeft(60).withSizeKeepingCentre(60, 30));
-        smooth_.setBounds(top.removeFromLeft(50));
-        blend_.setBounds(top.removeFromLeft(50));
+    else {
+        place_dial(attack_);
+        place_dial(release_);
+        if (mode == Standard) {
+            place_dial(bandwidth_);
+            place_dial(blend_);
+        }
+        else if (mode == Cepstrum) {
+            place_dial(detail_);
+            place_dial(blend_);
+        }
+        else if (mode == MFCC) {
+            place_dial(mfcc_size_);
+        }
+        else if (mode == Smooth) {
+            place_switch(smooth_type_);
+            place_dial(smooth_);
+            place_dial(blend_);
+        }
+        else if (mode == Welch) {
+            place_dial(welch_);
+            place_dial(floor_);
+            place_dial(blend_);
+        }
     }
 }
 
@@ -93,6 +116,7 @@ void STFTVocoder::paint(juce::Graphics& g) {
         case Cepstrum:
         case Smooth:
         case Welch:
+        case Morph:
             DrawStandardCepstrum(g);
             break;
         case MFCC:
@@ -102,14 +126,14 @@ void STFTVocoder::paint(juce::Graphics& g) {
 }
 
 void STFTVocoder::timerCallback() {
-    repaint(getLocalBounds().removeFromTop(bandwidth_.getBottom()));
+    repaint(getLocalBounds().removeFromTop(kTopHeight));
 }
 
 // -------------------- private --------------------
 
 void STFTVocoder::DrawStandardCepstrum(juce::Graphics& g) {
     auto bb = getLocalBounds();
-    bb.removeFromTop(attack_.getBottom());
+    bb.removeFromTop(kTopHeight);
     auto const plot = bb.toFloat();
     FillPlotBackground(g, plot);
 
@@ -140,7 +164,7 @@ void STFTVocoder::DrawStandardCepstrum(juce::Graphics& g) {
 
 void STFTVocoder::DrawMfcc(juce::Graphics& g) {
     auto b = getLocalBounds();
-    b.removeFromTop(attack_.getBottom());
+    b.removeFromTop(kTopHeight);
     auto bb = b.toFloat();
 
     g.setColour(::ui::black_bg);
@@ -172,15 +196,18 @@ void STFTVocoder::DrawMfcc(juce::Graphics& g) {
 void STFTVocoder::OnModeChanged() {
     using enum green_vocoder::dsp::STFTMode;
     auto mode = static_cast<green_vocoder::dsp::STFTMode>(mode_.getSelectedItemIndex());
-    blend_.setVisible(mode != MFCC);
+    attack_.setVisible(mode != Morph);
+    release_.setVisible(mode != Morph);
+    blend_.setVisible(mode != MFCC && mode != Morph);
     bandwidth_.setVisible(mode == Standard);
     welch_.setVisible(mode == Welch);
     floor_.setVisible(mode == Welch);
+    morph_.setVisible(mode == Morph);
+    direction_.setVisible(mode == Morph);
     detail_.setVisible(mode == Cepstrum);
     smooth_type_.setVisible(mode == Smooth);
     smooth_.setVisible(mode == Smooth);
     mfcc_size_.setVisible(mode == MFCC);
-    mfcc_size_title_.setVisible(mode == MFCC);
     if (!getBounds().isEmpty()) {
         resized();
     }

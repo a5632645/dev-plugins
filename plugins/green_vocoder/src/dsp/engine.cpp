@@ -32,6 +32,7 @@ void Engine::Init(double sample_rate, int block_size) {
     mfcc_stft_.Init(stft_);
     smooth_stft_.Init(stft_);
     welch_stft_.Init(stft_);
+    morph_stft_.Init(stft_);
     stft_mode_ = dsp::STFTMode::Cepstrum;
 
     pitch_osc_.Init(fs);
@@ -128,6 +129,8 @@ void Engine::Update(Params& p) {
                                                      : dsp::STFTSmooth::SmoothType::OCT,
                      .amount = p.stft_smooth.Get()},
                     stft_);
+                morph_stft_.SetParam(
+                    {.morph = p.stft_morph.Get(), .direction_ab = p.stft_morph_ab.Get()}, stft_);
 
                 stft_mode_ = static_cast<dsp::STFTMode>(p.stft_type.Get());
 
@@ -259,6 +262,13 @@ void Engine::Process(juce::AudioBuffer<float>& buffer, int mod_ch, int carry_ch,
                                 main, side, n, kStftGain,
                                 [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
                                     return stft_.Process(mf, sf, stft_.hann_window_, welch_stft_);
+                                });
+                            break;
+                        case dsp::STFTMode::Morph:
+                            ola_.Process(
+                                main, side, n, kStftGain,
+                                [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
+                                    return stft_.Process(mf, sf, stft_.hann_window_, morph_stft_);
                                 });
                             break;
                     }

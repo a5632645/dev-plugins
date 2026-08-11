@@ -31,8 +31,9 @@ private:
     ::ui::Dial smooth_{"smooth"};
     ::ui::Dial welch_{"avg"};
     ::ui::Dial floor_{"floor"};
-    ::ui::FlatSlider mfcc_size_;
-    juce::Label mfcc_size_title_{"", "bands"};
+    ::ui::Dial morph_{"morph"};
+    ::ui::Dial mfcc_size_{"bands"};
+    ::ui::Switch direction_{"A→B", "B→A"};
 };
 
 } // namespace green_vocoder::ui

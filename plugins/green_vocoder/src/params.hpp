@@ -256,7 +256,7 @@ public:
          0.3f
     };
     pluginshared::ChoiceParam stft_type{
-        "stft_type", juce::StringArray{"Standard", "Cepstrum", "MFCC", "Smooth", "Welch"},
+        "stft_type", juce::StringArray{"Standard", "Cepstrum", "MFCC", "Smooth", "Welch", "Morph"},
          "Cepstrum"
     };
     pluginshared::BoolParam stft_smooth_erb{
@@ -273,6 +273,13 @@ public:
     pluginshared::FloatParam stft_floor{
         "stft_floor", {-120.0f, -20.0f, 1.0f},
          -80.0f
+    };
+    pluginshared::FloatParam stft_morph{
+        "stft_morph", {0.0f, 1.0f, 0.01f},
+         0.5f
+    };
+    pluginshared::BoolParam stft_morph_ab{
+        "stft_morph_ab", true // true = A→B，false = B→A
     };
 
     // pitch tracking
@@ -348,6 +355,8 @@ public:
         layout += stft_smooth;
         layout += stft_welch;
         layout += stft_floor;
+        layout += stft_morph;
+        layout += stft_morph_ab;
         layout += track_low;
         layout += track_high;
         layout += track_pitch;
@@ -388,6 +397,8 @@ public:
         stft_smooth.ptr_->addListener(&stft_listener_);
         stft_welch.ptr_->addListener(&stft_listener_);
         stft_floor.ptr_->addListener(&stft_listener_);
+        stft_morph.ptr_->addListener(&stft_listener_);
+        stft_morph_ab.ptr_->addListener(&stft_listener_);
         stft_size.ptr_->addListener(&stft_block_listener_);
         track_low.ptr_->addListener(&pitch_osc_listener_);
         track_high.ptr_->addListener(&pitch_osc_listener_);
@@ -429,6 +440,8 @@ public:
         stft_smooth.ptr_->removeListener(&stft_listener_);
         stft_welch.ptr_->removeListener(&stft_listener_);
         stft_floor.ptr_->removeListener(&stft_listener_);
+        stft_morph.ptr_->removeListener(&stft_listener_);
+        stft_morph_ab.ptr_->removeListener(&stft_listener_);
         stft_size.ptr_->removeListener(&stft_block_listener_);
         track_low.ptr_->removeListener(&pitch_osc_listener_);
         track_high.ptr_->removeListener(&pitch_osc_listener_);
