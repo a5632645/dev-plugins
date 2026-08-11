@@ -256,7 +256,7 @@ public:
          0.3f
     };
     pluginshared::ChoiceParam stft_type{
-        "stft_type", juce::StringArray{"Standard", "Cepstrum", "MFCC", "Smooth", "Welch", "Morph"},
+        "stft_type", juce::StringArray{"Standard", "Cepstrum", "MFCC", "Smooth", "Welch", "Morph", "Wiener"},
          "Cepstrum"
     };
     pluginshared::BoolParam stft_smooth_erb{
@@ -280,6 +280,16 @@ public:
     };
     pluginshared::BoolParam stft_morph_ab{
         "stft_morph_ab", true // true = A→B，false = B→A
+    };
+    pluginshared::BoolParam stft_wiener_variant{
+        "stft_wiener_variant", true // true = Standard (a/(b+snr))，false = Difference ((a-b)/(a+b+snr))
+    };
+    pluginshared::FloatParam stft_wiener_snr{
+        "stft_wiener_snr", {0.0f, 1.0f, 0.001f},
+         0.01f
+    };
+    pluginshared::BoolParam stft_wiener_ab{
+        "stft_wiener_ab", true // true = a=A(调制器), b=B(载波)；false 交换
     };
 
     // pitch tracking
@@ -357,6 +367,9 @@ public:
         layout += stft_floor;
         layout += stft_morph;
         layout += stft_morph_ab;
+        layout += stft_wiener_variant;
+        layout += stft_wiener_snr;
+        layout += stft_wiener_ab;
         layout += track_low;
         layout += track_high;
         layout += track_pitch;
@@ -399,6 +412,9 @@ public:
         stft_floor.ptr_->addListener(&stft_listener_);
         stft_morph.ptr_->addListener(&stft_listener_);
         stft_morph_ab.ptr_->addListener(&stft_listener_);
+        stft_wiener_variant.ptr_->addListener(&stft_listener_);
+        stft_wiener_snr.ptr_->addListener(&stft_listener_);
+        stft_wiener_ab.ptr_->addListener(&stft_listener_);
         stft_size.ptr_->addListener(&stft_block_listener_);
         track_low.ptr_->addListener(&pitch_osc_listener_);
         track_high.ptr_->addListener(&pitch_osc_listener_);
@@ -442,6 +458,9 @@ public:
         stft_floor.ptr_->removeListener(&stft_listener_);
         stft_morph.ptr_->removeListener(&stft_listener_);
         stft_morph_ab.ptr_->removeListener(&stft_listener_);
+        stft_wiener_variant.ptr_->removeListener(&stft_listener_);
+        stft_wiener_snr.ptr_->removeListener(&stft_listener_);
+        stft_wiener_ab.ptr_->removeListener(&stft_listener_);
         stft_size.ptr_->removeListener(&stft_block_listener_);
         track_low.ptr_->removeListener(&pitch_osc_listener_);
         track_high.ptr_->removeListener(&pitch_osc_listener_);

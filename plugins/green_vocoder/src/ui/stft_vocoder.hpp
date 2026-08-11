@@ -34,6 +34,9 @@ private:
     ::ui::Dial morph_{"morph"};
     ::ui::Dial mfcc_size_{"bands"};
     ::ui::Switch direction_{"A→B", "B→A"};
+    ::ui::Switch wiener_variant_{"std", "diff"};
+    ::ui::Dial wiener_snr_{"snr"};
+    ::ui::Switch wiener_ab_{"A→B", "B→A"};
 };
 
 } // namespace green_vocoder::ui

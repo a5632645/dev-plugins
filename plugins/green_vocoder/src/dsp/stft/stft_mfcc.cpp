@@ -55,7 +55,7 @@ void STFTMFCC::operator()(STFT& self, std::span<const float> real_in, std::span<
         sum /= static_cast<float>(end - begin + 1);
         sum = std::sqrt(sum);
 
-        float gain = sum;
+        float gain = sum * self.mod_window_gain_;
         if (gain > gains[static_cast<size_t>(mcff_idx)]) {
             gains[static_cast<size_t>(mcff_idx)] =
                 self.attack_factor_ * gains[static_cast<size_t>(mcff_idx)] + (1.0f - self.attack_factor_) * gain;

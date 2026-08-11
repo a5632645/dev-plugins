@@ -61,6 +61,7 @@ target_sources(${PLUGIN_NAME}
     src/dsp/stft/stft_smooth.cpp
     src/dsp/stft/stft_standard.cpp
     src/dsp/stft/stft_welch.cpp
+    src/dsp/stft/stft_wiener.cpp
     src/ui/burg_lpc.cpp
     src/ui/channel_vocoder.cpp
     src/ui/pre_fx.cpp

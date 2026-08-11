@@ -20,6 +20,7 @@ enum class STFTMode {
     Smooth,
     Welch,
     Morph,
+    Wiener,
 };
 
 // 参数变化检测：精确浮点相等比较（有意为之，局部抑制 -Wfloat-equal）
@@ -66,25 +67,28 @@ public:
     }
 
     // 单帧 STFT 处理：分析加窗 → FFT → 频谱处理(alg) → IFFT → 打包；
-    // window 为分析窗，alg 须提供 operator()(STFT&, real_in, imag_in, real_out, imag_out, channel)
+    // window 为 mod 分析窗（hann 系用 hann_window_，Standard 用 window_）；carry 恒用 hann_window_。
+    // alg 须提供 operator()(STFT&, real_in, imag_in, real_out, imag_out, channel)
     template <typename STFT_ALG>
     std::span<PackFloat2 const> Process(std::span<PackFloat2 const> main_frame, std::span<PackFloat2 const> side_frame,
                                         std::span<const float> window, STFT_ALG& alg) {
-        // 左声道
+        // 左声道（mod 用模式分析窗，carry 恒用 hann）
         for (int i = 0; i < fft_size_; ++i) {
             temp_main_[static_cast<size_t>(i)] = window[static_cast<size_t>(i)] * main_frame[static_cast<size_t>(i)][0];
-            temp_side_[static_cast<size_t>(i)] = side_frame[static_cast<size_t>(i)][0];
+            temp_side_[static_cast<size_t>(i)] =
+                hann_window_[static_cast<size_t>(i)] * side_frame[static_cast<size_t>(i)][0];
         }
         fft_.FFT({temp_main_.data(), static_cast<size_t>(fft_size_)}, real_main_, imag_main_);
         fft_.FFT({temp_side_.data(), static_cast<size_t>(fft_size_)}, real_side_, imag_side_);
         alg(*this, real_main_, imag_main_, real_side_, imag_side_, 0);
         fft_.IFFT({temp_main_.data(), static_cast<size_t>(fft_size_)}, real_side_, imag_side_);
 
-        // 右声道
+        // 右声道（mod 用模式分析窗，carry 恒用 hann）
         for (int i = 0; i < fft_size_; ++i) {
             temp_main_[static_cast<size_t>(fft_size_ + i)] =
                 window[static_cast<size_t>(i)] * main_frame[static_cast<size_t>(i)][1];
-            temp_side_[static_cast<size_t>(fft_size_ + i)] = side_frame[static_cast<size_t>(i)][1];
+            temp_side_[static_cast<size_t>(fft_size_ + i)] =
+                hann_window_[static_cast<size_t>(i)] * side_frame[static_cast<size_t>(i)][1];
         }
         fft_.FFT({temp_main_.data() + fft_size_, static_cast<size_t>(fft_size_)}, real_main_, imag_main_);
         fft_.FFT({temp_side_.data() + fft_size_, static_cast<size_t>(fft_size_)}, real_side_, imag_side_);
@@ -105,6 +109,9 @@ public:
     float decay_{};         // 频谱增益释放因子
     float formant_mul_{};   // 共振峰搬移倍率
     float blend_{};
+    float mod_window_gain_{};   // mod 分析窗重建增益（hann 系模式 2/sum(hann) ≈ 4/fft_size）
+    float carry_window_gain_{}; // carry 分析窗重建增益（恒 hann，2/sum(hann) ≈ 4/fft_size）
+    float window_gain_{};       // Standard 的 sinc*hann 分析窗重建增益（2/sum(sinc*hann)）
 
     // 窗（hann 分析与合成共用；window_ 仅 Standard 用作分析窗）
     std::vector<float> hann_window_{};

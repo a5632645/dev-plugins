@@ -46,6 +46,15 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
     direction_.BindParam(processor.params_.stft_morph_ab.ptr_);
     addAndMakeVisible(direction_);
 
+    wiener_variant_.BindParam(processor.params_.stft_wiener_variant.ptr_);
+    addAndMakeVisible(wiener_variant_);
+
+    wiener_snr_.BindParam(processor.params_.stft_wiener_snr.ptr_);
+    addAndMakeVisible(wiener_snr_);
+
+    wiener_ab_.BindParam(processor.params_.stft_wiener_ab.ptr_);
+    addAndMakeVisible(wiener_ab_);
+
     mfcc_size_.BindParam(processor.params_.mfcc_nbands.ptr_);
     addAndMakeVisible(mfcc_size_);
 
@@ -77,7 +86,13 @@ void STFTVocoder::resized() {
     auto place_dial = [&place](juce::Component& c) { place(c, 50, 65); };
     auto place_switch = [&place](juce::Component& c) { place(c, 70, 30); };
 
-    if (mode == Morph) {
+    if (mode == Wiener) {
+        // Wiener 无 attack/release/blend
+        place_switch(wiener_variant_);
+        place_dial(wiener_snr_);
+        place_switch(wiener_ab_);
+    }
+    else if (mode == Morph) {
         // Morph 无 attack/release
         place_dial(morph_);
         place_switch(direction_);
@@ -117,6 +132,7 @@ void STFTVocoder::paint(juce::Graphics& g) {
         case Smooth:
         case Welch:
         case Morph:
+        case Wiener:
             DrawStandardCepstrum(g);
             break;
         case MFCC:
@@ -196,14 +212,17 @@ void STFTVocoder::DrawMfcc(juce::Graphics& g) {
 void STFTVocoder::OnModeChanged() {
     using enum green_vocoder::dsp::STFTMode;
     auto mode = static_cast<green_vocoder::dsp::STFTMode>(mode_.getSelectedItemIndex());
-    attack_.setVisible(mode != Morph);
-    release_.setVisible(mode != Morph);
-    blend_.setVisible(mode != MFCC && mode != Morph);
+    attack_.setVisible(mode != Morph && mode != Wiener);
+    release_.setVisible(mode != Morph && mode != Wiener);
+    blend_.setVisible(mode != MFCC && mode != Morph && mode != Wiener);
     bandwidth_.setVisible(mode == Standard);
     welch_.setVisible(mode == Welch);
     floor_.setVisible(mode == Welch);
     morph_.setVisible(mode == Morph);
     direction_.setVisible(mode == Morph);
+    wiener_variant_.setVisible(mode == Wiener);
+    wiener_snr_.setVisible(mode == Wiener);
+    wiener_ab_.setVisible(mode == Wiener);
     detail_.setVisible(mode == Cepstrum);
     smooth_type_.setVisible(mode == Smooth);
     smooth_.setVisible(mode == Smooth);

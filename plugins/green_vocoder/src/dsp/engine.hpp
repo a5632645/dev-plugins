@@ -16,6 +16,7 @@
 #include "stft/stft_smooth.hpp"
 #include "stft/stft_standard.hpp"
 #include "stft/stft_welch.hpp"
+#include "stft/stft_wiener.hpp"
 #include "tilt_filter.hpp"
 
 #include "../global.hpp"
@@ -64,6 +65,8 @@ public:
 private:
     // 共享 OLA：按 block_size 重建（hann 合成窗，hop = block/4）
     void InitOla(int block_size);
+    // 纯 WOLA 重建增益（由归一化分析窗 × 合成窗计算；分析窗未就绪/尺寸不匹配时保持旧值）
+    void UpdateStftWolaGain();
 
     double sample_rate_{};
     dsp::TiltFilter pre_tilt_filter_;
@@ -76,6 +79,7 @@ private:
     dsp::STFTSmooth smooth_stft_;
     dsp::STFTWelch welch_stft_;
     dsp::STFTMorph morph_stft_;
+    dsp::STFTWiener wiener_stft_;
     dsp::BlockBurgLPC block_burg_;
     dsp::ChannelVocoder channel_vocoder_;
     dsp::LeakyBurgLPC burg_lpc_;

@@ -25,9 +25,10 @@ void Engine::Init(double sample_rate, int block_size) {
     sample_rate_ = sample_rate;
     float fs = static_cast<float>(sample_rate);
 
+    // 先初始化 STFT（重建归一化分析窗），再初始化共享 OLA，使 InitOla 能正确计算 WOLA 增益
+    stft_.Init(fs);
     InitOla(1024);
     burg_lpc_.Init(fs, block_size);
-    stft_.Init(fs);
     channel_vocoder_.Init(fs, block_size);
     block_burg_.Init(fs);
     cepstrum_stft_.Init(stft_);
@@ -35,6 +36,7 @@ void Engine::Init(double sample_rate, int block_size) {
     smooth_stft_.Init(stft_);
     welch_stft_.Init(stft_);
     morph_stft_.Init(stft_);
+    wiener_stft_.Init(stft_);
     stft_mode_ = dsp::STFTMode::Cepstrum;
 
     pitch_osc_.Init(fs);
@@ -45,6 +47,19 @@ void Engine::Init(double sample_rate, int block_size) {
 }
 
 void Engine::Reset() {}
+
+void Engine::UpdateStftWolaGain() {
+    // 纯 WOLA 重建增益 = 1/Σ_k(w_a·w_s)：由归一化分析窗 × 普通 hann 合成窗计算
+    // （hop=block/4，稳态任一点被 4 帧覆盖；hann² 的 COLA=1.5 → 增益=block_size/6）
+    if (stft_.hann_window_.size() != static_cast<size_t>(ola_block_size_))
+        return; // 分析窗未就绪或尺寸不匹配，保留旧值
+    int const hop = ola_block_size_ / 4;
+    double cola = 0.0;
+    for (int k = 0; k < 4; ++k)
+        cola += static_cast<double>(stft_.hann_window_[static_cast<size_t>(k * hop)]
+                                    * ola_window_[static_cast<size_t>(k * hop)]);
+    stft_wola_gain_ = static_cast<float>(1.0 / cola);
+}
 
 void Engine::InitOla(int block_size) {
     if (block_size == ola_block_size_)
@@ -58,17 +73,7 @@ void Engine::InitOla(int block_size) {
                   * std::cos(2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(block_size));
     }
     ola_.Init(block_size, block_size / 4, ola_window_);
-
-    // 纯 WOLA 重建增益 = 1/Σ_k(w_a·w_s)：由归一化分析窗 × 普通 hann 合成窗计算
-    // （hop=block/4，稳态任一点被 4 帧覆盖；hann² 的 COLA=1.5 → 增益=block_size/6）
-    if (stft_.hann_window_.size() == static_cast<size_t>(block_size)) {
-        int const hop = block_size / 4;
-        double cola = 0.0;
-        for (int k = 0; k < 4; ++k)
-            cola += static_cast<double>(stft_.hann_window_[static_cast<size_t>(k * hop)]
-                                        * ola_window_[static_cast<size_t>(k * hop)]);
-        stft_wola_gain_ = static_cast<float>(1.0 / cola);
-    }
+    UpdateStftWolaGain();
 }
 
 void Engine::Update(Params& p) {
@@ -144,10 +149,17 @@ void Engine::Update(Params& p) {
                     stft_);
                 morph_stft_.SetParam(
                     {.morph = p.stft_morph.Get(), .direction_ab = p.stft_morph_ab.Get()}, stft_);
+                wiener_stft_.SetParam(
+                    {.variant = p.stft_wiener_variant.Get() ? dsp::STFTWiener::Variant::Standard
+                                                             : dsp::STFTWiener::Variant::Difference,
+                     .snr = p.stft_wiener_snr.Get(),
+                     .direction_ab = p.stft_wiener_ab.Get()},
+                    stft_);
 
                 stft_mode_ = static_cast<dsp::STFTMode>(p.stft_type.Get());
 
                 InitOla(fft_size);
+                UpdateStftWolaGain(); // stft_.SetParam 刚重建分析窗，确保增益随新尺寸刷新（InitOla 可能 early-return）
             }
             break;
 
@@ -282,6 +294,13 @@ void Engine::Process(juce::AudioBuffer<float>& buffer, int mod_ch, int carry_ch,
                                 main, side, n, stft_wola_gain_,
                                 [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
                                     return stft_.Process(mf, sf, stft_.hann_window_, morph_stft_);
+                                });
+                            break;
+                        case dsp::STFTMode::Wiener:
+                            ola_.Process(
+                                main, side, n, stft_wola_gain_,
+                                [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
+                                    return stft_.Process(mf, sf, stft_.hann_window_, wiener_stft_);
                                 });
                             break;
                     }

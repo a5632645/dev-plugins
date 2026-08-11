@@ -72,7 +72,7 @@ void STFTWelch::operator()(STFT& self, std::span<const float> real_in, std::span
     // log 域攻击/释放平滑 + 谱下限（含 NaN/INF 防护）
     for (int i = 0; i < num_bins; ++i) {
         float const p_avg = sum[static_cast<size_t>(i)] * inv;
-        float gain = std::sqrt(std::max(p_avg, 0.0f));
+        float gain = std::sqrt(std::max(p_avg, 0.0f)) * self.mod_window_gain_;
         gain = self.Blend(gain);
 
         // 非法值（NaN/INF/非正）一律按谱下限处理，防止污染平滑状态

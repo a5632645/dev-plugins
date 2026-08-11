@@ -33,7 +33,7 @@ void STFT::SetParam(const Params& p) {
         fft_size_ = p.fft_size;
         fft_.Init(static_cast<size_t>(p.fft_size));
 
-        // hann 窗（分析与合成共用），归一化至 Σ=2：窗口化 FFT 峰值幅度直接等于信号幅度
+        // hann 窗（分析与合成共用，不归一化）
         hann_window_.resize(static_cast<size_t>(p.fft_size));
         for (int i = 0; i < p.fft_size; ++i) {
             hann_window_[static_cast<size_t>(i)] =
@@ -42,14 +42,13 @@ void STFT::SetParam(const Params& p) {
                       * std::cos(2.0f * std::numbers::pi_v<float>
                                  * static_cast<float>(i) / static_cast<float>(p.fft_size));
         }
-        {
-            double hann_sum = 0.0;
-            for (float const w : hann_window_)
-                hann_sum += static_cast<double>(w);
-            float const norm = 2.0f / static_cast<float>(hann_sum);
-            for (float& w : hann_window_)
-                w *= norm;
-        }
+
+        // mod / carry 分析窗重建增益（2 / sum(hann) = 4 / fft_size）
+        double hann_sum = 0.0;
+        for (float const w : hann_window_)
+            hann_sum += static_cast<double>(w);
+        mod_window_gain_ = 2.0f / static_cast<float>(hann_sum);
+        carry_window_gain_ = 2.0f / static_cast<float>(hann_sum);
 
         // 缓冲
         int const num_bins = p.fft_size / 2 + 1;
@@ -65,7 +64,7 @@ void STFT::SetParam(const Params& p) {
         window_.resize(static_cast<size_t>(p.fft_size));
     }
 
-    // sinc*hann（bandwidth）窗（基于已归一化 hann）并归一化至 Σ=2（仅 Standard 分析用）
+    // sinc*hann（bandwidth）窗（基于普通 hann，不归一化，仅 Standard 分析用）
     if (size_changed || ParamChanged(p.bandwidth, bandwidth_)) {
         bandwidth_ = p.bandwidth;
         float const f0 = p.bandwidth * static_cast<float>(p.fft_size) / 1024.0f;
@@ -76,14 +75,12 @@ void STFT::SetParam(const Params& p) {
             float const sinc = std::abs(x) < 1e-6f ? 1.0f : std::sin(x) / x;
             window_[static_cast<size_t>(i)] = sinc * hann_window_[static_cast<size_t>(i)];
         }
-        {
-            double wsum = 0.0;
-            for (float const w : window_)
-                wsum += static_cast<double>(w);
-            float const norm = 2.0f / static_cast<float>(wsum);
-            for (float& w : window_)
-                w *= norm;
-        }
+
+        // Standard 的 mod 分析窗重建增益（2 / sum(sinc*hann)）
+        double wsum = 0.0;
+        for (float const w : window_)
+            wsum += static_cast<double>(w);
+        window_gain_ = 2.0f / static_cast<float>(wsum);
     }
 
     // attack / release（依赖 hop_size_）
