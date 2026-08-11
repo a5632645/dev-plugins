@@ -190,8 +190,8 @@ struct PackingIIRDesigner {
         for (int i = 0; i < 4; ++i) {
             std::array<qwqdsp_filter::IIRDesign::ZPK, NPrototypeFilters * 2> zpk_buffer;
             std::copy(prototype.begin(), prototype.end(), zpk_buffer.begin());
-            qwqdsp_filter::IIRDesign::ProtyleToBandpass2(zpk_buffer, NPrototypeFilters, w1_analog[static_cast<size_t>(i)],
-                                                         w2_analog[static_cast<size_t>(i)]);
+            qwqdsp_filter::IIRDesign::ProtyleToBandpass2(
+                zpk_buffer, NPrototypeFilters, w1_analog[static_cast<size_t>(i)], w2_analog[static_cast<size_t>(i)]);
 
             for (int j = 0; j < static_cast<int>(NPrototypeFilters); ++j) {
                 states[static_cast<size_t>(2 * j)][static_cast<size_t>(i)] = zpk_buffer[static_cast<size_t>(j)];
@@ -353,8 +353,8 @@ void ChannelVocoder::_UpdateFilters2() {
     }
 }
 
-void ChannelVocoder::ProcessBlock(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side,
-                                  int num_samples) {
+void ChannelVocoder::Process(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side,
+                             int num_samples) {
     switch (filter_bank_mode_) {
         case FilterBankMode::Bandpass12:
             _ProcessBlock<2, true>(main, side, num_samples);

@@ -6,12 +6,18 @@
 #include <qwqdsp/simd_element/simd_pack.hpp>
 #include <qwqdsp/spectral/real_fft_adv.hpp>
 
-#include "../block_ola.hpp"
 #include "../../global.hpp"
 
 namespace green_vocoder::dsp {
 
 using PackFloat2 = qwqdsp_simd_element::PackFloat<2>;
+
+// STFT 声码器模式（与 stft_type 参数索引对应）
+enum class STFTMode {
+    Standard,
+    Cepstrum,
+    MFCC,
+};
 
 // 参数变化检测：精确浮点相等比较（有意为之，局部抑制 -Wfloat-equal）
 inline bool ParamChanged(float a, float b) noexcept {
@@ -34,8 +40,8 @@ inline bool ParamChanged(float a, float b) noexcept {
 // ------------------------------------------------------------
 // STFT：基础短时傅里叶变换帧处理引擎
 // ------------------------------------------------------------
-// 在 BlockOLA 之上提供完整的块驱动 STFT 帧处理链路：
-//   分析加窗 → FFT → 频谱处理（算法 functor） → IFFT → 重叠相加
+// 提供单帧 STFT 处理链路：分析加窗 → FFT → 频谱处理（算法 functor）
+// → IFFT → 打包。帧驱动（分帧/hop/重叠相加）由外部共享 BlockOLA 承担。
 // 频谱算法通过 Process 模板传入（须提供 operator()），分析窗也
 // 作为参数显式传入（仅 Standard 用 sinc*hann，其余用 hann）。
 class STFT {
@@ -52,24 +58,15 @@ public:
     void Init(float fs);
     void Reset();
     void SetParam(const Params& p);
-    int GetFFTSize() const noexcept { return fft_size_; }
-
-    // 块驱动 STFT 帧处理；window 为分析窗，alg 须提供
-    // operator()(STFT&, real_in, imag_in, real_out, imag_out, channel)
-    template <typename STFT_ALG>
-    void Process(PackFloat2* main, PackFloat2* side, int num_samples, std::span<const float> window, STFT_ALG& alg) {
-        ola_.Process(main, side, num_samples,
-                     [this, window, &alg](std::span<PackFloat2 const> main_frame,
-                                          std::span<PackFloat2 const> side_frame) {
-                         return (*this)(main_frame, side_frame, window, alg);
-                     });
+    int GetFFTSize() const noexcept {
+        return fft_size_;
     }
 
-    // 单帧 STFT 处理：分析加窗 → FFT → 频谱处理(alg) → IFFT → 打包
+    // 单帧 STFT 处理：分析加窗 → FFT → 频谱处理(alg) → IFFT → 打包；
+    // window 为分析窗，alg 须提供 operator()(STFT&, real_in, imag_in, real_out, imag_out, channel)
     template <typename STFT_ALG>
-    std::span<PackFloat2 const> operator()(std::span<PackFloat2 const> main_frame,
-                                           std::span<PackFloat2 const> side_frame,
-                                           std::span<const float> window, STFT_ALG& alg) {
+    std::span<PackFloat2 const> Process(std::span<PackFloat2 const> main_frame, std::span<PackFloat2 const> side_frame,
+                                        std::span<const float> window, STFT_ALG& alg) {
         // 左声道
         for (int i = 0; i < fft_size_; ++i) {
             temp_main_[static_cast<size_t>(i)] = window[static_cast<size_t>(i)] * main_frame[static_cast<size_t>(i)][0];
@@ -117,11 +114,22 @@ public:
     std::array<float, global::kMaxNumMfcc> mfcc_gains_{};
     std::array<float, global::kMaxNumMfcc> mfcc_gains2_{};
 
+    std::vector<float> const& GetGains() const noexcept {
+        return gains_;
+    }
+    std::vector<float> const& GetGains2() const noexcept {
+        return gains2_;
+    }
+    std::array<float, global::kMaxNumMfcc> const& GetMfccGains() const noexcept {
+        return mfcc_gains_;
+    }
+    std::array<float, global::kMaxNumMfcc> const& GetMfccGains2() const noexcept {
+        return mfcc_gains2_;
+    }
+
     // 频谱平滑辅助
     float Blend(float x) noexcept;
-
 private:
-    BlockOLA<PackFloat2> ola_;
     qwqdsp_spectral::RealFftAdv fft_;
     float bandwidth_{}; // 上次应用的 bandwidth（用于判断是否需重算 sinc*hann 窗）
     std::vector<float> temp_main_;

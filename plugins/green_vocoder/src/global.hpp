@@ -19,8 +19,10 @@ static constexpr int kMaxDownsample = 8;
 
 // block burg lpc
 static constexpr int kMaxPoles = 80;
+// 岭回归常数：阻止反射系数计算（k = -2*up/(down+λ)）除零病态
+static constexpr float kRidge = 1e-4f;
 
-// 防止滤波器系数病态所需的微小噪声
+// 防止滤波器系数病态所需的微小噪声（leaky burg 使用）
 static constexpr float kNoiseGain = 1e-5f;
 
 // channel vocoder

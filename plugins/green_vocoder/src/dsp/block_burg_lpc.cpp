@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
-#include <numbers>
 #include <span>
 
 #include <qwqdsp/convert.hpp>
@@ -14,7 +13,7 @@
 namespace green_vocoder::dsp {
 
 using global::kMaxPoles;
-using global::kNoiseGain;
+using global::kRidge;
 
 using PackFloat2 = qwqdsp_simd_element::PackFloat<2>;
 
@@ -24,27 +23,14 @@ void BlockBurgLPC::Init(float fs) {
 }
 
 void BlockBurgLPC::SetParam(const Params& p) {
-    // 仅当 block_size 改变时才重建窗口与内部缓冲（分配/重算开销大）
+    // 仅当 block_size 改变时才重建内部缓冲（分配开销大）
     if (p.block_size != fft_size_) {
         fft_size_ = p.block_size;
-        int const hop_size = p.block_size / 4;
         eb_.resize(static_cast<size_t>(p.block_size));
         ef_.resize(static_cast<size_t>(p.block_size));
-
-        // hann 合成窗
-        std::vector<float> hann_window(static_cast<size_t>(p.block_size));
-        for (int i = 0; i < p.block_size; ++i) {
-            hann_window[static_cast<size_t>(i)] =
-                0.5f
-                - 0.5f
-                      * std::cos(2.0f * std::numbers::pi_v<float>
-                                 * static_cast<float>(i) / static_cast<float>(p.block_size));
-        }
-        ola_.Init(p.block_size, hop_size, hann_window);
-        ola_.SetOutputGain(0.25f);
     }
 
-    update_rate_ = sample_rate_ / static_cast<float>(fft_size_ / 4);
+    update_rate_ = sample_rate_ / (static_cast<float>(fft_size_) / 4.0f);
 
     num_poles_ = p.poles;
 
@@ -54,17 +40,12 @@ void BlockBurgLPC::SetParam(const Params& p) {
     fir_allpass_coeff_ = std::clamp(-p.formant_shift, -0.99f, 0.99f);
 }
 
-void BlockBurgLPC::Process(qwqdsp_simd_element::PackFloat<2>* main_ptr, qwqdsp_simd_element::PackFloat<2>* side_ptr,
-                           int num_samples) {
-    // adding some noise
-    for (int i = 0; i < num_samples; ++i) {
-        main_ptr[i] += noise_.Next() * kNoiseGain;
-    }
-    ola_.Process(main_ptr, side_ptr, num_samples, *this);
-}
-
 std::span<PackFloat2 const> BlockBurgLPC::operator()(std::span<PackFloat2 const> main,
                                                      std::span<PackFloat2 const> side) {
+    // 岭回归常数：防止 down≈0 时反射系数 k = -2*up/(down+λ) 病态
+    PackFloat2 ridge{};
+    ridge.Broadcast(kRidge);
+
     // forward fir lattice
     std::copy(main.begin(), main.end(), ef_.begin());
     std::copy(main.begin(), main.end(), eb_.begin());
@@ -83,7 +64,7 @@ std::span<PackFloat2 const> BlockBurgLPC::operator()(std::span<PackFloat2 const>
             down += ef_[static_cast<size_t>(i)] * ef_[static_cast<size_t>(i)];
             down += y * y;
         }
-        k = -2.0f * up / down;
+        k = -2.0f * up / (down + ridge);
 
         for (int i = 0; i < static_cast<int>(ef_.size()); ++i) {
             auto upgo = ef_[static_cast<size_t>(i)] + eb_[static_cast<size_t>(i)] * k;

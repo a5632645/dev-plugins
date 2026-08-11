@@ -19,10 +19,8 @@ struct STFTMFCC {
 
     void Init(STFT& self);
     void SetParam(const Params& p, STFT& self);
-    void operator()(STFT& self,
-                    std::span<const float> real_in, std::span<const float> imag_in,
+    void operator()(STFT& self, std::span<const float> real_in, std::span<const float> imag_in,
                     std::span<float> real_out, std::span<float> imag_out, int channel);
-
 private:
     std::array<int, global::kMaxNumMfcc + 1> mfcc_indexs_{};
     int fft_size_{};

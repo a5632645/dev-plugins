@@ -1,6 +1,5 @@
 #pragma once
 #include <algorithm>
-#include <ranges>
 #include <span>
 #include <vector>
 
@@ -36,14 +35,6 @@ public:
         write_add_begin_ = 0;
     }
 
-    // 输出重建增益（WOLA 归一化常数，如 4 倍重叠 hann 窗的 0.25 / 4.0）
-    void SetOutputGain(float gain) noexcept {
-        output_gain_ = gain;
-    }
-    float GetOutputGain() const noexcept {
-        return output_gain_;
-    }
-
     int GetBlockSize() const noexcept {
         return block_size_;
     }
@@ -52,9 +43,10 @@ public:
     }
 
     // 处理一段输入；攒够一帧时调用 BlockFunc(main_frame, side_frame)，
-    // 返回待重叠相加的处理后帧（长度 block_size_）。
+    // 返回待重叠相加的处理后帧（长度 block_size_）。output_gain 为输出重建
+    // 增益（WOLA 归一化常数，如 4 倍重叠 hann 窗的 0.25 / 4.0），按调用传入。
     template <typename BlockFunc>
-    void Process(Sample* main, Sample* side, int num_samples, BlockFunc&& block_func) {
+    void Process(Sample* main, Sample* side, int num_samples, float output_gain, BlockFunc&& block_func) {
         // 流式 OLA：按需补足到一帧即处理，边处理边抽取输出，而非一次性读入全部输入
         while (num_samples > 0) {
             // 本次拷贝数量（补足到一帧即可）
@@ -90,7 +82,7 @@ public:
             // 输出抽取（每批抽取 require 个，保持流式时序）
             if (write_add_begin_ >= require) {
                 for (int i = 0; i < require; ++i) {
-                    main[i] = output_buffer_[static_cast<size_t>(i)] * output_gain_;
+                    main[i] = output_buffer_[static_cast<size_t>(i)] * output_gain;
                 }
                 int const shift_size = write_end_ - require;
                 for (int i = 0; i < shift_size; ++i) {
@@ -121,7 +113,6 @@ private:
     int num_input_{};
     int write_end_{};
     int write_add_begin_{};
-    float output_gain_{1.0f};
 };
 
 } // namespace green_vocoder::dsp

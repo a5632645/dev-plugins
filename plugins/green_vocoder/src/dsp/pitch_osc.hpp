@@ -58,7 +58,8 @@ public:
             std::copy_n(buffer, need, in_buffer_.begin() + in_pos_);
             in_pos_ += need;
 
-            if (in_pos_ == global::kPitchBlockSize) ProcessFrame();
+            if (in_pos_ == global::kPitchBlockSize)
+                ProcessFrame();
 
             FillAudio(buffer, need);
             num_frame -= need;

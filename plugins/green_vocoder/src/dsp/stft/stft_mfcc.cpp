@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
-#include <qwqdsp/convert.hpp>
 #include "qwqdsp/interpolation.hpp"
+#include <qwqdsp/convert.hpp>
 
 namespace green_vocoder::dsp {
 
@@ -29,7 +29,8 @@ void STFTMFCC::SetParam(const Params& p, STFT& self) {
     for (int i = 0; i < num_mfcc_; ++i) {
         float mel = begin_mel + static_cast<float>(i) * interval_mel;
         float freq = qwqdsp::convert::Mel2Freq(mel);
-        int bin = static_cast<int>(std::floor(freq / static_cast<float>(self.sample_rate_) * static_cast<float>(fft_size)));
+        int bin =
+            static_cast<int>(std::floor(freq / static_cast<float>(self.sample_rate_) * static_cast<float>(fft_size)));
         bin = std::min(bin, fft_size / 2);
         mfcc_indexs_[static_cast<size_t>(i)] = bin;
     }
@@ -37,8 +38,7 @@ void STFTMFCC::SetParam(const Params& p, STFT& self) {
     mfcc_indexs_[static_cast<size_t>(num_mfcc_)] = fft_size / 2;
 }
 
-void STFTMFCC::operator()(STFT& self,
-                          std::span<const float> real_in, std::span<const float> imag_in,
+void STFTMFCC::operator()(STFT& self, std::span<const float> real_in, std::span<const float> imag_in,
                           std::span<float> real_out, std::span<float> imag_out, int channel) {
     auto& gains = channel == 0 ? self.mfcc_gains_ : self.mfcc_gains2_;
     int const fft_size = self.fft_size_;
@@ -57,12 +57,12 @@ void STFTMFCC::operator()(STFT& self,
 
         float gain = sum * self.window_gain_;
         if (gain > gains[static_cast<size_t>(mcff_idx)]) {
-            gains[static_cast<size_t>(mcff_idx)] = self.attack_factor_ * gains[static_cast<size_t>(mcff_idx)]
-                                                 + (1.0f - self.attack_factor_) * gain;
+            gains[static_cast<size_t>(mcff_idx)] =
+                self.attack_factor_ * gains[static_cast<size_t>(mcff_idx)] + (1.0f - self.attack_factor_) * gain;
         }
         else {
-            gains[static_cast<size_t>(mcff_idx)] = self.decay_ * gains[static_cast<size_t>(mcff_idx)]
-                                                 + (1.0f - self.decay_) * gain;
+            gains[static_cast<size_t>(mcff_idx)] =
+                self.decay_ * gains[static_cast<size_t>(mcff_idx)] + (1.0f - self.decay_) * gain;
         }
 
         for (int i = begin; i < end; ++i) {

@@ -38,8 +38,8 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
 }
 
 void STFTVocoder::resized() {
-    using enum green_vocoder::dsp::STFTVocoder::Mode;
-    auto mode = static_cast<green_vocoder::dsp::STFTVocoder::Mode>(mode_.Get());
+    using enum green_vocoder::dsp::STFTMode;
+    auto mode = static_cast<green_vocoder::dsp::STFTMode>(mode_.Get());
 
     auto b = getLocalBounds();
     auto top = b.removeFromTop(65);
@@ -72,8 +72,8 @@ void STFTVocoder::resized() {
 }
 
 void STFTVocoder::paint(juce::Graphics& g) {
-    using enum green_vocoder::dsp::STFTVocoder::Mode;
-    switch (static_cast<green_vocoder::dsp::STFTVocoder::Mode>(mode_.Get())) {
+    using enum green_vocoder::dsp::STFTMode;
+    switch (static_cast<green_vocoder::dsp::STFTMode>(mode_.Get())) {
         case Standard:
         case Cepstrum:
             DrawStandardCepstrum(g);
@@ -222,8 +222,8 @@ void STFTVocoder::DrawMfcc(juce::Graphics& g) {
 }
 
 void STFTVocoder::OnModeChanged() {
-    using enum green_vocoder::dsp::STFTVocoder::Mode;
-    auto mode = static_cast<green_vocoder::dsp::STFTVocoder::Mode>(mode_.Get());
+    using enum green_vocoder::dsp::STFTMode;
+    auto mode = static_cast<green_vocoder::dsp::STFTMode>(mode_.Get());
     blend_.setVisible(mode != MFCC);
     bandwidth_.setVisible(mode == Standard);
     detail_.setVisible(mode == Cepstrum);

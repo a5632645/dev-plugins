@@ -97,17 +97,18 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
 
 void AudioPluginAudioProcessor::reset() {}
 
-void AudioPluginAudioProcessor::releaseResources() {
-}
+void AudioPluginAudioProcessor::releaseResources() {}
 
 bool AudioPluginAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
 #if JucePlugin_IsMidiEffect
     juce::ignoreUnused(layouts);
     return true;
 #else
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo()) return false;
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+        return false;
 #if !JucePlugin_IsSynth
-    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet()) return false;
+    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
+        return false;
 #endif
     return true;
 #endif
@@ -117,26 +118,26 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, j
     std::ignore = midiMessages;
     juce::ScopedNoDenormals noDenormals;
 
-    // --- sync dirty params → Engine（内部按 atomic 标志更新各模块） ---
+    // --- sync dirty params → Engine（内部读取 vocoder_type，仅更新当前 vocoder） ---
     engine_.Update(params_);
 
     // --- resolve channel routing ---
     bool const has_sidechain = buffer.getNumChannels() >= 4;
 
     bool const swap = params_.channel_swap.Get();
-    int pitch_ch_idx = params_.pitch_channel.Get();             // 0=Off, 1=ch0, 2=ch1, 3=ch2, 4=ch3
-    if (!has_sidechain && pitch_ch_idx >= 3) pitch_ch_idx -= 2; // ch2/3 → ch0/1
+    int pitch_ch_idx = params_.pitch_channel.Get(); // 0=Off, 1=ch0, 2=ch1, 3=ch2, 4=ch3
+    if (!has_sidechain && pitch_ch_idx >= 3)
+        pitch_ch_idx -= 2; // ch2/3 → ch0/1
     bool const use_pitch = pitch_ch_idx > 0;
     int const pitch_ch = pitch_ch_idx - 1; // 0-based channel index when active
 
     int mod_ch = 0;
     int carry_ch = has_sidechain ? 2 : 0;
-    if (swap) std::swap(mod_ch, carry_ch);
-
-    green_vocoder::eVocoderType const vocoder_type = static_cast<green_vocoder::eVocoderType>(params_.vocoder_type.Get());
+    if (swap)
+        std::swap(mod_ch, carry_ch);
 
     // --- delegate to engine ---
-    engine_.Process(buffer, mod_ch, carry_ch, pitch_ch, use_pitch, vocoder_type);
+    engine_.Process(buffer, mod_ch, carry_ch, pitch_ch, use_pitch);
 
     // --- latency check ---
     int new_latency = engine_.GetLatency();

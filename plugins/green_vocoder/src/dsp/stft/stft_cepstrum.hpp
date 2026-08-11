@@ -20,10 +20,8 @@ struct STFTCepstrum {
 
     void Init(STFT& self);
     void SetParam(const Params& p, STFT& self);
-    void operator()(STFT& self,
-                    std::span<const float> real_in, std::span<const float> imag_in,
+    void operator()(STFT& self, std::span<const float> real_in, std::span<const float> imag_in,
                     std::span<float> real_out, std::span<float> imag_out, int channel);
-
 private:
     qwqdsp_spectral::ComplexFftAdv cep_fft_;
     std::vector<float> cep_window_{};

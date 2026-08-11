@@ -1,131 +1,150 @@
 #include "engine.hpp"
 
 #include <cmath>
+#include <numbers>
+#include <span>
+
+namespace {
+
+// OLA 输出重建增益（4 倍重叠 hann 窗：块 Burg 0.25 / STFT 4.0）
+constexpr float kBlockBurgGain = 0.25f;
+constexpr float kStftGain = 4.0f;
+
+} // namespace
 
 namespace green_vocoder {
-
-// ============================================================================
-// Lifecycle
-// ============================================================================
 
 void Engine::Init(double sample_rate, int block_size) {
     sample_rate_ = sample_rate;
     float fs = static_cast<float>(sample_rate);
 
+    InitOla(1024);
     burg_lpc_.Init(fs, block_size);
-    stft_vocoder_.Init(fs);
+    stft_.Init(fs);
     channel_vocoder_.Init(fs, block_size);
-    block_burg_lpc_.Init(fs);
+    block_burg_.Init(fs);
+    cepstrum_stft_.Init(stft_);
+    mfcc_stft_.Init(stft_);
+    stft_mode_ = dsp::STFTMode::Cepstrum;
 
     pitch_osc_.Init(fs);
     pitch_osc_.Reset();
-    first_init_ = true;
 
     pre_tilt_filter_.Init(fs);
     pre_tilt_filter_.Reset();
 }
 
-void Engine::Reset() {
-}
+void Engine::Reset() {}
 
-// ============================================================================
-// Params → DSP sync
-// ============================================================================
+void Engine::InitOla(int block_size) {
+    if (block_size == ola_block_size_)
+        return;
+    ola_block_size_ = block_size;
+    ola_window_.resize(static_cast<size_t>(block_size));
+    for (int i = 0; i < block_size; ++i) {
+        ola_window_[static_cast<size_t>(i)] =
+            0.5f
+            - 0.5f
+                  * std::cos(2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / static_cast<float>(block_size));
+    }
+    ola_.Init(block_size, block_size / 4, ola_window_);
+}
 
 void Engine::Update(Params& p) {
+    // 从参数读取当前 vocoder 类型（供本函数选择性更新与 Process 复用）
+    vocoder_type_ = static_cast<eVocoderType>(p.vocoder_type.Get());
+
+    // 通用模块（与声码器类型无关），始终按标志更新
     if (p.should_update_tilt_.exchange(false, std::memory_order_acq_rel))
-        UpdateTiltFilter(p);
-    if (p.should_update_leaky_lpc_.exchange(false, std::memory_order_acq_rel))
-        UpdateLeakyLPC(p);
-    if (p.should_update_block_lpc_.exchange(false, std::memory_order_acq_rel))
-        UpdateBlockLPC(p);
-    if (p.should_update_stft_.exchange(false, std::memory_order_acq_rel))
-        UpdateSTFT(p);
-    if (p.should_update_channel_vocoder_.exchange(false, std::memory_order_acq_rel))
-        UpdateChannelVocoder(p);
+        pre_tilt_filter_.SetParam({.db = p.pre_tilt.Get()});
+
     if (p.should_update_pitch_osc_.exchange(false, std::memory_order_acq_rel))
-        UpdatePitchOsc(p);
+        pitch_osc_.SetParam({
+            .min_pitch = p.track_low.Get(),
+            .max_pitch = p.track_high.Get(),
+            .pitch_shift = p.track_pitch.Get(),
+            .pwm = p.track_pwm.Get(),
+            .noise_gain = p.track_noise.Get(),
+            .waveform = p.track_waveform.Get(),
+            .glide = p.track_glide.Get(),
+        });
+
+    // 仅更新当前激活的 vocoder；其余标志保留，待切换到该 vocoder 时再同步
+    switch (vocoder_type_) {
+        case eVocoderType_LeakyBurgLPC:
+            if (p.should_update_leaky_lpc_.exchange(false, std::memory_order_acq_rel))
+                burg_lpc_.SetParam({
+                    .forget = p.lpc_forget.Get(),
+                    .smooth = p.lpc_smooth.Get(),
+                    .order = static_cast<int>(p.lpc_order.Get()),
+                    .gain_attack = p.lpc_gain_attack.Get(),
+                    .gain_release = p.lpc_gain_release.Get(),
+                    .gain_hold = p.lpc_gain_hold.Get(),
+                    .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
+                });
+            break;
+
+        case eVocoderType_BlockBurgLPC:
+            if (p.should_update_block_lpc_.exchange(false, std::memory_order_acq_rel)) {
+                int const block_size = global::kStftSizes[static_cast<size_t>(p.stft_size.Get())];
+                block_burg_.SetParam({
+                    .block_size = block_size,
+                    .poles = static_cast<int>(p.lpc_order.Get()),
+                    .smear = p.lpc_smooth.Get(),
+                    .attack = p.lpc_gain_attack.Get(),
+                    .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
+                });
+                InitOla(block_size);
+            }
+            break;
+
+        case eVocoderType_STFTVocoder:
+            if (p.should_update_stft_.exchange(false, std::memory_order_acq_rel)) {
+                int const fft_size = global::kStftSizes[static_cast<size_t>(p.stft_size.Get())];
+                stft_.SetParam({
+                    .attack = p.stft_attack.Get(),
+                    .release = p.stft_release.Get(),
+                    .fft_size = fft_size,
+                    .blend = p.stft_blend.Get(),
+                    .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
+                    .bandwidth = p.stft_bandwidth.Get(),
+                });
+
+                cepstrum_stft_.SetParam({.detail = p.stft_detail.Get()}, stft_);
+                mfcc_stft_.SetParam({.num_mfcc = static_cast<int>(p.mfcc_nbands.Get())}, stft_);
+
+                stft_mode_ = static_cast<dsp::STFTMode>(p.stft_type.Get());
+
+                InitOla(fft_size);
+            }
+            break;
+
+        case eVocoderType_ChannelVocoder:
+            if (p.should_update_channel_vocoder_.exchange(false, std::memory_order_acq_rel))
+                channel_vocoder_.SetParam({
+                    .num_bands = static_cast<int>(std::round(p.cv_nbands.Get())),
+                    .freq_begin = p.cv_freq_begin.Get(),
+                    .freq_end = p.cv_freq_end.Get(),
+                    .attack = p.cv_attack.Get(),
+                    .release = p.cv_release.Get(),
+                    .modulator_scale = p.cv_scale.Get(),
+                    .carry_scale = p.cv_carry_scale.Get(),
+                    .map = static_cast<dsp::eChannelVocoderMap>(p.cv_map.Get()),
+                    .filter_bank_mode = static_cast<dsp::ChannelVocoder::FilterBankMode>(p.cv_filter_bank_mode.Get()),
+                    .gate = p.cv_gate.Get(),
+                    .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
+                    .ripple = p.cv_ripple.Get(),
+                });
+            break;
+
+        case eVocoderType_NumVocoderTypes:
+        default:
+            jassertfalse;
+            break;
+    }
 }
 
-void Engine::UpdateTiltFilter(Params& p) {
-    pre_tilt_filter_.SetParam({.db = p.pre_tilt.Get()});
-}
-
-void Engine::UpdateLeakyLPC(Params& p) {
-    burg_lpc_.SetParam({
-        .forget = p.lpc_forget.Get(),
-        .smooth = p.lpc_smooth.Get(),
-        .order = static_cast<int>(p.lpc_order.Get()),
-        .gain_attack = p.lpc_gain_attack.Get(),
-        .gain_release = p.lpc_gain_release.Get(),
-        .gain_hold = p.lpc_gain_hold.Get(),
-        .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
-    });
-}
-
-void Engine::UpdateBlockLPC(Params& p) {
-    block_burg_lpc_.SetParam({
-        .block_size = global::kStftSizes[static_cast<size_t>(p.stft_size.Get())],
-        .poles = static_cast<int>(p.lpc_order.Get()),
-        .smear = p.lpc_smooth.Get(),
-        .attack = p.lpc_gain_attack.Get(),
-        .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
-    });
-}
-
-void Engine::UpdateSTFT(Params& p) {
-    stft_vocoder_.SetParam({
-        .attack = p.stft_attack.Get(),
-        .release = p.stft_release.Get(),
-        .fft_size = global::kStftSizes[static_cast<size_t>(p.stft_size.Get())],
-        .blend = p.stft_blend.Get(),
-        .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
-        .mode = static_cast<dsp::STFTVocoder::Mode>(p.stft_type.Get()),
-        .bandwidth = p.stft_bandwidth.Get(),
-        .detail = p.stft_detail.Get(),
-        .num_mfcc = static_cast<int>(p.mfcc_nbands.Get()),
-    });
-}
-
-void Engine::UpdateChannelVocoder(Params& p) {
-    channel_vocoder_.SetParam({
-        .num_bands = static_cast<int>(std::round(p.cv_nbands.Get())),
-        .freq_begin = p.cv_freq_begin.Get(),
-        .freq_end = p.cv_freq_end.Get(),
-        .attack = p.cv_attack.Get(),
-        .release = p.cv_release.Get(),
-        .modulator_scale = p.cv_scale.Get(),
-        .carry_scale = p.cv_carry_scale.Get(),
-        .map = static_cast<dsp::eChannelVocoderMap>(p.cv_map.Get()),
-        .filter_bank_mode = static_cast<dsp::ChannelVocoder::FilterBankMode>(p.cv_filter_bank_mode.Get()),
-        .gate = p.cv_gate.Get(),
-        .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
-        .ripple = p.cv_ripple.Get(),
-    });
-}
-
-void Engine::UpdatePitchOsc(Params& p) {
-    pitch_osc_.SetParam({
-        .min_pitch = p.track_low.Get(),
-        .max_pitch = p.track_high.Get(),
-        .pitch_shift = p.track_pitch.Get(),
-        .pwm = p.track_pwm.Get(),
-        .noise_gain = p.track_noise.Get(),
-        .waveform = p.track_waveform.Get(),
-        .glide = p.track_glide.Get(),
-    });
-}
-
-// ============================================================================
-// Main processing
-// ============================================================================
-
-void Engine::Process(
-    juce::AudioBuffer<float>& buffer,
-    int mod_ch, int carry_ch,
-    int pitch_ch, bool use_pitch,
-    eVocoderType vocoder_type
-) {
+void Engine::Process(juce::AudioBuffer<float>& buffer, int mod_ch, int carry_ch, int pitch_ch, bool use_pitch) {
     int const num_samples = buffer.getNumSamples();
 
     // --- block processing ---
@@ -149,7 +168,8 @@ void Engine::Process(
             for (int i = 0; i < n; ++i)
                 crossing_side_buffer_[static_cast<size_t>(i)] = {mono[static_cast<size_t>(i)],
                                                                  mono[static_cast<size_t>(i)]};
-        } else {
+        }
+        else {
             float const* sl = buffer.getReadPointer(carry_ch) + pos;
             float const* sr = buffer.getReadPointer(carry_ch + 1) + pos;
             for (int i = 0; i < n; ++i)
@@ -163,21 +183,43 @@ void Engine::Process(
 
         // vocoder
         {
-            if (last_vocoder_type_ != vocoder_type) last_vocoder_type_ = vocoder_type;
+            PackFloat2* const main = crossing_main_buffer_.data();
+            PackFloat2* const side = crossing_side_buffer_.data();
 
-            switch (vocoder_type) {
+            switch (vocoder_type_) {
                 case eVocoderType_LeakyBurgLPC:
-                    burg_lpc_.Process({crossing_main_buffer_.data(), static_cast<size_t>(n)},
-                                      {crossing_side_buffer_.data(), static_cast<size_t>(n)});
+                    burg_lpc_.Process({main, static_cast<size_t>(n)}, {side, static_cast<size_t>(n)});
                     break;
                 case eVocoderType_STFTVocoder:
-                    stft_vocoder_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), n);
+                    switch (stft_mode_) {
+                        case dsp::STFTMode::Standard:
+                            ola_.Process(
+                                main, side, n, kStftGain,
+                                [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
+                                    return stft_.Process(mf, sf, stft_.window_, standard_stft_);
+                                });
+                            break;
+                        case dsp::STFTMode::Cepstrum:
+                            ola_.Process(
+                                main, side, n, kStftGain,
+                                [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
+                                    return stft_.Process(mf, sf, stft_.hann_window_, cepstrum_stft_);
+                                });
+                            break;
+                        case dsp::STFTMode::MFCC:
+                            ola_.Process(
+                                main, side, n, kStftGain,
+                                [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
+                                    return stft_.Process(mf, sf, stft_.hann_window_, mfcc_stft_);
+                                });
+                            break;
+                    }
                     break;
                 case eVocoderType_ChannelVocoder:
-                    channel_vocoder_.ProcessBlock(crossing_main_buffer_.data(), crossing_side_buffer_.data(), n);
+                    channel_vocoder_.Process(main, side, n);
                     break;
                 case eVocoderType_BlockBurgLPC:
-                    block_burg_lpc_.Process(crossing_main_buffer_.data(), crossing_side_buffer_.data(), n);
+                    ola_.Process(main, side, n, kBlockBurgGain, block_burg_);
                     break;
                 case eVocoderType_NumVocoderTypes:
                 default:
@@ -200,8 +242,8 @@ void Engine::Process(
     // latency
     {
         int new_latency = 0;
-        if (vocoder_type == eVocoderType_STFTVocoder || vocoder_type == eVocoderType_BlockBurgLPC)
-            new_latency = stft_vocoder_.GetFFTSize();
+        if (vocoder_type_ == eVocoderType_STFTVocoder || vocoder_type_ == eVocoderType_BlockBurgLPC)
+            new_latency = stft_.GetFFTSize();
         latency_ = new_latency;
     }
 }

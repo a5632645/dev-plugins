@@ -268,8 +268,7 @@ public:
     };
 
     void Init(float sample_rate, int block_size);
-    void ProcessBlock(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side,
-                      int num_samples);
+    void Process(qwqdsp_simd_element::PackFloat<2>* main, qwqdsp_simd_element::PackFloat<2>* side, int num_samples);
 
     void SetParam(const Params& p);
 

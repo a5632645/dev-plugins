@@ -25,7 +25,6 @@ void STFT::Reset() {
     std::ranges::fill(gains2_, 0.0f);
     std::ranges::fill(mfcc_gains_, 0.0f);
     std::ranges::fill(mfcc_gains2_, 0.0f);
-    ola_.Reset();
 }
 
 void STFT::SetParam(const Params& p) {
@@ -44,8 +43,6 @@ void STFT::SetParam(const Params& p) {
                       * std::cos(2.0f * std::numbers::pi_v<float>
                                  * static_cast<float>(i) / static_cast<float>(p.fft_size));
         }
-        ola_.Init(p.fft_size, p.fft_size / 4, hann_window_);
-        ola_.SetOutputGain(4.0f);
 
         // 缓冲
         int const num_bins = p.fft_size / 2 + 1;
@@ -77,8 +74,8 @@ void STFT::SetParam(const Params& p) {
 
     // attack / release（依赖 hop_size_）
     attack_factor_ = qwqdsp::convert::Ms2DecayDb(p.attack, sample_rate_, -60.0f);
-    decay_ =
-        qwqdsp::convert::Ms2DecayDb(p.release + p.attack, sample_rate_ / static_cast<float>(fft_size_ / 4), -60.0f);
+    decay_ = qwqdsp::convert::Ms2DecayDb(p.release + p.attack, sample_rate_ / (static_cast<float>(fft_size_) / 4.0f),
+                                         -60.0f);
 
     blend_ = p.blend;
     formant_mul_ = std::exp2(-p.formant_shift / 12.0f);
