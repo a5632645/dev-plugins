@@ -31,6 +31,7 @@ void Engine::Init(double sample_rate, int block_size) {
     cepstrum_stft_.Init(stft_);
     mfcc_stft_.Init(stft_);
     smooth_stft_.Init(stft_);
+    welch_stft_.Init(stft_);
     stft_mode_ = dsp::STFTMode::Cepstrum;
 
     pitch_osc_.Init(fs);
@@ -118,6 +119,10 @@ void Engine::Update(Params& p) {
 
                 cepstrum_stft_.SetParam({.detail = p.stft_detail.Get()}, stft_);
                 mfcc_stft_.SetParam({.num_mfcc = static_cast<int>(p.mfcc_nbands.Get())}, stft_);
+                welch_stft_.SetParam(
+                    {.welch_frames = static_cast<int>(std::round(p.stft_welch.Get())),
+                     .floor_db = p.stft_floor.Get()},
+                    stft_);
                 smooth_stft_.SetParam(
                     {.type = p.stft_smooth_erb.Get() ? dsp::STFTSmooth::SmoothType::ERB
                                                      : dsp::STFTSmooth::SmoothType::OCT,
@@ -247,6 +252,13 @@ void Engine::Process(juce::AudioBuffer<float>& buffer, int mod_ch, int carry_ch,
                                 main, side, n, kStftGain,
                                 [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
                                     return stft_.Process(mf, sf, stft_.hann_window_, smooth_stft_);
+                                });
+                            break;
+                        case dsp::STFTMode::Welch:
+                            ola_.Process(
+                                main, side, n, kStftGain,
+                                [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
+                                    return stft_.Process(mf, sf, stft_.hann_window_, welch_stft_);
                                 });
                             break;
                     }

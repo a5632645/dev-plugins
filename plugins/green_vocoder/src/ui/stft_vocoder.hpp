@@ -29,6 +29,8 @@ private:
     ::ui::Dial detail_{"detail"};
     ::ui::Switch smooth_type_{"ERB", "OCT"};
     ::ui::Dial smooth_{"smooth"};
+    ::ui::Dial welch_{"avg"};
+    ::ui::Dial floor_{"floor"};
     ::ui::FlatSlider mfcc_size_;
     juce::Label mfcc_size_title_{"", "bands"};
 };

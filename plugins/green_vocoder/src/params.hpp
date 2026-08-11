@@ -245,7 +245,7 @@ public:
     };
     pluginshared::FloatParam stft_blend{
         "stft_blend", {0.0f, 0.99f, 0.01f},
-         0.2f
+         0.6f
     };
     pluginshared::ChoiceParam stft_size{
         "stft_size", juce::StringArray{"256", "512", "1024", "2048", "4096"},
@@ -256,7 +256,7 @@ public:
          0.3f
     };
     pluginshared::ChoiceParam stft_type{
-        "stft_type", juce::StringArray{"Standard", "Cepstrum", "MFCC", "Smooth"},
+        "stft_type", juce::StringArray{"Standard", "Cepstrum", "MFCC", "Smooth", "Welch"},
          "Cepstrum"
     };
     pluginshared::BoolParam stft_smooth_erb{
@@ -265,6 +265,14 @@ public:
     pluginshared::FloatParam stft_smooth{
         "stft_smooth", {0.1f, 2.0f, 0.05f},
          1.0f
+    };
+    pluginshared::FloatParam stft_welch{
+        "stft_welch", {1.0f, 16.0f, 1.0f},
+         4.0f
+    };
+    pluginshared::FloatParam stft_floor{
+        "stft_floor", {-120.0f, -20.0f, 1.0f},
+         -80.0f
     };
 
     // pitch tracking
@@ -338,6 +346,8 @@ public:
         layout += stft_type;
         layout += stft_smooth_erb;
         layout += stft_smooth;
+        layout += stft_welch;
+        layout += stft_floor;
         layout += track_low;
         layout += track_high;
         layout += track_pitch;
@@ -376,6 +386,8 @@ public:
         stft_type.ptr_->addListener(&stft_listener_);
         stft_smooth_erb.ptr_->addListener(&stft_listener_);
         stft_smooth.ptr_->addListener(&stft_listener_);
+        stft_welch.ptr_->addListener(&stft_listener_);
+        stft_floor.ptr_->addListener(&stft_listener_);
         stft_size.ptr_->addListener(&stft_block_listener_);
         track_low.ptr_->addListener(&pitch_osc_listener_);
         track_high.ptr_->addListener(&pitch_osc_listener_);
@@ -415,6 +427,8 @@ public:
         stft_type.ptr_->removeListener(&stft_listener_);
         stft_smooth_erb.ptr_->removeListener(&stft_listener_);
         stft_smooth.ptr_->removeListener(&stft_listener_);
+        stft_welch.ptr_->removeListener(&stft_listener_);
+        stft_floor.ptr_->removeListener(&stft_listener_);
         stft_size.ptr_->removeListener(&stft_block_listener_);
         track_low.ptr_->removeListener(&pitch_osc_listener_);
         track_high.ptr_->removeListener(&pitch_osc_listener_);

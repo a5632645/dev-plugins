@@ -31,6 +31,12 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
     smooth_.BindParam(processor.params_.stft_smooth.ptr_);
     addAndMakeVisible(smooth_);
 
+    welch_.BindParam(processor.params_.stft_welch.ptr_);
+    addAndMakeVisible(welch_);
+
+    floor_.BindParam(processor.params_.stft_floor.ptr_);
+    addAndMakeVisible(floor_);
+
     mfcc_size_.BindParam(processor.params_.mfcc_nbands.ptr_);
     addAndMakeVisible(mfcc_size_);
     mfcc_size_title_.setJustificationType(juce::Justification::centredLeft);
@@ -59,6 +65,11 @@ void STFTVocoder::resized() {
         bandwidth_.setBounds(top.removeFromLeft(50));
         blend_.setBounds(top.removeFromLeft(50));
     }
+    if (mode == Welch) {
+        welch_.setBounds(top.removeFromLeft(50));
+        floor_.setBounds(top.removeFromLeft(50));
+        blend_.setBounds(top.removeFromLeft(50));
+    }
     if (mode == Cepstrum) {
         detail_.setBounds(top.removeFromLeft(50).withSizeKeepingCentre(50, 65));
         blend_.setBounds(top.removeFromLeft(50));
@@ -81,6 +92,7 @@ void STFTVocoder::paint(juce::Graphics& g) {
         case Standard:
         case Cepstrum:
         case Smooth:
+        case Welch:
             DrawStandardCepstrum(g);
             break;
         case MFCC:
@@ -162,6 +174,8 @@ void STFTVocoder::OnModeChanged() {
     auto mode = static_cast<green_vocoder::dsp::STFTMode>(mode_.getSelectedItemIndex());
     blend_.setVisible(mode != MFCC);
     bandwidth_.setVisible(mode == Standard);
+    welch_.setVisible(mode == Welch);
+    floor_.setVisible(mode == Welch);
     detail_.setVisible(mode == Cepstrum);
     smooth_type_.setVisible(mode == Smooth);
     smooth_.setVisible(mode == Smooth);

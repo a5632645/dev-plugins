@@ -14,6 +14,7 @@
 #include "stft/stft_mfcc.hpp"
 #include "stft/stft_smooth.hpp"
 #include "stft/stft_standard.hpp"
+#include "stft/stft_welch.hpp"
 #include "tilt_filter.hpp"
 
 #include "../global.hpp"
@@ -72,6 +73,7 @@ private:
     dsp::STFTCepstrum cepstrum_stft_;
     dsp::STFTMFCC mfcc_stft_;
     dsp::STFTSmooth smooth_stft_;
+    dsp::STFTWelch welch_stft_;
     dsp::BlockBurgLPC block_burg_;
     dsp::ChannelVocoder channel_vocoder_;
     dsp::LeakyBurgLPC burg_lpc_;
