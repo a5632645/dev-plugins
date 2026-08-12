@@ -35,7 +35,7 @@ void STFTSmooth::SetParam(const Params& p, STFT& self) {
 
 void STFTSmooth::operator()(STFT& self, std::span<const float> real_in, std::span<const float> imag_in,
                             std::span<float> real_out, std::span<float> imag_out, int channel) {
-    auto& gains = channel == 0 ? self.gains_ : self.gains2_;
+    auto& gains = channel == 0 ? self.gains_left_ : self.gains_right_;
     int const num_bins = self.fft_size_ / 2 + 1;
 
     // 调制器功率谱 → OCT/ERB 平滑包络（就地平滑）

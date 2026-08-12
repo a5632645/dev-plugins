@@ -65,7 +65,7 @@ void STFTCepstrum::SetParam(const Params& p, STFT& self) {
 
 void STFTCepstrum::operator()(STFT& self, std::span<const float> real_in, std::span<const float> imag_in,
                               std::span<float> real_out, std::span<float> imag_out, int channel) {
-    auto& gains = channel == 0 ? self.gains_ : self.gains2_;
+    auto& gains = channel == 0 ? self.gains_left_ : self.gains_right_;
 
     int const fft_size = self.fft_size_;
     // 分析窗不归一化（普通 hann），此处保留 2/N 修正 + 倒谱 lifter 补偿系数（GetFixGain 查表）

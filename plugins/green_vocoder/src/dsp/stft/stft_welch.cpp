@@ -46,7 +46,7 @@ void STFTWelch::SetParam(const Params& p, STFT& self) {
 
 void STFTWelch::operator()(STFT& self, std::span<const float> real_in, std::span<const float> imag_in,
                            std::span<float> real_out, std::span<float> imag_out, int channel) {
-    auto& gains = channel == 0 ? self.gains_ : self.gains2_;
+    auto& gains = channel == 0 ? self.gains_left_ : self.gains_right_;
     auto& log_gains = log_gains_[static_cast<size_t>(channel)];
     int const num_bins = num_bins_;
     size_t const ch = static_cast<size_t>(channel);

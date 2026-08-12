@@ -87,7 +87,7 @@ void STFTMorph::ExtractEnvelope(std::span<const float> magnitude, std::span<floa
 
 void STFTMorph::operator()(STFT& self, std::span<const float> real_in, std::span<const float> imag_in,
                            std::span<float> real_out, std::span<float> imag_out, int channel) {
-    auto& gains = channel == 0 ? self.gains_ : self.gains2_;
+    auto& gains = channel == 0 ? self.gains_left_ : self.gains_right_;
     int const num_bins = num_bins_;
 
     // A/B 角色：direction 决定 A→B 还是 B→A（交换输入谱）

@@ -125,22 +125,22 @@ public:
     std::vector<float> hann_sinc_window_{};
 
     // GUI 读取
-    std::vector<float> gains_{};
-    std::vector<float> gains2_{};
-    std::array<float, global::kMaxNumMfcc> mfcc_gains_{};
-    std::array<float, global::kMaxNumMfcc> mfcc_gains2_{};
+    std::vector<float> gains_left_{};
+    std::vector<float> gains_right_{};
+    std::array<float, global::kMaxNumMfcc> mfcc_gains_left_{};
+    std::array<float, global::kMaxNumMfcc> mfcc_gains_right_{};
 
-    std::vector<float> const& GetGains() const noexcept {
-        return gains_;
+    std::vector<float> const& GetGainsLeft() const noexcept {
+        return gains_left_;
     }
-    std::vector<float> const& GetGains2() const noexcept {
-        return gains2_;
+    std::vector<float> const& GetGainsRight() const noexcept {
+        return gains_right_;
     }
-    std::array<float, global::kMaxNumMfcc> const& GetMfccGains() const noexcept {
-        return mfcc_gains_;
+    std::array<float, global::kMaxNumMfcc> const& GetMfccGainsLeft() const noexcept {
+        return mfcc_gains_left_;
     }
-    std::array<float, global::kMaxNumMfcc> const& GetMfccGains2() const noexcept {
-        return mfcc_gains2_;
+    std::array<float, global::kMaxNumMfcc> const& GetMfccGainsRight() const noexcept {
+        return mfcc_gains_right_;
     }
 
     // 频谱平滑辅助

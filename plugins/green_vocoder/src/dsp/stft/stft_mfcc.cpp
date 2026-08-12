@@ -40,7 +40,7 @@ void STFTMFCC::SetParam(const Params& p, STFT& self) {
 
 void STFTMFCC::operator()(STFT& self, std::span<const float> real_in, std::span<const float> imag_in,
                           std::span<float> real_out, std::span<float> imag_out, int channel) {
-    auto& gains = channel == 0 ? self.mfcc_gains_ : self.mfcc_gains2_;
+    auto& gains = channel == 0 ? self.mfcc_gains_left_ : self.mfcc_gains_right_;
     int const fft_size = self.fft_size_;
     for (int mcff_idx = 0; mcff_idx < num_mfcc_; ++mcff_idx) {
         int const begin = mfcc_indexs_[static_cast<size_t>(mcff_idx)];

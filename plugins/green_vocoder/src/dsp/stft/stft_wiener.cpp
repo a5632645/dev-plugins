@@ -22,7 +22,7 @@ void STFTWiener::SetParam(const Params& p, STFT& self) {
 void STFTWiener::operator()(STFT& self, std::span<const float> re_mod, std::span<const float> im_mod,
                             std::span<float> re_carry_win, std::span<float> im_carry_win, std::span<float> re_carry,
                             std::span<float> im_carry, int channel) {
-    auto& gains = channel == 0 ? self.gains_ : self.gains2_;
+    auto& gains = channel == 0 ? self.gains_left_ : self.gains_right_;
     int const num_bins = num_bins_;
 
     // A/B 角色：direction 决定 a=A(调制器)、b=B(载波) 还是交换

@@ -9,7 +9,7 @@ namespace green_vocoder::dsp {
 
 void STFTStandard::operator()(STFT& self, std::span<const float> real_in, std::span<const float> imag_in,
                               std::span<float> real_out, std::span<float> imag_out, int channel) {
-    auto& gains = channel == 0 ? self.gains_ : self.gains2_;
+    auto& gains = channel == 0 ? self.gains_left_ : self.gains_right_;
 
     int const num_bins = self.fft_size_ / 2 + 1;
     for (int i = 0; i < num_bins; ++i) {

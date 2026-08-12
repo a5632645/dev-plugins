@@ -27,10 +27,10 @@ void STFT::Reset() {
     std::ranges::fill(imag_side_, 0.0f);
     std::ranges::fill(real_carry_, 0.0f);
     std::ranges::fill(imag_carry_, 0.0f);
-    std::ranges::fill(gains_, 0.0f);
-    std::ranges::fill(gains2_, 0.0f);
-    std::ranges::fill(mfcc_gains_, 0.0f);
-    std::ranges::fill(mfcc_gains2_, 0.0f);
+    std::ranges::fill(gains_left_, 0.0f);
+    std::ranges::fill(gains_right_, 0.0f);
+    std::ranges::fill(mfcc_gains_left_, 0.0f);
+    std::ranges::fill(mfcc_gains_right_, 0.0f);
 }
 
 void STFT::SetParam(const Params& p) {
@@ -59,8 +59,8 @@ void STFT::SetParam(const Params& p) {
         real_carry_.resize(static_cast<size_t>(num_bins));
         imag_carry_.resize(static_cast<size_t>(num_bins));
         output_frame_.resize(static_cast<size_t>(p.fft_size));
-        gains_.resize(static_cast<size_t>(num_bins) + global::kExtraGainSize);
-        gains2_.resize(static_cast<size_t>(num_bins) + global::kExtraGainSize);
+        gains_left_.resize(static_cast<size_t>(num_bins) + global::kExtraGainSize);
+        gains_right_.resize(static_cast<size_t>(num_bins) + global::kExtraGainSize);
         hann_sinc_window_.resize(static_cast<size_t>(p.fft_size));
     }
 

@@ -153,7 +153,7 @@ void STFTVocoder::DrawStandardCepstrum(juce::Graphics& g) {
     std::vector<float> gains;
     {
         juce::ScopedLock _{processor_.getCallbackLock()};
-        gains = processor_.engine_.GetSTFT().GetGains();
+        gains = processor_.engine_.GetSTFT().GetGainsLeft();
     }
 
     // Morph 输出幅度（软限幅后）可高于 20 dB，抬高绘图上限与顶部网格线避免曲线被顶部截断
@@ -192,7 +192,7 @@ void STFTVocoder::DrawMfcc(juce::Graphics& g) {
     size_t nbands = static_cast<size_t>(mfcc_size_.slider.getValue());
     float width = bb.getWidth() / static_cast<float>(nbands);
     float x = bb.getX();
-    auto peaks = processor_.engine_.GetSTFT().GetMfccGains();
+    auto peaks = processor_.engine_.GetSTFT().GetMfccGainsLeft();
     for (size_t i = 0; i < nbands; ++i) {
         juce::Rectangle<float> rect{x + width * 0.25f, bb.getY(), width * 0.5f, bb.getHeight()};
         float gain = peaks[i];
