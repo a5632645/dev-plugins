@@ -1,7 +1,6 @@
 #include "leaky_burg_lpc.hpp"
 #include <algorithm>
 #include <cassert>
-#include <cmath>
 #include <cstdlib>
 #include <qwqdsp/filter/rbj.hpp>
 
@@ -94,7 +93,8 @@ void LeakyBurgLPC::SetParam(const Params& p) {
     gain_smooth_.SetReleaseTime(p.gain_release + p.gain_attack, sample_rate_);
     gain_smooth_.SetHoldTime(p.gain_hold, sample_rate_);
 
-    fir_allpass_coeff_ = std::clamp(-p.formant_shift, -0.99f, 0.99f);
+    // formant_shift 为半音（st），归一化到全通系数范围（st=±12 → ±0.99）
+    fir_allpass_coeff_ = std::clamp(-p.formant_shift / 12.0f, -0.99f, 0.99f);
 }
 
 void LeakyBurgLPC::CopyLatticeCoeffient(std::span<float> buffer, int order) {

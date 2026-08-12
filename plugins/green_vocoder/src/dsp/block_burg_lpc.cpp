@@ -37,7 +37,8 @@ void BlockBurgLPC::SetParam(const Params& p) {
     smear_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(std::max(p.smear, 10.0f), update_rate_);
     attack_factor_ = qwqdsp_misc::ExpSmoother::ComputeSmoothFactor(p.attack, update_rate_);
 
-    fir_allpass_coeff_ = std::clamp(-p.formant_shift, -0.99f, 0.99f);
+    // formant_shift 为半音（st），归一化到全通系数范围（st=±12 → ±0.99）
+    fir_allpass_coeff_ = std::clamp(-p.formant_shift / 12.0f, -0.99f, 0.99f);
 }
 
 std::span<PackFloat2 const> BlockBurgLPC::operator()(std::span<PackFloat2 const> main,

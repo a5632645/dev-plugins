@@ -1,5 +1,6 @@
 #pragma once
 #include <span>
+#include <vector>
 
 #include "stft.hpp"
 
@@ -34,6 +35,7 @@ private:
     int num_bins_{};
     bool glitch_{false};
     bool direction_ab_{true};
+    std::vector<float> g_temp_{}; // 逐 bin 维纳增益（供共振峰搬移插值）
 };
 
 } // namespace green_vocoder::dsp

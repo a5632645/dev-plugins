@@ -106,7 +106,7 @@ void Engine::Update(Params& p) {
                     .gain_attack = p.lpc_gain_attack.Get(),
                     .gain_release = p.lpc_gain_release.Get(),
                     .gain_hold = p.lpc_gain_hold.Get(),
-                    .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
+                    .formant_shift = p.shift_pitch.Get(), // 半音（st）
                 });
             break;
 
@@ -118,7 +118,7 @@ void Engine::Update(Params& p) {
                     .poles = static_cast<int>(p.lpc_order.Get()),
                     .smear = p.lpc_smooth.Get(),
                     .attack = p.lpc_gain_attack.Get(),
-                    .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
+                    .formant_shift = p.shift_pitch.Get(), // 半音（st）
                 });
                 InitOla(block_size);
             }
@@ -132,7 +132,7 @@ void Engine::Update(Params& p) {
                     .release = p.stft_release.Get(),
                     .fft_size = fft_size,
                     .blend = p.stft_blend.Get(),
-                    .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
+                    .formant_shift = p.shift_pitch.Get(), // 半音（st）
                     .bandwidth = p.stft_bandwidth.Get(),
                 });
 
@@ -173,7 +173,7 @@ void Engine::Update(Params& p) {
                     .map = static_cast<dsp::eChannelVocoderMap>(p.cv_map.Get()),
                     .filter_bank_mode = static_cast<dsp::ChannelVocoder::FilterBankMode>(p.cv_filter_bank_mode.Get()),
                     .gate = p.cv_gate.Get(),
-                    .formant_shift = p.shift_pitch.Get() * (16.0f / 24.0f) / 24.0f,
+                    .formant_shift = p.shift_pitch.Get(), // 半音（st）
                     .ripple = p.cv_ripple.Get(),
                 });
             break;

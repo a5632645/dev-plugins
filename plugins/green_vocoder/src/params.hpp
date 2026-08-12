@@ -151,7 +151,7 @@ public:
 
     // pitch shifter
     pluginshared::FloatParam shift_pitch{
-        "shift_pitch", {-24.0f, 24.0f, 1.0f},
+        "shift_pitch", {-12.0f, 12.0f, 1.0f}, // 共振峰搬移（半音，-12 ~ +12 st）
          0.0f
     };
 

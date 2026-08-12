@@ -75,15 +75,14 @@ void STFTMFCC::operator()(STFT& self, std::span<const float> real_in, std::span<
     fill_gains_[static_cast<size_t>(num_bins)] = fill_gains_[0];
     // 共振峰搬移
     for (int i = 0; i < num_bins; ++i) {
-        float idx = static_cast<float>(i) * self.formant_mul_;
-        float frac = idx - std::floor(idx);
-        int iidx = static_cast<int>(idx);
+        // idx 超出奈奎斯特时 clamp 到末 bin，避免向下搬移时顶部频谱被置零
+        float idx = std::min(static_cast<float>(i) * self.formant_mul_,
+                             static_cast<float>(num_bins - 1));
+        float const frac = idx - std::floor(idx);
+        int const iidx = static_cast<int>(idx);
 
-        float g = 0;
-        if (iidx < num_bins) {
-            g = qwqdsp::Interpolation::Linear(fill_gains_[static_cast<size_t>(iidx)],
-                                              fill_gains_[static_cast<size_t>(iidx) + 1], frac);
-        }
+        float const g = qwqdsp::Interpolation::Linear(fill_gains_[static_cast<size_t>(iidx)],
+                                                      fill_gains_[static_cast<size_t>(iidx) + 1], frac);
 
         real_out[static_cast<size_t>(i)] *= g;
         imag_out[static_cast<size_t>(i)] *= g;

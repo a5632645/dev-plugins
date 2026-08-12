@@ -1,6 +1,9 @@
 #include "stft_wiener.hpp"
 
+#include <algorithm>
 #include <cmath>
+
+#include "qwqdsp/interpolation.hpp"
 
 namespace green_vocoder::dsp {
 
@@ -11,6 +14,7 @@ void STFTWiener::Init(STFT& self) {
 void STFTWiener::SetParam(const Params& p, STFT& self) {
     fft_size_ = self.fft_size_;
     num_bins_ = fft_size_ / 2 + 1;
+    g_temp_.resize(static_cast<size_t>(num_bins_) + 1);
     glitch_ = p.glitch;
     direction_ab_ = p.direction_ab;
 }
@@ -27,6 +31,7 @@ void STFTWiener::operator()(STFT& self, std::span<const float> re_mod, std::span
     std::span<const float> re_b = direction_ab_ ? re_carry_win : re_mod;
     std::span<const float> im_b = direction_ab_ ? im_carry_win : im_mod;
 
+    // 逐 bin 计算维纳增益存入 g_temp_，随后做共振峰搬移
     for (int i = 0; i < num_bins; ++i) {
         float const a = (re_a[static_cast<size_t>(i)] * re_a[static_cast<size_t>(i)]
                          + im_a[static_cast<size_t>(i)] * im_a[static_cast<size_t>(i)]);
@@ -38,6 +43,19 @@ void STFTWiener::operator()(STFT& self, std::span<const float> re_mod, std::span
         if (!std::isfinite(g)) {
             g = 0;
         }
+        g_temp_[static_cast<size_t>(i)] = g;
+    }
+    g_temp_[static_cast<size_t>(num_bins)] = g_temp_[0];
+
+    // 共振峰搬移 + 应用：idx 超出奈奎斯特时 clamp 到末 bin
+    for (int i = 0; i < num_bins; ++i) {
+        float idx = std::min(static_cast<float>(i) * self.formant_mul_,
+                             static_cast<float>(num_bins - 1));
+        float const frac = idx - std::floor(idx);
+        int const iidx = static_cast<int>(idx);
+
+        float const g = qwqdsp::Interpolation::Linear(g_temp_[static_cast<size_t>(iidx)],
+                                                      g_temp_[static_cast<size_t>(iidx) + 1], frac);
 
         // glitch=false → 作用在 fft(carry*win)（常规）；glitch=true → 作用在 fft(carry)（未加窗载波）
         if (glitch_) {
