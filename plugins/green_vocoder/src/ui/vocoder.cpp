@@ -24,7 +24,6 @@ Vocoder::Vocoder(AudioPluginAudioProcessor& p) {
     addChildComponent(stft_.get());
 
     OnVocoderTypeChanged();
-    startTimerHz(30);
 }
 
 Vocoder::~Vocoder() {
@@ -89,9 +88,4 @@ void Vocoder::OnVocoderTypeChanged() {
     }
 }
 
-void Vocoder::timerCallback() {
-    if (current_vocoder_widget_ != nullptr) {
-        current_vocoder_widget_->repaint();
-    }
-}
 } // namespace green_vocoder::ui

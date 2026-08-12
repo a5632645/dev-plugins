@@ -1,7 +1,5 @@
 #include "stft_vocoder.hpp"
 #include "PluginProcessor.h"
-#include "db_curve.hpp"
-#include <vector>
 
 namespace green_vocoder::ui {
 
@@ -121,96 +119,7 @@ void STFTVocoder::resized() {
     }
 }
 
-void STFTVocoder::paint(juce::Graphics& g) {
-    using enum green_vocoder::dsp::STFTMode;
-    switch (static_cast<green_vocoder::dsp::STFTMode>(mode_.getSelectedItemIndex())) {
-        case Standard:
-        case Cepstrum:
-        case Smooth:
-        case Welch:
-        case Morph:
-        case Wiener:
-            DrawStandardCepstrum(g);
-            break;
-        case MFCC:
-            DrawMfcc(g);
-            break;
-    }
-}
-
-void STFTVocoder::timerCallback() {
-    repaint(getLocalBounds().removeFromTop(kTopHeight));
-}
-
 // -------------------- private --------------------
-
-void STFTVocoder::DrawStandardCepstrum(juce::Graphics& g) {
-    auto bb = getLocalBounds();
-    bb.removeFromTop(kTopHeight);
-    auto const plot = bb.toFloat();
-    FillPlotBackground(g, plot);
-
-    std::vector<float> gains;
-    {
-        juce::ScopedLock _{processor_.getCallbackLock()};
-        gains = processor_.engine_.GetSTFT().GetGainsLeft();
-    }
-
-    // Morph 输出幅度（软限幅后）可高于 20 dB，抬高绘图上限与顶部网格线避免曲线被顶部截断
-    auto mode = static_cast<green_vocoder::dsp::STFTMode>(mode_.getSelectedItemIndex());
-    const bool is_morph = mode == green_vocoder::dsp::STFTMode::Morph;
-    const float bound_top_db = is_morph ? 45.0f : 15.0f;
-    const float top_line_db = is_morph ? 40.0f : 10.0f;
-    constexpr float last_line_db = -60.0f;
-    constexpr float bound_bottom_db = -65.0f;
-    constexpr float freq_begin = 20.0f;
-    constexpr float freq_pow = 3.0f; // 20k
-
-    DrawDbGrid(g, plot, 5, top_line_db, last_line_db, bound_top_db, bound_bottom_db);
-    DrawFreqGrid(g, plot);
-
-    // draw
-    float const omega_base = freq_begin * 2.0f / static_cast<float>(processor_.engine_.GetSampleRate());
-    DrawDbCurve(g, plot, omega_base, bound_top_db, bound_bottom_db, freq_pow, [&gains](float omega) -> float {
-        int idx = static_cast<int>(omega * static_cast<float>(gains.size()));
-        idx = std::min<int>(idx, static_cast<int>(gains.size()) - 1);
-        return 20.0f * std::log10(gains[static_cast<size_t>(idx)] + 1e-10f);
-    });
-}
-
-void STFTVocoder::DrawMfcc(juce::Graphics& g) {
-    auto b = getLocalBounds();
-    b.removeFromTop(kTopHeight);
-    auto bb = b.toFloat();
-
-    g.setColour(::ui::black_bg);
-    g.fillRect(bb);
-
-    constexpr float up = 10.0f;
-    constexpr float down = -60.0f;
-
-    size_t nbands = static_cast<size_t>(mfcc_size_.slider.getValue());
-    float width = bb.getWidth() / static_cast<float>(nbands);
-    float x = bb.getX();
-    auto peaks = processor_.engine_.GetSTFT().GetMfccGainsLeft();
-    for (size_t i = 0; i < nbands; ++i) {
-        juce::Rectangle<float> rect{x + width * 0.25f, bb.getY(), width * 0.5f, bb.getHeight()};
-        float gain = peaks[i];
-
-        float db_gain = 20.0f * std::log10(gain + 1e-10f);
-        db_gain = std::clamp(db_gain, down, up);
-        float y_nor = (db_gain - (down)) / (up - (down));
-
-        auto bin = rect.removeFromBottom(y_nor * rect.getHeight());
-        g.setColour(::ui::line_fore);
-        g.fillRect(bin);
-
-        x += width;
-    }
-
-    // 水平 dB 网格（0 ~ -60 dB，每 10 dB 一条，带刻度）
-    DrawDbGrid(g, bb, 7, up, down, up + 5.0f, down - 5.0f);
-}
 
 void STFTVocoder::OnModeChanged() {
     using enum green_vocoder::dsp::STFTMode;

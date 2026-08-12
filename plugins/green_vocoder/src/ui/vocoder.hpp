@@ -4,15 +4,12 @@
 class AudioPluginAudioProcessor;
 
 namespace green_vocoder::ui {
-class Vocoder
-    : public juce::Component
-    , private juce::Timer {
+class Vocoder : public juce::Component {
 public:
     Vocoder(AudioPluginAudioProcessor& p);
     ~Vocoder() override;
     void resized() override;
 private:
-    void timerCallback() override;
     void OnVocoderTypeChanged();
 
     juce::Label title_{"", "Vocoder"};

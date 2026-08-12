@@ -78,34 +78,4 @@ void ChannelVocoder::resized() {
     }
 }
 
-void ChannelVocoder::paint(juce::Graphics& g) {
-    auto b = getLocalBounds();
-    b.removeFromTop(scale_.getBottom());
-    auto bb = b.toFloat();
-
-    g.setColour(::ui::black_bg);
-    g.fillRect(bb);
-
-    constexpr float up = 5.0f;
-    constexpr float down = -60.0f;
-
-    int nbands = vocoder_.GetNumBins();
-    float width = static_cast<float>(bb.getWidth()) / static_cast<float>(nbands);
-    float x = bb.getX();
-    for (int i = 0; i < nbands; ++i) {
-        juce::Rectangle<float> rect{x + width * 0.25f, bb.getY(), width * 0.5f, bb.getHeight()};
-        float gain = vocoder_.GetBinPeak(i)[0];
-
-        float db_gain = 20.0f * std::log10(gain + 1e-10f);
-        db_gain = std::clamp(db_gain, down, up);
-        float y_nor = (db_gain - (down)) / (up - (down));
-
-        auto bin = rect.removeFromBottom(y_nor * rect.getHeight());
-        g.setColour(::ui::line_fore);
-        g.fillRect(bin);
-
-        x += width;
-    }
-}
-
 } // namespace green_vocoder::ui

@@ -10,7 +10,6 @@ class BurgLPC : public juce::Component {
 public:
     BurgLPC(AudioPluginAudioProcessor& processor);
     void resized() override;
-    void paint(juce::Graphics& g) override;
 
     void SetBlockMode(bool block_mode);
 private:

@@ -10,7 +10,6 @@ class ChannelVocoder : public juce::Component {
 public:
     ChannelVocoder(AudioPluginAudioProcessor& processor);
     void resized() override;
-    void paint(juce::Graphics& g) override;
 private:
     dsp::ChannelVocoder& vocoder_;
     ::ui::Dial attack_{"attack"};

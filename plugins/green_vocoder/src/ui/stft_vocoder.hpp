@@ -5,17 +5,11 @@ class AudioPluginAudioProcessor;
 
 namespace green_vocoder::ui {
 
-class STFTVocoder
-    : public juce::Component
-    , private juce::Timer {
+class STFTVocoder : public juce::Component {
 public:
     STFTVocoder(AudioPluginAudioProcessor& processor);
     void resized() override;
-    void paint(juce::Graphics& g) override;
 private:
-    void timerCallback() override;
-    void DrawStandardCepstrum(juce::Graphics& g);
-    void DrawMfcc(juce::Graphics& g);
     void OnModeChanged();
 
     AudioPluginAudioProcessor& processor_;
