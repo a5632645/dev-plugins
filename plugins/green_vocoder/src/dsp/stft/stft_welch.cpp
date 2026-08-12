@@ -89,12 +89,14 @@ void STFTWelch::operator()(STFT& self, std::span<const float> real_in, std::span
 
         gains[static_cast<size_t>(i)] = qwqdsp::convert::Db2Gain(log_gains[static_cast<size_t>(i)]);
     }
-    gains[static_cast<size_t>(num_bins)] = gains[0];
-    // 共振峰搬移
+    // 末尾两个 bin 置零：idx clamp 到 num_bins 后插值平滑衰减到 0，而非维持末 bin 增益
+    gains[static_cast<size_t>(num_bins)] = 0.0f;
+    gains[static_cast<size_t>(num_bins + 1)] = 0.0f;
+
+    // 共振峰搬移（idx 超出奈奎斯特时 clamp 到 num_bins，其增益为 0，顶部平滑衰减）
     for (int i = 0; i < num_bins; ++i) {
-        // idx 超出奈奎斯特时 clamp 到末 bin，避免向下搬移时顶部频谱被置零
         float idx = std::min(static_cast<float>(i) * self.formant_mul_,
-                             static_cast<float>(num_bins - 1));
+                             static_cast<float>(num_bins));
         float const frac = idx - std::floor(idx);
         int const iidx = static_cast<int>(idx);
 

@@ -26,7 +26,7 @@ static constexpr int kMaxOrder = 100;
 static constexpr int kMinOrder = 4;
 
 // stft vocoder
-static constexpr int kExtraGainSize = 1;
+static constexpr int kExtraGainSize = 2; // gains 尾部 2 个 0 bin（formant 顶部平滑衰减用）
 static constexpr int kMaxNumMfcc = 80;
 static constexpr int kMinNumMfcc = 8;
 // 非 Morph STFT 模式的 mod 增益补偿（乘在 Blend 之前）：默认 blend 下提升输出电平，

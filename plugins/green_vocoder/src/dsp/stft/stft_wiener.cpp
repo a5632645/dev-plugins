@@ -14,7 +14,7 @@ void STFTWiener::Init(STFT& self) {
 void STFTWiener::SetParam(const Params& p, STFT& self) {
     fft_size_ = self.fft_size_;
     num_bins_ = fft_size_ / 2 + 1;
-    g_temp_.resize(static_cast<size_t>(num_bins_) + 1);
+    g_temp_.resize(static_cast<size_t>(num_bins_) + 2); // +2：formant 顶部两个 0 bin
     glitch_ = p.glitch;
     direction_ab_ = p.direction_ab;
 }
@@ -45,12 +45,14 @@ void STFTWiener::operator()(STFT& self, std::span<const float> re_mod, std::span
         }
         g_temp_[static_cast<size_t>(i)] = g;
     }
-    g_temp_[static_cast<size_t>(num_bins)] = g_temp_[0];
+    // 末尾两个 bin 置零：idx clamp 到 num_bins 后插值平滑衰减到 0，而非维持末 bin 增益
+    g_temp_[static_cast<size_t>(num_bins)] = 0.0f;
+    g_temp_[static_cast<size_t>(num_bins + 1)] = 0.0f;
 
-    // 共振峰搬移 + 应用：idx 超出奈奎斯特时 clamp 到末 bin
+    // 共振峰搬移 + 应用（idx 超出奈奎斯特时 clamp 到 num_bins，其增益为 0，顶部平滑衰减）
     for (int i = 0; i < num_bins; ++i) {
         float idx = std::min(static_cast<float>(i) * self.formant_mul_,
-                             static_cast<float>(num_bins - 1));
+                             static_cast<float>(num_bins));
         float const frac = idx - std::floor(idx);
         int const iidx = static_cast<int>(idx);
 
