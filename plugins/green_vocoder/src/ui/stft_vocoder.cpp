@@ -46,11 +46,8 @@ STFTVocoder::STFTVocoder(AudioPluginAudioProcessor& processor)
     direction_.BindParam(processor.params_.stft_morph_ab.ptr_);
     addAndMakeVisible(direction_);
 
-    wiener_variant_.BindParam(processor.params_.stft_wiener_variant.ptr_);
-    addAndMakeVisible(wiener_variant_);
-
-    wiener_snr_.BindParam(processor.params_.stft_wiener_snr.ptr_);
-    addAndMakeVisible(wiener_snr_);
+    wiener_glitch_.BindParam(processor.params_.stft_wiener_glitch.ptr_);
+    addAndMakeVisible(wiener_glitch_);
 
     wiener_ab_.BindParam(processor.params_.stft_wiener_ab.ptr_);
     addAndMakeVisible(wiener_ab_);
@@ -88,8 +85,7 @@ void STFTVocoder::resized() {
 
     if (mode == Wiener) {
         // Wiener 无 attack/release/blend
-        place_switch(wiener_variant_);
-        place_dial(wiener_snr_);
+        place_switch(wiener_glitch_);
         place_switch(wiener_ab_);
     }
     else if (mode == Morph) {
@@ -161,8 +157,8 @@ void STFTVocoder::DrawStandardCepstrum(juce::Graphics& g) {
     }
 
     // Morph 输出幅度（软限幅后）可高于 20 dB，抬高绘图上限与顶部网格线避免曲线被顶部截断
-    const bool is_morph =
-        static_cast<green_vocoder::dsp::STFTMode>(mode_.getSelectedItemIndex()) == green_vocoder::dsp::STFTMode::Morph;
+    auto mode = static_cast<green_vocoder::dsp::STFTMode>(mode_.getSelectedItemIndex());
+    const bool is_morph = mode == green_vocoder::dsp::STFTMode::Morph;
     const float bound_top_db = is_morph ? 45.0f : 15.0f;
     const float top_line_db = is_morph ? 40.0f : 10.0f;
     constexpr float last_line_db = -60.0f;
@@ -227,8 +223,7 @@ void STFTVocoder::OnModeChanged() {
     floor_.setVisible(mode == Welch);
     morph_.setVisible(mode == Morph);
     direction_.setVisible(mode == Morph);
-    wiener_variant_.setVisible(mode == Wiener);
-    wiener_snr_.setVisible(mode == Wiener);
+    wiener_glitch_.setVisible(mode == Wiener);
     wiener_ab_.setVisible(mode == Wiener);
     detail_.setVisible(mode == Cepstrum);
     smooth_type_.setVisible(mode == Smooth);

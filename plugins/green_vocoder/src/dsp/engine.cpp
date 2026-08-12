@@ -150,10 +150,7 @@ void Engine::Update(Params& p) {
                 morph_stft_.SetParam(
                     {.morph = p.stft_morph.Get(), .direction_ab = p.stft_morph_ab.Get()}, stft_);
                 wiener_stft_.SetParam(
-                    {.variant = p.stft_wiener_variant.Get() ? dsp::STFTWiener::Variant::Standard
-                                                             : dsp::STFTWiener::Variant::Difference,
-                     .snr = p.stft_wiener_snr.Get(),
-                     .direction_ab = p.stft_wiener_ab.Get()},
+                    {.glitch = p.stft_wiener_glitch.Get(), .direction_ab = p.stft_wiener_ab.Get()},
                     stft_);
 
                 stft_mode_ = static_cast<dsp::STFTMode>(p.stft_type.Get());
@@ -300,7 +297,7 @@ void Engine::Process(juce::AudioBuffer<float>& buffer, int mod_ch, int carry_ch,
                             ola_.Process(
                                 main, side, n, stft_wola_gain_,
                                 [this](std::span<dsp::PackFloat2 const> mf, std::span<dsp::PackFloat2 const> sf) {
-                                    return stft_.Process(mf, sf, stft_.hann_window_, wiener_stft_);
+                                    return stft_.Process2(mf, sf, wiener_stft_);
                                 });
                             break;
                     }

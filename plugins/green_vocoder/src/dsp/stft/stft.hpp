@@ -12,6 +12,8 @@ namespace green_vocoder::dsp {
 
 using PackFloat2 = qwqdsp_simd_element::PackFloat<2>;
 
+struct STFTWiener; // 前向声明：Process2 专用（完整定义见 stft_wiener.hpp）
+
 // STFT 声码器模式（与 stft_type 参数索引对应）
 enum class STFTMode {
     Standard,
@@ -102,6 +104,12 @@ public:
         return std::span<PackFloat2 const>{output_frame_};
     }
 
+    // Wiener 专用单帧处理：三个 FFT 输入（fft(mod*win)、fft(carry*win)、fft(carry)）。
+    // glitch=false 时 g 作用在 fft(carry*win)（与原 Process 一致）；glitch=true 时作用在 fft(carry)。
+    // 定义见 stft.cpp（IFFT 取哪个谱由 wiener.GetGlitch() 决定）。
+    std::span<PackFloat2 const> Process2(std::span<PackFloat2 const> main_frame,
+                                         std::span<PackFloat2 const> side_frame, STFTWiener& wiener);
+
     // 公共派生状态（算法 functor 经 self 读取）
     int fft_size_{};
     float sample_rate_{};
@@ -142,10 +150,13 @@ private:
     float bandwidth_{}; // 上次应用的 bandwidth（用于判断是否需重算 sinc*hann 窗）
     std::vector<float> temp_main_;
     std::vector<float> temp_side_;
+    std::vector<float> temp_carry_;
     std::vector<float> real_main_;
     std::vector<float> real_side_;
     std::vector<float> imag_main_;
     std::vector<float> imag_side_;
+    std::vector<float> real_carry_;
+    std::vector<float> imag_carry_;
     std::vector<PackFloat2> output_frame_;
 };
 

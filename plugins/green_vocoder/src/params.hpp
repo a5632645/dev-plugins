@@ -281,12 +281,8 @@ public:
     pluginshared::BoolParam stft_morph_ab{
         "stft_morph_ab", true // true = A→B，false = B→A
     };
-    pluginshared::BoolParam stft_wiener_variant{
-        "stft_wiener_variant", true // true = Standard (a/(b+snr))，false = Difference ((a-b)/(a+b+snr))
-    };
-    pluginshared::FloatParam stft_wiener_snr{
-        "stft_wiener_snr", {0.0f, 1.0f, 0.001f},
-         0.01f
+    pluginshared::BoolParam stft_wiener_glitch{
+        "stft_wiener_glitch", false // true = g 作用在 fft(carry)（未加窗载波）→ 碎裂/glitch 音色
     };
     pluginshared::BoolParam stft_wiener_ab{
         "stft_wiener_ab", true // true = a=A(调制器), b=B(载波)；false 交换
@@ -367,8 +363,7 @@ public:
         layout += stft_floor;
         layout += stft_morph;
         layout += stft_morph_ab;
-        layout += stft_wiener_variant;
-        layout += stft_wiener_snr;
+        layout += stft_wiener_glitch;
         layout += stft_wiener_ab;
         layout += track_low;
         layout += track_high;
@@ -412,8 +407,7 @@ public:
         stft_floor.ptr_->addListener(&stft_listener_);
         stft_morph.ptr_->addListener(&stft_listener_);
         stft_morph_ab.ptr_->addListener(&stft_listener_);
-        stft_wiener_variant.ptr_->addListener(&stft_listener_);
-        stft_wiener_snr.ptr_->addListener(&stft_listener_);
+        stft_wiener_glitch.ptr_->addListener(&stft_listener_);
         stft_wiener_ab.ptr_->addListener(&stft_listener_);
         stft_size.ptr_->addListener(&stft_block_listener_);
         track_low.ptr_->addListener(&pitch_osc_listener_);
@@ -458,8 +452,7 @@ public:
         stft_floor.ptr_->removeListener(&stft_listener_);
         stft_morph.ptr_->removeListener(&stft_listener_);
         stft_morph_ab.ptr_->removeListener(&stft_listener_);
-        stft_wiener_variant.ptr_->removeListener(&stft_listener_);
-        stft_wiener_snr.ptr_->removeListener(&stft_listener_);
+        stft_wiener_glitch.ptr_->removeListener(&stft_listener_);
         stft_wiener_ab.ptr_->removeListener(&stft_listener_);
         stft_size.ptr_->removeListener(&stft_block_listener_);
         track_low.ptr_->removeListener(&pitch_osc_listener_);

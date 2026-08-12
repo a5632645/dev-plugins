@@ -8,6 +8,8 @@
 #include <qwqdsp/window/hann.hpp>
 #include <qwqdsp/window/helper.hpp>
 
+#include "stft_wiener.hpp"
+
 namespace green_vocoder::dsp {
 
 void STFT::Init(float fs) {
@@ -18,10 +20,13 @@ void STFT::Init(float fs) {
 void STFT::Reset() {
     std::ranges::fill(temp_main_, 0.0f);
     std::ranges::fill(temp_side_, 0.0f);
+    std::ranges::fill(temp_carry_, 0.0f);
     std::ranges::fill(real_main_, 0.0f);
     std::ranges::fill(real_side_, 0.0f);
     std::ranges::fill(imag_main_, 0.0f);
     std::ranges::fill(imag_side_, 0.0f);
+    std::ranges::fill(real_carry_, 0.0f);
+    std::ranges::fill(imag_carry_, 0.0f);
     std::ranges::fill(gains_, 0.0f);
     std::ranges::fill(gains2_, 0.0f);
     std::ranges::fill(mfcc_gains_, 0.0f);
@@ -46,10 +51,13 @@ void STFT::SetParam(const Params& p) {
         int const num_bins = p.fft_size / 2 + 1;
         temp_main_.resize(static_cast<size_t>(p.fft_size) * 2);
         temp_side_.resize(static_cast<size_t>(p.fft_size) * 2);
+        temp_carry_.resize(static_cast<size_t>(p.fft_size) * 2);
         real_main_.resize(static_cast<size_t>(num_bins));
         real_side_.resize(static_cast<size_t>(num_bins));
         imag_main_.resize(static_cast<size_t>(num_bins));
         imag_side_.resize(static_cast<size_t>(num_bins));
+        real_carry_.resize(static_cast<size_t>(num_bins));
+        imag_carry_.resize(static_cast<size_t>(num_bins));
         output_frame_.resize(static_cast<size_t>(p.fft_size));
         gains_.resize(static_cast<size_t>(num_bins) + global::kExtraGainSize);
         gains2_.resize(static_cast<size_t>(num_bins) + global::kExtraGainSize);
@@ -86,6 +94,50 @@ float STFT::Blend(float x) noexcept {
     x = (blend_ + x) / (1.0f + blend_ * x);
     x = 0.5f * x + 0.5f;
     return x;
+}
+
+std::span<PackFloat2 const> STFT::Process2(std::span<PackFloat2 const> main_frame,
+                                           std::span<PackFloat2 const> side_frame, STFTWiener& wiener) {
+    // 左声道：fft(mod*win)、fft(carry*win)、fft(carry) 三个谱输入
+    for (int i = 0; i < fft_size_; ++i) {
+        temp_main_[static_cast<size_t>(i)] =
+            hann_window_[static_cast<size_t>(i)] * main_frame[static_cast<size_t>(i)][0];
+        temp_side_[static_cast<size_t>(i)] =
+            hann_window_[static_cast<size_t>(i)] * side_frame[static_cast<size_t>(i)][0];
+        temp_carry_[static_cast<size_t>(i)] = side_frame[static_cast<size_t>(i)][0];
+    }
+    fft_.FFT({temp_main_.data(), static_cast<size_t>(fft_size_)}, real_main_, imag_main_);
+    fft_.FFT({temp_side_.data(), static_cast<size_t>(fft_size_)}, real_side_, imag_side_);
+    fft_.FFT({temp_carry_.data(), static_cast<size_t>(fft_size_)}, real_carry_, imag_carry_);
+    wiener(*this, real_main_, imag_main_, real_side_, imag_side_, real_carry_, imag_carry_, 0);
+    // glitch=false → IFFT(fft(carry*win))；true → IFFT(fft(carry))
+    if (wiener.GetGlitch())
+        fft_.IFFT({temp_main_.data(), static_cast<size_t>(fft_size_)}, real_carry_, imag_carry_);
+    else
+        fft_.IFFT({temp_main_.data(), static_cast<size_t>(fft_size_)}, real_side_, imag_side_);
+
+    // 右声道
+    for (int i = 0; i < fft_size_; ++i) {
+        temp_main_[static_cast<size_t>(fft_size_ + i)] =
+            hann_window_[static_cast<size_t>(i)] * main_frame[static_cast<size_t>(i)][1];
+        temp_side_[static_cast<size_t>(fft_size_ + i)] =
+            hann_window_[static_cast<size_t>(i)] * side_frame[static_cast<size_t>(i)][1];
+        temp_carry_[static_cast<size_t>(fft_size_ + i)] = side_frame[static_cast<size_t>(i)][1];
+    }
+    fft_.FFT({temp_main_.data() + fft_size_, static_cast<size_t>(fft_size_)}, real_main_, imag_main_);
+    fft_.FFT({temp_side_.data() + fft_size_, static_cast<size_t>(fft_size_)}, real_side_, imag_side_);
+    fft_.FFT({temp_carry_.data() + fft_size_, static_cast<size_t>(fft_size_)}, real_carry_, imag_carry_);
+    wiener(*this, real_main_, imag_main_, real_side_, imag_side_, real_carry_, imag_carry_, 1);
+    if (wiener.GetGlitch())
+        fft_.IFFT({temp_main_.data() + fft_size_, static_cast<size_t>(fft_size_)}, real_carry_, imag_carry_);
+    else
+        fft_.IFFT({temp_main_.data() + fft_size_, static_cast<size_t>(fft_size_)}, real_side_, imag_side_);
+
+    // 打包输出帧
+    for (int i = 0; i < fft_size_; ++i)
+        output_frame_[static_cast<size_t>(i)] = {temp_main_[static_cast<size_t>(i)],
+                                                 temp_main_[static_cast<size_t>(fft_size_ + i)]};
+    return std::span<PackFloat2 const>{output_frame_};
 }
 
 } // namespace green_vocoder::dsp
